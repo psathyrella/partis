@@ -147,3 +147,84 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
             sw_info[uid] = antn
     refine.write_full_output(out_fname, glfo, hybrid, sw_info)
     return hybrid, n_split, n_kept
+
+
+# ----------------------------------------------------------------------------
+# Locus-level orchestration over the disjoint-groups manifest. These drive the
+# per-group prepare/assemble above, so the integrated (run_cmds) and external
+# (SLURM array) paths share one code path.
+# ----------------------------------------------------------------------------
+MIN_CLUSTER_SIZE = 3
+
+
+def _group_spec(disjoint_dir, group, locus):
+    """Resolve the per-group hybrid I/O paths from a manifest group entry. Paths are
+    derived from the group's fasta_path so this works with only the manifest on disk."""
+    fasta_dir = os.path.dirname(group['fasta_path'])
+    return {'group': group, 'fasta_dir': fasta_dir,
+            'vsearch': '%s/%s/partition-%s.yaml' % (disjoint_dir, fasta_dir, locus),
+            'fasta': '%s/%s' % (disjoint_dir, group['fasta_path']),
+            'sw_cache': '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, locus),
+            'workdir': '%s/%s/hybrid' % (disjoint_dir, fasta_dir),
+            'hybrid_out_rel': '%s/hybrid-partition-%s.yaml' % (fasta_dir, locus),
+            'hybrid_out': '%s/%s/hybrid-partition-%s.yaml' % (disjoint_dir, fasta_dir, locus)}
+
+
+def group_specs(disjoint_dir, groups, locus):
+    """Per-group hybrid path bundles for every group whose vsearch partition and
+    sw-cache exist (the groups hybrid can run on)."""
+    specs = []
+    for group in groups:
+        spec = _group_spec(disjoint_dir, group, locus)
+        if os.path.exists(spec['vsearch']) and os.path.exists(spec['sw_cache']):
+            specs.append(spec)
+    return specs
+
+
+def task_list_fname(disjoint_dir, locus):
+    return '%s/hybrid-task-list-%s.txt' % (disjoint_dir, locus)
+
+
+def prepare_all(disjoint_dir, groups, locus, min_cluster_size=MIN_CLUSTER_SIZE):
+    """Write per-cluster HA inputs for every group, plus a locus-level task list (one
+    line per cluster: cluster_id, infname, outfname, n_seqs). Groups whose hybrid
+    partition already exists emit no jobs. Returns (specs, jobs)."""
+    specs = group_specs(disjoint_dir, groups, locus)
+    all_jobs = []
+    for spec in specs:
+        if os.path.exists(spec['hybrid_out']):
+            continue
+        spec['jobs'] = prepare(spec['vsearch'], spec['fasta'], spec['workdir'],
+                               min_cluster_size=min_cluster_size)
+        all_jobs.extend(spec['jobs'])
+    with open(task_list_fname(disjoint_dir, locus), 'w') as f:
+        for j in all_jobs:
+            f.write('%s\t%s\t%s\t%d\n' % (j['cluster_id'], j['infname'], j['outfname'], j['n_seqs']))
+    return specs, all_jobs
+
+
+def read_task_list(path):
+    """Read a locus task list (written by prepare_all) into run_batch job dicts."""
+    jobs = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip('\n')
+            if not line:
+                continue
+            cid, infname, outfname, n_seqs = line.split('\t')
+            jobs.append({'cluster_id': cid, 'infname': infname,
+                         'outfname': outfname, 'n_seqs': int(n_seqs)})
+    return jobs
+
+
+def assemble_all(specs, min_cluster_size=MIN_CLUSTER_SIZE):
+    """Assemble each group's hybrid partition (writing hybrid-partition-<locus>.yaml
+    where missing). Returns [(group, hybrid_out_rel), ...] so the caller can repoint
+    downstream inputs to the hybrid partitions."""
+    out = []
+    for spec in specs:
+        if not os.path.exists(spec['hybrid_out']):
+            assemble(spec['vsearch'], spec['workdir'], spec['sw_cache'], spec['hybrid_out'],
+                     min_cluster_size=min_cluster_size)
+        out.append((spec['group'], spec['hybrid_out_rel']))
+    return out

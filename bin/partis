@@ -137,6 +137,42 @@ def assemble_groups_action(args):
     disjointgrouper.assemble_groups(args.locus, disjoint_dir, args.outfname)
 
 # ----------------------------------------------------------------------------------------
+def _hybrid_disjoint_dir(args):
+    outdir = utils.non_none([args.paired_outdir, args.workdir])
+    if outdir is None:
+        raise Exception('--paired-outdir or --workdir must be set')
+    return '%s/disjoint-groups/%s' % (outdir, args.locus)
+
+# ----------------------------------------------------------------------------------------
+def create_hybrid_jobs_action(args):
+    # standalone entry point: write per-cluster HA inputs + a locus task list, for
+    # external array orchestration (run-hybrid-jobs on task-list slices, then assemble-hybrid)
+    disjoint_dir = _hybrid_disjoint_dir(args)
+    manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
+    specs, jobs = hybrid.prepare_all(disjoint_dir, manifest['groups'], args.locus)
+    print('  wrote %d per-cluster HA jobs across %d groups to %s' % (len(jobs), len(specs), hybrid.task_list_fname(disjoint_dir, args.locus)))
+
+# ----------------------------------------------------------------------------------------
+def run_hybrid_jobs_action(args):
+    # standalone entry point: run HA on a slice [--job-start, +--job-count) of the task
+    # list (one SLURM array task). Appends per-cluster timing to hybrid-timing-<locus>.csv.
+    disjoint_dir = _hybrid_disjoint_dir(args)
+    jobs = hybrid.read_task_list(hybrid.task_list_fname(disjoint_dir, args.locus))
+    stop = len(jobs) if args.job_count is None else args.job_start + args.job_count
+    partis_bin = '%s/bin/partis' % os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    timing_csv = '%s/hybrid-timing-%s.csv' % (disjoint_dir, args.locus)
+    hybrid.run_batch(jobs[args.job_start : stop], partis_bin, '%s/%s' % (args.parameter_dir, args.locus), args.locus, timing_csv=timing_csv)
+
+# ----------------------------------------------------------------------------------------
+def assemble_hybrid_action(args):
+    # standalone entry point: merge per-cluster HA results into per-group hybrid partitions
+    disjoint_dir = _hybrid_disjoint_dir(args)
+    manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
+    specs = hybrid.group_specs(disjoint_dir, manifest['groups'], args.locus)
+    hybrid.assemble_all(specs)
+    print('  assembled %d group hybrid partitions' % len(specs))
+
+# ----------------------------------------------------------------------------------------
 def run_simulation(args):
     # ----------------------------------------------------------------------------------------
     def run_sub_cmds(working_gldir):
@@ -1499,25 +1535,10 @@ def run_all_loci(args, ig_or_tr='ig'):
         # corrections. Repoints partition_path to the hybrid partition.
         if args.hybrid:
             partis_bin = '%s/bin/partis' % partis_dir
-            hybrid_specs, ha_cmdfos = [], []
-            for ginfo in manifest['groups']:
-                fasta_dir = os.path.dirname(ginfo['fasta_path'])
-                vs_full = '%s/%s' % (disjoint_dir, ginfo['partition_path'])
-                group_fasta = '%s/%s' % (disjoint_dir, ginfo['fasta_path'])
-                sw_full = '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, ltmp)
-                if not os.path.exists(vs_full) or not os.path.exists(sw_full):
-                    continue
-                hyb_workdir = '%s/%s/hybrid' % (disjoint_dir, fasta_dir)
-                hybrid_out_rel = '%s/hybrid-partition-%s.yaml' % (fasta_dir, ltmp)
-                hybrid_out_full = '%s/%s' % (disjoint_dir, hybrid_out_rel)
-                hybrid_specs.append((ginfo, hyb_workdir, vs_full, hybrid_out_rel, hybrid_out_full, sw_full))
-                if os.path.exists(hybrid_out_full):
-                    continue
-                for j in hybrid.prepare(vs_full, group_fasta, hyb_workdir, min_cluster_size=3):
-                    if os.path.exists(j['outfname']):
-                        continue
-                    ha_cmdfos.append({'cmd_str' : hybrid.ha_command(j, partis_bin, getpdir(ltmp), ltmp),
-                                      'outfname' : j['outfname'], 'workdir' : os.path.dirname(j['outfname'])})
+            hybrid_specs, hybrid_jobs = hybrid.prepare_all(disjoint_dir, manifest['groups'], ltmp)
+            ha_cmdfos = [{'cmd_str' : hybrid.ha_command(j, partis_bin, getpdir(ltmp), ltmp),
+                          'outfname' : j['outfname'], 'workdir' : os.path.dirname(j['outfname'])}
+                         for j in hybrid_jobs if not os.path.exists(j['outfname'])]
             if len(ha_cmdfos) > 0:
                 if args.dry_run:
                     print('    --dry-run: would run %d per-cluster HA jobs (%d concurrent)' % (len(ha_cmdfos), n_max_jobs))
@@ -1525,9 +1546,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     print('    running %d per-cluster HA jobs (%d concurrent):' % (len(ha_cmdfos), n_max_jobs), end=' ')
                     utils.run_cmds(ha_cmdfos, n_max_procs=n_max_jobs, debug='write', progress=True)
             if not args.dry_run:
-                for ginfo, hyb_workdir, vs_full, hybrid_out_rel, hybrid_out_full, sw_full in hybrid_specs:
-                    if not os.path.exists(hybrid_out_full):
-                        hybrid.assemble(vs_full, hyb_workdir, sw_full, hybrid_out_full, min_cluster_size=3)
+                for ginfo, hybrid_out_rel in hybrid.assemble_all(hybrid_specs):
                     ginfo['partition_path'] = hybrid_out_rel  # downstream uses the hybrid partition
 
         # step 2.5: refine each group (optional). Reads each group's partition + sw-cache
@@ -1886,6 +1905,9 @@ subconfig = collections.OrderedDict((
     ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
     ('create-disjoint-groups',    {'func' : disjoint_group_action, 'help' : 'Split sequences into disjoint groups by cdr3 length for a single locus, writing per-group fastas, sw-cache subsets, and a manifest yaml. Requires --parameter-dir and --locus.'}),
     ('assemble-groups',   {'func' : assemble_groups_action, 'help' : 'Validate and concatenate per-group partition outputs from disjoint grouping for a single locus. Requires --locus and --paired-outdir (or --outfname).'}),
+    ('create-hybrid-jobs', {'func' : create_hybrid_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), write per-cluster HA inputs and a task list for external hybrid-HA array orchestration. Requires --locus and --paired-outdir (or --workdir).'}),
+    ('run-hybrid-jobs',   {'func' : run_hybrid_jobs_action, 'help' : 'Run hybrid HA on a slice of the task list (one array task), controlled by --job-start and --job-count. Requires --locus, --parameter-dir, and --paired-outdir (or --workdir).'}),
+    ('assemble-hybrid',   {'func' : assemble_hybrid_action, 'help' : 'Merge per-cluster HA results into per-group hybrid partitions for a single locus. Requires --locus and --paired-outdir (or --workdir).'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -1961,6 +1983,12 @@ subargs['create-disjoint-groups'].append({'name' : '--hfrac', 'kwargs' : {'actio
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
+
+subargs['create-hybrid-jobs'] = []
+subargs['assemble-hybrid'] = []
+subargs['run-hybrid-jobs'] = []
+subargs['run-hybrid-jobs'].append({'name' : '--job-start', 'kwargs' : {'type' : int, 'default' : 0, 'help' : 'Index of the first task-list entry to run (for external array orchestration).'}})
+subargs['run-hybrid-jobs'].append({'name' : '--job-count', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'Number of task-list entries to run starting at --job-start (per-cluster HA jobs bundled into one array task). Default runs to the end of the list.'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})
