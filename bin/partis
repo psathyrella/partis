@@ -184,6 +184,28 @@ def assemble_hybrid_action(args):
     print('  assembled %d group hybrid partitions' % len(specs))
 
 # ----------------------------------------------------------------------------------------
+def run_refine_jobs_action(args):
+    # standalone entry point: run refinement on a slice [--job-start, +--job-count) of the
+    # manifest groups (one SLURM array task, or one bundle), in-process. Refine reads each
+    # group's hybrid (or vsearch) partition + sw-cache and writes a refined partition;
+    # reassemble later with assemble-groups. --parameter-dir is the locus-level dir.
+    import partis.refine as refine
+    disjoint_dir = args.disjoint_dir if args.disjoint_dir is not None else _hybrid_disjoint_dir(args)
+    manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
+    specs = refine.group_specs(disjoint_dir, manifest['groups'], args.locus)
+    stop = len(specs) if args.job_count is None else args.job_start + args.job_count
+    specs = specs[args.job_start : stop]
+    csv_path = '%s/multi-hmm/cluster_size.csv' % args.parameter_dir  # prefer post-partition counts
+    if not os.path.exists(csv_path):
+        csv_path = '%s/hmm/cluster_size.csv' % args.parameter_dir
+    max_family_size = None
+    if os.path.exists(csv_path):
+        with open(csv_path) as f:
+            max_family_size = max(int(r['cluster_size']) for r in csv.DictReader(f))
+    refine.run_jobs(specs, max_family_size=max_family_size)
+    print('  refined %d groups' % len(specs))
+
+# ----------------------------------------------------------------------------------------
 def run_simulation(args):
     # ----------------------------------------------------------------------------------------
     def run_sub_cmds(working_gldir):
@@ -1933,6 +1955,7 @@ subconfig = collections.OrderedDict((
     ('create-hybrid-jobs', {'func' : create_hybrid_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), write per-cluster HA inputs and a task list for external hybrid-HA array orchestration. Requires --locus and --paired-outdir (or --workdir).'}),
     ('run-hybrid-jobs',   {'func' : run_hybrid_jobs_action, 'help' : 'Run hybrid HA on a slice of the task list (one array task), controlled by --job-start and --job-count. Requires --locus, --parameter-dir, and --paired-outdir (or --workdir).'}),
     ('assemble-hybrid',   {'func' : assemble_hybrid_action, 'help' : 'Merge per-cluster HA results into per-group hybrid partitions for a single locus. Requires --locus and --paired-outdir (or --workdir).'}),
+    ('run-refine-jobs',   {'func' : run_refine_jobs_action, 'help' : 'Run post-partition refinement on a slice of the disjoint groups (single locus), controlled by --job-start and --job-count; reassemble with assemble-groups. Requires --locus, --parameter-dir (locus-level), and --paired-outdir (or --workdir).'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -2015,6 +2038,11 @@ subargs['run-hybrid-jobs'] = []
 subargs['run-hybrid-jobs'].append({'name' : '--job-start', 'kwargs' : {'type' : int, 'default' : 0, 'help' : 'Index of the first task-list entry to run (for external array orchestration).'}})
 subargs['run-hybrid-jobs'].append({'name' : '--job-count', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'Number of task-list entries to run starting at --job-start (per-cluster HA jobs bundled into one array task). Default runs to the end of the list.'}})
 subargs['run-hybrid-jobs'].append({'name' : '--disjoint-dir', 'kwargs' : {'default' : None, 'help' : 'Explicit path to the disjoint-groups/<locus> dir (overrides the default derived from --paired-outdir/--workdir; used by the integrated pipeline whose dir is under single-chain/).'}})
+
+subargs['run-refine-jobs'] = []
+subargs['run-refine-jobs'].append({'name' : '--job-start', 'kwargs' : {'type' : int, 'default' : 0, 'help' : 'Index of the first group to refine (for external array orchestration).'}})
+subargs['run-refine-jobs'].append({'name' : '--job-count', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'Number of groups to refine starting at --job-start (bundled into one array task). Default runs to the end.'}})
+subargs['run-refine-jobs'].append({'name' : '--disjoint-dir', 'kwargs' : {'default' : None, 'help' : 'Explicit path to the disjoint-groups/<locus> dir (overrides the default derived from --paired-outdir/--workdir).'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})

@@ -13,6 +13,7 @@ singleton-skip and the rearrangement guard. The standalone CLI lives in
 bin/partition-refinement.py, which imports this module.
 """
 import json
+import os
 from collections import defaultdict
 import numpy as np
 
@@ -1075,3 +1076,44 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
     if n_failed:
         print('  %d/%d clusters failed annotation synthesis' % (n_failed, len(refined_partition)))
     return len(annotation_list)
+
+
+# ----------------------------------------------------------------------------
+# Locus-level orchestration over the disjoint-groups manifest (mirrors the
+# hybrid module). The unit is the group (refine is pure-python, no per-cluster
+# fan-out), so there is no separate prepare step; assemble is assemble_groups.
+# ----------------------------------------------------------------------------
+def group_specs(disjoint_dir, groups, locus):
+    """Per-group refine I/O paths. Refine runs on the hybrid partition if it exists,
+    else the vsearch partition; output is refined-partition-<locus>.yaml. Only groups
+    whose input partition and sw-cache exist are returned."""
+    specs = []
+    for group in groups:
+        fasta_dir = os.path.dirname(group['fasta_path'])
+        hybrid_p = '%s/%s/hybrid-partition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
+        vsearch_p = '%s/%s/partition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
+        sw = '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, locus)
+        inp = hybrid_p if os.path.exists(hybrid_p) else vsearch_p
+        if not (os.path.exists(inp) and os.path.exists(sw)):
+            continue
+        specs.append({'group': group, 'input': inp, 'sw_cache': sw,
+                      'refined_out': '%s/%s/refined-partition-%s.yaml' % (disjoint_dir, fasta_dir, locus),
+                      'refined_rel': '%s/refined-partition-%s.yaml' % (fasta_dir, locus)})
+    return specs
+
+
+def run_jobs(specs, max_family_size=None):
+    """Run refinement on a list of group specs (from group_specs), writing each group's
+    refined partition. Production defaults (relative step 3, singleton-skip, rearrangement
+    guard) -- the same config the standalone CLI and integrated step use. Groups whose
+    refined output already exists are skipped."""
+    for spec in specs:
+        if os.path.exists(spec['refined_out']):
+            continue
+        inp = read_refine_inputs(spec['input'], spec['sw_cache'])
+        refined = refine_partition(
+            inp['partition'], inp['uid_info'], inp['uid_sw_naives'],
+            uid_rearr_features=inp['uid_rearr_features'], max_family_size=max_family_size,
+            step3_mode='relative', ej_margin=0.05, skip_singleton_merge=True,
+            min_agreement=0.15, naive_freq_threshold=10, rearrangement_guard=True, verbose=False)
+        write_full_output(spec['refined_out'], inp['glfo'], refined, inp['sw_info'])
