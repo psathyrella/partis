@@ -154,14 +154,25 @@ def create_hybrid_jobs_action(args):
 
 # ----------------------------------------------------------------------------------------
 def run_hybrid_jobs_action(args):
-    # standalone entry point: run HA on a slice [--job-start, +--job-count) of the task
-    # list (one SLURM array task). Appends per-cluster timing to hybrid-timing-<locus>.csv.
-    disjoint_dir = _hybrid_disjoint_dir(args)
+    # standalone entry point: run hybrid HA on a slice [--job-start, +--job-count) of the
+    # task list (one SLURM array task, or one internal bundle), in-process with glfo loaded
+    # once for the whole slice. Appends per-cluster timing to hybrid-timing-<locus>.csv.
+    disjoint_dir = args.disjoint_dir if args.disjoint_dir is not None else _hybrid_disjoint_dir(args)
     jobs = hybrid.read_task_list(hybrid.task_list_fname(disjoint_dir, args.locus))
     stop = len(jobs) if args.job_count is None else args.job_start + args.job_count
-    partis_bin = '%s/bin/partis' % os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    jobs = jobs[args.job_start : stop]
+    # HA config (matches the per-cluster partition command): cluster fastas are data, no
+    # indels, no parameter caching, plain HA (not vsearch), one proc, fixed seed.
+    args.is_data, args.no_indels, args.refuse_to_cache_parameters, args.naive_vsearch, args.n_procs = True, True, True, False, 1
+    args.random_seed = 0
+    random.seed(0)
+    numpy.random.seed(0)
+    gldir = utils.parameter_type_subdir(args, args.parameter_dir) + '/' + glutils.glfo_dir
+    glfo = glutils.read_glfo(gldir, args.locus, only_genes=args.only_genes)
     timing_csv = '%s/hybrid-timing-%s.csv' % (disjoint_dir, args.locus)
-    hybrid.run_batch(jobs[args.job_start : stop], partis_bin, '%s/%s' % (args.parameter_dir, args.locus), args.locus, timing_csv=timing_csv)
+    hybrid.run_jobs_in_process(jobs, args, glfo, timing_csv=timing_csv)
+    if len(jobs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
+        open('%s/hybrid-bundle-%d.done' % (disjoint_dir, args.job_start), 'w').close()
 
 # ----------------------------------------------------------------------------------------
 def assemble_hybrid_action(args):
@@ -1534,16 +1545,30 @@ def run_all_loci(args, ig_or_tr='ig'):
         # cluster >= 3 (keep-or-split, as independent per-cluster jobs), then merge the
         # corrections. Repoints partition_path to the hybrid partition.
         if args.hybrid:
-            partis_bin = '%s/bin/partis' % partis_dir
+            hybrid_bundles_per_proc = 8  # bundles per concurrency slot (load-balance vs startup-amortization tradeoff)
             hybrid_specs, hybrid_jobs = hybrid.prepare_all(disjoint_dir, manifest['groups'], ltmp)
-            ha_cmdfos = [{'cmd_str' : hybrid.ha_command(j, partis_bin, getpdir(ltmp), ltmp),
-                          'outfname' : j['outfname'], 'workdir' : os.path.dirname(j['outfname'])}
-                         for j in hybrid_jobs if not os.path.exists(j['outfname'])]
+            n_todo = sum(1 for j in hybrid_jobs if not os.path.exists(j['outfname']))
+            # bundle the per-cluster HA jobs into a few run-hybrid-jobs invocations. Each
+            # bundle loads glfo once and runs its clusters in-process, so we pay the partis
+            # startup once per bundle instead of once per cluster (the dominant per-cluster
+            # cost). Bundle count is a small multiple of the concurrency, for load balance.
+            total = len(hybrid_jobs)
+            n_bundles = min(total, n_max_jobs * hybrid_bundles_per_proc) if total > 0 else 0
+            bundle_size = int(math.ceil(total / float(n_bundles))) if n_bundles > 0 else 0
+            ha_cmdfos = []
+            for start in range(0, total, bundle_size) if bundle_size > 0 else []:
+                done_marker = '%s/hybrid-bundle-%d.done' % (disjoint_dir, start)
+                if os.path.exists(done_marker):
+                    continue
+                cmd = build_single_locus_cmd('run-hybrid-jobs', ltmp, args, parameter_dir=getpdir(ltmp),
+                                             extra_args=['--disjoint-dir', disjoint_dir,
+                                                         '--job-start', str(start), '--job-count', str(bundle_size)])
+                ha_cmdfos.append({'cmd_str' : cmd, 'outfname' : done_marker, 'workdir' : '%s/hybrid-bundle-work-%d' % (disjoint_dir, start)})
             if len(ha_cmdfos) > 0:
                 if args.dry_run:
-                    print('    --dry-run: would run %d per-cluster HA jobs (%d concurrent)' % (len(ha_cmdfos), n_max_jobs))
+                    print('    --dry-run: would run %d HA cluster jobs in %d bundles (%d concurrent)' % (n_todo, len(ha_cmdfos), n_max_jobs))
                 else:
-                    print('    running %d per-cluster HA jobs (%d concurrent):' % (len(ha_cmdfos), n_max_jobs), end=' ')
+                    print('    running %d HA cluster jobs in %d bundles (%d concurrent):' % (n_todo, len(ha_cmdfos), n_max_jobs), end=' ')
                     utils.run_cmds(ha_cmdfos, n_max_procs=n_max_jobs, debug='write', progress=True)
             if not args.dry_run:
                 for ginfo, hybrid_out_rel in hybrid.assemble_all(hybrid_specs):
@@ -1989,6 +2014,7 @@ subargs['assemble-hybrid'] = []
 subargs['run-hybrid-jobs'] = []
 subargs['run-hybrid-jobs'].append({'name' : '--job-start', 'kwargs' : {'type' : int, 'default' : 0, 'help' : 'Index of the first task-list entry to run (for external array orchestration).'}})
 subargs['run-hybrid-jobs'].append({'name' : '--job-count', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'Number of task-list entries to run starting at --job-start (per-cluster HA jobs bundled into one array task). Default runs to the end of the list.'}})
+subargs['run-hybrid-jobs'].append({'name' : '--disjoint-dir', 'kwargs' : {'default' : None, 'help' : 'Explicit path to the disjoint-groups/<locus> dir (overrides the default derived from --paired-outdir/--workdir; used by the integrated pipeline whose dir is under single-chain/).'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})
@@ -2071,7 +2097,7 @@ subargs['plot-partitions'].append({'name' : '--seed-loci', 'kwargs' : {'help' : 
 subargs['get-linearham-info'].append({'name' : '--linearham-info-fname', 'kwargs' : {'help' : 'yaml file to which to write linearhmam input information'}})
 
 
-sub_arg_groups = {'subset-partition' : ['partition'], 'subset-annotate' : ['annotate']}  # actions that use the args of other actions (i.e. their <subargs> need to be merged, e.g. 'subset-partition' needs access to all the args of 'partition')
+sub_arg_groups = {'subset-partition' : ['partition'], 'subset-annotate' : ['annotate'], 'run-hybrid-jobs' : ['partition']}  # actions that use the args of other actions (i.e. their <subargs> need to be merged, e.g. 'subset-partition' needs access to all the args of 'partition')
 
 def get_arg_names(actions):  # return set of all arg names (in the form they appear in args.__dict__) for the specified actions
     if actions == 'all':

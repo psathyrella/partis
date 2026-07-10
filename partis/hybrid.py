@@ -217,6 +217,43 @@ def read_task_list(path):
     return jobs
 
 
+def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
+    """Run hybrid HA on a list of cluster jobs within a single process, reusing one
+    pre-loaded glfo. Each cluster is partitioned exactly as a standalone `partis
+    partition` would (keep-or-split), writing the same per-cluster output; the only
+    difference from a per-cluster subprocess is that Python/import/glfo startup is paid
+    once for the whole batch instead of once per cluster (the dominant per-cluster cost
+    at these sizes). Returns (cluster_id, n_seqs, wall_sec) timing rows."""
+    import copy
+    import time
+    import csv as _csv
+    from partis import seqfileopener
+    from partis.partitiondriver import PartitionDriver
+    base_workdir = args.workdir
+    rows = []
+    for i, job in enumerate(jobs):
+        if os.path.exists(job['outfname']):
+            continue
+        a = copy.copy(args)
+        a.infname = job['infname']
+        a.outfname = job['outfname']
+        a.workdir = '%s/ha-work-%d' % (base_workdir, i)
+        input_info, reco_info, _ = seqfileopener.read_sequence_file(job['infname'], True, args=a, quiet=True)
+        t0 = time.time()
+        parter = PartitionDriver(a, glfo, input_info, None, reco_info)
+        parter.run(['partition'])
+        parter.clean()
+        rows.append((job['cluster_id'], job['n_seqs'], round(time.time() - t0, 3)))
+    if timing_csv and rows:
+        write_header = not os.path.exists(timing_csv)
+        with open(timing_csv, 'a') as f:
+            w = _csv.writer(f)
+            if write_header:
+                w.writerow(['cluster_id', 'n_seqs', 'wall_sec'])
+            w.writerows(rows)
+    return rows
+
+
 def assemble_all(specs, min_cluster_size=MIN_CLUSTER_SIZE):
     """Assemble each group's hybrid partition (writing hybrid-partition-<locus>.yaml
     where missing). Returns [(group, hybrid_out_rel), ...] so the caller can repoint
