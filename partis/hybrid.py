@@ -44,9 +44,13 @@ def _load_clusters(partition_fname):
 
 
 def _load_ha_subclusters(result_fname):
+    # HA result's best partition (partitions[-1], the same read as _load_clusters): for
+    # keep-or-split runs partis writes partitions centered on i_best at the merged end, so
+    # partitions[-1] is the best partition (not data['events'], which is the annotations of
+    # the most-fragmented step).
     with open(result_fname) as f:
         data = json.load(f)
-    return [list(evt['unique_ids']) for evt in data.get('events', []) if not evt.get('invalid')]
+    return [list(c) for c in data['partitions'][-1]['partition']]
 
 
 def cluster_id(idx, cluster):
