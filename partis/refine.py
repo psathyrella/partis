@@ -1117,11 +1117,29 @@ def group_specs(disjoint_dir, groups, locus):
     return specs
 
 
-def run_jobs(specs, max_family_size=None):
+def estimate_locuswide_thresholds(specs):
+    """Estimate the step-1 naive/jaccard thresholds over the full-locus partition (all cdr3
+    groups in <specs> merged). Global statistics, so estimate once here and pass into each
+    per-group refine rather than letting refine_partition estimate them per-group."""
+    partition, uid_sw_naives, uid_to_muts = [], {}, {}
+    for spec in specs:
+        inp = read_refine_inputs(spec['input'], spec['sw_cache'])
+        partition.extend(inp['partition'])
+        uid_sw_naives.update(inp['uid_sw_naives'])
+        for uid, info in inp['uid_info'].items():
+            uid_to_muts[uid] = get_mutations(info['seq'], info['naive'])
+    return estimate_naive_threshold(partition, uid_sw_naives), estimate_jaccard_threshold(partition, uid_to_muts)
+
+
+def run_jobs(specs, max_family_size=None, naive_threshold=None, jaccard_threshold=None):
     """Run refinement on a list of group specs (from group_specs), writing each group's
     refined partition. Production defaults (relative step 3, singleton-skip, rearrangement
     guard) -- the same config the standalone CLI and integrated step use. Groups whose
-    refined output already exists are skipped."""
+    refined output already exists are skipped. naive/jaccard thresholds default to a
+    locus-wide estimate over <specs>; when running a slice, pass thresholds estimated over
+    the full group list."""
+    if naive_threshold is None or jaccard_threshold is None:
+        naive_threshold, jaccard_threshold = estimate_locuswide_thresholds(specs)
     for spec in specs:
         if os.path.exists(spec['refined_out']):
             continue
@@ -1129,6 +1147,7 @@ def run_jobs(specs, max_family_size=None):
         refined = refine_partition(
             inp['partition'], inp['uid_info'], inp['uid_sw_naives'],
             uid_rearr_features=inp['uid_rearr_features'], max_family_size=max_family_size,
+            naive_threshold=naive_threshold, jaccard_threshold=jaccard_threshold,
             step3_mode='relative', ej_margin=0.05, skip_singleton_merge=True,
             min_agreement=0.15, naive_freq_threshold=10, rearrangement_guard=True, verbose=False)
         write_full_output(spec['refined_out'], inp['glfo'], refined, inp['sw_info'])

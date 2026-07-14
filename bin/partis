@@ -193,6 +193,9 @@ def run_refine_jobs_action(args):
     disjoint_dir = args.disjoint_dir if args.disjoint_dir is not None else _hybrid_disjoint_dir(args)
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     specs = refine.group_specs(disjoint_dir, manifest['groups'], args.locus)
+    # locus-wide thresholds: estimate over all groups (before slicing) so a sliced task uses
+    # the same values as a whole-locus run.
+    naive_thr, jaccard_thr = refine.estimate_locuswide_thresholds(specs) if len(specs) > 0 else (None, None)
     stop = len(specs) if args.job_count is None else args.job_start + args.job_count
     specs = specs[args.job_start : stop]
     csv_path = '%s/multi-hmm/cluster_size.csv' % args.parameter_dir  # prefer post-partition counts
@@ -202,7 +205,7 @@ def run_refine_jobs_action(args):
     if os.path.exists(csv_path):
         with open(csv_path) as f:
             max_family_size = max(int(r['cluster_size']) for r in csv.DictReader(f))
-    refine.run_jobs(specs, max_family_size=max_family_size)
+    refine.run_jobs(specs, max_family_size=max_family_size, naive_threshold=naive_thr, jaccard_threshold=jaccard_thr)
     print('  refined %d groups' % len(specs))
 
 # ----------------------------------------------------------------------------------------
@@ -1600,6 +1603,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         # (already generated above) and writes a refined partition; assemble then uses it.
         # Runs as independent per-group jobs, matching the disjoint external-job model.
         if args.refine:
+            import partis.refine as refine
             refine_script = '%s/bin/partition-refinement.py' % partis_dir
             # max family size for the refine level-1 guard comes from the parameter-dir
             # cluster_size.csv; prefer multi-hmm (post-partition family sizes) over hmm.
@@ -1607,6 +1611,13 @@ def run_all_loci(args, ig_or_tr='ig'):
             if not os.path.exists(csv_path):
                 csv_path = '%s/hmm/cluster_size.csv' % getpdir(ltmp)
             max_arg = (' --cluster-size-csv %s' % csv_path) if os.path.exists(csv_path) else ''
+            # locus-wide naive/jaccard thresholds: estimate once over all groups and pass
+            # into each per-group refine (rest of refine is already per-group invariant).
+            rspecs = refine.group_specs(disjoint_dir, manifest['groups'], ltmp)
+            thr_arg = ''
+            if len(rspecs) > 0:
+                naive_thr, jaccard_thr = refine.estimate_locuswide_thresholds(rspecs)
+                thr_arg = ' --naive-threshold %f --jaccard-threshold %f' % (naive_thr, jaccard_thr)
             refine_cmdfos = []
             for ginfo in manifest['groups']:
                 fasta_dir = os.path.dirname(ginfo['fasta_path'])
@@ -1621,8 +1632,8 @@ def run_all_loci(args, ig_or_tr='ig'):
                     continue
                 cmd = ('%s %s --partition-path %s --sw-cache-path %s --output-path %s'
                        ' --step3-mode relative --ej-margin 0.05 --skip-singleton-merge'
-                       ' --min-agreement 0.15 --naive-freq-threshold 10 --rearrangement-guard%s') % (
-                           sys.executable, refine_script, vs_part_full, sw_full, refined_full, max_arg)
+                       ' --min-agreement 0.15 --naive-freq-threshold 10 --rearrangement-guard%s%s') % (
+                           sys.executable, refine_script, vs_part_full, sw_full, refined_full, max_arg, thr_arg)
                 refine_cmdfos.append({'cmd_str' : cmd, 'outfname' : refined_full, 'workdir' : '%s/%s' % (disjoint_dir, fasta_dir)})
             if len(refine_cmdfos) > 0:
                 if args.dry_run:
