@@ -143,13 +143,16 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
                 continue
         hybrid.append(cluster)
         n_kept += 1
-    # write full output: synthesize each cluster's annotation from the sw-cache
-    glfo, sw_antns, _ = utils.read_output(sw_cache_fname)
-    sw_info = {}
-    for antn in sw_antns:
+    # write full output: synthesize each cluster's annotation from the persistent
+    # partition-step annotations (full-length HMM naive_seq/input_seqs), not the sw-cache
+    # (which stores SW-trimmed, variable-length seqs). refine consumes these downstream and
+    # is accurate only on the full-length convention it was validated on.
+    glfo, part_antns, _ = utils.read_output(partition_fname)
+    ant_info = {}
+    for antn in part_antns:
         for uid in antn['unique_ids']:
-            sw_info[uid] = antn
-    refine.write_full_output(out_fname, glfo, hybrid, sw_info)
+            ant_info[uid] = antn
+    refine.write_full_output(out_fname, glfo, hybrid, ant_info)
     return hybrid, n_split, n_kept
 
 
