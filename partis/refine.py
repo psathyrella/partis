@@ -6,13 +6,14 @@ partition. Usable after any partis partition (standard or disjoint grouping).
 
   Step 1: Validated split (Jaccard proposes, per-sequence naive validates)
   Step 2: Incremental naive merge (merge only if mutation fingerprints agree)
-  Step 3: EJ centroid split on collision groups (naive_freq >= threshold)
+  Step 3: Shared-descent split of over-merged clusters (guards fork on chain)
 
-Entry point: refine_partition(); its defaults run relative-mode step 3 with
-singleton-skip and the rearrangement guard. The standalone CLI lives in
-bin/partition-refinement.py, which imports this module.
+Entry point: refine_partition(); its defaults run step 3 with singleton-skip and
+the rearrangement guard. The standalone CLI lives in bin/partition-refinement.py,
+which imports this module.
 """
 import json
+import math
 import os
 from collections import defaultdict
 import numpy as np
@@ -149,14 +150,6 @@ def get_mutations_with_base(seq, naive):
         if s != n and s != 'N' and n != 'N':
             muts[i] = s
     return muts
-
-
-def enhanced_jaccard(muts1, muts2):
-    all_pos = set(muts1.keys()) | set(muts2.keys())
-    if len(all_pos) == 0:
-        return 0.0
-    shared = sum(1 for p in muts1 if p in muts2 and muts1[p] == muts2[p])
-    return shared / len(all_pos)
 
 
 def estimate_naive_threshold(partition, uid_sw_naives):
@@ -592,181 +585,147 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
     return merged_partition
 
 
-def ej_centroid_cluster(uid_list, uid_muts, threshold, rescue_threshold=None):
-    """Greedy centroid clustering using enhanced Jaccard.
+# ----------------------------------------------------------------------------
+# Step-3 shared-descent split (non-transitive greedy centroid). For a cluster, a
+# per-position base-specific mutation propensity g(pos,base) is measured from its
+# members; the expected number of shared specific mutations for an unrelated pair
+# is mu = sum over (pos,base) of g(pos,base)^2. Two cells are linked only when
+# their observed shared specific-mutation count exceeds that chance null (Poisson
+# upper tail < alpha), i.e. they share more mutations than convergence would
+# produce, so the threshold self-calibrates per cluster.
+# ----------------------------------------------------------------------------
 
-    If rescue_threshold is set, after the first pass any non-centroid
-    singletons are reassigned to the best-matching centroid if
-    EJ >= rescue_threshold. This recovers star-tree family members
-    that had low EJ to the centroid but nonzero shared ancestry.
-    """
-    if len(uid_list) <= 1:
-        return [list(uid_list)]
+# positions mutated in >= HOTSPOT_FRAC of the cluster (or in more than
+# HOTSPOT_ABS members) are treated as uninformative (likely shared by chance)
+# and excluded from the pair graph; this also bounds the pairwise cost to rare
+# mutations.
+HOTSPOT_FRAC = 0.5
+HOTSPOT_ABS = 500
+SHARED_DESCENT_ALPHA = 0.01  # link threshold (Poisson upper-tail cutoff) for the shared-descent test
 
-    uid_nmuts = [(uid, len(uid_muts.get(uid, {}))) for uid in uid_list]
-    uid_nmuts.sort(key=lambda x: -x[1])
 
-    assigned = set()
+def _poisson_upper_tail(k, mu):
+    """P(Poisson(mu) >= k) = 1 - CDF(k-1, mu), via a stable running sum of the
+    pmf terms exp(-mu) * mu^i / i! for i in 0..k-1 (no scipy)."""
+    if k <= 0:
+        return 1.0
+    term = math.exp(-mu)  # i = 0
+    cdf = term
+    for i in range(1, k):
+        term *= mu / i
+        cdf += term
+    cdf = min(cdf, 1.0)
+    return max(0.0, 1.0 - cdf)
+
+
+def shared_descent_pair_stats(cluster, uid_muts):
+    """For one cluster, estimate the base-specific per-position mutation propensity
+    g(pos,base) = (# members whose mutation at pos == base) / cluster_size, the
+    null expected shared-count mu = sum over (pos,base) of g^2, and the observed
+    shared specific-mutation count per member-index pair. Hotspot/consensus
+    positions are excluded (informative positions only). Returns
+    (members, pair_k, mu)."""
+    members = list(cluster)
+    n = len(members)
+    inv = defaultdict(list)  # (pos, base) -> [member index]
+    for idx, uid in enumerate(members):
+        for pos, base in uid_muts.get(uid, {}).items():
+            inv[(pos, base)].append(idx)
+    mu = 0.0
+    pair_k = defaultdict(int)
+    for idxs in inv.values():
+        c = len(idxs)
+        if c < 2:
+            continue
+        if c >= HOTSPOT_FRAC * n or c > HOTSPOT_ABS:
+            continue  # skip uninformative (hotspot/consensus) position
+        g = c / n
+        mu += g * g
+        for i in range(c):
+            ai = idxs[i]
+            for j in range(i + 1, c):
+                bj = idxs[j]
+                key = (ai, bj) if ai < bj else (bj, ai)
+                pair_k[key] += 1
+    return members, pair_k, mu
+
+
+def split_by_shared_descent(cluster, uid_muts, alpha=SHARED_DESCENT_ALPHA):
+    """Split one cluster by shared descent in a non-transitive greedy-centroid
+    assignment: sort members by mutation count (descending); the first unassigned
+    member seeds a centroid; every other unassigned member joins it iff the pair
+    shares more specific mutations than the cluster chance null (Poisson upper tail
+    < alpha); assigned members are removed (non-transitive -> no chaining).
+    Unlinked members become singletons. Returns a list of sub-clusters (lists of
+    uids)."""
+    members, pair_k, mu = shared_descent_pair_stats(cluster, uid_muts)
+    n = len(members)
+    if n <= 1:
+        return [list(members)]
+    order = sorted(range(n), key=lambda i: -len(uid_muts.get(members[i], {})))
+    assigned = [False] * n
     clusters = []
-    centroid_uids = []
-
-    for centroid_uid, _ in uid_nmuts:
-        if centroid_uid in assigned:
+    for i in order:
+        if assigned[i]:
             continue
-
-        centroid_muts = uid_muts.get(centroid_uid)
-        if centroid_muts is None:
-            clusters.append([centroid_uid])
-            assigned.add(centroid_uid)
-            continue
-
-        cluster = [centroid_uid]
-        assigned.add(centroid_uid)
-        centroid_uids.append(centroid_uid)
-
-        for other_uid, _ in uid_nmuts:
-            if other_uid in assigned:
+        assigned[i] = True
+        sub = [members[i]]
+        for o in order:
+            if assigned[o]:
                 continue
-            other_muts = uid_muts.get(other_uid)
-            if other_muts is None:
-                continue
-            if enhanced_jaccard(centroid_muts, other_muts) >= threshold:
-                cluster.append(other_uid)
-                assigned.add(other_uid)
-
-        clusters.append(cluster)
-
-    for uid in uid_list:
-        if uid not in assigned:
-            clusters.append([uid])
-
-    # rescue pass: reassign non-centroid singletons to best-matching centroid
-    if rescue_threshold is not None and rescue_threshold < threshold and len(centroid_uids) > 1:
-        # build centroid index
-        centroid_to_idx = {}
-        for idx, c in enumerate(clusters):
-            if c[0] in centroid_uids:
-                centroid_to_idx[c[0]] = idx
-
-        # build cluster fingerprints for each centroid cluster
-        centroid_fps = {}
-        for cent_uid in centroid_uids:
-            cidx = centroid_to_idx[cent_uid]
-            fp, n_w = get_cluster_fingerprint(clusters[cidx], uid_muts)
-            centroid_fps[cent_uid] = (fp, n_w)
-
-        rescued = 0
-        non_centroid_clusters = []
-        for idx, c in enumerate(clusters):
-            if c[0] in centroid_uids:
-                continue  # centroid clusters handled separately
-            if len(c) == 1:
-                uid = c[0]
-                uid_m = uid_muts.get(uid)
-                if uid_m is None:
-                    non_centroid_clusters.append(c)
-                    continue
-                # build singleton fingerprint
-                sing_fp = defaultdict(lambda: defaultdict(int))
-                for pos, base in uid_m.items():
-                    sing_fp[pos][base] = 1
-                sing_n = 1
-
-                best_agreement = 0.0
-                best_centroid = None
-                for cent_uid in centroid_uids:
-                    cfp, cn = centroid_fps[cent_uid]
-                    agreement, _ = fingerprint_agreement(
-                        sing_fp, sing_n, cfp, cn, min_fp_positions=0)
-                    if agreement > best_agreement:
-                        best_agreement = agreement
-                        best_centroid = cent_uid
-                if best_agreement >= rescue_threshold and best_centroid is not None:
-                    clusters[centroid_to_idx[best_centroid]].append(uid)
-                    # update the centroid fingerprint with the rescued member
-                    for pos, base in uid_m.items():
-                        centroid_fps[best_centroid][0][pos][base] += 1
-                    centroid_fps[best_centroid] = (centroid_fps[best_centroid][0],
-                                                   centroid_fps[best_centroid][1] + 1)
-                    rescued += 1
-                else:
-                    non_centroid_clusters.append(c)
-            else:
-                non_centroid_clusters.append(c)
-
-        # rebuild: centroid clusters (possibly grown by rescue) + non-rescued
-        final = [c for c in clusters if c[0] in centroid_uids]
-        final.extend(non_centroid_clusters)
-        return final
-
+            key = (i, o) if i < o else (o, i)
+            if _poisson_upper_tail(pair_k.get(key, 0), mu) < alpha:
+                sub.append(members[o])
+                assigned[o] = True
+        clusters.append(sub)
     return clusters
 
 
-def estimate_group_ej_noise(uid_list, uid_muts, max_sample=500):
-    """Sample pairwise EJ within a group to estimate the noise floor.
+def _partition_has_real_d(uid_rearr_features):
+    """True if any uid carries a real (non-placeholder) D gene -> heavy chain.
+    Light loci (igk/igl) have no real D, so this is False for them, which is how
+    step 3 decides the heavy (guarded) vs light (relaxed) fork when light_chain is
+    not passed explicitly."""
+    if not uid_rearr_features:
+        return False
+    for feat in uid_rearr_features.values():
+        if not isinstance(feat, dict):
+            continue
+        d_gene = feat.get('vdj', ('', '', ''))[1]
+        if d_gene and 'x-x' not in d_gene and 'Dx' not in d_gene:
+            return True
+    return False
 
-    Returns (median, p75) of sampled pairwise EJ.
-    - p75: used by 'adaptive' mode as the threshold (above which only
-      ~25% of random pairs fall)
-    - median: used by 'relative' mode as the noise baseline
+
+def step3_split(merged_partition, uid_info, uid_sw_naives,
+                naive_freq=None, naive_freq_threshold=10,
+                max_expansion_ratio=2.0,
+                uid_rearr_features=None, rearrangement_guard=False,
+                light_chain=None, alpha=SHARED_DESCENT_ALPHA):
+    """Step 3: split over-merged clusters by shared descent
+    (split_by_shared_descent). The guards fork on chain:
+
+      HEAVY (light_chain False): a cluster is split only if its dominant SW naive
+        occurs >= naive_freq_threshold times AND it fails both the D-gene guard
+        (rearrangement_guard: real D present and >= 80% shared V+D+J -> keep) and
+        the concentration-ratio guard (cluster_size / dominant-naive-count <=
+        max_expansion_ratio -> keep). Otherwise kept intact.
+
+      LIGHT (light_chain True): the naive-freq trigger and the concentration-ratio
+        guard are skipped (they do not discriminate when every cell shares one
+        light naive); every cluster of size >= 2 is passed to the proposer.
+
+    light_chain: if None, inferred from the absence of real D genes in
+    uid_rearr_features (heavy has real D; light does not).
+    alpha: link threshold (Poisson upper-tail cutoff) for the shared-descent test
+    (default SHARED_DESCENT_ALPHA).
     """
-    import random
-    uids_with_muts = [u for u in uid_list if u in uid_muts and len(uid_muts[u]) > 0]
-    n = len(uids_with_muts)
-    if n < 2:
-        return 0.0, 0.0
+    if light_chain is None:
+        light_chain = not _partition_has_real_d(uid_rearr_features)
 
-    ejs = []
-    n_pairs = n * (n - 1) // 2
-    if n_pairs <= max_sample:
-        for i in range(n):
-            for j in range(i + 1, n):
-                ejs.append(enhanced_jaccard(uid_muts[uids_with_muts[i]],
-                                           uid_muts[uids_with_muts[j]]))
-    else:
-        for _ in range(max_sample):
-            i, j = random.sample(range(n), 2)
-            ejs.append(enhanced_jaccard(uid_muts[uids_with_muts[i]],
-                                       uid_muts[uids_with_muts[j]]))
-
-    if not ejs:
-        return 0.0, 0.0
-    ejs.sort()
-    median = ejs[len(ejs) // 2]
-    p75 = ejs[int(len(ejs) * 0.75)]
-    return median, p75
-
-
-def step3_ej_centroid(merged_partition, uid_info, uid_sw_naives,
-                      threshold=0.10, naive_freq=None, naive_freq_threshold=None,
-                      rescue_threshold=None, step3_mode='fixed',
-                      min_mutations=0, ej_margin=0.05,
-                      max_expansion_ratio=2.0, max_family_size=None,
-                      uid_rearr_features=None, rearrangement_guard=False):
-    """Step 3: EJ centroid split on collision groups.
-
-    step3_mode controls how the EJ threshold is determined:
-      'fixed':    use the fixed threshold for all groups (original behavior)
-      'gate':     skip groups where avg mutations < min_mutations
-      'adaptive': set threshold = max(fixed, p75 of sampled pairwise EJ)
-      'relative': set threshold = max(fixed, group_median_EJ + ej_margin)
-
-    When rearrangement_guard is True and uid_rearr_features is provided:
-      - V+D+J majority guard: if >= 80% of cluster members agree on V+D+J
-        gene assignment, skip splitting (rearrangement-consistent, one family).
-        Replaces the concentration ratio guard.
-
-    When rearrangement_guard is False, uses the original two-level expansion
-    guard (concentration ratio + max_family_size).
-    """
     result = []
-    n_resplit = 0
-    n_skipped = 0
-    n_gated = 0
-    n_expansion_skip = 0
-    n_must_collision = 0
-    n_rearr_guard_skip = 0
-    n_input_seqs = 0
+    n_resplit = n_skipped = n_expansion_skip = n_must_collision = 0
+    n_rearr_guard_skip = n_input_seqs = 0
 
     for cluster in merged_partition:
         if len(cluster) < 2:
@@ -774,106 +733,65 @@ def step3_ej_centroid(merged_partition, uid_info, uid_sw_naives,
             n_skipped += 1
             continue
 
-        # check naive frequency
-        should_split = False
-        rep_naive = None
-        if naive_freq is not None and naive_freq_threshold is not None:
-            rep_naive = get_fragment_naive(cluster, uid_sw_naives)
-            if rep_naive is not None and naive_freq.get(rep_naive, 0) >= naive_freq_threshold:
-                should_split = True
-
-        if not should_split:
-            result.append(cluster)
-            n_skipped += 1
-            continue
-
-        if rearrangement_guard and uid_rearr_features is not None:
-            # D-gene guard: additional protection for IGH deep trees.
-            # Only triggers when real D genes are present AND V+D+J
-            # majority >= 80%. On light chain (no real D gene), this
-            # does not trigger and falls through to the expansion guard.
-            vdj_counts = {}
-            has_real_d = False
-            n_with_feat = 0
-            for uid in cluster:
-                feat = uid_rearr_features.get(uid)
-                if feat is not None:
-                    vdj = feat['vdj']
-                    vdj_counts[vdj] = vdj_counts.get(vdj, 0) + 1
-                    n_with_feat += 1
-                    d_gene = vdj[1]
-                    if d_gene and 'x-x' not in d_gene and 'Dx' not in d_gene:
-                        has_real_d = True
-            if has_real_d and n_with_feat > 0:
-                top_count = max(vdj_counts.values())
-                if top_count / n_with_feat >= 0.80:
-                    result.append(cluster)
-                    n_rearr_guard_skip += 1
-                    continue
-
-        # two-level expansion guard
-        rep_freq = naive_freq.get(rep_naive, 0) if rep_naive else 0
-
-        # level 1: if naive_freq > max_family_size, must be collision
-        if max_family_size is not None and rep_freq > max_family_size:
-            n_must_collision += 1
-            # definitely collision, proceed to splitting
-        else:
-            # level 2: concentration ratio check. A cluster whose size is within
-            # max_expansion_ratio of its dominant-naive count is treated as a real
-            # expansion (star-like) and kept intact.
-            ratio_threshold = max_expansion_ratio
-            if rep_naive is not None and ratio_threshold > 0:
-                naive_count_in_cluster = sum(1 for uid in cluster
-                                            if uid in uid_sw_naives and uid_sw_naives[uid] == rep_naive)
-                ratio = len(cluster) / naive_count_in_cluster if naive_count_in_cluster > 0 else 999
-                if ratio <= ratio_threshold:
-                    result.append(cluster)
-                    n_expansion_skip += 1
-                    continue
-
-        # EJ centroid split (runs on clusters that passed through the guard)
+        # per-cell mutations vs the SW naive, for the proposer
         uid_muts = {}
         for uid in cluster:
             if uid in uid_sw_naives and uid in uid_info:
-                naive = uid_sw_naives[uid]
-                seq = uid_info[uid]['seq']
-                uid_muts[uid] = get_mutations_with_base(seq, naive)
+                uid_muts[uid] = get_mutations_with_base(uid_info[uid]['seq'], uid_sw_naives[uid])
 
-        # signal gate
-        if step3_mode == 'gate' and min_mutations > 0:
-            avg_muts = sum(len(m) for m in uid_muts.values()) / max(len(uid_muts), 1)
-            if avg_muts < min_mutations:
+        if not light_chain:
+            # HEAVY guard block: only genuine collisions reach the proposer.
+            rep_naive = None
+            if naive_freq is not None and naive_freq_threshold is not None:
+                rep_naive = get_fragment_naive(cluster, uid_sw_naives)
+            if rep_naive is None or naive_freq.get(rep_naive, 0) < naive_freq_threshold:
                 result.append(cluster)
-                n_gated += 1
+                n_skipped += 1
                 continue
+            # D-gene guard: real D present and >= 80% share V+D+J -> keep (deep tree)
+            if rearrangement_guard and uid_rearr_features is not None:
+                vdj_counts = {}
+                has_real_d = False
+                n_with_feat = 0
+                for uid in cluster:
+                    feat = uid_rearr_features.get(uid)
+                    if feat is not None:
+                        vdj = feat['vdj']
+                        vdj_counts[vdj] = vdj_counts.get(vdj, 0) + 1
+                        n_with_feat += 1
+                        d_gene = vdj[1]
+                        if d_gene and 'x-x' not in d_gene and 'Dx' not in d_gene:
+                            has_real_d = True
+                if has_real_d and n_with_feat > 0 and max(vdj_counts.values()) / n_with_feat >= 0.80:
+                    result.append(cluster)
+                    n_rearr_guard_skip += 1
+                    continue
+            # concentration-ratio guard: star-like expansion -> keep
+            if rep_naive is not None and max_expansion_ratio > 0:
+                naive_count = sum(1 for uid in cluster
+                                  if uid in uid_sw_naives and uid_sw_naives[uid] == rep_naive)
+                ratio = len(cluster) / naive_count if naive_count > 0 else 999
+                if ratio <= max_expansion_ratio:
+                    result.append(cluster)
+                    n_expansion_skip += 1
+                    continue
+            n_must_collision += 1
 
-        # adaptive/relative threshold
-        if step3_mode in ('adaptive', 'relative'):
-            median_ej, p75_ej = estimate_group_ej_noise(list(cluster), uid_muts)
-            if step3_mode == 'adaptive':
-                local_threshold = max(threshold, p75_ej)
-            else:
-                local_threshold = max(threshold, median_ej + ej_margin)
-        else:
-            local_threshold = threshold
-
+        # shared-descent split (light: every cluster; heavy: those that passed guards)
         n_input_seqs += len(cluster)
-        pieces = ej_centroid_cluster(list(cluster), uid_muts, local_threshold, rescue_threshold)
+        pieces = split_by_shared_descent(list(cluster), uid_muts, alpha)
         result.extend(pieces)
         if len(pieces) > 1:
             n_resplit += 1
 
     n_result_singletons = sum(1 for c in result if len(c) == 1)
-    mode_label = ' [%s]' % step3_mode if step3_mode != 'fixed' else ''
-    gate_label = ', %d gated (low signal)' % n_gated if n_gated > 0 else ''
-    exp_label = ', %d expansion-skip' % n_expansion_skip if n_expansion_skip > 0 else ''
+    chain = 'light (relaxed)' if light_chain else 'heavy (guarded)'
     coll_label = ', %d must-collision' % n_must_collision if n_must_collision > 0 else ''
-    rearr_label = ''
-    if rearrangement_guard:
-        rearr_label = ', %d rearr-guard-skip' % n_rearr_guard_skip
-    print('  step 3: %d re-split (%d seqs processed), %d skipped%s%s%s%s, %d -> %d clusters (%d singletons)%s' % (
-        n_resplit, n_input_seqs, n_skipped, gate_label, coll_label, exp_label, rearr_label, len(merged_partition), len(result), n_result_singletons, mode_label), flush=True)
+    exp_label = ', %d expansion-skip' % n_expansion_skip if n_expansion_skip > 0 else ''
+    rearr_label = ', %d rearr-guard-skip' % n_rearr_guard_skip if (not light_chain and rearrangement_guard) else ''
+    print('  step 3 [%s, alpha=%.3g]: %d re-split (%d seqs processed), %d skipped%s%s%s, %d -> %d clusters (%d singletons)' % (
+        chain, alpha, n_resplit, n_input_seqs, n_skipped, coll_label, exp_label, rearr_label,
+        len(merged_partition), len(result), n_result_singletons), flush=True)
     return result
 
 
@@ -952,22 +870,30 @@ def estimate_jaccard_threshold(partition, uid_to_muts):
 
 
 def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None,
-                     max_family_size=None, jaccard_threshold=None, naive_threshold=None,
+                     jaccard_threshold=None, naive_threshold=None,
                      min_agreement=0.15, min_fp_positions=0, skip_singleton_merge=True,
-                     step3_threshold=0.10, step3_mode='relative', min_mutations=20,
-                     ej_margin=0.05, rescue_threshold=None, naive_freq_threshold=10,
-                     max_expansion_ratio=2.0, min_cluster_size=2,
-                     rearrangement_guard=True, verbose=True):
+                     naive_freq_threshold=10, max_expansion_ratio=2.0, min_cluster_size=2,
+                     rearrangement_guard=True, light_chain=None, alpha=SHARED_DESCENT_ALPHA,
+                     verbose=True, random_seed=None):
     """Run the three-step refinement and return the refined partition.
 
     partition: list of clusters, each a list of uids.
     uid_info: uid -> {'seq', 'naive', 'cdr3_length'} (partition annotations).
     uid_sw_naives: uid -> per-sequence SW naive_seq.
     uid_rearr_features: uid -> {'vdj': (v, d, j)} (required if rearrangement_guard).
-    max_family_size: from cluster_size.csv, for the step-3 level-1 expansion guard.
 
-    Defaults run relative-mode step 3 with singleton-skip and the rearrangement guard.
+    Step 3 splits over-merged clusters by shared descent (step3_split), with guards
+    that fork on chain: heavy (D-gene present) keeps the D-gene + concentration
+    guards; light relaxes them. light_chain: if None, inferred from D-gene presence.
+    alpha: link threshold (Poisson upper-tail cutoff) for the step-3 shared-descent test.
+
+    random_seed: if set, seeds the module RNG so the sampled threshold estimator
+    (estimate_jaccard_threshold) draws a fixed sequence -> runs are bit-reproducible.
+    For validation on fixed datasets; leave None in production (harmless jitter).
     """
+    if random_seed is not None:
+        import random
+        random.seed(random_seed)
     partition = [list(c) for c in partition]
     uid_to_muts, uid_to_muts_with_base = {}, {}
     for uid, info in uid_info.items():
@@ -993,15 +919,18 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
         min_agreement, min_fp_positions, skip_singleton_merge=skip_singleton_merge)
 
     naive_freq = compute_naive_frequencies(uid_sw_naives)
+    if light_chain is None:
+        light_chain = not _partition_has_real_d(uid_rearr_features)
     if verbose:
-        n_high = sum(1 for f in naive_freq.values() if f >= naive_freq_threshold)
-        print('\n=== Step 3: EJ centroid (threshold %.2f, naive_freq >= %d, %d qualifying naives, mode=%s) ===' % (
-            step3_threshold, naive_freq_threshold, n_high, step3_mode), flush=True)
-    final_partition = step3_ej_centroid(
-        merged_partition, uid_info, uid_sw_naives, step3_threshold, naive_freq,
-        naive_freq_threshold, rescue_threshold, step3_mode, min_mutations, ej_margin,
-        max_expansion_ratio, max_family_size,
-        uid_rearr_features=uid_rearr_features, rearrangement_guard=rearrangement_guard)
+        chain = 'light (relaxed)' if light_chain else 'heavy (guarded)'
+        print('\n=== Step 3: shared-descent split (%s, alpha=%.3g, naive_freq >= %d) ===' % (
+            chain, alpha, naive_freq_threshold), flush=True)
+    final_partition = step3_split(
+        merged_partition, uid_info, uid_sw_naives,
+        naive_freq=naive_freq, naive_freq_threshold=naive_freq_threshold,
+        max_expansion_ratio=max_expansion_ratio,
+        uid_rearr_features=uid_rearr_features, rearrangement_guard=rearrangement_guard,
+        light_chain=light_chain, alpha=alpha)
 
     return final_partition
 
@@ -1131,9 +1060,9 @@ def estimate_locuswide_thresholds(specs):
     return estimate_naive_threshold(partition, uid_sw_naives), estimate_jaccard_threshold(partition, uid_to_muts)
 
 
-def run_jobs(specs, max_family_size=None, naive_threshold=None, jaccard_threshold=None):
+def run_jobs(specs, naive_threshold=None, jaccard_threshold=None):
     """Run refinement on a list of group specs (from group_specs), writing each group's
-    refined partition. Production defaults (relative step 3, singleton-skip, rearrangement
+    refined partition. Production defaults (shared-descent step 3, singleton-skip, rearrangement
     guard) -- the same config the standalone CLI and integrated step use. Groups whose
     refined output already exists are skipped. naive/jaccard thresholds default to a
     locus-wide estimate over <specs>; when running a slice, pass thresholds estimated over
@@ -1146,8 +1075,8 @@ def run_jobs(specs, max_family_size=None, naive_threshold=None, jaccard_threshol
         inp = read_refine_inputs(spec['input'], spec['sw_cache'])
         refined = refine_partition(
             inp['partition'], inp['uid_info'], inp['uid_sw_naives'],
-            uid_rearr_features=inp['uid_rearr_features'], max_family_size=max_family_size,
+            uid_rearr_features=inp['uid_rearr_features'],
             naive_threshold=naive_threshold, jaccard_threshold=jaccard_threshold,
-            step3_mode='relative', ej_margin=0.05, skip_singleton_merge=True,
-            min_agreement=0.15, naive_freq_threshold=10, rearrangement_guard=True, verbose=False)
+            skip_singleton_merge=True, min_agreement=0.15,
+            naive_freq_threshold=10, rearrangement_guard=True, verbose=False)
         write_full_output(spec['refined_out'], inp['glfo'], refined, inp['sw_info'])

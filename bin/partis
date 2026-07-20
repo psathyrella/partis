@@ -198,14 +198,7 @@ def run_refine_jobs_action(args):
     naive_thr, jaccard_thr = refine.estimate_locuswide_thresholds(specs) if len(specs) > 0 else (None, None)
     stop = len(specs) if args.job_count is None else args.job_start + args.job_count
     specs = specs[args.job_start : stop]
-    csv_path = '%s/multi-hmm/cluster_size.csv' % args.parameter_dir  # prefer post-partition counts
-    if not os.path.exists(csv_path):
-        csv_path = '%s/hmm/cluster_size.csv' % args.parameter_dir
-    max_family_size = None
-    if os.path.exists(csv_path):
-        with open(csv_path) as f:
-            max_family_size = max(int(r['cluster_size']) for r in csv.DictReader(f))
-    refine.run_jobs(specs, max_family_size=max_family_size, naive_threshold=naive_thr, jaccard_threshold=jaccard_thr)
+    refine.run_jobs(specs, naive_threshold=naive_thr, jaccard_threshold=jaccard_thr)
     print('  refined %d groups' % len(specs))
 
 # ----------------------------------------------------------------------------------------
@@ -1605,12 +1598,6 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.refine:
             import partis.refine as refine
             refine_script = '%s/bin/partition-refinement.py' % partis_dir
-            # max family size for the refine level-1 guard comes from the parameter-dir
-            # cluster_size.csv; prefer multi-hmm (post-partition family sizes) over hmm.
-            csv_path = '%s/multi-hmm/cluster_size.csv' % getpdir(ltmp)
-            if not os.path.exists(csv_path):
-                csv_path = '%s/hmm/cluster_size.csv' % getpdir(ltmp)
-            max_arg = (' --cluster-size-csv %s' % csv_path) if os.path.exists(csv_path) else ''
             # locus-wide naive/jaccard thresholds: estimate once over all groups and pass
             # into each per-group refine (rest of refine is already per-group invariant).
             rspecs = refine.group_specs(disjoint_dir, manifest['groups'], ltmp)
@@ -1631,9 +1618,9 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if os.path.exists(refined_full):
                     continue
                 cmd = ('%s %s --partition-path %s --sw-cache-path %s --output-path %s'
-                       ' --step3-mode relative --ej-margin 0.05 --skip-singleton-merge'
-                       ' --min-agreement 0.15 --naive-freq-threshold 10 --rearrangement-guard%s%s') % (
-                           sys.executable, refine_script, vs_part_full, sw_full, refined_full, max_arg, thr_arg)
+                       ' --skip-singleton-merge --min-agreement 0.15'
+                       ' --naive-freq-threshold 10 --rearrangement-guard%s') % (
+                           sys.executable, refine_script, vs_part_full, sw_full, refined_full, thr_arg)
                 refine_cmdfos.append({'cmd_str' : cmd, 'outfname' : refined_full, 'workdir' : '%s/%s' % (disjoint_dir, fasta_dir)})
             if len(refine_cmdfos) > 0:
                 if args.dry_run:

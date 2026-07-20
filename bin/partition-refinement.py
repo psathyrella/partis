@@ -39,24 +39,13 @@ def main():
                         help='min strong fingerprint positions for step 2 (0=disabled, try 3)')
     parser.add_argument('--skip-singleton-merge', action='store_true',
                         help='skip merge attempts between two singleton clusters')
-    parser.add_argument('--step3-threshold', type=float, default=0.10)
-    parser.add_argument('--step3-mode', choices=['fixed', 'gate', 'adaptive', 'relative'],
-                        default='fixed',
-                        help='Step 3 threshold mode: fixed (original), gate (skip low-signal), '
-                             'adaptive (p75 noise floor), relative (median + margin)')
-    parser.add_argument('--min-mutations', type=int, default=20,
-                        help='For gate mode: skip groups with avg mutations below this')
-    parser.add_argument('--ej-margin', type=float, default=0.05,
-                        help='For relative mode: threshold = median_EJ + margin')
-    parser.add_argument('--rescue-threshold', type=float, default=None,
-                        help='EJ threshold for rescuing step 3 singletons (e.g. 0.03)')
+    parser.add_argument('--alpha', type=float, default=0.01,
+                        help='link threshold (Poisson upper-tail cutoff) for the step-3 shared-descent test (default 0.01)')
     parser.add_argument('--naive-freq-threshold', type=int, default=10)
     parser.add_argument('--max-expansion-ratio', type=float, default=2.0,
-                        help='skip splitting if cluster_size/naive_count <= this (expansion guard)')
+                        help='heavy-chain concentration guard: skip splitting if cluster_size/naive_count <= this')
     parser.add_argument('--output-path', default=None,
                         help='write refined partition to this path (JSON)')
-    parser.add_argument('--cluster-size-csv', default=None,
-                        help='path to cluster_size.csv for max family size (two-level guard)')
     parser.add_argument('--hmm-annotation-path', default=None,
                         help='HMM annotation file for naives (strips fv_insertion, falls back to SW on length mismatch)')
     parser.add_argument('--min-cluster-size', type=int, default=2)
@@ -81,23 +70,15 @@ def main():
         pur, comp = refine.calc_metrics(true_partition, partition)
         print('\nbaseline: purity %.4f, completeness %.4f, %d clusters' % (pur, comp, len(partition)))
 
-    max_family_size = None
-    if args.cluster_size_csv is not None:
-        with open(args.cluster_size_csv) as f:
-            max_family_size = max(int(row['cluster_size']) for row in csv.DictReader(f))
-        print('  max family size from %s: %d' % (args.cluster_size_csv, max_family_size))
-
     final_partition = refine.refine_partition(
         partition, inp['uid_info'], uid_sw_naives,
         uid_rearr_features=(inp['uid_rearr_features'] if args.rearrangement_guard else None),
-        max_family_size=max_family_size,
         jaccard_threshold=args.jaccard_threshold, naive_threshold=args.naive_threshold,
         min_agreement=args.min_agreement, min_fp_positions=args.min_fp_positions,
-        skip_singleton_merge=args.skip_singleton_merge, step3_threshold=args.step3_threshold,
-        step3_mode=args.step3_mode, min_mutations=args.min_mutations, ej_margin=args.ej_margin,
-        rescue_threshold=args.rescue_threshold, naive_freq_threshold=args.naive_freq_threshold,
+        skip_singleton_merge=args.skip_singleton_merge,
+        naive_freq_threshold=args.naive_freq_threshold,
         max_expansion_ratio=args.max_expansion_ratio, min_cluster_size=args.min_cluster_size,
-        rearrangement_guard=args.rearrangement_guard)
+        rearrangement_guard=args.rearrangement_guard, alpha=args.alpha)
 
     if true_partition is not None:
         pur_f, comp_f = refine.calc_metrics(true_partition, final_partition)
