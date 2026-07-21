@@ -992,6 +992,28 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
         utils.add_implicit_info(glfo, antn, reset_indel_genes=True)
         return antn
 
+    def _pad_to_uniform_length(antns):
+        # pad naive_seqs to uniform length per cdr3 class, as waterer.pad_seqs_to_same_length does for normal output
+        maxfo = {}  # cdr3_length -> [max_gl_cpos, max_gl_cpos_to_j_end]
+        for antn in antns:
+            cpos, seqlen = antn['codon_positions']['v'], len(antn['seqs'][0])
+            gl_cpos = glfo['cyst-positions'][antn['v_gene']] + max(0, len(antn['fv_insertion']) - antn['v_5p_del'])
+            gl_cpos_to_j_end = seqlen - cpos + antn['j_3p_del']
+            cdr3 = antn['cdr3_length']
+            if cdr3 not in maxfo:
+                maxfo[cdr3] = [gl_cpos, gl_cpos_to_j_end]
+            else:
+                maxfo[cdr3][0] = max(maxfo[cdr3][0], gl_cpos)
+                maxfo[cdr3][1] = max(maxfo[cdr3][1], gl_cpos_to_j_end)
+        for antn in antns:
+            cpos, seqlen = antn['codon_positions']['v'], len(antn['seqs'][0])
+            padleft = maxfo[antn['cdr3_length']][0] - cpos
+            padright = maxfo[antn['cdr3_length']][1] - (seqlen - cpos)
+            if padleft < 0 or padright < 0:  # should never be negative (max minus value)
+                raise Exception('bad padding %d %d for cluster %s' % (padleft, padright, antn['unique_ids'][0]))
+            if padleft != 0 or padright != 0:
+                utils.re_pad_atn(padleft, padright, antn, glfo)
+
     annotation_list, out_partition = [], []
     n_split, n_dropped = 0, 0
     for cluster in refined_partition:
@@ -1009,6 +1031,7 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
                     out_partition.append([uid])
                 except Exception:
                     n_dropped += 1
+    _pad_to_uniform_length(annotation_list)
     cpath = clusterpath.ClusterPath(partition=out_partition)
     partition_lines = cpath.get_partition_lines()
     outdir = os.path.dirname(outfname)
