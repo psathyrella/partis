@@ -1547,6 +1547,8 @@ def run_all_loci(args, ig_or_tr='ig'):
             extra_args = ['--sw-cachefname', sw_cache_path_full]
             if args.n_sub_procs is not None:
                 extra_args += ['--n-procs', str(args.n_sub_procs)]
+            if args.hybrid and '--naive-vsearch' not in extra_args:  # hybrid base is always vsearch
+                extra_args += ['--naive-vsearch']
             cmd = build_single_locus_cmd('partition', ltmp, args,
                                          infname=fasta_path, outfname=partition_path, parameter_dir=getpdir(ltmp),
                                          extra_args=extra_args)
