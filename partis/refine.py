@@ -993,7 +993,7 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
         return antn
 
     def _pad_to_uniform_length(antns):
-        # pad naive_seqs to uniform length per cdr3 class, as waterer.pad_seqs_to_same_length does for normal output
+        # pad naive_seqs to uniform length per cdr3 class
         maxfo = {}  # cdr3_length -> [max_gl_cpos, max_gl_cpos_to_j_end]
         for antn in antns:
             cpos, seqlen = antn['codon_positions']['v'], len(antn['seqs'][0])
