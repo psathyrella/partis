@@ -113,10 +113,6 @@ def process(args):
     if hasattr(args, 'hfrac') and args.hfrac and not getattr(args, 'disjoint_groups', False) and args.action not in standalone_disjoint_actions:
         raise Exception('--hfrac requires --disjoint-groups')
 
-    # refine/hybrid must not feed paired clustering
-    if (getattr(args, 'hybrid', False) or getattr(args, 'refine', False)) and args.paired_loci and not getattr(args, 'no_pairing_info', False):
-        raise Exception('--hybrid/--refine cannot be combined with paired clustering (run single-chain, e.g. --disjoint-groups without --paired-loci)')
-
     if args.outfname is None and args.paired_outdir is None and args.action in utils.existing_output_actions:
         raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)
 
