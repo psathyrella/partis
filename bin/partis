@@ -1568,15 +1568,13 @@ def run_all_loci(args, ig_or_tr='ig'):
         # cluster >= 3 (keep-or-split, as independent per-cluster jobs), then merge the
         # corrections. Repoints partition_path to the hybrid partition.
         if args.hybrid:
-            hybrid_bundles_per_proc = 8  # bundles per concurrency slot (load-balance vs startup-amortization tradeoff)
+            hybrid_bundles_per_proc = 8  # bundles per concurrency slot
+            ha_concurrency = max(1, utils.n_available_cpus() - 1)  # single-proc bundles, so use job cpus
             hybrid_specs, hybrid_jobs = hybrid.prepare_all(disjoint_dir, manifest['groups'], ltmp)
             n_todo = sum(1 for j in hybrid_jobs if not os.path.exists(j['outfname']))
-            # bundle the per-cluster HA jobs into a few run-hybrid-jobs invocations. Each
-            # bundle loads glfo once and runs its clusters in-process, so we pay the partis
-            # startup once per bundle instead of once per cluster (the dominant per-cluster
-            # cost). Bundle count is a small multiple of the concurrency, for load balance.
+            # bundle per-cluster HA jobs so glfo loads once per bundle, not per cluster; more bundles than slots for load balance
             total = len(hybrid_jobs)
-            n_bundles = min(total, n_max_jobs * hybrid_bundles_per_proc) if total > 0 else 0
+            n_bundles = min(total, ha_concurrency * hybrid_bundles_per_proc) if total > 0 else 0
             bundle_size = int(math.ceil(total / float(n_bundles))) if n_bundles > 0 else 0
             ha_cmdfos = []
             for start in range(0, total, bundle_size) if bundle_size > 0 else []:
@@ -1589,10 +1587,10 @@ def run_all_loci(args, ig_or_tr='ig'):
                 ha_cmdfos.append({'cmd_str' : cmd, 'outfname' : done_marker, 'workdir' : '%s/hybrid-bundle-work-%d' % (disjoint_dir, start)})
             if len(ha_cmdfos) > 0:
                 if args.dry_run:
-                    print('    --dry-run: would run %d HA cluster jobs in %d bundles (%d concurrent)' % (n_todo, len(ha_cmdfos), n_max_jobs))
+                    print('    --dry-run: would run %d HA cluster jobs in %d bundles (%d concurrent)' % (n_todo, len(ha_cmdfos), ha_concurrency))
                 else:
-                    print('    running %d HA cluster jobs in %d bundles (%d concurrent):' % (n_todo, len(ha_cmdfos), n_max_jobs), end=' ')
-                    utils.run_cmds(ha_cmdfos, n_max_procs=n_max_jobs, debug='write', progress=True)
+                    print('    running %d HA cluster jobs in %d bundles (%d concurrent):' % (n_todo, len(ha_cmdfos), ha_concurrency), end=' ')
+                    utils.run_cmds(ha_cmdfos, n_max_procs=ha_concurrency, debug='write', progress=True)
             if not args.dry_run:
                 for ginfo, hybrid_out_rel in hybrid.assemble_all(hybrid_specs):
                     ginfo['partition_path'] = hybrid_out_rel  # downstream uses the hybrid partition

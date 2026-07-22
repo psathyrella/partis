@@ -5562,6 +5562,13 @@ def auto_n_procs():  # for running on the local machine
     return n_procs
 
 # ----------------------------------------------------------------------------------------
+def n_available_cpus():  # cpus available to this process (respects slurm/cgroup binding); falls back to cpu_count
+    try:
+        return len(os.sched_getaffinity(0))
+    except (AttributeError, OSError):
+        return multiprocessing.cpu_count()
+
+# ----------------------------------------------------------------------------------------
 def limit_procs(base_cmd_str, n_max_procs=None, sleep_time=1, procs=None, debug=False):  # <sleep_time> is seconds
     if base_cmd_str is None:
         if procs is None:
