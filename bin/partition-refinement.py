@@ -9,13 +9,10 @@ against ground truth, and writes the refined partition.
       --partition-path <partition.yaml> \
       --sw-cache-path <sw-cache.yaml> \
       --simu-path <simu.yaml> \
-      --step3-mode relative --ej-margin 0.05 --skip-singleton-merge \
-      --min-agreement 0.15 --naive-freq-threshold 10 --rearrangement-guard \
-      --cluster-size-csv <cluster_size.csv> --output-path <refined.yaml>
+      --skip-singleton-merge --min-agreement 0.15 --naive-freq-threshold 10 \
+      --rearrangement-guard --alpha 0.01 --output-path <refined.yaml>
 """
 import argparse
-import csv
-import json
 import os
 import sys
 

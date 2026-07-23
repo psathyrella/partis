@@ -19,47 +19,6 @@ from collections import defaultdict
 import numpy as np
 
 
-def load_partition(path):
-    with open(path) as f:
-        data = json.load(f)
-    return data
-
-
-def load_sw_naives(sw_cache_path):
-    with open(sw_cache_path) as f:
-        data = json.load(f)
-    uid_naives = {}
-    for evt in data['events']:
-        if evt.get('invalid'):
-            continue
-        naive = evt.get('naive_seq')
-        if naive is None:
-            continue
-        for uid in evt['unique_ids']:
-            uid_naives[uid] = naive
-    return uid_naives
-
-
-def load_rearrangement_features(sw_cache_path):
-    """Load per-sequence rearrangement features from sw-cache.
-
-    Returns dict: uid -> {'vdj': (v_gene, d_gene, j_gene)}.
-    The VDJ tuple is used for the step-3 D-gene majority guard.
-    """
-    with open(sw_cache_path) as f:
-        data = json.load(f)
-    uid_features = {}
-    for evt in data['events']:
-        if evt.get('invalid'):
-            continue
-        feat = {
-            'vdj': (evt.get('v_gene', ''), evt.get('d_gene', ''), evt.get('j_gene', '')),
-        }
-        for uid in evt['unique_ids']:
-            uid_features[uid] = feat
-    return uid_features
-
-
 def load_hmm_naives(hmm_annotation_path, sw_naives=None):
     """Load per-sequence naive from HMM annotations, stripping fv_insertion padding.
     Falls back to SW naive if HMM naive length does not match after stripping."""
@@ -84,21 +43,6 @@ def load_hmm_naives(hmm_annotation_path, sw_naives=None):
                 n_replaced += 1
     print('  HMM naives: %d replaced, %d fell back to SW (length mismatch)' % (n_replaced, n_fallback))
     return uid_naives
-
-
-def load_annotations(data):
-    uid_info = {}
-    for antn in data['events']:
-        if antn.get('invalid'):
-            continue
-        naive = antn.get('naive_seq')
-        cdr3_len = antn.get('cdr3_length', 0)
-        input_seqs = antn.get('input_seqs', [])
-        for i, uid in enumerate(antn['unique_ids']):
-            seq = input_seqs[i] if i < len(input_seqs) else None
-            if naive is not None and seq is not None:
-                uid_info[uid] = {'seq': seq, 'naive': naive, 'cdr3_length': cdr3_len}
-    return uid_info
 
 
 def load_true_partition(simu_path):
@@ -508,6 +452,7 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
             # handle same-length naives with numpy
             if len(same_len) >= 2:
                 arr = np.frombuffer(''.join(same_len).encode(), dtype=np.uint8).reshape(len(same_len), seq_len)
+                n_byte = ord('N')
                 # chunked pairwise to avoid huge memory for very large U
                 chunk_size = 2000
                 for ci in range(0, len(same_len), chunk_size):
@@ -516,7 +461,11 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                     for cj in range(ci, len(same_len), chunk_size):
                         cj_end = min(cj + chunk_size, len(same_len))
                         chunk_j = arr[cj:cj_end]
-                        dists = (chunk_i[:, None, :] != chunk_j[None, :, :]).sum(axis=2) / seq_len
+                        # N-aware hamming (matches hamming_frac): drop positions where either naive is N
+                        valid = (chunk_i[:, None, :] != n_byte) & (chunk_j[None, :, :] != n_byte)
+                        mism = ((chunk_i[:, None, :] != chunk_j[None, :, :]) & valid).sum(axis=2)
+                        compared = valid.sum(axis=2)
+                        dists = np.where(compared > 0, mism / np.maximum(compared, 1), 1.0)
                         pairs = np.argwhere(dists <= naive_threshold)
                         for pi, pj in pairs:
                             ni_idx = ci + pi
@@ -627,7 +576,7 @@ def shared_descent_pair_stats(cluster, uid_muts):
     (members, pair_k, mu)."""
     members = list(cluster)
     n = len(members)
-    inv = defaultdict(list)  # (pos, base) -> [member index]
+    inv = defaultdict(list)  # (pos, base): member indices
     for idx, uid in enumerate(members):
         for pos, base in uid_muts.get(uid, {}).items():
             inv[(pos, base)].append(idx)
@@ -682,7 +631,7 @@ def split_by_shared_descent(cluster, uid_muts, alpha=SHARED_DESCENT_ALPHA):
 
 
 def _partition_has_real_d(uid_rearr_features):
-    """True if any uid carries a real (non-placeholder) D gene -> heavy chain.
+    """True if any uid carries a real (non-placeholder) D gene (heavy chain).
     Light loci (igk/igl) have no real D, so this is False for them, which is how
     step 3 decides the heavy (guarded) vs light (relaxed) fork when light_chain is
     not passed explicitly."""
@@ -748,7 +697,7 @@ def step3_split(merged_partition, uid_info, uid_sw_naives,
                 result.append(cluster)
                 n_skipped += 1
                 continue
-            # D-gene guard: real D present and >= 80% share V+D+J -> keep (deep tree)
+            # D-gene guard: real D present and >= 80% share V+D+J, so keep (deep tree)
             if rearrangement_guard and uid_rearr_features is not None:
                 vdj_counts = {}
                 has_real_d = False
@@ -766,7 +715,7 @@ def step3_split(merged_partition, uid_info, uid_sw_naives,
                     result.append(cluster)
                     n_rearr_guard_skip += 1
                     continue
-            # concentration-ratio guard: star-like expansion -> keep
+            # concentration-ratio guard: star-like expansion, so keep
             if rep_naive is not None and max_expansion_ratio > 0:
                 naive_count = sum(1 for uid in cluster
                                   if uid in uid_sw_naives and uid_sw_naives[uid] == rep_naive)
@@ -844,10 +793,11 @@ def calc_metrics(true_partition, inf_partition):
     return purity, completeness
 
 
-def estimate_jaccard_threshold(partition, uid_to_muts):
+def estimate_jaccard_threshold(partition, uid_to_muts, seed=0):
     """Adaptive step-1 Jaccard threshold: p25 of sampled within-cluster pairwise
-    Jaccard (fallback 0.10 if no signal)."""
+    Jaccard (fallback 0.10 if no signal). Fixed-seed local RNG keeps it deterministic."""
     import random
+    rng = random.Random(seed)
     all_jaccards = []
     for cluster in partition:
         if len(cluster) < 3:
@@ -857,7 +807,7 @@ def estimate_jaccard_threshold(partition, uid_to_muts):
         if n * (n - 1) // 2 <= 100:
             pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]
         else:
-            pairs = [tuple(random.sample(range(n), 2)) for _ in range(100)]
+            pairs = [tuple(rng.sample(range(n), 2)) for _ in range(100)]
         for i, j in pairs:
             m1 = uid_to_muts.get(uid_list[i])
             m2 = uid_to_muts.get(uid_list[j])
@@ -994,7 +944,7 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
 
     def _pad_to_uniform_length(antns):
         # pad naive_seqs to uniform length per cdr3 class
-        maxfo = {}  # cdr3_length -> [max_gl_cpos, max_gl_cpos_to_j_end]
+        maxfo = {}  # cdr3_length: [max_gl_cpos, max_gl_cpos_to_j_end]
         for antn in antns:
             cpos, seqlen = antn['codon_positions']['v'], len(antn['seqs'][0])
             gl_cpos = glfo['cyst-positions'][antn['v_gene']] + max(0, len(antn['fv_insertion']) - antn['v_5p_del'])
