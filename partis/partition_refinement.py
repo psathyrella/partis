@@ -305,6 +305,10 @@ def step1_validated_split(partition, uid_to_muts, uid_sw_naives,
         n_proposed += 1
 
         frag_naives = [get_fragment_naive(f, uid_sw_naives) for f in proposed_fragments]
+        if any(fn is None for fn in frag_naives):  # a fragment with no sw naive cannot be validated; fail closed (keep the cluster intact rather than accept an unvalidated split)
+            n_rejected += 1
+            result.append(list(cluster))
+            continue
 
         nf = len(proposed_fragments)
         frag_parent = list(range(nf))
@@ -321,11 +325,7 @@ def step1_validated_split(partition, uid_to_muts, uid_sw_naives,
                 frag_parent[ra] = rb
 
         for i in range(nf):
-            if frag_naives[i] is None:
-                continue
             for j in range(i + 1, nf):
-                if frag_naives[j] is None:
-                    continue
                 if hamming_frac(frag_naives[i], frag_naives[j]) <= naive_threshold:
                     frag_union(i, j)
 
@@ -400,8 +400,6 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
             if naive is not None:
                 naive_to_frags[naive].append(i)
 
-        local_min_agreement = min_agreement
-
         n = len(frags)
         parent = list(range(n))
 
@@ -435,7 +433,7 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                         fp_i, n_i, fp_j, n_j, min_fp_positions)
                     if agreement < 0:
                         n_rejected_insufficient += 1
-                    elif agreement >= local_min_agreement:
+                    elif agreement >= min_agreement:
                         union(i, j)
                         n_accepted += 1
                     else:
@@ -486,7 +484,7 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                                         fp_i, n_i, fp_j, n_j, min_fp_positions)
                                     if agreement < 0:
                                         n_rejected_insufficient += 1
-                                    elif agreement >= local_min_agreement:
+                                    elif agreement >= min_agreement:
                                         union(i, j)
                                         n_accepted += 1
                                     else:
@@ -513,7 +511,7 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                                 fp_i, n_i, fp_j, n_j, min_fp_positions)
                             if agreement < 0:
                                 n_rejected_insufficient += 1
-                            elif agreement >= local_min_agreement:
+                            elif agreement >= min_agreement:
                                 union(i, j)
                                 n_accepted += 1
                             else:
@@ -845,6 +843,10 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
         import random
         random.seed(random_seed)
     partition = [list(c) for c in partition]
+    all_uids = set(uid for c in partition for uid in c)
+    n_no_naive = sum(1 for uid in all_uids if uid not in uid_sw_naives)
+    if n_no_naive > 0:  # surface incomplete sw-naive coverage: validation keys off naives, so these seqs' fragments are kept intact (step 1 fails closed)
+        print('  warning: %d/%d input seqs have no sw naive (refine validates on naives; their fragments are kept intact)' % (n_no_naive, len(all_uids)), flush=True)
     uid_to_muts, uid_to_muts_with_base = {}, {}
     for uid, info in uid_info.items():
         uid_to_muts[uid] = get_mutations(info['seq'], info['naive'])
@@ -966,6 +968,7 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
 
     annotation_list, out_partition = [], []
     n_split, n_dropped = 0, 0
+    first_err = None
     for cluster in refined_partition:
         cluster = [uid for uid in cluster if uid in sw_info]
         if len(cluster) == 0:
@@ -973,13 +976,15 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
         try:
             annotation_list.append(_annotate(cluster))
             out_partition.append(list(cluster))
-        except Exception:  # fall back to singletons (each seq's own sw annotation synthesizes)
+        except Exception as e:  # fall back to singletons (each seq's own sw annotation synthesizes)
+            first_err = first_err if first_err is not None else repr(e)
             n_split += 1
             for uid in cluster:
                 try:
                     annotation_list.append(_annotate([uid]))
                     out_partition.append([uid])
-                except Exception:
+                except Exception as e2:
+                    first_err = first_err if first_err is not None else repr(e2)
                     n_dropped += 1
     _pad_to_uniform_length(annotation_list)
     cpath = clusterpath.ClusterPath(partition=out_partition)
@@ -990,8 +995,9 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
     utils.write_annotations(outfname, glfo, annotation_list, utils.annotation_headers,
                             partition_lines=partition_lines)
     if n_split or n_dropped:
-        print('  %d clusters split to singletons (multi-seq synthesis failed)%s' % (
-            n_split, ('; %d uids dropped (unannotatable)' % n_dropped) if n_dropped else ''))
+        print('  %d clusters split to singletons (multi-seq synthesis failed)%s%s' % (
+            n_split, ('; %d uids dropped (unannotatable)' % n_dropped) if n_dropped else '',
+            ('; first error: %s' % first_err) if first_err else ''))
     return len(annotation_list)
 
 
