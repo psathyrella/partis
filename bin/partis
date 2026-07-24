@@ -1571,7 +1571,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         # Repoints partition_path to the re-partitioned partition.
         if args.ha_repartition:
             harep_bundles_per_proc = 8  # bundles per concurrency slot
-            ha_concurrency = max(1, utils.n_available_cpus() - 1)  # single-proc bundles, so use job cpus
+            ha_concurrency = max(1, min(utils.n_available_cpus() - 1, args.n_procs))  # single-proc bundles: fill job cpus, capped at --n-procs
             harep_specs, harep_jobs = ha_repartition.prepare_all(disjoint_dir, manifest['groups'], ltmp)
             n_todo = sum(1 for j in harep_jobs if not os.path.exists(j['outfname']))
             # bundle per-cluster HA jobs so glfo loads once per bundle, not per cluster; more bundles than slots for load balance
@@ -1604,7 +1604,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.partition_refine:
             import partis.partition_refinement as partition_refinement
             refine_bundles_per_proc = 8  # bundles per concurrency slot
-            ha_concurrency = max(1, utils.n_available_cpus() - 1)  # single-proc bundles, so use job cpus
+            ha_concurrency = max(1, min(utils.n_available_cpus() - 1, args.n_procs))  # single-proc bundles: fill job cpus, capped at --n-procs
             rspecs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], ltmp)
             n_todo = sum(1 for spec in rspecs if not os.path.exists(spec['refined_out']))
             total = len(rspecs)
@@ -2022,7 +2022,7 @@ subargs['partition'].append({'name' : '--ha-repartition', 'kwargs' : {'action' :
 subargs['partition'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['partition'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
 subargs['partition'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
-subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Each job uses --n-procs processes internally. The HA re-partition and partition-refine stages are single-proc and scale to the job cpu allocation instead.'}})
+subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Each job uses --n-procs processes internally. The HA re-partition and partition-refine stages are single-proc and scale to the job cpu allocation instead (capped at --n-procs).'}})
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job. If not set, each job inherits --n-procs from the parent.'}})
 
 subargs['create-disjoint-groups'] = []
