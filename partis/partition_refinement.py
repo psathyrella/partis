@@ -9,8 +9,8 @@ partition. Usable after any partis partition (standard or disjoint grouping).
   Step 3: Shared-descent split of over-merged clusters (guards fork on chain)
 
 Entry point: refine_partition(); its defaults run step 3 with singleton-skip and
-the rearrangement guard. The standalone CLI lives in bin/partition-refinement.py,
-which imports this module.
+the rearrangement guard. Driven by the run-partition-refine-jobs action (and the
+integrated --partition-refine flag), which run run_jobs() over the disjoint groups.
 """
 import json
 import math
@@ -997,20 +997,20 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
 
 # ----------------------------------------------------------------------------
 # Locus-level orchestration over the disjoint-groups manifest (mirrors the
-# hybrid module). The unit is the group (refine is pure-python, no per-cluster
+# ha_repartition module). The unit is the group (refine is pure-python, no per-cluster
 # fan-out), so there is no separate prepare step; assemble is assemble_groups.
 # ----------------------------------------------------------------------------
 def group_specs(disjoint_dir, groups, locus):
-    """Per-group refine I/O paths. Refine runs on the hybrid partition if it exists,
+    """Per-group refine I/O paths. Refine runs on the HA re-partition if it exists,
     else the vsearch partition; output is refined-partition-<locus>.yaml. Only groups
     whose input partition and sw-cache exist are returned."""
     specs = []
     for group in groups:
         fasta_dir = os.path.dirname(group['fasta_path'])
-        hybrid_p = '%s/%s/hybrid-partition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
+        harep_p = '%s/%s/ha-repartition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
         vsearch_p = '%s/%s/partition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
         sw = '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, locus)
-        inp = hybrid_p if os.path.exists(hybrid_p) else vsearch_p
+        inp = harep_p if os.path.exists(harep_p) else vsearch_p
         if not (os.path.exists(inp) and os.path.exists(sw)):
             continue
         specs.append({'group': group, 'input': inp, 'sw_cache': sw,

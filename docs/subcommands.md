@@ -8,17 +8,17 @@
     - [ignore small clusters](#ignore-smaller-clusters)
     - [subset-partition](#partition-in-subsets)
     - [disjoint groups](#disjoint-groups)
-    - [hybrid HA correction and refinement](#hybrid-ha-correction-and-refinement)
+    - [HA re-partition and refinement](#ha-re-partition-and-refinement)
     - [limit maximum cluster size](#limit-maximum-cluster-size)
     - [deliberate over-clustering](#deliberate-over-clustering)
 	- [progress file](#progress-file)
   - [subset-partition](#subset-partition)
   - [create-disjoint-groups](#create-disjoint-groups) split sequences by CDR3 length for independent partition (standalone action for batch workflows)
   - [assemble-groups](#assemble-groups) concatenate per-group partition results (standalone action for batch workflows)
-  - [create-hybrid-jobs](#create-hybrid-jobs) write per-cluster inputs for hybrid HA correction (standalone action for batch workflows)
-  - [run-hybrid-jobs](#run-hybrid-jobs) run hybrid HA on a slice of clusters (standalone action for batch workflows)
-  - [assemble-hybrid](#assemble-hybrid) merge per-cluster HA results into per-group partitions (standalone action for batch workflows)
-  - [run-refine-jobs](#run-refine-jobs) run refinement on a slice of groups (standalone action for batch workflows)
+  - [create-ha-repartition-jobs](#create-ha-repartition-jobs) write per-cluster inputs for HA re-partition (standalone action for batch workflows)
+  - [run-ha-repartition-jobs](#run-ha-repartition-jobs) run HA re-partition on a slice of clusters (standalone action for batch workflows)
+  - [assemble-ha-repartition](#assemble-ha-repartition) merge per-cluster HA results into per-group partitions (standalone action for batch workflows)
+  - [run-partition-refine-jobs](#run-partition-refine-jobs) run refinement on a slice of groups (standalone action for batch workflows)
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
     - [choosing antibodies](#choosing-antibodies)
@@ -113,21 +113,22 @@ Note that each sub-group is partitioned independently, and the clustering method
 To use vsearch on all groups regardless of size, pass `--fast`.
 For running the individual steps separately (e.g. as independent batch jobs), see [`create-disjoint-groups`](#create-disjoint-groups) and [`assemble-groups`](#assemble-groups) below.
 
-##### hybrid HA correction and refinement
+##### HA re-partition and refinement
 
 With `--disjoint-groups`, large groups are partitioned with the fast vsearch method (see [above](#disjoint-groups)), which trades some accuracy for speed.
 Two optional post-processing steps recover most of that accuracy while keeping vsearch's speed.
 
-`--hybrid` reruns the full likelihood (HMM) clustering on each vsearch cluster of at least three sequences, one cluster at a time, and keeps the result only where it splits an over-merged cluster.
+`--ha-repartition` reruns the full likelihood (HMM) clustering on each vsearch cluster of at least three sequences, one cluster at a time, and keeps the result only where it splits an over-merged cluster.
 Because each cluster is handled in isolation (a single keep-or-split decision, with no comparisons between clusters) this is fast, and it fixes the over-merging vsearch does on similar-but-distinct families.
 
-`--refine` runs a three-step split/merge refinement on each group: it splits clusters that combine distinct naive rearrangements, merges fragments that share the same somatic mutations, and splits any remaining collisions.
-When `--hybrid` is also set, refinement additionally recovers the small number of pure clusters the hybrid step over-splits, so the steps are always applied in the order vsearch, then `--hybrid`, then `--refine`.
-Refinement uses the family-size distribution in the parameter directory's `cluster_size.csv` (written by `cache-parameters`, or with true family sizes by a post-partition run with `--count-parameters`) to avoid over-splitting genuine clonal expansions.
+`--partition-refine` runs a three-step split/merge refinement on each group: it splits clusters that combine distinct naive rearrangements, merges fragments that share the same somatic mutations, and splits any remaining over-merges by linking only cells that share more mutations than chance (a per-cluster shared-descent test).
+The final split guards fork on chain: heavy chains add a V/D/J rearrangement guard and a concentration guard to protect deep clonal expansions, while light chains (with no informative D) relax those guards.
+When `--ha-repartition` is also set, refinement additionally recovers the small number of pure clusters the HA step over-splits, so the steps are always applied in the order vsearch, then `--ha-repartition`, then `--partition-refine`.
 
-Both flags require `--disjoint-groups` and work with or without `--paired-loci`; with paired data the cleaner single-chain partitions also give paired clustering a better starting point.
-The per-cluster hybrid runs are bundled into a few processes (each loading germline info once, then looping over its clusters), with concurrency set by `--n-max-subprocs`.
-For running these steps as independent batch jobs, see [`create-hybrid-jobs`](#create-hybrid-jobs), [`run-hybrid-jobs`](#run-hybrid-jobs), [`assemble-hybrid`](#assemble-hybrid), and [`run-refine-jobs`](#run-refine-jobs) below.
+Both flags require `--disjoint-groups`.
+Their output is single-chain only: when either is set on paired data, partis does not run the final paired combine (the refined single-chain partitions favor purity, which paired clustering would then over-split); run [`merge-paired-partitions`](#merge-paired-partitions) separately if paired clusters are wanted.
+The per-cluster HA and per-group refine runs are single-proc and are bundled into processes scaled to the job's cpu allocation (each loading germline info once, then looping over its work), independent of `--n-max-subprocs` (which governs the per-group partition jobs).
+For running these steps as independent batch jobs, see [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), [`run-ha-repartition-jobs`](#run-ha-repartition-jobs), [`assemble-ha-repartition`](#assemble-ha-repartition), and [`run-partition-refine-jobs`](#run-partition-refine-jobs) below.
 
 ##### limit maximum cluster size
 
@@ -198,29 +199,29 @@ This is the standalone version of the grouping step in `--disjoint-groups` (see 
 Concatenate per-group partition results from disjoint grouping into a single output file for one locus.
 Requires `--locus` and `--outfname`.
 
-### create-hybrid-jobs
+### create-ha-repartition-jobs
 
-Write the per-cluster inputs for [hybrid HA correction](#hybrid-ha-correction-and-refinement) for a single locus: for every vsearch cluster of at least three sequences it writes a per-cluster FASTA, plus a task list enumerating all the per-cluster jobs.
+Write the per-cluster inputs for [HA re-partition](#ha-re-partition-and-refinement) for a single locus: for every vsearch cluster of at least three sequences it writes a per-cluster FASTA, plus a task list enumerating all the per-cluster jobs.
 Requires `--locus` and the disjoint-groups directory produced by [`create-disjoint-groups`](#create-disjoint-groups) (located via `--paired-outdir` or `--workdir`, or given explicitly with `--disjoint-dir`).
-This is the standalone version of the hybrid step's setup, intended for workflows where each step is submitted as a separate batch job.
+This is the standalone version of the HA re-partition setup, intended for workflows where each step is submitted as a separate batch job.
 
-### run-hybrid-jobs
+### run-ha-repartition-jobs
 
-Run hybrid HA on a slice of the task list written by [`create-hybrid-jobs`](#create-hybrid-jobs), selected with `--job-start` and `--job-count`, so each batch (array) task handles one contiguous block of clusters.
-Each invocation loads germline info once and clusters its assigned vsearch clusters in-process (the same code path as the integrated `--hybrid`), and appends per-cluster timing to `hybrid-timing-<locus>.csv`.
+Run HA re-partition on a slice of the task list written by [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), selected with `--job-start` and `--job-count`, so each batch (array) task handles one contiguous block of clusters.
+Each invocation loads germline info once and clusters its assigned vsearch clusters in-process (the same code path as the integrated `--ha-repartition`), and appends per-cluster timing to `ha-repartition-timing-<locus>.csv`.
 Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and the disjoint-groups directory.
 
-### assemble-hybrid
+### assemble-ha-repartition
 
-Merge the per-cluster HA results into per-group hybrid partitions for a single locus (each over-merged cluster is replaced by its split; all others are kept unchanged).
+Merge the per-cluster HA results into per-group re-partitioned partitions for a single locus (each over-merged cluster is replaced by its split; all others are kept unchanged).
 Requires `--locus` and the disjoint-groups directory.
-Run this once all [`run-hybrid-jobs`](#run-hybrid-jobs) tasks have finished.
+Run this once all [`run-ha-repartition-jobs`](#run-ha-repartition-jobs) tasks have finished.
 
-### run-refine-jobs
+### run-partition-refine-jobs
 
-Run [refinement](#hybrid-ha-correction-and-refinement) on a slice of the disjoint groups for a single locus, selected with `--job-start` and `--job-count`.
-It refines each group's hybrid partition (or the vsearch partition, if the hybrid step was not run) in-process and writes a refined partition per group; reassemble the results with [`assemble-groups`](#assemble-groups).
-Requires `--locus` and `--parameter-dir` (the locus-level parameter directory, for the `cluster_size.csv` guard).
+Run [refinement](#ha-re-partition-and-refinement) on a slice of the disjoint groups for a single locus, selected with `--job-start` and `--job-count`.
+It refines each group's HA re-partition (or the vsearch partition, if the HA step was not run) in-process and writes a refined partition per group; reassemble the results with [`assemble-groups`](#assemble-groups).
+Requires `--locus` and `--parameter-dir` (the locus-level parameter directory).
 If partition files are not recorded in the manifest (e.g. when partition was run as standalone batch jobs), they are auto-discovered in the group directories.
 This is the standalone version of the assembly step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.
 

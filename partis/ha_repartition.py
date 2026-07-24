@@ -1,4 +1,4 @@
-"""Hybrid HA correction (vsearch + per-cluster HA).
+"""HA re-partition (vsearch base, per-cluster keep-or-split HA).
 
 Pipeline-agnostic, file-based module with a prepare, run, assemble shape, so it works
 both in-process (driven by run_cmds) and as external array jobs.
@@ -7,10 +7,10 @@ both in-process (driven by run_cmds) and as external array jobs.
              and a task list (external array orchestration).
   run_jobs_in_process(): run HA (`partis partition --no-indels`, no --fast, so bcrham
              decides keep-or-split) on each cluster, reusing one pre-loaded glfo.
-  assemble(): merge the per-cluster HA results over the vsearch partition (corrected
+  assemble(): merge the per-cluster HA results over the vsearch partition (re-partitioned
              clusters replaced by their HA sub-clusters, others kept) and write a full
              partis output file (annotations synthesized from the sw-cache, reusing
-             refine.write_full_output -- no recompute).
+             partition_refinement.write_full_output -- no recompute).
 
 Per-cluster HA is a single keep-or-split decision with no between-cluster comparisons,
 so there is no max-cluster-size guard; min_cluster_size defaults to 3 (singletons and
@@ -72,7 +72,7 @@ def prepare(partition_fname, fasta_fname, workdir, min_cluster_size=3):
                     f.write('>%s\n%s\n' % (uid, seqs[uid]))
                     n_written += 1
         if n_written != len(cluster):
-            print('    warning: hybrid prepare wrote %d/%d cluster seqs to %s (rest missing from input fasta)' % (n_written, len(cluster), infa))
+            print('    warning: ha-repartition prepare wrote %d/%d cluster seqs to %s (rest missing from input fasta)' % (n_written, len(cluster), infa))
         jobs.append({'cluster_id': cid, 'infname': infa,
                      'outfname': os.path.join(d, 'partition.yaml'), 'n_seqs': len(cluster)})
     with open(os.path.join(workdir, 'task_list.txt'), 'w') as f:
@@ -85,33 +85,33 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
     """Merge per-cluster HA results over the vsearch partition and write full partis
     output. A cluster >= min_cluster_size with an HA result whose sub-clusters account
     for all its uids is replaced by those sub-clusters; otherwise it is kept as-is
-    (conservative: never drop uids). Returns (hybrid_partition, n_split, n_kept)."""
-    from partis import utils, refine
+    (conservative: never drop uids). Returns (repartitioned, n_split, n_kept)."""
+    from partis import utils, partition_refinement
     clusters = _load_best_partition(partition_fname)
     cdir = os.path.join(workdir, 'clusters')
-    hybrid, n_split, n_kept = [], 0, 0
+    repartitioned, n_split, n_kept = [], 0, 0
     for idx, cluster in enumerate(clusters):
         result = os.path.join(cdir, cluster_id(idx, cluster), 'partition.yaml')
         if len(cluster) >= min_cluster_size and os.path.exists(result):
             subs = _load_best_partition(result)
             if subs and set().union(*subs) == set(cluster):
-                hybrid.extend(subs)
+                repartitioned.extend(subs)
                 n_split += 1 if len(subs) > 1 else 0
                 n_kept += 1 if len(subs) == 1 else 0
                 continue
-        hybrid.append(cluster)
+        repartitioned.append(cluster)
         n_kept += 1
     # write full output: synthesize each cluster's annotation from the persistent
     # partition-step annotations (full-length HMM naive_seq/input_seqs), not the sw-cache
-    # (which stores SW-trimmed, variable-length seqs). refine consumes these downstream and
-    # is accurate only on the full-length convention it was validated on.
+    # (which stores SW-trimmed, variable-length seqs). partition-refine consumes these
+    # downstream and is accurate only on the full-length convention it was validated on.
     glfo, part_antns, _ = utils.read_output(partition_fname)
     ant_info = {}
     for antn in part_antns:
         for uid in antn['unique_ids']:
             ant_info[uid] = antn
-    refine.write_full_output(out_fname, glfo, hybrid, ant_info)
-    return hybrid, n_split, n_kept
+    partition_refinement.write_full_output(out_fname, glfo, repartitioned, ant_info)
+    return repartitioned, n_split, n_kept
 
 
 # ----------------------------------------------------------------------------
@@ -122,21 +122,21 @@ MIN_CLUSTER_SIZE = 3
 
 
 def _group_spec(disjoint_dir, group, locus):
-    """Resolve the per-group hybrid I/O paths from a manifest group entry. Paths are
-    derived from the group's fasta_path so this works with only the manifest on disk."""
+    """Resolve the per-group HA re-partition I/O paths from a manifest group entry. Paths
+    are derived from the group's fasta_path so this works with only the manifest on disk."""
     fasta_dir = os.path.dirname(group['fasta_path'])
     return {'group': group, 'fasta_dir': fasta_dir,
             'vsearch': '%s/%s/partition-%s.yaml' % (disjoint_dir, fasta_dir, locus),
             'fasta': '%s/%s' % (disjoint_dir, group['fasta_path']),
             'sw_cache': '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, locus),
-            'workdir': '%s/%s/hybrid' % (disjoint_dir, fasta_dir),
-            'hybrid_out_rel': '%s/hybrid-partition-%s.yaml' % (fasta_dir, locus),
-            'hybrid_out': '%s/%s/hybrid-partition-%s.yaml' % (disjoint_dir, fasta_dir, locus)}
+            'workdir': '%s/%s/ha-repartition' % (disjoint_dir, fasta_dir),
+            'harep_out_rel': '%s/ha-repartition-%s.yaml' % (fasta_dir, locus),
+            'harep_out': '%s/%s/ha-repartition-%s.yaml' % (disjoint_dir, fasta_dir, locus)}
 
 
 def group_specs(disjoint_dir, groups, locus):
-    """Per-group hybrid path bundles for every group whose vsearch partition and
-    sw-cache exist (the groups hybrid can run on)."""
+    """Per-group HA re-partition path bundles for every group whose vsearch partition and
+    sw-cache exist (the groups HA re-partition can run on)."""
     specs = []
     for group in groups:
         spec = _group_spec(disjoint_dir, group, locus)
@@ -146,17 +146,17 @@ def group_specs(disjoint_dir, groups, locus):
 
 
 def task_list_fname(disjoint_dir, locus):
-    return '%s/hybrid-task-list-%s.txt' % (disjoint_dir, locus)
+    return '%s/ha-repartition-task-list-%s.txt' % (disjoint_dir, locus)
 
 
 def prepare_all(disjoint_dir, groups, locus, min_cluster_size=MIN_CLUSTER_SIZE):
     """Write per-cluster HA inputs for every group, plus a locus-level task list (one
-    line per cluster: cluster_id, infname, outfname, n_seqs). Groups whose hybrid
-    partition already exists emit no jobs. Returns (specs, jobs)."""
+    line per cluster: cluster_id, infname, outfname, n_seqs). Groups whose HA re-partition
+    already exists emit no jobs. Returns (specs, jobs)."""
     specs = group_specs(disjoint_dir, groups, locus)
     all_jobs = []
     for spec in specs:
-        if os.path.exists(spec['hybrid_out']):
+        if os.path.exists(spec['harep_out']):
             continue
         spec['jobs'] = prepare(spec['vsearch'], spec['fasta'], spec['workdir'],
                                min_cluster_size=min_cluster_size)
@@ -182,7 +182,7 @@ def read_task_list(path):
 
 
 def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
-    """Run hybrid HA on a list of cluster jobs within a single process, reusing one
+    """Run HA re-partition on a list of cluster jobs within a single process, reusing one
     pre-loaded glfo. Each cluster is partitioned exactly as a standalone `partis
     partition` would (keep-or-split), writing the same per-cluster output; the only
     difference from a per-cluster subprocess is that Python/import/glfo startup is paid
@@ -219,13 +219,13 @@ def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
 
 
 def assemble_all(specs, min_cluster_size=MIN_CLUSTER_SIZE):
-    """Assemble each group's hybrid partition (writing hybrid-partition-<locus>.yaml
-    where missing). Returns [(group, hybrid_out_rel), ...] so the caller can repoint
-    downstream inputs to the hybrid partitions."""
+    """Assemble each group's HA re-partition (writing ha-repartition-<locus>.yaml
+    where missing). Returns [(group, harep_out_rel), ...] so the caller can repoint
+    downstream inputs to the re-partitioned partitions."""
     out = []
     for spec in specs:
-        if not os.path.exists(spec['hybrid_out']):
-            assemble(spec['vsearch'], spec['workdir'], spec['sw_cache'], spec['hybrid_out'],
+        if not os.path.exists(spec['harep_out']):
+            assemble(spec['vsearch'], spec['workdir'], spec['sw_cache'], spec['harep_out'],
                      min_cluster_size=min_cluster_size)
-        out.append((spec['group'], spec['hybrid_out_rel']))
+        out.append((spec['group'], spec['harep_out_rel']))
     return out
