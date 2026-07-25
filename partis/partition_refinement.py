@@ -933,6 +933,8 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
     synthesis fails (e.g. merged seqs with inconsistent sw annotations) is emitted as
     singletons instead of being dropped, so the written partition and annotation list
     always match -- paired clustering requires an annotation for every partition cluster.
+    Uids missing a usable sw annotation (no v_gene) are dropped up front so one does not
+    shatter its cluster.
     Returns the number of annotations written."""
     import os
     from partis import utils
@@ -967,19 +969,22 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
                 utils.re_pad_atn(padleft, padright, antn, glfo)
 
     annotation_list, out_partition = [], []
-    n_split, n_dropped = 0, 0
+    n_dropped, n_fallback = 0, 0
     first_err = None
     for cluster in refined_partition:
         cluster = [uid for uid in cluster if uid in sw_info]
-        if len(cluster) == 0:
+        # drop uids missing sw v_gene so one bad annotation does not shatter the cluster
+        good = [uid for uid in cluster if sw_info[uid].get('v_gene')]
+        n_dropped += len(cluster) - len(good)
+        if len(good) == 0:
             continue
         try:
-            annotation_list.append(_annotate(cluster))
-            out_partition.append(list(cluster))
-        except Exception as e:  # fall back to singletons (each seq's own sw annotation synthesizes)
+            annotation_list.append(_annotate(good))
+            out_partition.append(list(good))
+        except Exception as e:  # fall back to singletons on synthesis failure
             first_err = first_err if first_err is not None else repr(e)
-            n_split += 1
-            for uid in cluster:
+            n_fallback += 1
+            for uid in good:
                 try:
                     annotation_list.append(_annotate([uid]))
                     out_partition.append([uid])
@@ -994,9 +999,10 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
         os.makedirs(outdir)
     utils.write_annotations(outfname, glfo, annotation_list, utils.annotation_headers,
                             partition_lines=partition_lines)
-    if n_split or n_dropped:
-        print('  %d clusters split to singletons (multi-seq synthesis failed)%s%s' % (
-            n_split, ('; %d uids dropped (unannotatable)' % n_dropped) if n_dropped else '',
+    if n_dropped or n_fallback:
+        print('  refine output: dropped %d unannotatable uids (no sw v_gene)%s%s' % (
+            n_dropped,
+            ('; %d clusters fell back to singletons (synthesis failed)' % n_fallback) if n_fallback else '',
             ('; first error: %s' % first_err) if first_err else ''))
     return len(annotation_list)
 
