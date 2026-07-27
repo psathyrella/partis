@@ -191,7 +191,7 @@ class Recombinator(object):
         if self.args.debug:
             print('combine (seed %d)' % irandom)
 
-        reco_event = RecombinationEvent(self.glfo)
+        reco_event = RecombinationEvent(self.glfo, uid_hash_len=getattr(self.args, 'uid_hash_len', None))
         try:
             self.choose_vdj_combo(reco_event, i_heavy_event=i_heavy_event)  # it's kind of ugly to raise an exception here, rather than having the fcn[s] return None as below, but the control flow gets complicated that way. Maybe would be better to switch all of them to exceptions
         except SimuGiveUpError as err:

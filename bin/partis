@@ -42,6 +42,7 @@ import partis.disjointgrouper as disjointgrouper
 from partis.parametercounter import ParameterCounter
 from partis.corrcounter import CorrCounter
 from partis.waterer import Waterer
+import partis.event as event
 
 # ----------------------------------------------------------------------------------------
 def strip_paired_args(clist, args):
@@ -137,6 +138,8 @@ def assemble_groups_action(args):
 
 # ----------------------------------------------------------------------------------------
 def run_simulation(args):
+    if args.uid_hash_len is None:  # single-locus: resolve from n-sim-events (paired resolves globally in run_all_loci)
+        args.uid_hash_len = event.UID_HASH_LEN_LONG if args.n_sim_events >= event.UID_HASH_LEN_THRESHOLD else event.UID_HASH_LEN_SHORT
     # ----------------------------------------------------------------------------------------
     def run_sub_cmds(working_gldir):
         # ----------------------------------------------------------------------------------------
@@ -189,6 +192,7 @@ def run_simulation(args):
             utils.replace_in_arglist(clist, '--workdir', get_workdir(iproc))
             utils.replace_in_arglist(clist, '--outfname', get_outfname(iproc))
             utils.replace_in_arglist(clist, '--n-sim-events', str(n_sub_events))
+            utils.replace_in_arglist(clist, '--uid-hash-len', str(args.uid_hash_len))  # forward resolved (global) hash len
             if working_gldir is not None:
                 utils.replace_in_arglist(clist, '--initial-germline-dir', working_gldir)
             if args.allele_prevalence_fname is not None:
@@ -815,6 +819,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 clist.append('--crash-on-duplicate-uids')  # single-chain subprocesses in paired mode should crash on duplicates
                 if args.action == 'simulate':
                     clist += ['--choose-trees-in-order', '--outfname', getofn(ltmp, lpair=lpair)]
+                    utils.replace_in_arglist(clist, '--uid-hash-len', str(args.uid_hash_len))  # forward resolved (global) hash len
                     if args.input_simulation_treefname is None:
                         clist += ['--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair)]
                     if args.paired_correlation_values is not None and not utils.has_d_gene(ltmp):
@@ -1062,7 +1067,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             print('%s: synchronizing heavy and light chain simulation trees and rewriting output files in %s/' % (utils.color('blue', '+'.join(lpair)), getodir(lpair=lpair)))
             antns_to_remove = []
             for hline, lline in paircluster.get_antn_pairs(lpair, lpfos):
-                treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False)
+                treeutils.merge_heavy_light_trees(hline, lline, use_identical_uids=False, uid_hash_len=args.uid_hash_len)
                 if args.remove_nonfunctional_seqs:
                     rm_nonfunc_seqs(antns_to_remove, hline, lline)
             if len(antns_to_remove) > 0:
@@ -1503,6 +1508,8 @@ def run_all_loci(args, ig_or_tr='ig'):
 
     # ----------------------------------------------------------------------------------------
     if args.action == 'simulate':
+        if args.uid_hash_len is None:  # resolve from total (global) n-sim-events, forward to per-locus subprocs
+            args.uid_hash_len = event.UID_HASH_LEN_LONG if args.n_sim_events >= event.UID_HASH_LEN_THRESHOLD else event.UID_HASH_LEN_SHORT
         if not args.dry_run:
             paircluster.prep_paired_dir(getodir(), clean=True, suffix='.yaml', extra_files=[getofn(None, trees=True, lpair=lp) for lp in utils.locus_pairs[ig_or_tr]])
         for lpair in utils.locus_pairs[ig_or_tr]:
@@ -1894,6 +1901,7 @@ subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : 
 # basic simulation:
 subargs['simulate'].append({'name' : '--mutation-multiplier', 'kwargs' : {'type' : float, 'help' : 'Multiply observed branch lengths by some factor when simulating, e.g. if in data it was 0.05, but you want closer to ten percent in your simulation, set this to 2'}})
 subargs['simulate'].append({'name' : '--n-sim-events', 'kwargs' : {'type' : int, 'default' : 1, 'help' : 'Number of rearrangement events to simulate'}})
+subargs['simulate'].append({'name' : '--uid-hash-len', 'kwargs' : {'type' : int, 'help' : 'simulation uid hash length; unset = auto (%d at/above %d total events, else %d)' % (event.UID_HASH_LEN_LONG, event.UID_HASH_LEN_THRESHOLD, event.UID_HASH_LEN_SHORT)}})
 subargs['simulate'].append({'name' : '--n-trees', 'kwargs' : {'type' : int, 'help' : 'Number of phylogenetic trees from which to choose during simulation (we pre-generate this many trees before starting a simulation run, then for each rearrangement event choose one at random -- so this should be at least of order the number of simulated events, so your clonal families don\'t all have the same tree).'}})
 subargs['simulate'].append({'name' : '--n-leaf-distribution', 'kwargs' : {'default' : None, 'choices' : ['geometric', 'box', 'zipf', 'hist'], 'help' : 'Distribution from which to draw the number of leaves for each tree. Except for \'hist\' (which is a histogram inferred from data) the distribution\'s parameter comes from --n-leaves. If not set, defaults to --default-scratch-n-leaf-distribution (if rearranging from scratch), or \'hist\' (if rearranging with inferred parameters). Note that in the latter case if the hist file doesn\'t exist, it\'ll fall back to one of the others (with warning). If planning to use \'hist\', you\'ll need to run \'partition\' with --count-parameters set; otherwise the only parameters available will have been inferred from the singleton partition (before partitioning), so the cluster size hist will only have entries in the 1-bin (it will also warn about this).'}})
 subargs['simulate'].append({'name' : '--n-leaf-hist-fname', 'kwargs' : {'help' : 'file with histogram of cluster sizes (i.e. from a parameter dir) from which to sample simulation family sizes'}})
