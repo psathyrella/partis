@@ -1742,8 +1742,16 @@ def get_hash(instr):
     return hashlib.md5(instr.encode()).hexdigest()  # , usedforsecurity=False (can't use this arg til python 3.9)
 
 # ----------------------------------------------------------------------------------------
-def uidhashstr(instr, max_len=10):
+def uidhashstr(instr, max_len=10):  # NOTE default deliberately not UID_HASH_LEN_SHORT (most callers aren't simulation uids)
     return get_hash(instr)[:max_len]
+
+# ----------------------------------------------------------------------------------------
+UID_HASH_LEN_SHORT, UID_HASH_LEN_LONG = 10, 20  # short is readable, long avoids collisions at scale
+UID_HASH_LEN_THRESHOLD = 100000  # use long hash at/above this many total --n-sim-events
+
+# ----------------------------------------------------------------------------------------
+def resolve_uid_hash_len(n_sim_events):  # NOTE exact for reco ids, but uid collisions scale with total seqs, so assumes modest family sizes
+    return UID_HASH_LEN_LONG if n_sim_events >= UID_HASH_LEN_THRESHOLD else UID_HASH_LEN_SHORT
 
 # ----------------------------------------------------------------------------------------
 def hashint(instr, max_int=2**31):  # max random seed val is 32, so reduce by 1 to get some leeway

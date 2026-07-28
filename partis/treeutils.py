@@ -947,7 +947,7 @@ def mrca_dist(dtree_t, dtree_i, denom_type='mut', debug=False):
 
 # ----------------------------------------------------------------------------------------
 # loops over uids in <hline> and <lline> (which, in order, must correspond to each other), chooses a new joint uid and applies it to both h and l trees, then checks to make sure the trees are identical
-def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=True, debug=False):
+def merge_heavy_light_trees(hline, lline, uid_hash_len, use_identical_uids=False, check_trees=True, debug=False):
     def ladd(uid, locus):
         return '%s-%s' % (uid, locus)
     def lrm(uid, locus):
@@ -964,13 +964,13 @@ def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=
         assert hline['unique_ids'] == lline['heavy-chain-correlation-info']['heavy-chain-uids']
     assert len(hline['unique_ids']) == len(lline['unique_ids'])
     lpair = [hline, lline]
-    joint_reco_id = utils.uidhashstr(hline['reco_id'] + lline['reco_id'])
+    joint_reco_id = utils.uidhashstr(hline['reco_id'] + lline['reco_id'], max_len=uid_hash_len)
     for ltmp in lpair:
         ltmp['reco_id'] = joint_reco_id
         ltmp['paired-uids'] = []
     dtrees = [get_dendro_tree(treestr=l['tree']) for l in lpair]
     for iuid, (huid, luid) in enumerate(zip(hline['unique_ids'], lline['unique_ids'])):
-        joint_uid = utils.uidhashstr(huid + luid)
+        joint_uid = utils.uidhashstr(huid + luid, max_len=uid_hash_len)
         for ltmp in lpair:
             ltmp['unique_ids'][iuid] = joint_uid
             if not use_identical_uids:
