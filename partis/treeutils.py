@@ -947,7 +947,7 @@ def mrca_dist(dtree_t, dtree_i, denom_type='mut', debug=False):
 
 # ----------------------------------------------------------------------------------------
 # loops over uids in <hline> and <lline> (which, in order, must correspond to each other), chooses a new joint uid and applies it to both h and l trees, then checks to make sure the trees are identical
-def merge_heavy_light_trees(hline, lline, use_identical_uids=False, check_trees=True, debug=False, uid_hash_len=10):
+def merge_heavy_light_trees(hline, lline, uid_hash_len, use_identical_uids=False, check_trees=True, debug=False):
     def ladd(uid, locus):
         return '%s-%s' % (uid, locus)
     def lrm(uid, locus):

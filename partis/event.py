@@ -12,15 +12,12 @@ from . import utils
 from . import indelutils
 from . import treeutils
 
-UID_HASH_LEN_SHORT, UID_HASH_LEN_LONG = 10, 20  # short is readable, long avoids collisions at scale
-UID_HASH_LEN_THRESHOLD = 100000  # use long hash at/above this many total --n-sim-events
-
 #----------------------------------------------------------------------------------------
 class RecombinationEvent(object):
     """ Container to hold the information for a single recombination event. """
-    def __init__(self, glfo, uid_hash_len=UID_HASH_LEN_SHORT):
+    def __init__(self, glfo, uid_hash_len=utils.UID_HASH_LEN_SHORT):
         self.glfo = glfo
-        self.uid_hash_len = uid_hash_len or UID_HASH_LEN_SHORT
+        self.uid_hash_len = uid_hash_len
         self.vdj_combo_label = ()  # A tuple with the names of the chosen versions (v_gene, d_gene, j_gene, cdr3_length, <erosion lengths>)
                                    # NOTE I leave the lengths in here as strings
         self.genes = {}
