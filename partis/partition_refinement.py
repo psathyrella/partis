@@ -933,7 +933,7 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
     synthesis fails (e.g. merged seqs with inconsistent sw annotations) is emitted as
     singletons instead of being dropped, so the written partition and annotation list
     always match -- paired clustering requires an annotation for every partition cluster.
-    Uids missing a usable sw annotation (no v_gene) are dropped up front so one does not
+    Uids whose sw annotation is invalid are dropped up front so one does not
     shatter its cluster.
     Returns the number of annotations written."""
     import os
@@ -973,8 +973,8 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
     first_err = None
     for cluster in refined_partition:
         cluster = [uid for uid in cluster if uid in sw_info]
-        # drop uids missing sw v_gene so one bad annotation does not shatter the cluster
-        good = [uid for uid in cluster if sw_info[uid].get('v_gene')]
+        # drop invalid uids so one bad sw annotation does not shatter the cluster
+        good = [uid for uid in cluster if not sw_info[uid].get('invalid', False)]
         n_dropped += len(cluster) - len(good)
         if len(good) == 0:
             continue
@@ -1000,7 +1000,7 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
     utils.write_annotations(outfname, glfo, annotation_list, utils.annotation_headers,
                             partition_lines=partition_lines)
     if n_dropped or n_fallback:
-        print('  refine output: dropped %d unannotatable uids (no sw v_gene)%s%s' % (
+        print('  refine output: dropped %d unannotatable uids (invalid sw annotation)%s%s' % (
             n_dropped,
             ('; %d clusters fell back to singletons (synthesis failed)' % n_fallback) if n_fallback else '',
             ('; first error: %s' % first_err) if first_err else ''))
