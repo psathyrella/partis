@@ -6258,7 +6258,9 @@ def build_dummy_reco_info(true_partition):
     return {u : {'reco_id' : chashes[tkey(tc)]} for tc in true_partition for u in tc}
 
 # ----------------------------------------------------------------------------------------
-def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None, seed_unique_id=None, dbg_str='', inf_label='inferred', true_label='true', debug=False):
+def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None, seed_unique_id=None, dbg_str='', inf_label='inferred', true_label='true', min_cluster_size=None, debug=False):
+    # min_cluster_size: skip clusters that make each metric trivial -- small inferred clusters for
+    # purity, small true clusters for completeness -- so the two average over different uid sets
     if seed_unique_id is None:
         check_intersection_and_complement(partition, true_partition, a_label=inf_label, b_label=true_label)
     if reco_info is None:  # build a dummy reco_info that just has reco ids
@@ -6280,7 +6282,7 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
         return len(set(inferred_cluster) & set(true_cluster)) / float(len(true_cluster))
 
     mean_clonal_fraction, mean_fraction_present = 0., 0.
-    n_uids = 0
+    n_uids = n_pur_uids = n_cmp_uids = 0
     for true_cluster in true_partition:
         if seed_unique_id is not None and seed_unique_id not in true_cluster:
             continue
@@ -6292,21 +6294,29 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
                     print('  %s found %s in multiple clusters while calculating ccfs (returning None, None)' % (color('red', 'warning'), uid))
                 return None, None
             inferred_cluster = partition[clids[uid][0]]  # we only look at the first cluster in which it appears
-            mean_clonal_fraction += get_clonal_fraction(uid, inferred_cluster)
-            mean_fraction_present += get_fraction_present(inferred_cluster, true_cluster)
             n_uids += 1
+            if min_cluster_size is None or len(inferred_cluster) >= min_cluster_size:
+                mean_clonal_fraction += get_clonal_fraction(uid, inferred_cluster)
+                n_pur_uids += 1
+            if min_cluster_size is None or len(true_cluster) >= min_cluster_size:
+                mean_fraction_present += get_fraction_present(inferred_cluster, true_cluster)
+                n_cmp_uids += 1
 
     if n_uids > 1e6:
         raise Exception('you should start worrying about numerical precision if you\'re going to run on this many queries')
+    # each is None only if min_cluster_size excluded all of its own uids, so an over-split partition
+    # still reports completeness
+    purity = None if n_pur_uids == 0 else mean_clonal_fraction / n_pur_uids
+    completeness = None if n_cmp_uids == 0 else mean_fraction_present / n_cmp_uids
 
     if debug:
-        print('    %scorrect cluster fractions:' % dbg_str)
+        print('    %scorrect cluster fractions%s:' % (dbg_str, '' if min_cluster_size is None else ' (only clusters >= %d)' % min_cluster_size))
         print('       clusters uids')
         print('         %3d    %3d  %s' % (len(true_partition), sum(len(c) for c in true_partition), true_label))
         print('         %3d    %3d  %s' % (len(partition), sum(len(c) for c in partition), inf_label))
-        print('      purity:       %.1f / %d = %.3f' % (mean_clonal_fraction, n_uids, mean_clonal_fraction / n_uids))
-        print('      completeness: %.1f / %d = %.3f' % (mean_fraction_present, n_uids, mean_fraction_present / n_uids))
-    return mean_clonal_fraction / n_uids, mean_fraction_present / n_uids
+        print('      purity:       %s / %d = %s' % (mean_clonal_fraction, n_pur_uids, 'n/a' if purity is None else '%.3f'%purity))
+        print('      completeness: %s / %d = %s' % (mean_fraction_present, n_cmp_uids, 'n/a' if completeness is None else '%.3f'%completeness))
+    return purity, completeness
 
 # ----------------------------------------------------------------------------------------
 def per_family_correct_cluster_fractions(partition, true_partition, debug=False):

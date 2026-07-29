@@ -137,6 +137,23 @@ def assemble_groups_action(args):
     disjointgrouper.assemble_groups(args.locus, disjoint_dir, args.outfname)
 
 # ----------------------------------------------------------------------------------------
+def refined_single_chain_loci(getofn, loci):
+    # loci whose assembled single-chain partition came from partition-refine
+    import partis.disjointgrouper as disjointgrouper
+    rfloci = []
+    for ltmp in loci:
+        ddir = '%s/disjoint-groups/%s' % (os.path.dirname(getofn(ltmp)), ltmp)
+        mfn = '%s/%s' % (ddir, disjointgrouper.MANIFEST_FNAME)
+        if not os.path.exists(mfn):
+            continue
+        for ginfo in disjointgrouper.read_manifest(mfn)['groups']:
+            ppath = ginfo.get('partition_path') or disjointgrouper.discover_partition_path(ginfo, ddir)[0]
+            if ppath is not None and os.path.basename(ppath).startswith('refined-partition'):
+                rfloci.append(ltmp)
+                break
+    return rfloci
+
+# ----------------------------------------------------------------------------------------
 def _disjoint_locus_dir(args):
     outdir = utils.non_none([args.paired_outdir, args.workdir])
     if outdir is None:
@@ -1370,8 +1387,11 @@ def run_all_loci(args, ig_or_tr='ig'):
             print('  no paired uids in any annotations, not merging single chain partitions')
             return None
         if getattr(args, 'partition_refine', False) or getattr(args, 'ha_repartition', False):  # partition-refine/ha-repartition output is single-chain only
-            print('  note: --partition-refine/--ha-repartition single-chain refinement, so not running paired clustering (run merge-paired-partitions separately if needed)')
+            print('  note: --partition-refine/--ha-repartition single-chain refinement, so not running paired clustering (partition without them if you want paired clusters)')
             return None
+        rfloci = refined_single_chain_loci(getofn, sloci())  # also catches merge-paired-partitions, which has no such args
+        if len(rfloci) > 0:
+            raise Exception('single chain input for %s came from partition-refine, whose output is single-chain only: refining and then pairing double-splits the light chain. Re-run partition without --partition-refine/--ha-repartition to get paired clusters.' % ' '.join(rfloci))
         true_outfos = None if args.is_data else {k : read_true_files(merged=mgd, no_plot=True) for k, mgd in [('merged', True), ('lpairs', False)]}
         paircluster.clean_pair_info(args, single_outfos['cpaths'], single_outfos['antn_lists'], plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), true_outfos=true_outfos, debug=args.debug_paired_clustering)
         lp_infos = {}
