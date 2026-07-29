@@ -1075,6 +1075,7 @@ def group_specs(disjoint_dir, groups, locus):
     else the vsearch partition; output is refined-partition-<locus>.yaml. Only groups
     whose input partition and sw-cache exist are returned."""
     specs = []
+    n_harep = n_vsearch = 0
     for group in groups:
         fasta_dir = os.path.dirname(group['fasta_path'])
         harep_p = '%s/%s/ha-repartition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
@@ -1083,9 +1084,16 @@ def group_specs(disjoint_dir, groups, locus):
         inp = harep_p if os.path.exists(harep_p) else vsearch_p
         if not (os.path.exists(inp) and os.path.exists(sw)):
             continue
+        if inp == harep_p:
+            n_harep += 1
+        else:
+            n_vsearch += 1
         specs.append({'group': group, 'input': inp, 'sw_cache': sw,
                       'refined_out': '%s/%s/refined-partition-%s.yaml' % (disjoint_dir, fasta_dir, locus),
                       'refined_rel': '%s/refined-partition-%s.yaml' % (fasta_dir, locus)})
+    if n_harep > 0 and n_vsearch > 0:  # some ha-repartition jobs didn't finish
+        from partis import utils
+        print('  %s refine input is a MIX: %d groups from ha-repartition, %d from vsearch' % (utils.wrnstr(), n_harep, n_vsearch), flush=True)
     return specs
 
 

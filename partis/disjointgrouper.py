@@ -530,25 +530,43 @@ def build_uid_group_mapping(manifest, disjoint_dir):
     return uid_to_group
 
 # ----------------------------------------------------------------------------------------
+# most-refined first: the standalone actions can't update the manifest (array tasks would race on
+# it), so discovery has to find the refined output itself
+PARTITION_PRECEDENCE = ['refined-partition', 'ha-repartition', 'hybrid-partition', 'partition']
+
+
+def discover_partition_path(ginfo, manifest_dir):
+    # (relative path, stage that wrote it), or (None, None) if the group has no partition output
+    fasta_dir = os.path.dirname(ginfo['fasta_path'])
+    for stage in PARTITION_PRECEDENCE:
+        ppath = '%s/%s-%s.yaml' % (fasta_dir, stage, ginfo['locus'])
+        if os.path.exists('%s/%s' % (manifest_dir, ppath)):
+            return ppath, stage
+    return None, None
+
+
 def get_partition_paths(manifest, manifest_dir):
     # collect and verify partition file paths for a single locus
     # if partition_path is set in manifest, use it directly
-    # if partition_path is None, try to discover the partition file in the group dir
-    # (supports standalone partition jobs that do not update the manifest)
+    # if partition_path is None, discover the partition file in the group dir (supports standalone
+    # partition jobs that do not update the manifest)
     paths = []
     skipped_groups = []
     missing_files = []
+    stage_counts = collections.OrderedDict((s, 0) for s in PARTITION_PRECEDENCE)
     for ginfo in manifest['groups']:
         ppath = ginfo.get('partition_path')
         if ppath is None:
-            # check for partition file in the same directory as the fasta
-            fasta_dir = os.path.dirname(ginfo['fasta_path'])
-            default_ppath = '%s/partition-%s.yaml' % (fasta_dir, ginfo['locus'])
-            if os.path.exists('%s/%s' % (manifest_dir, default_ppath)):
-                ppath = default_ppath
-            else:
+            ppath, stage = discover_partition_path(ginfo, manifest_dir)
+            if ppath is None:
                 skipped_groups.append(ginfo['group_id'])
                 continue
+            stage_counts[stage] += 1
+        else:
+            for stage in PARTITION_PRECEDENCE:  # count what the manifest pointed at
+                if os.path.basename(ppath).startswith(stage):
+                    stage_counts[stage] += 1
+                    break
         full_ppath = '%s/%s' % (manifest_dir, ppath)
         if not os.path.exists(full_ppath):
             missing_files.append(ginfo['group_id'])
@@ -560,6 +578,11 @@ def get_partition_paths(manifest, manifest_dir):
         print('      skipping %d groups with no partition output (e.g. too small): %s' % (len(skipped_groups), skipped_groups))
     if len(missing_files) > 0:
         raise Exception('partition files missing for %d groups (partition_path set but file not found): %s' % (len(missing_files), missing_files))
+    nonzero = [(s, n) for s, n in stage_counts.items() if n > 0]
+    if len(nonzero) > 1:  # a mix means some groups' refine/ha-repartition didn't finish
+        print('      %s assembling a MIX of stages: %s' % (utils.wrnstr(), ', '.join('%d %s' % (n, s) for s, n in nonzero)))
+    elif len(nonzero) == 1:
+        print('      all %d groups from %s' % (nonzero[0][1], nonzero[0][0]))
     return paths
 
 # ----------------------------------------------------------------------------------------
@@ -570,12 +593,9 @@ def validate_assembly(manifest, manifest_dir):
     # compute skipped groups using same auto-discovery logic as get_partition_paths
     skipped = []
     for ginfo in manifest['groups']:
-        ppath = ginfo.get('partition_path')
-        if ppath is not None:
+        if ginfo.get('partition_path') is not None:
             continue
-        fasta_dir = os.path.dirname(ginfo['fasta_path'])
-        default_ppath = '%s/partition-%s.yaml' % (fasta_dir, ginfo['locus'])
-        if not os.path.exists('%s/%s' % (manifest_dir, default_ppath)):
+        if discover_partition_path(ginfo, manifest_dir)[0] is None:
             skipped.append(ginfo)
     skipped_seqs = sum(g['sequence_count'] for g in skipped)
     for ppath in get_partition_paths(manifest, manifest_dir):
