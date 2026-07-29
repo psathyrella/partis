@@ -983,7 +983,7 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
             'sw_info': sw_info}
 
 
-def write_full_output(outfname, glfo, refined_partition, sw_info):
+def write_full_output(outfname, glfo, refined_partition, sw_info, label='refine'):
     """Write a full partis output file (germline-info + annotations + partition)
     for a refined partition. Each cluster's annotation is synthesized from the
     cached per-sequence sw_info via the same no-recompute path partis uses for
@@ -991,8 +991,8 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
     synthesis fails (e.g. merged seqs with inconsistent sw annotations) is emitted as
     singletons instead of being dropped, so the written partition and annotation list
     always match -- paired clustering requires an annotation for every partition cluster.
-    Uids whose sw annotation is invalid are dropped up front so one does not
-    shatter its cluster.
+    Uids whose annotation is invalid are dropped up front so one does not shatter its cluster.
+    label: names the calling stage in the drop message, since ha-repartition calls this too.
     Returns the number of annotations written."""
     import os
     from partis import utils
@@ -1058,8 +1058,8 @@ def write_full_output(outfname, glfo, refined_partition, sw_info):
     utils.write_annotations(outfname, glfo, annotation_list, utils.annotation_headers,
                             partition_lines=partition_lines)
     if n_dropped or n_fallback:
-        print('  refine output: dropped %d unannotatable uids (invalid sw annotation)%s%s' % (
-            n_dropped,
+        print('  %s output: dropped %d unannotatable uids (invalid annotation)%s%s' % (
+            label, n_dropped,
             ('; %d clusters fell back to singletons (synthesis failed)' % n_fallback) if n_fallback else '',
             ('; first error: %s' % first_err) if first_err else ''))
     return len(annotation_list)

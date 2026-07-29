@@ -110,7 +110,7 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
     for antn in part_antns:
         for uid in antn['unique_ids']:
             ant_info[uid] = antn
-    partition_refinement.write_full_output(out_fname, glfo, repartitioned, ant_info)
+    partition_refinement.write_full_output(out_fname, glfo, repartitioned, ant_info, label='ha-repartition')
     return repartitioned, n_split, n_kept
 
 
