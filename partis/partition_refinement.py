@@ -73,7 +73,7 @@ def hamming_frac(s1, s2):
 
 
 def get_mutations(seq, naive):
-    if len(seq) != len(naive):  # zip would silently truncate, and if the frames differ by padding every position is shifted
+    if len(seq) != len(naive):  # zip would silently truncate a frame mismatch
         raise Exception('seq (%d) and naive (%d) different lengths' % (len(seq), len(naive)))
     muts = set()
     for i, (s, n) in enumerate(zip(seq, naive)):
@@ -382,6 +382,7 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
     n_rejected_fingerprint = 0
     n_rejected_insufficient = 0
     n_skipped_singleton = 0
+    n_skipped_difflen = 0
 
     for cdr3_len, frags in cdr3_frags.items():
         if len(frags) < 2:
@@ -497,7 +498,10 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
             # handle different-length naives with Python fallback (rare)
             for n1 in diff_len:
                 for n2_seq in unique_naives:
-                    if n2_seq <= n1 or len(n2_seq) != len(n1):
+                    if n2_seq <= n1:
+                        continue
+                    if len(n2_seq) != len(n1):  # never compared, so never merged: count so it isn't silent
+                        n_skipped_difflen += 1
                         continue
                     if hamming_frac(n1, n2_seq) > naive_threshold:
                         continue
@@ -530,6 +534,7 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
 
     n_merges = len(split_partition) - len(merged_partition)
     skip_label = ', %d skipped (singleton-singleton)' % n_skipped_singleton if n_skipped_singleton > 0 else ''
+    skip_label += ', %d skipped (naive length mismatch)' % n_skipped_difflen if n_skipped_difflen > 0 else ''
     print('  step 2: %d naive candidates, %d accepted, %d rejected (fingerprint)%s' % (
         n_naive_candidates, n_accepted, n_rejected_fingerprint, skip_label))
     print('  %d merges, %d -> %d clusters' % (n_merges, len(split_partition), len(merged_partition)))
@@ -848,6 +853,12 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
         random.seed(random_seed)
     partition = [list(c) for c in partition]
     all_uids = set(uid for c in partition for uid in c)
+    # sw naives have to already be in the partition frame (read_refine_inputs does this), since a
+    # frame mismatch shifts every position silently
+    badfo = [(u, len(uid_info[u]['seq']), len(uid_sw_naives[u])) for u in all_uids
+             if u in uid_info and u in uid_sw_naives and len(uid_info[u]['seq']) != len(uid_sw_naives[u])]
+    if len(badfo) > 0:
+        raise Exception('%d uids whose sw naive isn\'t in the partition frame (e.g. %s); pass naives through pad_sw_naive()' % (len(badfo), badfo[:3]))
     n_no_naive = sum(1 for uid in all_uids if uid not in uid_sw_naives)
     if n_no_naive > 0:  # surface incomplete sw-naive coverage: validation keys off naives, so these seqs' fragments are kept intact (step 1 fails closed)
         print('  warning: %d/%d input seqs have no sw naive (refine validates on naives; their fragments are kept intact)' % (n_no_naive, len(all_uids)), flush=True)
@@ -898,6 +909,19 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
 # standalone per-group job: no SW, vsearch, bcrham, or HMM is re-run.
 # ----------------------------------------------------------------------------
 
+def find_sw_offset(part_seq, sw_seq):
+    """Offset of <sw_seq> within <part_seq>, or -1. Falls back to an N-tolerant scan (N in
+    part_seq matches anything) since partis masks the odd base in the padded frame, e.g. a
+    1-base jf_insertion at the 3' end, which defeats an exact find."""
+    ioff = part_seq.find(sw_seq)
+    if ioff >= 0:
+        return ioff
+    for ioff in range(len(part_seq) - len(sw_seq) + 1):
+        if all(p == 'N' or p == s for p, s in zip(part_seq[ioff:ioff + len(sw_seq)], sw_seq)):
+            return ioff
+    return -1
+
+
 def pad_sw_naive(sw_seq, sw_naive, part_seq):
     """Re-pad a per-sequence sw naive into the partition frame. The partition annotation is
     padded (N) relative to the sw annotation, so comparing the two frames position-wise is a
@@ -906,14 +930,14 @@ def pad_sw_naive(sw_seq, sw_naive, part_seq):
     <part_seq>, i.e. the offset is unknown and the caller should drop this uid's naive."""
     if len(part_seq) == len(sw_naive):
         return sw_naive
-    ioff = part_seq.find(sw_seq)
+    ioff = find_sw_offset(part_seq, sw_seq)
     if ioff < 0:
         return None
     nright = len(part_seq) - ioff - len(sw_seq)
     if nright < 0:
         return None
     padded = 'N' * ioff + sw_naive + 'N' * nright
-    if len(padded) != len(part_seq):  # shm indel: naive and seq are in different coord systems, can't align by padding
+    if len(padded) != len(part_seq):  # shm indel: different coord systems, padding can't align them
         return None
     return padded
 
