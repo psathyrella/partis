@@ -73,6 +73,8 @@ def hamming_frac(s1, s2):
 
 
 def get_mutations(seq, naive):
+    if len(seq) != len(naive):  # zip would silently truncate, and if the frames differ by padding every position is shifted
+        raise Exception('seq (%d) and naive (%d) different lengths' % (len(seq), len(naive)))
     muts = set()
     for i, (s, n) in enumerate(zip(seq, naive)):
         if s != n and s != 'N' and n != 'N':
@@ -89,6 +91,8 @@ def jaccard(muts1, muts2):
 
 
 def get_mutations_with_base(seq, naive):
+    if len(seq) != len(naive):
+        raise Exception('seq (%d) and naive (%d) different lengths' % (len(seq), len(naive)))
     muts = {}
     for i, (s, n) in enumerate(zip(seq, naive)):
         if s != n and s != 'N' and n != 'N':
@@ -545,7 +549,8 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
 # positions mutated in >= HOTSPOT_FRAC of the cluster (or in more than
 # HOTSPOT_ABS members) are treated as uninformative (likely shared by chance)
 # and excluded from the pair graph; this also bounds the pairwise cost to rare
-# mutations.
+# mutations. NOTE the abs bound isn't only a cost bound: once n > 2*HOTSPOT_ABS
+# it excludes more than the frac rule does, so it tightens with cluster size.
 HOTSPOT_FRAC = 0.5
 HOTSPOT_ABS = 500
 SHARED_DESCENT_ALPHA = 0.01  # link threshold (Poisson upper-tail cutoff) for the shared-descent test
@@ -835,9 +840,8 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     guards; light relaxes them. light_chain: if None, inferred from D-gene presence.
     alpha: link threshold (Poisson upper-tail cutoff) for the step-3 shared-descent test.
 
-    random_seed: if set, seeds the module RNG so the sampled threshold estimator
-    (estimate_jaccard_threshold) draws a fixed sequence -> runs are bit-reproducible.
-    For validation on fixed datasets; leave None in production (harmless jitter).
+    random_seed: seeds the global RNG. NOTE estimate_jaccard_threshold uses its own
+    fixed-seed RNG, so refinement is already deterministic without this.
     """
     if random_seed is not None:
         import random
@@ -894,6 +898,26 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
 # standalone per-group job: no SW, vsearch, bcrham, or HMM is re-run.
 # ----------------------------------------------------------------------------
 
+def pad_sw_naive(sw_seq, sw_naive, part_seq):
+    """Re-pad a per-sequence sw naive into the partition frame. The partition annotation is
+    padded (N) relative to the sw annotation, so comparing the two frames position-wise is a
+    frame shift; everything downstream keys mutations by position across cluster members, so
+    they all have to be in the partition frame. Returns None if <sw_seq> can't be located in
+    <part_seq>, i.e. the offset is unknown and the caller should drop this uid's naive."""
+    if len(part_seq) == len(sw_naive):
+        return sw_naive
+    ioff = part_seq.find(sw_seq)
+    if ioff < 0:
+        return None
+    nright = len(part_seq) - ioff - len(sw_seq)
+    if nright < 0:
+        return None
+    padded = 'N' * ioff + sw_naive + 'N' * nright
+    if len(padded) != len(part_seq):  # shm indel: naive and seq are in different coord systems, can't align by padding
+        return None
+    return padded
+
+
 def read_refine_inputs(partition_fname, sw_cache_fname):
     """Read an existing partition file and sw-cache (no recompute) and build the
     inputs refine_partition() needs plus the per-sequence sw_info used to write
@@ -906,20 +930,30 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
     for antn in part_antns:
         naive = antn.get('naive_seq')
         cdr3 = antn.get('cdr3_length', 0)
-        iseqs = antn.get('input_seqs', [])
+        iseqs = antn.get('seqs', antn.get('input_seqs', []))  # indel-reversed: these are what line up with naive_seq
         for i, uid in enumerate(antn['unique_ids']):
             if naive is not None and i < len(iseqs):
                 uid_info[uid] = {'seq': iseqs[i], 'naive': naive, 'cdr3_length': cdr3}
 
     sw_glfo, sw_antns, _ = utils.read_output(sw_cache_fname)
     sw_info, uid_sw_naives, uid_rearr_features = {}, {}, {}
+    n_unalignable = 0
     for antn in sw_antns:
-        for uid in antn['unique_ids']:
+        sw_seqs = antn.get('seqs', antn.get('input_seqs', []))
+        for i, uid in enumerate(antn['unique_ids']):
             sw_info[uid] = antn
-            uid_sw_naives[uid] = antn['naive_seq']
             uid_rearr_features[uid] = {'vdj': (antn.get('v_gene', ''),
                                                antn.get('d_gene', ''),
                                                antn.get('j_gene', ''))}
+            naive = antn['naive_seq']
+            if uid in uid_info and i < len(sw_seqs):  # re-pad into the partition frame
+                naive = pad_sw_naive(sw_seqs[i], naive, uid_info[uid]['seq'])
+            if naive is None:  # unknown offset: drop, refine fails closed on missing naives
+                n_unalignable += 1
+                continue
+            uid_sw_naives[uid] = naive
+    if n_unalignable > 0:
+        print('  %s couldn\'t align %d sw naives to the partition frame (dropped)' % (utils.wrnstr(), n_unalignable), flush=True)
     return {'glfo': sw_glfo, 'partition': partition, 'uid_info': uid_info,
             'uid_sw_naives': uid_sw_naives, 'uid_rearr_features': uid_rearr_features,
             'sw_info': sw_info}
