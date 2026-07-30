@@ -511,7 +511,13 @@ def get_missing_codon_info(glfo, template_glfo=None, remove_bad_genes=False, deb
             remove_gene(glfo, renamed_template_gene)
 
 # ----------------------------------------------------------------------------------------
-def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of the arguments
+def get_merged_glfo(glfo_a, glfo_b, debug=False, glfo_labels=None):  # doesn't modify either of the arguments
+    # <glfo_labels>: optional (a, b) names for the two glfos (e.g. ('old', 'new')), used in the
+    # conflict warnings below so it's clear which glfo's seq/name is kept (a always wins). Defaults
+    # to the generic 'glfo_a, the first arg' wording for callers that don't pass it.
+    lbl_a = glfo_labels[0] if glfo_labels is not None else 'glfo_a, the first arg'
+    ref_label = (glfo_labels[0] + ' ') if glfo_labels is not None else ''
+    seq_label = (glfo_labels[1] + ' ') if glfo_labels is not None else ''
     if debug:
         print('  merging glfos')
     assert set(glfo_a['seqs']) == set(glfo_b['seqs'])
@@ -543,12 +549,18 @@ def get_merged_glfo(glfo_a, glfo_b, debug=False):  # doesn't modify either of th
             if len(duplicate_genes) > 0:
                 print('     %d gene names in both: %s' % (len(duplicate_genes), utils.color_genes(duplicate_genes)))
             # assert set(duplicate_genes) | genes_from_a | genes_from_b == set(merged_glfo['seqs'][region])
+        codon = utils.conserved_codons[glfo_a['locus']].get(region)  # cyst for v, tryp/phen for j (None for d)
+        keep_str = ' (keeping the %sseq)' % ref_label if glfo_labels is not None else ''
         for dgene in duplicate_genes:  # check for inconsistent sequences for the same name
             if glfo_a['seqs'][region][dgene] != glfo_b['seqs'][region][dgene]:
-                print('      merging glfos: %s different seqs for name %s' % (utils.color('red', 'warning'), utils.color_gene(dgene)))
-                utils.color_mutants(glfo_a['seqs'][region][dgene], glfo_b['seqs'][region][dgene], align=True, print_result=True, extra_str='        ')
+                print('      merging glfos: %s different seqs for name %s%s' % (utils.color('red', 'warning'), utils.color_gene(dgene), keep_str))
+                cpos = glfo_a.get(codon + '-positions', {}).get(dgene) if codon is not None else None
+                emph = [cpos, cpos + 1, cpos + 2] if cpos is not None else None  # reverse-video the conserved codon so the frame is visible
+                utils.color_mutants(glfo_a['seqs'][region][dgene], glfo_b['seqs'][region][dgene], align=True, print_result=True, extra_str='        ', ref_label=ref_label, seq_label=seq_label, emphasis_positions=emph)
         if len(duplicate_seqs) > 0:
-            print('     merging glfos: %d seqs in both, but with different names (we use the name from glfo_a, the first arg): %s' % (len(duplicate_seqs), '   '.join([('%s %s' % (utils.color_gene(ga), utils.color_gene(gb))) for ga, gb in inconsistent_names])))
+            pairstr = ',  '.join([('%s (kept) %s (dropped)' % (utils.color_gene(ga), utils.color_gene(gb))) for ga, gb in inconsistent_names]) if glfo_labels is not None \
+                      else '   '.join([('%s %s' % (utils.color_gene(ga), utils.color_gene(gb))) for ga, gb in inconsistent_names])
+            print('     merging glfos: %d seqs in both, but with different names (we use the name from %s): %s' % (len(duplicate_seqs), lbl_a, pairstr))
 
     return merged_glfo, name_mapping
 
