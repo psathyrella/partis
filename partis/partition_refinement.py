@@ -944,18 +944,20 @@ def pad_sw_naive(sw_seq, sw_naive, part_seq):
 
 def read_refine_inputs(partition_fname, sw_cache_fname):
     """Read an existing partition file and sw-cache (no recompute) and build the
-    inputs refine_partition() needs plus the per-sequence sw_info used to write
-    full output. Returns a dict with keys: glfo, partition, uid_info,
-    uid_sw_naives, uid_rearr_features, sw_info."""
+    inputs refine_partition() needs, plus the per-sequence sw_info and the
+    partition annotations used to write full output. Returns a dict with keys:
+    glfo, part_glfo, partition, uid_info, uid_sw_naives, uid_rearr_features,
+    sw_info, uid_part_antns."""
     from partis import utils
-    _, part_antns, cpath = utils.read_output(partition_fname)
+    part_glfo, part_antns, cpath = utils.read_output(partition_fname)
     partition = [list(c) for c in (cpath.best() if cpath is not None else [])]
-    uid_info = {}
+    uid_info, uid_part_antns = {}, {}
     for antn in part_antns:
         naive = antn.get('naive_seq')
         cdr3 = antn.get('cdr3_length', 0)
         iseqs = antn.get('seqs', antn.get('input_seqs', []))  # indel-reversed: these are what line up with naive_seq
         for i, uid in enumerate(antn['unique_ids']):
+            uid_part_antns[uid] = antn  # write path synthesizes from these, so output stays in the input's padded frame
             if naive is not None and i < len(iseqs):
                 uid_info[uid] = {'seq': iseqs[i], 'naive': naive, 'cdr3_length': cdr3}
 
@@ -978,34 +980,38 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
             uid_sw_naives[uid] = naive
     if n_unalignable > 0:
         print('  %s couldn\'t align %d sw naives to the partition frame (dropped)' % (utils.wrnstr(), n_unalignable), flush=True)
-    return {'glfo': sw_glfo, 'partition': partition, 'uid_info': uid_info,
+    return {'glfo': sw_glfo, 'part_glfo': part_glfo, 'partition': partition, 'uid_info': uid_info,
             'uid_sw_naives': uid_sw_naives, 'uid_rearr_features': uid_rearr_features,
-            'sw_info': sw_info}
+            'sw_info': sw_info, 'uid_part_antns': uid_part_antns}
 
 
-def write_full_output(outfname, glfo, refined_partition, sw_info, label='refine'):
+def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine'):
     """Write a full partis output file (germline-info + annotations + partition)
     for a refined partition. Each cluster's annotation is synthesized from the
-    cached per-sequence sw_info via the same no-recompute path partis uses for
-    --fast (synthesize_multi_seq_line_from_reco_info). A cluster whose multi-sequence
-    synthesis fails (e.g. merged seqs with inconsistent sw annotations) is emitted as
-    singletons instead of being dropped, so the written partition and annotation list
-    always match -- paired clustering requires an annotation for every partition cluster.
-    Uids whose annotation is invalid are dropped up front so one does not shatter its cluster.
+    per-uid annotations in <ant_info> via the same no-recompute path partis uses for
+    --fast (synthesize_multi_seq_line_from_reco_info). Both callers pass the partition
+    step's annotations: synthesis takes the family keys from the first uid and the seqs
+    from all of them, so every uid must be in one padded frame (the sw cache is unpadded,
+    each sequence in its own germline frame). A cluster whose multi-sequence synthesis
+    fails is still emitted, as singletons, rather than dropped, so the written partition
+    and annotation list always match -- paired clustering requires an annotation for every
+    partition cluster. Uids whose annotation is invalid are dropped up front so one does
+    not shatter its cluster.
     label: names the calling stage in the drop message, since ha-repartition calls this too.
-    Returns the number of annotations written."""
+    Returns counts: n_written, n_dropped, n_fallback, n_fallback_uids."""
     import os
     from partis import utils
     from partis import clusterpath
 
     def _annotate(uids):
-        antn = utils.synthesize_multi_seq_line_from_reco_info(uids, sw_info, warn=False)
+        antn = utils.synthesize_multi_seq_line_from_reco_info(uids, ant_info, warn=False)
         utils.remove_all_implicit_info(antn)
         utils.add_implicit_info(glfo, antn, reset_indel_genes=True)
         return antn
 
     def _pad_to_uniform_length(antns):
-        # pad naive_seqs to uniform length per cdr3 class
+        # pad naive_seqs to uniform length per cdr3 class (a no-op when the input annotations
+        # are already uniformly padded, kept as a safety net for inputs that are not)
         maxfo = {}  # cdr3_length: [max_gl_cpos, max_gl_cpos_to_j_end]
         for antn in antns:
             cpos, seqlen = antn['codon_positions']['v'], len(antn['seqs'][0])
@@ -1027,12 +1033,12 @@ def write_full_output(outfname, glfo, refined_partition, sw_info, label='refine'
                 utils.re_pad_atn(padleft, padright, antn, glfo)
 
     annotation_list, out_partition = [], []
-    n_dropped, n_fallback = 0, 0
+    n_dropped, n_fallback, n_fallback_uids = 0, 0, 0
     first_err = None
     for cluster in refined_partition:
-        cluster = [uid for uid in cluster if uid in sw_info]
-        # drop invalid uids so one bad sw annotation does not shatter the cluster
-        good = [uid for uid in cluster if not sw_info[uid].get('invalid', False)]
+        cluster = [uid for uid in cluster if uid in ant_info]
+        # drop invalid uids so one bad annotation does not shatter the cluster
+        good = [uid for uid in cluster if not ant_info[uid].get('invalid', False)]
         n_dropped += len(cluster) - len(good)
         if len(good) == 0:
             continue
@@ -1042,6 +1048,7 @@ def write_full_output(outfname, glfo, refined_partition, sw_info, label='refine'
         except Exception as e:  # fall back to singletons on synthesis failure
             first_err = first_err if first_err is not None else repr(e)
             n_fallback += 1
+            n_fallback_uids += len(good)
             for uid in good:
                 try:
                     annotation_list.append(_annotate([uid]))
@@ -1058,11 +1065,15 @@ def write_full_output(outfname, glfo, refined_partition, sw_info, label='refine'
     utils.write_annotations(outfname, glfo, annotation_list, utils.annotation_headers,
                             partition_lines=partition_lines)
     if n_dropped or n_fallback:
-        print('  %s output: dropped %d unannotatable uids (invalid annotation)%s%s' % (
-            label, n_dropped,
-            ('; %d clusters fell back to singletons (synthesis failed)' % n_fallback) if n_fallback else '',
-            ('; first error: %s' % first_err) if first_err else ''))
-    return len(annotation_list)
+        msgs = []
+        if n_dropped > 0:
+            msgs.append('dropped %d unannotatable uids (invalid annotation)' % n_dropped)
+        if n_fallback > 0:
+            msgs.append('%d clusters (%d uids) fell back to singletons (synthesis failed)' % (n_fallback, n_fallback_uids))
+        print('  %s %s output: %s%s' % (utils.wrnstr(), label, '; '.join(msgs),
+                                        ('; first error: %s' % first_err) if first_err else ''), flush=True)
+    return {'n_written': len(annotation_list), 'n_dropped': n_dropped,
+            'n_fallback': n_fallback, 'n_fallback_uids': n_fallback_uids}
 
 
 # ----------------------------------------------------------------------------
@@ -1118,8 +1129,10 @@ def run_jobs(specs, naive_threshold=None, jaccard_threshold=None):
     refined output already exists are skipped. naive/jaccard thresholds default to a
     locus-wide estimate over <specs>; when running a slice, pass thresholds estimated over
     the full group list."""
+    from partis import utils
     if naive_threshold is None or jaccard_threshold is None:
         naive_threshold, jaccard_threshold = estimate_locuswide_thresholds(specs)
+    totals, n_run = defaultdict(int), 0
     for spec in specs:
         if os.path.exists(spec['refined_out']):
             continue
@@ -1130,4 +1143,10 @@ def run_jobs(specs, naive_threshold=None, jaccard_threshold=None):
             naive_threshold=naive_threshold, jaccard_threshold=jaccard_threshold,
             skip_singleton_merge=True, min_agreement=0.15,
             naive_freq_threshold=10, rearrangement_guard=True, verbose=False)
-        write_full_output(spec['refined_out'], inp['glfo'], refined, inp['sw_info'])
+        cfo = write_full_output(spec['refined_out'], inp['part_glfo'], refined, inp['uid_part_antns'])
+        n_run += 1
+        for key, val in cfo.items():
+            totals[key] += val
+    if totals['n_dropped'] > 0 or totals['n_fallback'] > 0:  # per-group counts are easy to miss, so total them
+        print('  %s refine output over %d groups: dropped %d unannotatable uids, %d clusters (%d uids) fell back to singletons'
+              % (utils.wrnstr(), n_run, totals['n_dropped'], totals['n_fallback'], totals['n_fallback_uids']), flush=True)
