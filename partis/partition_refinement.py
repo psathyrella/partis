@@ -1083,7 +1083,7 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
 # ----------------------------------------------------------------------------
 def group_specs(disjoint_dir, groups, locus):
     """Per-group refine I/O paths. Refine runs on the HA re-partition if it exists,
-    else the vsearch partition; output is refined-partition-<locus>.yaml. Only groups
+    else the vsearch partition; output is partition-refine-<locus>.yaml. Only groups
     whose input partition and sw-cache exist are returned."""
     specs = []
     n_harep = n_vsearch = 0
@@ -1100,8 +1100,8 @@ def group_specs(disjoint_dir, groups, locus):
         else:
             n_vsearch += 1
         specs.append({'group': group, 'input': inp, 'sw_cache': sw,
-                      'refined_out': '%s/%s/refined-partition-%s.yaml' % (disjoint_dir, fasta_dir, locus),
-                      'refined_rel': '%s/refined-partition-%s.yaml' % (fasta_dir, locus)})
+                      'refined_out': '%s/%s/partition-refine-%s.yaml' % (disjoint_dir, fasta_dir, locus),
+                      'refined_rel': '%s/partition-refine-%s.yaml' % (fasta_dir, locus)})
     if n_harep > 0 and n_vsearch > 0:  # some ha-repartition jobs didn't finish
         from partis import utils
         print('  %s refine input is a MIX: %d groups from ha-repartition, %d from vsearch' % (utils.wrnstr(), n_harep, n_vsearch), flush=True)
