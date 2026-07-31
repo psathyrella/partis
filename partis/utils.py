@@ -10,6 +10,7 @@ import time
 import sys
 import os
 import random
+import uuid
 import itertools
 import ast
 import math
@@ -64,9 +65,7 @@ def fsdir():
 
 # ----------------------------------------------------------------------------------------
 def choose_random_subdir(dirname, make_dir=False):
-    subname = str(random.randint(0, 999999))
-    while os.path.exists(dirname + '/' + subname):
-        subname = str(random.randint(0, 999999))
+    subname = uuid.uuid4().hex  # uuid4 draws from os.urandom, *not* the seeded global random module, so this unique workdir name doesn't consume the seeded stream (which must stay in sync for reproducible downstream shuffles). also unique enough that we don't need a collision-retry loop
     if make_dir:
         prep_dir(dirname + '/' + subname)
     return dirname + '/' + subname
