@@ -3,8 +3,8 @@
 ### Installation methods
 
 Partis can be installed via:
-  - [pip and pipx](#installation-with-pip-or-pipx): recommended
-  - [the optional zig backend](#zig-backend): faster, lower-memory, almost nothing to install
+  - [pip and pipx](#installation-with-pip-or-pipx)
+  - [new zig backend](#zig-backend)
   - [additional steps for simulation installation](#simulation)
   - [with Docker](#installation-with-docker)
   - [plotting dependencies](#plotting)
@@ -13,15 +13,17 @@ Partis can be installed via:
 
 First install system dependencies:
 ```bash
-# Ubuntu/Debian
+# Ubuntu/Debian (defaults to C++ backend)
 sudo apt update
 sudo apt install python3 python3-pip python-is-python3 pipx build-essential cmake libgsl-dev libyaml-cpp-dev scons mafft ncurses-base ncurses-bin
 
-# macOS (with Homebrew)
+# macOS -- Intel (defaults to C++ backend)
 brew install python3 pipx cmake gsl yaml-cpp scons mafft
+
+# macOS -- Apple Silicon (arm64): (defaults to zig backend)
+xcode-select --install  # command-line tools -- provides the compiler used to build FastTree at install time
+brew install python3 pipx mafft
 ```
-Note, however, that macOS 14 or newer (ARM64) cannot run or compile the ig-sw dependency due to incompatibility with emmintrin/SSE2.
-Until we've managed to resolve this, then, you'll unfortunately be limited to either Linux or macOS 13 or older.
 
 Install from PyPI (recommended):
 ```bash
@@ -56,16 +58,15 @@ partis-test.py --paired --no-simu
 
 #### Zig backend
 
-We have reimplemented the partis backend (ig-sw and bcrham) in [Zig](https://ziglang.org), but have not yet turned it on by default.
+We have reimplemented the partis backend (ig-sw and bcrham) in [Zig](https://ziglang.org).
 The zig version is around twice as fast, and substantially easier to install: building it requires only the zig compiler (fetched automatically), rather than system installs of the the C++ toolchain (build-essential, cmake, scons, gsl, yaml-cpp).
-Since it is much newer, and has not been tested quite as thoroughly, for now it is still opt-in either at compile or run time (see [`--zig`](subcommands.md#the-zig-backend---zig)).
+But since it is much newer, and thus hasn't been tested quite as thoroughly, it's only turned on by default for Apple Silicon (arm64) macs, on which the C++ ig-sw can no longer be used.
 
-To install with the zig backend, set `PARTIS_BACKEND=zig` when installing from source:
+To use the zig backend on Linux or an Intel Mac, set `PARTIS_BACKEND=zig` when installing from source:
 ```bash
 PARTIS_BACKEND=zig pip install -e .
 ```
-This builds the zig binaries (via `bin/zig-build.sh`) instead of the C++ backend.
-To use zig at run time, pass `--zig` to each partis command.
+and pass `--zig` to each partis command at run time.
 
 Alternatively, on an existing C++ install, build zig alongside it with `bin/zig-build.sh` and likewise select it per command with `--zig`.
 

@@ -2,6 +2,7 @@
 
 import os
 import sys
+import platform
 import subprocess
 from pathlib import Path
 from setuptools import setup, find_packages
@@ -48,18 +49,26 @@ def build_fasttree_macos(base_dir):
 
 
 def build_compiled_components():
-    """Build the backend requested by $PARTIS_BACKEND (default 'cpp').
+    """Build the backend requested by $PARTIS_BACKEND.
 
-    'cpp' (default): compile the C++ bcrham + C ig-sw via bin/build.sh (needs the
-      C/C++ toolchain: scons, gcc, g++).
+    Default is 'cpp' everywhere except Apple Silicon (macOS arm64), where it's 'zig':
+    the C ig-sw uses SSE2/emmintrin and can neither compile nor run on arm64 (issue
+    #330), so zig is the only backend that works there.
+
+    'cpp': compile the C++ bcrham + C ig-sw via bin/build.sh (needs the C/C++
+      toolchain: scons, gcc, g++).
     'zig': build the in-tree Zig backend via bin/zig-build.sh (fetches its own Zig
-      compiler; needs only curl+tar, no C/C++ toolchain / gsl / yaml-cpp). This does
-      NOT change the default backend: the C++ backend remains the default and zig is
-      selected at run time with --zig. (In a zig-only install the C++ backend isn't
-      built, so you must pass --zig.)
+      compiler; needs only curl+tar, no C/C++ toolchain / gsl / yaml-cpp). On non-arm64
+      platforms this does NOT change the default backend: the C++ backend remains the
+      default and zig is selected at run time with --zig. (In a zig-only install the
+      C++ backend isn't built, so you must pass --zig -- except on Apple Silicon, where
+      bin/partis defaults to zig automatically since the C++ backend can't run.)
     """
     base_dir = Path(__file__).parent.absolute()
-    backend = os.environ.get('PARTIS_BACKEND', 'cpp').lower()
+    backend = os.environ.get('PARTIS_BACKEND')
+    if backend is None:  # Apple Silicon can't build the SSE2 C++ ig-sw (issue #330), so default to zig there
+        backend = 'zig' if (sys.platform == 'darwin' and platform.machine() == 'arm64') else 'cpp'
+    backend = backend.lower()
     if backend not in ('cpp', 'zig'):
         raise RuntimeError("PARTIS_BACKEND must be 'cpp' or 'zig' (got '%s')" % backend)
 
