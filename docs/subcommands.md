@@ -19,7 +19,7 @@
     - [germline sets](#germline-sets)
   - [simulate](#simulate) make simulated sequences
   - [other topics](#other-topics)
-    - [the zig backend (--zig)](#the-zig-backend---zig) faster, lower-memory, fewer-dependency backend (opt-in)
+    - [the zig backend (--zig)](#the-zig-backend---zig) faster, fewer-dependency backend (opt-in)
     - [restricting to certain partitions or clusters](#restricting-to-certain-partitions-or-clusters)
     - [subcluster annotation](#subcluster-annotation)
 	- [annotation uncertainties (alternative annotations)](#annotation-uncertainties-alternative-annotations)
@@ -470,7 +470,7 @@ You can then add novel alleles to the germline set by telling it how many novel 
 ##### the zig backend (`--zig`)
 
 Partis ships an alternative backend, written in [Zig](https://ziglang.org), that replaces the default C++ `bcrham` and C `ig-sw` binaries.
-It is much faster, uses less memory, and has far fewer dependencies than the default backend, but has not yet been tested as thoroughly, so for now it remains opt-in.
+It is much faster and has far fewer dependencies than the default backend, but has not yet been tested as thoroughly, so it remains opt-in (via `--zig`) everywhere except Apple Silicon (arm64) Macs, where it is the default since the C++ backend cannot run there.
 Output is intended to be identical to the default backend (the two are checked for byte-identical results on paired clustering).
 
 Build it once with `bin/zig-build.sh` (this fetches a pinned Zig compiler and compiles the in-tree backend; see [install](install.md#zig-backend)), then add `--zig` to any partis command, e.g.:

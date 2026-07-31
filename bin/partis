@@ -21,6 +21,7 @@ import json
 import csv
 import operator
 import glob
+import platform
 from collections import defaultdict
 from pathlib import Path
 import shutil
@@ -1836,6 +1837,11 @@ args = parser.parse_args() if len(sys.argv) > 1 else parser.parse_args(['--help'
 # add OR of all arguments to all subparsers to <args>, as None (to avoid having to rewrite a *##!(%ton of other code)
 for missing_arg in get_arg_names('all') - set(args.__dict__):  # NOTE see also remove_action_specific_args() above, which kind of does similar things, at least if i rewrote this all from scratch only one (or neither...) would exist
     args.__dict__[missing_arg] = None
+
+if not getattr(args, 'zig', False) and sys.platform == 'darwin' and platform.machine() == 'arm64':
+    # Apple Silicon can't build/run the SSE2 C++ ig-sw (issue #330), so zig is the only backend here -- default to it. everywhere the C++ backend *does* run (linux, intel mac), --zig stays an explicit opt-in, since the C++ backend is the more-tested default.
+    print('  %s no C++ backend on Apple Silicon (arm64 can\'t run the SSE2 ig-sw, issue #330), so defaulting to the zig backend, which is faster, but newer and less thoroughly tested' % utils.wrnstr())
+    args.zig = True
 
 if getattr(args, 'zig', False):
     zig_bin = partis_dir + '/packages/zig-core/zig-out/bin'
