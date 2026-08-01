@@ -139,11 +139,20 @@ def get_fragment_naive(uids, uid_sw_naives):
     return max(naive_counts, key=naive_counts.get)
 
 
-def compute_naive_frequencies(uid_sw_naives):
-    naive_freq = defaultdict(int)
-    for uid, naive in uid_sw_naives.items():
-        naive_freq[naive] += 1
-    return naive_freq
+def get_fragment_junction(uids, uid_rearr_features):
+    """Modal (v_3p_del, j_5p_del) over a fragment's members, or None if unavailable."""
+    counts = defaultdict(int)
+    for uid in uids:
+        feat = uid_rearr_features.get(uid) if uid_rearr_features is not None else None
+        if feat is None:
+            continue
+        key = (feat.get('v_3p_del'), feat.get('j_5p_del'))
+        if key[0] is None or key[1] is None:
+            continue
+        counts[key] += 1
+    if len(counts) == 0:
+        return None
+    return max(counts, key=counts.get)
 
 
 def get_cluster_fingerprint(uids, uid_to_muts_with_base):
@@ -355,7 +364,8 @@ def step1_validated_split(partition, uid_to_muts, uid_sw_naives,
 def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                             uid_to_muts_with_base, naive_threshold,
                             min_agreement=0.15, min_fp_positions=0,
-                            skip_singleton_merge=False):
+                            skip_singleton_merge=False, uid_rearr_features=None,
+                            junction_guard=True):
     """Step 2: Incremental naive merge with fingerprint validation.
 
     For each CDR3 group, find clusters with similar naives (candidates),
@@ -366,6 +376,10 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
     are singletons. True singletons (survived vsearch + HA) should stay
     singletons. Only attempt merges when at least one side has multiple
     members (i.e., one side has a real cluster-level fingerprint).
+
+    junction_guard: reject a union whose two fragments disagree on (v_3p_del,
+    j_5p_del). Rearrangement signal, orthogonal to the naive-distance proposer
+    and the fingerprint validator. Inert when uid_rearr_features is None.
     """
     cdr3_frags = defaultdict(list)
     for cluster in split_partition:
@@ -381,6 +395,7 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
     n_accepted = 0
     n_rejected_fingerprint = 0
     n_rejected_insufficient = 0
+    n_rejected_junction = 0
     n_skipped_singleton = 0
     n_skipped_difflen = 0
 
@@ -391,6 +406,8 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
 
         # precompute fingerprints and naives for all fragments
         frag_naives = [get_fragment_naive(f, uid_sw_naives) for f in frags]
+        frag_juncs = ([get_fragment_junction(f, uid_rearr_features) for f in frags]
+                      if junction_guard else [None] * len(frags))
         frag_fps = []
         for f in frags:
             fp, n_w = get_cluster_fingerprint(f, uid_to_muts_with_base)
@@ -432,6 +449,10 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                         n_skipped_singleton += 1
                         continue
                     n_naive_candidates += 1
+                    ji, jj = frag_juncs[i], frag_juncs[j]
+                    if ji is not None and jj is not None and ji != jj:
+                        n_rejected_junction += 1
+                        continue
                     fp_i, n_i = frag_fps[i]
                     fp_j, n_j = frag_fps[j]
                     agreement, n_strong = fingerprint_agreement(
@@ -483,6 +504,10 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                                         n_skipped_singleton += 1
                                         continue
                                     n_naive_candidates += 1
+                                    ji, jj = frag_juncs[i], frag_juncs[j]
+                                    if ji is not None and jj is not None and ji != jj:
+                                        n_rejected_junction += 1
+                                        continue
                                     fp_i, n_i = frag_fps[i]
                                     fp_j, n_j = frag_fps[j]
                                     agreement, n_strong = fingerprint_agreement(
@@ -513,6 +538,10 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                                 n_skipped_singleton += 1
                                 continue
                             n_naive_candidates += 1
+                            ji, jj = frag_juncs[i], frag_juncs[j]
+                            if ji is not None and jj is not None and ji != jj:
+                                n_rejected_junction += 1
+                                continue
                             fp_i, n_i = frag_fps[i]
                             fp_j, n_j = frag_fps[j]
                             agreement, n_strong = fingerprint_agreement(
@@ -535,8 +564,9 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
     n_merges = len(split_partition) - len(merged_partition)
     skip_label = ', %d skipped (singleton-singleton)' % n_skipped_singleton if n_skipped_singleton > 0 else ''
     skip_label += ', %d skipped (naive length mismatch)' % n_skipped_difflen if n_skipped_difflen > 0 else ''
-    print('  step 2: %d naive candidates, %d accepted, %d rejected (fingerprint)%s' % (
-        n_naive_candidates, n_accepted, n_rejected_fingerprint, skip_label))
+    junc_label = ', %d rejected (junction)' % n_rejected_junction if n_rejected_junction > 0 else ''
+    print('  step 2: %d naive candidates, %d accepted, %d rejected (fingerprint)%s%s' % (
+        n_naive_candidates, n_accepted, n_rejected_fingerprint, junc_label, skip_label))
     print('  %d merges, %d -> %d clusters' % (n_merges, len(split_partition), len(merged_partition)))
     return merged_partition
 
@@ -551,13 +581,6 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
 # produce, so the threshold self-calibrates per cluster.
 # ----------------------------------------------------------------------------
 
-# positions mutated in >= HOTSPOT_FRAC of the cluster (or in more than
-# HOTSPOT_ABS members) are treated as uninformative (likely shared by chance)
-# and excluded from the pair graph; this also bounds the pairwise cost to rare
-# mutations. NOTE the abs bound isn't only a cost bound: once n > 2*HOTSPOT_ABS
-# it excludes more than the frac rule does, so it tightens with cluster size.
-HOTSPOT_FRAC = 0.5
-HOTSPOT_ABS = 500
 SHARED_DESCENT_ALPHA = 0.01  # link threshold (Poisson upper-tail cutoff) for the shared-descent test
 
 
@@ -579,9 +602,8 @@ def shared_descent_pair_stats(cluster, uid_muts):
     """For one cluster, estimate the base-specific per-position mutation propensity
     g(pos,base) = (# members whose mutation at pos == base) / cluster_size, the
     null expected shared-count mu = sum over (pos,base) of g^2, and the observed
-    shared specific-mutation count per member-index pair. Hotspot/consensus
-    positions are excluded (informative positions only). Returns
-    (members, pair_k, mu)."""
+    shared specific-mutation count per member-index pair. Positions carried by a
+    single member are skipped. Returns (members, pair_k, mu)."""
     members = list(cluster)
     n = len(members)
     inv = defaultdict(list)  # (pos, base): member indices
@@ -594,8 +616,6 @@ def shared_descent_pair_stats(cluster, uid_muts):
         c = len(idxs)
         if c < 2:
             continue
-        if c >= HOTSPOT_FRAC * n or c > HOTSPOT_ABS:
-            continue  # skip uninformative (hotspot/consensus) position
         g = c / n
         mu += g * g
         for i in range(c):
@@ -654,35 +674,16 @@ def _partition_has_real_d(uid_rearr_features):
     return False
 
 
-def step3_split(merged_partition, uid_info, uid_sw_naives,
-                naive_freq=None, naive_freq_threshold=10,
-                max_expansion_ratio=2.0,
-                uid_rearr_features=None, rearrangement_guard=False,
-                light_chain=None, alpha=SHARED_DESCENT_ALPHA):
+def step3_split(merged_partition, uid_info, uid_sw_naives, alpha=SHARED_DESCENT_ALPHA):
     """Step 3: split over-merged clusters by shared descent
-    (split_by_shared_descent). The guards fork on chain:
+    (split_by_shared_descent). Every cluster of size >= 2 is passed to the
+    proposer. Light chain only (see refine_partition).
 
-      HEAVY (light_chain False): a cluster is split only if its dominant SW naive
-        occurs >= naive_freq_threshold times AND it fails both the D-gene guard
-        (rearrangement_guard: real D present and >= 80% shared V+D+J -> keep) and
-        the concentration-ratio guard (cluster_size / dominant-naive-count <=
-        max_expansion_ratio -> keep). Otherwise kept intact.
-
-      LIGHT (light_chain True): the naive-freq trigger and the concentration-ratio
-        guard are skipped (they do not discriminate when every cell shares one
-        light naive); every cluster of size >= 2 is passed to the proposer.
-
-    light_chain: if None, inferred from the absence of real D genes in
-    uid_rearr_features (heavy has real D; light does not).
     alpha: link threshold (Poisson upper-tail cutoff) for the shared-descent test
     (default SHARED_DESCENT_ALPHA).
     """
-    if light_chain is None:
-        light_chain = not _partition_has_real_d(uid_rearr_features)
-
     result = []
-    n_resplit = n_skipped = n_expansion_skip = n_must_collision = 0
-    n_rearr_guard_skip = n_input_seqs = 0
+    n_resplit = n_skipped = n_input_seqs = 0
 
     for cluster in merged_partition:
         if len(cluster) < 2:
@@ -696,45 +697,6 @@ def step3_split(merged_partition, uid_info, uid_sw_naives,
             if uid in uid_sw_naives and uid in uid_info:
                 uid_muts[uid] = get_mutations_with_base(uid_info[uid]['seq'], uid_sw_naives[uid])
 
-        if not light_chain:
-            # HEAVY guard block: only genuine collisions reach the proposer.
-            rep_naive = None
-            if naive_freq is not None and naive_freq_threshold is not None:
-                rep_naive = get_fragment_naive(cluster, uid_sw_naives)
-            if rep_naive is None or naive_freq.get(rep_naive, 0) < naive_freq_threshold:
-                result.append(cluster)
-                n_skipped += 1
-                continue
-            # D-gene guard: real D present and >= 80% share V+D+J, so keep (deep tree)
-            if rearrangement_guard and uid_rearr_features is not None:
-                vdj_counts = {}
-                has_real_d = False
-                n_with_feat = 0
-                for uid in cluster:
-                    feat = uid_rearr_features.get(uid)
-                    if feat is not None:
-                        vdj = feat['vdj']
-                        vdj_counts[vdj] = vdj_counts.get(vdj, 0) + 1
-                        n_with_feat += 1
-                        d_gene = vdj[1]
-                        if d_gene and 'x-x' not in d_gene and 'Dx' not in d_gene:
-                            has_real_d = True
-                if has_real_d and n_with_feat > 0 and max(vdj_counts.values()) / n_with_feat >= 0.80:
-                    result.append(cluster)
-                    n_rearr_guard_skip += 1
-                    continue
-            # concentration-ratio guard: star-like expansion, so keep
-            if rep_naive is not None and max_expansion_ratio > 0:
-                naive_count = sum(1 for uid in cluster
-                                  if uid in uid_sw_naives and uid_sw_naives[uid] == rep_naive)
-                ratio = len(cluster) / naive_count if naive_count > 0 else 999
-                if ratio <= max_expansion_ratio:
-                    result.append(cluster)
-                    n_expansion_skip += 1
-                    continue
-            n_must_collision += 1
-
-        # shared-descent split (light: every cluster; heavy: those that passed guards)
         n_input_seqs += len(cluster)
         pieces = split_by_shared_descent(list(cluster), uid_muts, alpha)
         result.extend(pieces)
@@ -742,12 +704,8 @@ def step3_split(merged_partition, uid_info, uid_sw_naives,
             n_resplit += 1
 
     n_result_singletons = sum(1 for c in result if len(c) == 1)
-    chain = 'light (relaxed)' if light_chain else 'heavy (guarded)'
-    coll_label = ', %d must-collision' % n_must_collision if n_must_collision > 0 else ''
-    exp_label = ', %d expansion-skip' % n_expansion_skip if n_expansion_skip > 0 else ''
-    rearr_label = ', %d rearr-guard-skip' % n_rearr_guard_skip if (not light_chain and rearrangement_guard) else ''
-    print('  step 3 [%s, alpha=%.3g]: %d re-split (%d seqs processed), %d skipped%s%s%s, %d -> %d clusters (%d singletons)' % (
-        chain, alpha, n_resplit, n_input_seqs, n_skipped, coll_label, exp_label, rearr_label,
+    print('  step 3 [alpha=%.3g]: %d re-split (%d seqs processed), %d skipped, %d -> %d clusters (%d singletons)' % (
+        alpha, n_resplit, n_input_seqs, n_skipped,
         len(merged_partition), len(result), n_result_singletons), flush=True)
     return result
 
@@ -830,19 +788,19 @@ def estimate_jaccard_threshold(partition, uid_to_muts, seed=0):
 def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None,
                      jaccard_threshold=None, naive_threshold=None,
                      min_agreement=0.15, min_fp_positions=0, skip_singleton_merge=True,
-                     naive_freq_threshold=10, max_expansion_ratio=2.0, min_cluster_size=2,
-                     rearrangement_guard=True, light_chain=None, alpha=SHARED_DESCENT_ALPHA,
+                     min_cluster_size=2, light_chain=None, alpha=SHARED_DESCENT_ALPHA,
                      verbose=True, random_seed=None):
     """Run the three-step refinement and return the refined partition.
 
     partition: list of clusters, each a list of uids.
     uid_info: uid -> {'seq', 'naive', 'cdr3_length'} (partition annotations).
     uid_sw_naives: uid -> per-sequence SW naive_seq.
-    uid_rearr_features: uid -> {'vdj': (v, d, j)} (required if rearrangement_guard).
+    uid_rearr_features: uid -> {'vdj': (v, d, j), 'v_3p_del', 'j_5p_del'}.
 
-    Step 3 splits over-merged clusters by shared descent (step3_split), with guards
-    that fork on chain: heavy (D-gene present) keeps the D-gene + concentration
-    guards; light relaxes them. light_chain: if None, inferred from D-gene presence.
+    Steps 2 and 3 fork on chain, since each is built on the signal its locus
+    provides: step 2 (naive merge + junction guard) runs on heavy only, step 3
+    (shared-descent split) on light only. light_chain: if None, inferred from
+    D-gene presence in uid_rearr_features.
     alpha: link threshold (Poisson upper-tail cutoff) for the step-3 shared-descent test.
 
     random_seed: seeds the global RNG. NOTE estimate_jaccard_threshold uses its own
@@ -878,28 +836,32 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     split_partition = step1_validated_split(
         partition, uid_to_muts, uid_sw_naives, jaccard_thresh, naive_thresh, min_cluster_size)
 
-    if verbose:
-        print('\n=== Step 2: Incremental merge (naive <= %.4f, min_agreement %.2f) ===' % (
-            naive_thresh, min_agreement), flush=True)
-    merged_partition = step2_incremental_merge(
-        split_partition, uid_info, uid_sw_naives, uid_to_muts_with_base, naive_thresh,
-        min_agreement, min_fp_positions, skip_singleton_merge=skip_singleton_merge)
-
-    naive_freq = compute_naive_frequencies(uid_sw_naives)
     if light_chain is None:
+        if not uid_rearr_features:  # without annotations we can't tell the chain, and would silently take the light path
+            print('  warning: no rearrangement features, so assuming light chain (step 2 will be skipped)', flush=True)
         light_chain = not _partition_has_real_d(uid_rearr_features)
-    if verbose:
-        chain = 'light (relaxed)' if light_chain else 'heavy (guarded)'
-        print('\n=== Step 3: shared-descent split (%s, alpha=%.3g, naive_freq >= %d) ===' % (
-            chain, alpha, naive_freq_threshold), flush=True)
-    final_partition = step3_split(
-        merged_partition, uid_info, uid_sw_naives,
-        naive_freq=naive_freq, naive_freq_threshold=naive_freq_threshold,
-        max_expansion_ratio=max_expansion_ratio,
-        uid_rearr_features=uid_rearr_features, rearrangement_guard=rearrangement_guard,
-        light_chain=light_chain, alpha=alpha)
 
-    return final_partition
+    if light_chain:
+        merged_partition = split_partition
+        if verbose:
+            print('\n=== Step 2: skipped (light chain) ===', flush=True)
+    else:
+        if verbose:
+            print('\n=== Step 2: Incremental merge (naive <= %.4f, min_agreement %.2f) ===' % (
+                naive_thresh, min_agreement), flush=True)
+        merged_partition = step2_incremental_merge(
+            split_partition, uid_info, uid_sw_naives, uid_to_muts_with_base, naive_thresh,
+            min_agreement, min_fp_positions, skip_singleton_merge=skip_singleton_merge,
+            uid_rearr_features=uid_rearr_features)
+
+    if not light_chain:
+        if verbose:
+            print('\n=== Step 3: skipped (heavy chain) ===', flush=True)
+        return merged_partition
+
+    if verbose:
+        print('\n=== Step 3: shared-descent split (alpha=%.3g) ===' % alpha, flush=True)
+    return step3_split(merged_partition, uid_info, uid_sw_naives, alpha=alpha)
 
 
 # ----------------------------------------------------------------------------
@@ -970,7 +932,10 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
             sw_info[uid] = antn
             uid_rearr_features[uid] = {'vdj': (antn.get('v_gene', ''),
                                                antn.get('d_gene', ''),
-                                               antn.get('j_gene', ''))}
+                                               antn.get('j_gene', '')),
+                                       # junction boundaries for the step-2 guard
+                                       'v_3p_del': antn.get('v_3p_del'),
+                                       'j_5p_del': antn.get('j_5p_del')}
             naive = antn['naive_seq']
             if uid in uid_info and i < len(sw_seqs):  # re-pad into the partition frame
                 naive = pad_sw_naive(sw_seqs[i], naive, uid_info[uid]['seq'])
@@ -1141,8 +1106,7 @@ def run_jobs(specs, naive_threshold=None, jaccard_threshold=None):
             inp['partition'], inp['uid_info'], inp['uid_sw_naives'],
             uid_rearr_features=inp['uid_rearr_features'],
             naive_threshold=naive_threshold, jaccard_threshold=jaccard_threshold,
-            skip_singleton_merge=True, min_agreement=0.15,
-            naive_freq_threshold=10, rearrangement_guard=True, verbose=False)
+            skip_singleton_merge=True, min_agreement=0.15, verbose=False)
         cfo = write_full_output(spec['refined_out'], inp['part_glfo'], refined, inp['uid_part_antns'])
         n_run += 1
         for key, val in cfo.items():
