@@ -173,9 +173,10 @@ def get_fragment_junction(uids, uid_rearr_features):
 def get_cluster_fingerprint(uids, uid_to_muts_with_base):
     """Build mutation fingerprint for a cluster.
 
-    Returns dict of {position: {base: count}} representing the mutation
-    profile of the cluster. Positions mutated by multiple members with
-    the same base are strong fingerprint positions.
+    Returns (fingerprint, n_with_muts), where fingerprint is
+    {position: {base: count}} over the cluster's members and n_with_muts is how
+    many of them carried any mutations. Positions mutated by multiple members
+    with the same base are strong fingerprint positions.
     """
     fingerprint = defaultdict(lambda: defaultdict(int))
     n_with_muts = 0
@@ -201,8 +202,9 @@ def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
     High score = strong agreement (likely same family).
     Low score = independent mutations (likely different families).
 
-    If min_fp_positions > 0, returns score=-1 when both clusters have
-    fewer strong positions than the threshold (insufficient signal).
+    Returns score=-1 for insufficient signal: when either cluster has no member
+    carrying mutations, or, if min_fp_positions > 0, when both have fewer strong
+    positions than the threshold.
     """
     if n1 == 0 or n2 == 0:
         return -1.0, 0
@@ -250,9 +252,8 @@ def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
     fwd, _ = directional_agreement(fp1, n1, fp2, n2)
     rev, _ = directional_agreement(fp2, n2, fp1, n1)
 
-    # for asymmetric clusters (one large, one small), take the max
-    # the small cluster's positions should appear in the large cluster
-    # if they're from the same family
+    # asymmetric clusters (one large, one small): take the max, since the small
+    # cluster's positions should appear in the large one if they are the same family
     return max(fwd, rev), n_strong_max
 
 
@@ -278,14 +279,13 @@ def step1_validated_split(partition, uid_to_muts, uid_sw_naives,
             if uid in uid_sw_naives:
                 cluster_naives[uid] = uid_sw_naives[uid]
 
-        # optimization: if all sequences share the same naive (within threshold),
-        # any proposed split will be rejected by naive validation. Skip Jaccard.
+        # optimization: naive validation would reject any split when all the naives
+        # are within threshold, so skip jaccard
         unique_naives = list(set(cluster_naives.values()))
         if len(unique_naives) <= 1:
             result.append(list(cluster))
             n_single_naive_skip += 1
             continue
-        # check if all unique naives are within threshold of each other
         all_similar = True
         for i in range(len(unique_naives)):
             for j in range(i + 1, len(unique_naives)):
@@ -333,7 +333,7 @@ def step1_validated_split(partition, uid_to_muts, uid_sw_naives,
         n_proposed += 1
 
         frag_naives = [get_fragment_naive(f, uid_sw_naives) for f in proposed_fragments]
-        if any(fn is None for fn in frag_naives):  # a fragment with no sw naive cannot be validated; fail closed (keep the cluster intact rather than accept an unvalidated split)
+        if any(fn is None for fn in frag_naives):  # a fragment with no sw naive cannot be validated, so fail closed and keep the cluster intact
             n_rejected += 1
             result.append(list(cluster))
             continue
@@ -439,7 +439,6 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
             fp, n_w = get_cluster_fingerprint(f, uid_to_muts_with_base)
             frag_fps.append((fp, n_w))
 
-        # precompute fragment sizes for singleton skip
         frag_sizes = [len(f) for f in frags]
 
         # group fragments by naive to reduce comparisons
@@ -507,16 +506,14 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
         # cross-bucket: vectorized pairwise hamming to find near-match naives
         unique_naives = list(naive_to_frags.keys())
         if len(unique_naives) >= 2:
-            # convert to numpy byte array for vectorized hamming
             seq_len = len(unique_naives[0])
             same_len = [n for n in unique_naives if len(n) == seq_len]
             diff_len = [n for n in unique_naives if len(n) != seq_len]
 
-            # handle same-length naives with numpy
             if len(same_len) >= 2:
                 arr = np.frombuffer(''.join(same_len).encode(), dtype=np.uint8).reshape(len(same_len), seq_len)
                 n_byte = ord('N')
-                # chunked pairwise to avoid huge memory for very large U
+                # chunked pairwise to bound memory when there are many unique naives
                 chunk_size = 2000
                 for ci in range(0, len(same_len), chunk_size):
                     ci_end = min(ci + chunk_size, len(same_len))
@@ -566,7 +563,7 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                 for n2_seq in unique_naives:
                     if n2_seq <= n1:
                         continue
-                    if len(n2_seq) != len(n1):  # never compared, so never merged: count so it isn't silent
+                    if len(n2_seq) != len(n1):  # never compared, so never merged: count so it is not silent
                         n_skipped_difflen += 1
                         continue
                     if hamming_frac(n1, n2_seq) > naive_threshold:
@@ -860,9 +857,9 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     badfo = [(u, len(uid_info[u]['seq']), len(uid_sw_naives[u])) for u in all_uids
              if u in uid_info and u in uid_sw_naives and len(uid_info[u]['seq']) != len(uid_sw_naives[u])]
     if len(badfo) > 0:
-        raise Exception('%d uids whose sw naive isn\'t in the partition frame (e.g. %s); pass naives through pad_sw_naive()' % (len(badfo), badfo[:3]))
+        raise Exception('%d uids whose sw naive is not in the partition frame (e.g. %s); pass naives through pad_sw_naive()' % (len(badfo), badfo[:3]))
     n_no_naive = sum(1 for uid in all_uids if uid not in uid_sw_naives)
-    if n_no_naive > 0:  # surface incomplete sw-naive coverage: validation keys off naives, so these seqs' fragments are kept intact (step 1 fails closed)
+    if n_no_naive > 0:  # validation keys off naives, so step 1 fails closed and keeps these fragments intact
         print('  warning: %d/%d input seqs have no sw naive (refine validates on naives; their fragments are kept intact)' % (n_no_naive, len(all_uids)), flush=True)
     uid_to_muts, uid_to_muts_with_base = {}, {}
     for uid, info in uid_info.items():
@@ -930,7 +927,7 @@ def pad_sw_naive(sw_seq, sw_naive, part_seq):
     """Re-pad a per-sequence sw naive into the partition frame. The partition annotation is
     padded (N) relative to the sw annotation, so comparing the two frames position-wise is a
     frame shift; everything downstream keys mutations by position across cluster members, so
-    they all have to be in the partition frame. Returns None if <sw_seq> can't be located in
+    they all have to be in the partition frame. Returns None if <sw_seq> cannot be located in
     <part_seq>, i.e. the offset is unknown and the caller should drop this uid's naive."""
     if len(part_seq) == len(sw_naive):
         return sw_naive
@@ -941,7 +938,7 @@ def pad_sw_naive(sw_seq, sw_naive, part_seq):
     if nright < 0:
         return None
     padded = 'N' * ioff + sw_naive + 'N' * nright
-    if len(padded) != len(part_seq):  # shm indel: different coord systems, padding can't align them
+    if len(padded) != len(part_seq):  # shm indel: different coord systems, padding cannot align them
         return None
     return padded
 
@@ -986,7 +983,7 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
                 continue
             uid_sw_naives[uid] = naive
     if n_unalignable > 0:
-        print('  %s couldn\'t align %d sw naives to the partition frame (dropped)' % (utils.wrnstr(), n_unalignable), flush=True)
+        print('  %s could not align %d sw naives to the partition frame (dropped)' % (utils.wrnstr(), n_unalignable), flush=True)
     return {'glfo': sw_glfo, 'part_glfo': part_glfo, 'partition': partition, 'uid_info': uid_info,
             'uid_sw_naives': uid_sw_naives, 'uid_rearr_features': uid_rearr_features,
             'sw_info': sw_info, 'uid_part_antns': uid_part_antns}
@@ -1044,7 +1041,6 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
     first_err = None
     for cluster in refined_partition:
         cluster = [uid for uid in cluster if uid in ant_info]
-        # drop invalid uids so one bad annotation does not shatter the cluster
         good = [uid for uid in cluster if not ant_info[uid].get('invalid', False)]
         n_dropped += len(cluster) - len(good)
         if len(good) == 0:
