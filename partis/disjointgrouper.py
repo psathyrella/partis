@@ -547,26 +547,31 @@ def discover_partition_path(ginfo, manifest_dir):
 
 def get_partition_paths(manifest, manifest_dir):
     # collect and verify partition file paths for a single locus
-    # if partition_path is set in manifest, use it directly
-    # if partition_path is None, discover the partition file in the group dir (supports standalone
-    # partition jobs that do not update the manifest)
+    # the manifest's partition_path can be stale, since standalone actions do not update it
+    # (array tasks would race), so always discover too and take whichever is more refined
     paths = []
     skipped_groups = []
     missing_files = []
+    n_superseded = 0
+    unknown_stage = []  # manifest name matches no stage and nothing more refined exists
     stage_counts = collections.OrderedDict((s, 0) for s in PARTITION_PRECEDENCE)
     for ginfo in manifest['groups']:
         ppath = ginfo.get('partition_path')
+        dpath, dstage = discover_partition_path(ginfo, manifest_dir)
         if ppath is None:
-            ppath, stage = discover_partition_path(ginfo, manifest_dir)
+            ppath, stage = dpath, dstage
             if ppath is None:
                 skipped_groups.append(ginfo['group_id'])
                 continue
-            stage_counts[stage] += 1
         else:
-            for stage in PARTITION_PRECEDENCE:  # count what the manifest pointed at
-                if os.path.basename(ppath).startswith(stage):
-                    stage_counts[stage] += 1
-                    break
+            stage = next((s for s in PARTITION_PRECEDENCE if os.path.basename(ppath).startswith(s)), None)
+            if dpath is not None and (stage is None or PARTITION_PRECEDENCE.index(dstage) < PARTITION_PRECEDENCE.index(stage)):
+                ppath, stage = dpath, dstage  # manifest was stale
+                n_superseded += 1
+        if stage is None:
+            unknown_stage.append(os.path.basename(ppath))
+        else:
+            stage_counts[stage] += 1
         full_ppath = '%s/%s' % (manifest_dir, ppath)
         if not os.path.exists(full_ppath):
             missing_files.append(ginfo['group_id'])
@@ -578,6 +583,10 @@ def get_partition_paths(manifest, manifest_dir):
         print('      skipping %d groups with no partition output (e.g. too small): %s' % (len(skipped_groups), skipped_groups))
     if len(missing_files) > 0:
         raise Exception('partition files missing for %d groups (partition_path set but file not found): %s' % (len(missing_files), missing_files))
+    if n_superseded > 0:
+        print('      %s manifest partition_path was stale for %d groups, used the more refined output instead' % (utils.wrnstr(), n_superseded))
+    if len(unknown_stage) > 0:
+        print('      %s manifest partition_path names no known stage for %d groups (e.g. %s)' % (utils.wrnstr(), len(unknown_stage), unknown_stage[0]))
     nonzero = [(s, n) for s, n in stage_counts.items() if n > 0]
     if len(nonzero) > 1:  # a mix means some groups' refine/ha-repartition didn't finish
         print('      %s assembling a MIX of stages: %s' % (utils.wrnstr(), ', '.join('%d %s' % (n, s) for s, n in nonzero)))
