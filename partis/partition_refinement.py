@@ -1,15 +1,18 @@
-"""Post-partition refinement (three-step split/merge).
+"""Post-partition refinement (split, then a per-locus merge or split).
 
 Pipeline-agnostic module: operates on a partition (list of clusters, each a list
 of uids) plus per-sequence annotations and SW naives, and returns a refined
 partition. Usable after any partis partition (standard or disjoint grouping).
 
-  Step 1: Validated split (Jaccard proposes, per-sequence naive validates)
-  Step 2: Incremental naive merge (merge only if mutation fingerprints agree)
-  Step 3: Shared-descent split of over-merged clusters (guards fork on chain)
+Step 1 runs on both chains, then the pipeline forks on D-gene presence, so no run
+performs all three steps:
 
-Entry point: refine_partition(); its defaults run step 3 with singleton-skip and
-the rearrangement guard. Driven by the run-partition-refine-jobs action (and the
+  Step 1: Validated split (Jaccard proposes, per-sequence naive validates)
+  Step 2: Incremental naive merge, HEAVY only (fingerprint validates, junction guards)
+  Step 3: Shared-descent split of over-merged clusters, LIGHT only
+
+Entry point: refine_partition(); its defaults run with singleton-skip and the
+junction guard. Driven by the run-partition-refine-jobs action (and the
 integrated --partition-refine flag), which run run_jobs() over the disjoint groups.
 """
 import json
@@ -137,6 +140,18 @@ def get_fragment_naive(uids, uid_sw_naives):
     if not naive_counts:
         return None
     return max(naive_counts, key=naive_counts.get)
+
+
+def get_fragment_vdj(uids, uid_rearr_features):
+    """Modal (v, d, j) gene triple over a fragment's members, or None if unavailable."""
+    counts = defaultdict(int)
+    for uid in uids:
+        feat = uid_rearr_features.get(uid) if uid_rearr_features is not None else None
+        if feat is not None and feat.get('vdj') is not None:
+            counts[feat['vdj']] += 1
+    if len(counts) == 0:
+        return None
+    return max(counts, key=counts.get)
 
 
 def get_fragment_junction(uids, uid_rearr_features):
@@ -361,11 +376,15 @@ def step1_validated_split(partition, uid_to_muts, uid_sw_naives,
     return result
 
 
+# fragment size at which the modal v/d/j call is trusted enough to override a junction mismatch
+VDJ_OVERRIDE_MIN_FRAG = 20
+
+
 def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                             uid_to_muts_with_base, naive_threshold,
                             min_agreement=0.15, min_fp_positions=0,
                             skip_singleton_merge=False, uid_rearr_features=None,
-                            junction_guard=True):
+                            junction_guard=True, vdj_override_min=VDJ_OVERRIDE_MIN_FRAG):
     """Step 2: Incremental naive merge with fingerprint validation.
 
     For each CDR3 group, find clusters with similar naives (candidates),
@@ -380,6 +399,10 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
     junction_guard: reject a union whose two fragments disagree on (v_3p_del,
     j_5p_del). Rearrangement signal, orthogonal to the naive-distance proposer
     and the fingerprint validator. Inert when uid_rearr_features is None.
+
+    vdj_override_min: rescue a junction-rejected union when both fragments share
+    a v/d/j triple and the larger one has at least this many members, i.e. only
+    where the modal annotation is trustworthy. 0 disables the override.
     """
     cdr3_frags = defaultdict(list)
     for cluster in split_partition:
@@ -396,6 +419,7 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
     n_rejected_fingerprint = 0
     n_rejected_insufficient = 0
     n_rejected_junction = 0
+    n_vdj_override = 0
     n_skipped_singleton = 0
     n_skipped_difflen = 0
 
@@ -408,6 +432,8 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
         frag_naives = [get_fragment_naive(f, uid_sw_naives) for f in frags]
         frag_juncs = ([get_fragment_junction(f, uid_rearr_features) for f in frags]
                       if junction_guard else [None] * len(frags))
+        frag_vdjs = ([get_fragment_vdj(f, uid_rearr_features) for f in frags]
+                     if junction_guard and vdj_override_min > 0 else [None] * len(frags))
         frag_fps = []
         for f in frags:
             fp, n_w = get_cluster_fingerprint(f, uid_to_muts_with_base)
@@ -436,6 +462,17 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
             if ra != rb:
                 parent[ra] = rb
 
+        def junction_verdict(i, j):
+            # '' to pass, 'block' to reject on a junction mismatch, 'rescue' when a shared
+            # vdj on a large fragment overrides that mismatch
+            ji, jj = frag_juncs[i], frag_juncs[j]
+            if ji is None or jj is None or ji == jj:
+                return ''
+            if (frag_vdjs[i] is not None and frag_vdjs[i] == frag_vdjs[j]
+                    and max(frag_sizes[i], frag_sizes[j]) >= vdj_override_min):
+                return 'rescue'
+            return 'block'
+
         # within same-naive bucket: always naive-similar, just check fingerprint
         for naive_seq, indices in naive_to_frags.items():
             for ii in range(len(indices)):
@@ -449,10 +486,12 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                         n_skipped_singleton += 1
                         continue
                     n_naive_candidates += 1
-                    ji, jj = frag_juncs[i], frag_juncs[j]
-                    if ji is not None and jj is not None and ji != jj:
+                    verdict = junction_verdict(i, j)
+                    if verdict == 'block':
                         n_rejected_junction += 1
                         continue
+                    if verdict == 'rescue':
+                        n_vdj_override += 1
                     fp_i, n_i = frag_fps[i]
                     fp_j, n_j = frag_fps[j]
                     agreement, n_strong = fingerprint_agreement(
@@ -504,10 +543,12 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                                         n_skipped_singleton += 1
                                         continue
                                     n_naive_candidates += 1
-                                    ji, jj = frag_juncs[i], frag_juncs[j]
-                                    if ji is not None and jj is not None and ji != jj:
+                                    verdict = junction_verdict(i, j)
+                                    if verdict == 'block':
                                         n_rejected_junction += 1
                                         continue
+                                    if verdict == 'rescue':
+                                        n_vdj_override += 1
                                     fp_i, n_i = frag_fps[i]
                                     fp_j, n_j = frag_fps[j]
                                     agreement, n_strong = fingerprint_agreement(
@@ -538,10 +579,12 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
                                 n_skipped_singleton += 1
                                 continue
                             n_naive_candidates += 1
-                            ji, jj = frag_juncs[i], frag_juncs[j]
-                            if ji is not None and jj is not None and ji != jj:
+                            verdict = junction_verdict(i, j)
+                            if verdict == 'block':
                                 n_rejected_junction += 1
                                 continue
+                            if verdict == 'rescue':
+                                n_vdj_override += 1
                             fp_i, n_i = frag_fps[i]
                             fp_j, n_j = frag_fps[j]
                             agreement, n_strong = fingerprint_agreement(
@@ -565,6 +608,7 @@ def step2_incremental_merge(split_partition, uid_info, uid_sw_naives,
     skip_label = ', %d skipped (singleton-singleton)' % n_skipped_singleton if n_skipped_singleton > 0 else ''
     skip_label += ', %d skipped (naive length mismatch)' % n_skipped_difflen if n_skipped_difflen > 0 else ''
     junc_label = ', %d rejected (junction)' % n_rejected_junction if n_rejected_junction > 0 else ''
+    junc_label += ', %d rescued (vdj)' % n_vdj_override if n_vdj_override > 0 else ''
     print('  step 2: %d naive candidates, %d accepted, %d rejected (fingerprint)%s%s' % (
         n_naive_candidates, n_accepted, n_rejected_fingerprint, junc_label, skip_label))
     print('  %d merges, %d -> %d clusters' % (n_merges, len(split_partition), len(merged_partition)))
@@ -661,8 +705,8 @@ def split_by_shared_descent(cluster, uid_muts, alpha=SHARED_DESCENT_ALPHA):
 def _partition_has_real_d(uid_rearr_features):
     """True if any uid carries a real (non-placeholder) D gene (heavy chain).
     Light loci (igk/igl) have no real D, so this is False for them, which is how
-    step 3 decides the heavy (guarded) vs light (relaxed) fork when light_chain is
-    not passed explicitly."""
+    refine_partition picks the step-2 (heavy) vs step-3 (light) fork when
+    light_chain is not passed explicitly."""
     if not uid_rearr_features:
         return False
     for feat in uid_rearr_features.values():
@@ -790,7 +834,7 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
                      min_agreement=0.15, min_fp_positions=0, skip_singleton_merge=True,
                      min_cluster_size=2, light_chain=None, alpha=SHARED_DESCENT_ALPHA,
                      verbose=True, random_seed=None):
-    """Run the three-step refinement and return the refined partition.
+    """Run refinement and return the refined partition.
 
     partition: list of clusters, each a list of uids.
     uid_info: uid -> {'seq', 'naive', 'cdr3_length'} (partition annotations).
@@ -1088,8 +1132,8 @@ def estimate_locuswide_thresholds(specs):
 
 def run_jobs(specs, naive_threshold=None, jaccard_threshold=None):
     """Run refinement on a list of group specs (from group_specs), writing each group's
-    refined partition. Production defaults (shared-descent step 3, singleton-skip, rearrangement
-    guard) -- the same config the standalone CLI and integrated step use. Groups whose
+    refined partition. Production defaults (singleton-skip, junction guard, vdj override)
+    -- the same config the standalone CLI and integrated step use. Groups whose
     refined output already exists are skipped. naive/jaccard thresholds default to a
     locus-wide estimate over <specs>; when running a slice, pass thresholds estimated over
     the full group list."""
