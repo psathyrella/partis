@@ -837,14 +837,13 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
         partition, uid_to_muts, uid_sw_naives, jaccard_thresh, naive_thresh, min_cluster_size)
 
     if light_chain is None:
-        if not uid_rearr_features:  # without annotations we can't tell the chain, and would silently take the light path
+        if not uid_rearr_features:  # otherwise the light path is taken silently
             print('  warning: no rearrangement features, so assuming light chain (step 2 will be skipped)', flush=True)
         light_chain = not _partition_has_real_d(uid_rearr_features)
 
     if light_chain:
         merged_partition = split_partition
-        if verbose:
-            print('\n=== Step 2: skipped (light chain) ===', flush=True)
+        print('  step 2: skipped (light chain)', flush=True)
     else:
         if verbose:
             print('\n=== Step 2: Incremental merge (naive <= %.4f, min_agreement %.2f) ===' % (
@@ -855,8 +854,7 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
             uid_rearr_features=uid_rearr_features)
 
     if not light_chain:
-        if verbose:
-            print('\n=== Step 3: skipped (heavy chain) ===', flush=True)
+        print('  step 3: skipped (heavy chain)', flush=True)
         return merged_partition
 
     if verbose:
@@ -1054,13 +1052,16 @@ def group_specs(disjoint_dir, groups, locus):
     n_harep = n_vsearch = 0
     for group in groups:
         fasta_dir = os.path.dirname(group['fasta_path'])
-        harep_p = '%s/%s/ha-repartition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
+        # pre-rename ha name; without it older dirs silently refine vsearch
+        # TODO drop with the other pre-rename names (see disjointgrouper.PARTITION_PRECEDENCE)
+        harep_ps = ['%s/%s/%s-%s.yaml' % (disjoint_dir, fasta_dir, stage, locus)
+                    for stage in ('ha-repartition', 'hybrid-partition')]
         vsearch_p = '%s/%s/partition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
         sw = '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, locus)
-        inp = harep_p if os.path.exists(harep_p) else vsearch_p
+        inp = next((p for p in harep_ps if os.path.exists(p)), vsearch_p)
         if not (os.path.exists(inp) and os.path.exists(sw)):
             continue
-        if inp == harep_p:
+        if inp in harep_ps:
             n_harep += 1
         else:
             n_vsearch += 1
