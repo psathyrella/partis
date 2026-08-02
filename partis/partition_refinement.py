@@ -1052,25 +1052,23 @@ def group_specs(disjoint_dir, groups, locus):
     n_harep = n_vsearch = 0
     for group in groups:
         fasta_dir = os.path.dirname(group['fasta_path'])
-        # pre-rename ha name; without it older dirs silently refine vsearch
-        # TODO drop with the other pre-rename names (see disjointgrouper.PARTITION_PRECEDENCE)
-        harep_ps = ['%s/%s/%s-%s.yaml' % (disjoint_dir, fasta_dir, stage, locus)
-                    for stage in ('ha-repartition', 'hybrid-partition')]
+        harep_p = '%s/%s/ha-repartition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
         vsearch_p = '%s/%s/partition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
         sw = '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, locus)
-        inp = next((p for p in harep_ps if os.path.exists(p)), vsearch_p)
+        inp = harep_p if os.path.exists(harep_p) else vsearch_p
         if not (os.path.exists(inp) and os.path.exists(sw)):
             continue
-        if inp in harep_ps:
+        if inp == harep_p:
             n_harep += 1
         else:
             n_vsearch += 1
         specs.append({'group': group, 'input': inp, 'sw_cache': sw,
                       'refined_out': '%s/%s/partition-refine-%s.yaml' % (disjoint_dir, fasta_dir, locus),
                       'refined_rel': '%s/partition-refine-%s.yaml' % (fasta_dir, locus)})
-    if n_harep > 0 and n_vsearch > 0:  # some ha-repartition jobs didn't finish
+    if n_vsearch > 0:  # any vsearch input means ha-repartition didn't run (or is under an old name), so say so
         from partis import utils
-        print('  %s refine input is a MIX: %d groups from ha-repartition, %d from vsearch' % (utils.wrnstr(), n_harep, n_vsearch), flush=True)
+        print('  %s refine input: %d groups from ha-repartition, %d from vsearch (run ha-repartition first to refine its output)'
+              % (utils.wrnstr(), n_harep, n_vsearch), flush=True)
     return specs
 
 

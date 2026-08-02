@@ -148,7 +148,7 @@ def refined_single_chain_loci(getofn, loci):
             continue
         for ginfo in disjointgrouper.read_manifest(mfn)['groups']:
             ppath = ginfo.get('partition_path') or disjointgrouper.discover_partition_path(ginfo, ddir)[0]
-            if ppath is not None and os.path.basename(ppath).startswith(('partition-refine', 'refined-partition')):  # latter is the pre-rename name
+            if ppath is not None and os.path.basename(ppath).startswith('partition-refine'):
                 rfloci.append(ltmp)
                 break
     return rfloci

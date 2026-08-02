@@ -531,9 +531,8 @@ def build_uid_group_mapping(manifest, disjoint_dir):
 
 # ----------------------------------------------------------------------------------------
 # most-refined first: the standalone actions can't update the manifest (array tasks would race on
-# it), so discovery has to find the refined output itself; pre-rename names kept so older dirs resolve
-# TODO drop the pre-rename names before merging (dev-cycle only, shipped version should have one name each)
-PARTITION_PRECEDENCE = ['partition-refine', 'refined-partition', 'ha-repartition', 'hybrid-partition', 'partition']
+# it), so discovery has to find the refined output itself
+PARTITION_PRECEDENCE = ['partition-refine', 'ha-repartition', 'partition']
 
 
 def discover_partition_path(ginfo, manifest_dir):
