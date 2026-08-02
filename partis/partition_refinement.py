@@ -1109,7 +1109,7 @@ def group_specs(disjoint_dir, groups, locus):
         specs.append({'group': group, 'input': inp, 'sw_cache': sw,
                       'refined_out': '%s/%s/partition-refine-%s.yaml' % (disjoint_dir, fasta_dir, locus),
                       'refined_rel': '%s/partition-refine-%s.yaml' % (fasta_dir, locus)})
-    if n_vsearch > 0:  # any vsearch input means ha-repartition didn't run (or is under an old name), so say so
+    if n_vsearch > 0:  # any vsearch input means ha-repartition did not run
         from partis import utils
         print('  %s refine input: %d groups from ha-repartition, %d from vsearch (run ha-repartition first to refine its output)'
               % (utils.wrnstr(), n_harep, n_vsearch), flush=True)
