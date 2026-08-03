@@ -801,9 +801,12 @@ def calc_metrics(true_partition, inf_partition):
 
 
 def estimate_jaccard_threshold(partition, uid_to_muts, seed=0):
-    """Adaptive step-1 Jaccard threshold: p25 of sampled within-cluster pairwise
-    Jaccard (fallback 0.10 if no signal). Fixed-seed local RNG keeps it deterministic."""
+    """Adaptive step-1 Jaccard threshold: p25 of sampled within-cluster pairwise Jaccard. The
+    0.10 fallback fires only when nothing was sampled; a p25 of zero is reported and returned as
+    is, which links every pair so step 1 proposes nothing. Fixed-seed local RNG keeps it
+    deterministic."""
     import random
+    from partis import utils
     rng = random.Random(seed)
     all_jaccards = []
     for cluster in partition:
@@ -820,10 +823,18 @@ def estimate_jaccard_threshold(partition, uid_to_muts, seed=0):
             m2 = uid_to_muts.get(uid_list[j])
             if m1 is not None and m2 is not None:
                 all_jaccards.append(jaccard(m1, m2))
-    if all_jaccards:
-        all_jaccards.sort()
-        return all_jaccards[int(len(all_jaccards) * 0.25)]
-    return 0.10
+    if len(all_jaccards) == 0:
+        print('  no within-cluster mutation pairs, using default 0.10')
+        return 0.10
+    all_jaccards.sort()
+    n = len(all_jaccards)
+    p25 = all_jaccards[int(n * 0.25)]
+    print('  within-cluster shared-mutation jaccard (%d pairs):' % n)
+    print('    p25: %.4f, median: %.4f, max: %.4f' % (p25, all_jaccards[n // 2], all_jaccards[-1]))
+    print('  adaptive jaccard threshold (p25): %.4f' % p25)
+    if p25 == 0:  # jaccard is never negative, so every pair links and each cluster collapses to one component
+        print('  %s jaccard threshold is zero, so step 1 cannot propose a split' % utils.wrnstr())
+    return p25
 
 
 def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None,
@@ -910,37 +921,39 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
 # standalone per-group job: no SW, vsearch, bcrham, or HMM is re-run.
 # ----------------------------------------------------------------------------
 
-def find_sw_offset(part_seq, sw_seq):
-    """Offset of <sw_seq> within <part_seq>, or -1. Falls back to an N-tolerant scan (N in
-    part_seq matches anything) since partis masks the odd base in the padded frame, e.g. a
-    1-base jf_insertion at the 3' end, which defeats an exact find."""
-    ioff = part_seq.find(sw_seq)
-    if ioff >= 0:
-        return ioff
-    for ioff in range(len(part_seq) - len(sw_seq) + 1):
-        if all(p == 'N' or p == s for p, s in zip(part_seq[ioff:ioff + len(sw_seq)], sw_seq)):
-            return ioff
-    return -1
+def sw_frame_offset(part_antn, sw_antn):
+    """Offset of the sw annotation's frame within the partition annotation's frame. Each
+    annotation records where its own (indel-reversed) frame puts the v codon, and the partition
+    frame is the sw frame with N padding on each side, so the difference is the left pad."""
+    return part_antn['codon_positions']['v'] - sw_antn['codon_positions']['v']
 
 
-def pad_sw_naive(sw_seq, sw_naive, part_seq):
-    """Re-pad a per-sequence sw naive into the partition frame. The partition annotation is
-    padded (N) relative to the sw annotation, so comparing the two frames position-wise is a
-    frame shift; everything downstream keys mutations by position across cluster members, so
-    they all have to be in the partition frame. Returns None if <sw_seq> cannot be located in
-    <part_seq>, i.e. the offset is unknown and the caller should drop this uid's naive."""
-    if len(part_seq) == len(sw_naive):
-        return sw_naive
-    ioff = find_sw_offset(part_seq, sw_seq)
-    if ioff < 0:
-        return None
+def pad_sw_naive(sw_seq, sw_naive, part_seq, ioff):
+    """Re-pad a per-sequence sw naive into the partition frame at offset <ioff> (from
+    sw_frame_offset()). The partition annotation is padded (N) relative to the sw annotation, so
+    comparing the two frames position-wise is a frame shift; everything downstream keys mutations
+    by position across cluster members, so they all have to be in the partition frame. Returns
+    None if the sw sequence does not sit at <ioff> in <part_seq>, i.e. the two annotations
+    disagree on coordinates and the caller should drop this uid's naive."""
     nright = len(part_seq) - ioff - len(sw_seq)
-    if nright < 0:
+    if ioff < 0 or nright < 0:
+        return None
+    # partis masks the odd base in the padded frame, e.g. a 1-base jf_insertion, so N matches anything
+    if any(p != 'N' and p != s for p, s in zip(part_seq[ioff : ioff + len(sw_seq)], sw_seq)):
         return None
     padded = 'N' * ioff + sw_naive + 'N' * nright
     if len(padded) != len(part_seq):  # shm indel: different coord systems, padding cannot align them
         return None
     return padded
+
+
+def get_ir_seqs(antn, label):
+    """The annotation's indel-reversed seqs, i.e. the ones that line up with naive_seq. There is
+    deliberately no input_seqs fallback: input_seqs are not indel-reversed, so substituting them
+    shifts every mutation position on any sequence carrying an shm indel."""
+    if 'seqs' not in antn:
+        raise Exception('no \'seqs\' in %s annotation for %s (implicit info has to be added when reading)' % (label, antn['unique_ids'][:3]))
+    return antn['seqs']
 
 
 def read_refine_inputs(partition_fname, sw_cache_fname):
@@ -956,7 +969,7 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
     for antn in part_antns:
         naive = antn.get('naive_seq')
         cdr3 = antn.get('cdr3_length', 0)
-        iseqs = antn.get('seqs', antn.get('input_seqs', []))  # indel-reversed: these are what line up with naive_seq
+        iseqs = get_ir_seqs(antn, 'partition')
         for i, uid in enumerate(antn['unique_ids']):
             uid_part_antns[uid] = antn  # write path synthesizes from these, so output stays in the input's padded frame
             if naive is not None and i < len(iseqs):
@@ -966,7 +979,7 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
     sw_info, uid_sw_naives, uid_rearr_features = {}, {}, {}
     n_unalignable = 0
     for antn in sw_antns:
-        sw_seqs = antn.get('seqs', antn.get('input_seqs', []))
+        sw_seqs = get_ir_seqs(antn, 'sw cache')
         for i, uid in enumerate(antn['unique_ids']):
             sw_info[uid] = antn
             uid_rearr_features[uid] = {'vdj': (antn.get('v_gene', ''),
@@ -977,8 +990,9 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
                                        'j_5p_del': antn.get('j_5p_del')}
             naive = antn['naive_seq']
             if uid in uid_info and i < len(sw_seqs):  # re-pad into the partition frame
-                naive = pad_sw_naive(sw_seqs[i], naive, uid_info[uid]['seq'])
-            if naive is None:  # unknown offset: drop, refine fails closed on missing naives
+                naive = pad_sw_naive(sw_seqs[i], naive, uid_info[uid]['seq'],
+                                     sw_frame_offset(uid_part_antns[uid], antn))
+            if naive is None:  # frames disagree: drop, refine fails closed on missing naives
                 n_unalignable += 1
                 continue
             uid_sw_naives[uid] = naive

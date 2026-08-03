@@ -545,10 +545,23 @@ def discover_partition_path(ginfo, manifest_dir):
     return None, None
 
 
+def resolve_partition_path(ginfo, manifest_dir):
+    # (relative path, stage that wrote it, whether the manifest was stale), or (None, None, False)
+    # if the group has no partition output. The manifest's partition_path can be stale, since
+    # standalone actions do not update it (array tasks would race), so always discover too and take
+    # whichever is more refined. Anything keying off the stage has to come through here.
+    dpath, dstage = discover_partition_path(ginfo, manifest_dir)
+    ppath = ginfo.get('partition_path')
+    if ppath is None:
+        return dpath, dstage, False
+    stage = next((s for s in PARTITION_PRECEDENCE if os.path.basename(ppath).startswith(s)), None)
+    if dpath is not None and (stage is None or PARTITION_PRECEDENCE.index(dstage) < PARTITION_PRECEDENCE.index(stage)):
+        return dpath, dstage, True
+    return ppath, stage, False
+
+
 def get_partition_paths(manifest, manifest_dir):
     # collect and verify partition file paths for a single locus
-    # the manifest's partition_path can be stale, since standalone actions do not update it
-    # (array tasks would race), so always discover too and take whichever is more refined
     paths = []
     skipped_groups = []
     missing_files = []
@@ -556,18 +569,12 @@ def get_partition_paths(manifest, manifest_dir):
     unknown_stage = []  # manifest name matches no stage and nothing more refined exists
     stage_counts = collections.OrderedDict((s, 0) for s in PARTITION_PRECEDENCE)
     for ginfo in manifest['groups']:
-        ppath = ginfo.get('partition_path')
-        dpath, dstage = discover_partition_path(ginfo, manifest_dir)
+        ppath, stage, superseded = resolve_partition_path(ginfo, manifest_dir)
         if ppath is None:
-            ppath, stage = dpath, dstage
-            if ppath is None:
-                skipped_groups.append(ginfo['group_id'])
-                continue
-        else:
-            stage = next((s for s in PARTITION_PRECEDENCE if os.path.basename(ppath).startswith(s)), None)
-            if dpath is not None and (stage is None or PARTITION_PRECEDENCE.index(dstage) < PARTITION_PRECEDENCE.index(stage)):
-                ppath, stage = dpath, dstage  # manifest was stale
-                n_superseded += 1
+            skipped_groups.append(ginfo['group_id'])
+            continue
+        if superseded:
+            n_superseded += 1
         if stage is None:
             unknown_stage.append(os.path.basename(ppath))
         else:
@@ -623,26 +630,35 @@ def validate_assembly(manifest, manifest_dir):
     print('      assembly validation passed: %d sequences from %d groups (%d sequences in %d groups skipped%s)' % (total_seqs, len(manifest['groups']) - len(skipped), skipped_seqs, len(skipped), filter_msg))
 
 # ----------------------------------------------------------------------------------------
-def resolve_sw_cache_paths(sw_cache_paths):
-    # resolve <sw_cache_paths> to a list: accepts a single path string, a list of paths, or a directory
-    # for directory input, checks two expected patterns:
-    #   paired/chunked layout: {dir}/*/parameters/*/sw-cache*.yaml
-    #   flat unpaired layout:  {dir}/*/parameters/sw-cache*.yaml
-    if isinstance(sw_cache_paths, str):
-        if os.path.isdir(sw_cache_paths):
-            paths = sorted(glob.glob('%s/*/parameters/*/sw-cache*.yaml' % sw_cache_paths))
-            if len(paths) == 0:
-                paths = sorted(glob.glob('%s/*/parameters/sw-cache*.yaml' % sw_cache_paths))
-            if len(paths) == 0:
-                paths = sorted(glob.glob('%s/*/sw-cache*.yaml' % sw_cache_paths))
-            if len(paths) == 0:
-                paths = sorted(glob.glob('%s/sw-cache*.yaml' % sw_cache_paths))
-            if len(paths) == 0:
-                raise Exception('no sw-cache*.yaml files found in %s (checked */parameters/*/sw-cache*.yaml, */parameters/sw-cache*.yaml, */sw-cache*.yaml, sw-cache*.yaml)' % sw_cache_paths)
-            return paths
-        else:
-            return [sw_cache_paths]
-    return list(sw_cache_paths)
+def sw_cache_dir_patterns(locus):
+    # the layouts cache-parameters writes a per-part sw cache in, relative to a dir of parts
+    # (--sw-cachefname <dir>): locus-nested parameter dir, part dir named for the locus, then the
+    # dir itself, where the file name carries a uid hash rather than the locus so we cannot pin it
+    return ['*/parameters/%s/sw-cache*.yaml' % locus, '*%s/sw-cache*.yaml' % locus,
+            'sw-cache*.yaml']
+
+# ----------------------------------------------------------------------------------------
+def resolve_sw_cache_paths(sw_cache_paths, locus):
+    # resolve <sw_cache_paths> to a list of files: accepts a single path string, a list of paths, or
+    # a directory of per-part sw caches (chunked cache-parameters at scale). Exactly one of the
+    # expected layouts has to hold, so we never silently take whichever one happens to be there.
+    if not isinstance(sw_cache_paths, str):
+        return list(sw_cache_paths)
+    if not os.path.isdir(sw_cache_paths):
+        return [sw_cache_paths]
+    patterns = sw_cache_dir_patterns(locus)
+    found = [(p, sorted(glob.glob('%s/%s' % (sw_cache_paths, p)))) for p in patterns]
+    found = [(p, fs) for p, fs in found if len(fs) > 0]
+    if len(found) == 0:
+        raise Exception('no %s sw cache files in %s (checked %s); pass the file itself, or a colon-separated list, if they are somewhere else'
+                        % (locus, sw_cache_paths, ', '.join(patterns)))
+    if len(found) > 1:
+        raise Exception('%s sw cache files in %s match more than one expected layout, so which to use is ambiguous: %s'
+                        % (locus, sw_cache_paths, '; '.join('%s (%d files)' % (p, len(fs)) for p, fs in found)))
+    pattern, paths = found[0]
+    if pattern != patterns[0]:  # nothing writes these for disjoint grouping, so say when one matched
+        print('      %s %s sw caches matched the fallback layout %s rather than the per-part parameter dirs' % (utils.wrnstr(), locus, pattern))
+    return paths
 
 # ----------------------------------------------------------------------------------------
 def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT):
@@ -653,7 +669,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
     # For multiple caches, processes one chunk at a time to limit peak memory:
     #   - per-group FASTAs are written after all chunks are grouped (seqfos are lightweight)
     #   - per-group sw-cache fragments are written per chunk, then merged and cleaned up
-    sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths)
+    sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
     multi_cache = len(sw_cache_paths) > 1
 
     # compute hi hamming bound for hfrac sub-grouping

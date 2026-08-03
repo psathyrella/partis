@@ -147,8 +147,7 @@ def refined_single_chain_loci(getofn, loci):
         if not os.path.exists(mfn):
             continue
         for ginfo in disjointgrouper.read_manifest(mfn)['groups']:
-            ppath = ginfo.get('partition_path') or disjointgrouper.discover_partition_path(ginfo, ddir)[0]
-            if ppath is not None and os.path.basename(ppath).startswith('partition-refine'):
+            if disjointgrouper.resolve_partition_path(ginfo, ddir)[1] == 'partition-refine':  # resolve, since the manifest's name is stale whenever the standalone actions wrote the refined output
                 rfloci.append(ltmp)
                 break
     return rfloci
@@ -1391,7 +1390,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             return None
         rfloci = refined_single_chain_loci(getofn, sloci())  # also catches merge-paired-partitions, which has no such args
         if len(rfloci) > 0:
-            raise Exception('single chain input for %s came from partition-refine, whose output is single-chain only: refining and then pairing double-splits the light chain. Re-run partition without --partition-refine/--ha-repartition to get paired clusters.' % ' '.join(rfloci))
+            raise Exception('single chain input for %s came from partition-refine, whose output is single-chain only: refining before pairing degrades the heavy chain, so the paired clusters would be worse than without it. Re-run partition without --partition-refine/--ha-repartition to get paired clusters.' % ' '.join(rfloci))
         true_outfos = None if args.is_data else {k : read_true_files(merged=mgd, no_plot=True) for k, mgd in [('merged', True), ('lpairs', False)]}
         paircluster.clean_pair_info(args, single_outfos['cpaths'], single_outfos['antn_lists'], plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), true_outfos=true_outfos, debug=args.debug_paired_clustering)
         lp_infos = {}
