@@ -147,7 +147,7 @@ def refined_single_chain_loci(getofn, loci):
         if not os.path.exists(mfn):
             continue
         for ginfo in disjointgrouper.read_manifest(mfn)['groups']:
-            if disjointgrouper.resolve_partition_path(ginfo, ddir)[1] == 'partition-refine':  # resolve, since the manifest's name is stale whenever the standalone actions wrote the refined output
+            if disjointgrouper.resolve_partition_path(ginfo, ddir)[1] == disjointgrouper.STAGE_REFINE:  # resolve, since the manifest's name is stale whenever the standalone actions wrote the refined output
                 rfloci.append(ltmp)
                 break
     return rfloci
@@ -1559,7 +1559,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             # derive partition and sw-cache paths from the fasta_path in the manifest
             fasta_rel = ginfo['fasta_path']
             fasta_dir = os.path.dirname(fasta_rel)
-            partition_rel_path = '%s/partition-%s.yaml' % (fasta_dir, ltmp)
+            partition_rel_path = '%s/%s' % (fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_VSEARCH, ltmp))
             sw_cache_rel = '%s/sw-cache-%s.yaml' % (fasta_dir, ltmp)
             partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
             ginfo['partition_path'] = partition_rel_path

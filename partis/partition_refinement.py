@@ -947,13 +947,21 @@ def pad_sw_naive(sw_seq, sw_naive, part_seq, ioff):
     return padded
 
 
+def get_antn_key(antn, key, label):
+    """The annotation's <key>, with no default. A default would flow onward as a real annotation
+    saying something false, e.g. an empty gene name into the step-2 junction guard or a zero
+    cdr3_length into the step-2 length bins. Failed queries carry none of these keys, so skip
+    those before asking (partis writes them as invalid stubs of unique_ids and input_seqs)."""
+    if key not in antn:
+        raise Exception('no \'%s\' in %s annotation for %s (implicit info has to be added when reading)' % (key, label, ':'.join(antn['unique_ids'][:3])))
+    return antn[key]
+
+
 def get_ir_seqs(antn, label):
     """The annotation's indel-reversed seqs, i.e. the ones that line up with naive_seq. There is
     deliberately no input_seqs fallback: input_seqs are not indel-reversed, so substituting them
     shifts every mutation position on any sequence carrying an shm indel."""
-    if 'seqs' not in antn:
-        raise Exception('no \'seqs\' in %s annotation for %s (implicit info has to be added when reading)' % (label, antn['unique_ids'][:3]))
-    return antn['seqs']
+    return get_antn_key(antn, 'seqs', label)
 
 
 def read_refine_inputs(partition_fname, sw_cache_fname):
@@ -966,29 +974,35 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
     part_glfo, part_antns, cpath = utils.read_output(partition_fname)
     partition = [list(c) for c in (cpath.best() if cpath is not None else [])]
     uid_info, uid_part_antns = {}, {}
+    n_failed = 0
     for antn in part_antns:
-        naive = antn.get('naive_seq')
-        cdr3 = antn.get('cdr3_length', 0)
-        iseqs = get_ir_seqs(antn, 'partition')
+        failed = antn.get('invalid', False)  # sw/hmm failures, written as stubs with no annotation
+        if failed:
+            n_failed += 1
+        else:
+            naive = get_antn_key(antn, 'naive_seq', 'partition')
+            cdr3 = get_antn_key(antn, 'cdr3_length', 'partition')
+            iseqs = get_ir_seqs(antn, 'partition')
         for i, uid in enumerate(antn['unique_ids']):
             uid_part_antns[uid] = antn  # write path synthesizes from these, so output stays in the input's padded frame
-            if naive is not None and i < len(iseqs):
+            if not failed and i < len(iseqs):
                 uid_info[uid] = {'seq': iseqs[i], 'naive': naive, 'cdr3_length': cdr3}
+    if n_failed > 0:
+        print('  skipped %d failed queries (no annotation) in %s' % (n_failed, partition_fname), flush=True)
 
     sw_glfo, sw_antns, _ = utils.read_output(sw_cache_fname)
     sw_info, uid_sw_naives, uid_rearr_features = {}, {}, {}
     n_unalignable = 0
-    for antn in sw_antns:
+    for antn in sw_antns:  # the sw cache has no failed queries in it (waterer.write_cachefile)
         sw_seqs = get_ir_seqs(antn, 'sw cache')
+        sw_naive = get_antn_key(antn, 'naive_seq', 'sw cache')
+        vdj = tuple(get_antn_key(antn, '%s_gene' % r, 'sw cache') for r in utils.regions)
+        # junction boundaries for the step-2 guard
+        v_3p_del, j_5p_del = get_antn_key(antn, 'v_3p_del', 'sw cache'), get_antn_key(antn, 'j_5p_del', 'sw cache')
         for i, uid in enumerate(antn['unique_ids']):
             sw_info[uid] = antn
-            uid_rearr_features[uid] = {'vdj': (antn.get('v_gene', ''),
-                                               antn.get('d_gene', ''),
-                                               antn.get('j_gene', '')),
-                                       # junction boundaries for the step-2 guard
-                                       'v_3p_del': antn.get('v_3p_del'),
-                                       'j_5p_del': antn.get('j_5p_del')}
-            naive = antn['naive_seq']
+            uid_rearr_features[uid] = {'vdj': vdj, 'v_3p_del': v_3p_del, 'j_5p_del': j_5p_del}
+            naive = sw_naive
             if uid in uid_info and i < len(sw_seqs):  # re-pad into the partition frame
                 naive = pad_sw_naive(sw_seqs[i], naive, uid_info[uid]['seq'],
                                      sw_frame_offset(uid_part_antns[uid], antn))
@@ -1102,12 +1116,13 @@ def group_specs(disjoint_dir, groups, locus):
     """Per-group refine I/O paths. Refine runs on the HA re-partition if it exists,
     else the vsearch partition; output is partition-refine-<locus>.yaml. Only groups
     whose input partition and sw-cache exist are returned."""
+    from partis import disjointgrouper
     specs = []
     n_harep = n_vsearch = 0
     for group in groups:
         fasta_dir = os.path.dirname(group['fasta_path'])
-        harep_p = '%s/%s/ha-repartition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
-        vsearch_p = '%s/%s/partition-%s.yaml' % (disjoint_dir, fasta_dir, locus)
+        harep_p = '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_HAREP, locus))
+        vsearch_p = '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_VSEARCH, locus))
         sw = '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, locus)
         inp = harep_p if os.path.exists(harep_p) else vsearch_p
         if not (os.path.exists(inp) and os.path.exists(sw)):
@@ -1116,9 +1131,10 @@ def group_specs(disjoint_dir, groups, locus):
             n_harep += 1
         else:
             n_vsearch += 1
+        refined_rel = '%s/%s' % (fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_REFINE, locus))
         specs.append({'group': group, 'input': inp, 'sw_cache': sw,
-                      'refined_out': '%s/%s/partition-refine-%s.yaml' % (disjoint_dir, fasta_dir, locus),
-                      'refined_rel': '%s/partition-refine-%s.yaml' % (fasta_dir, locus)})
+                      'refined_out': '%s/%s' % (disjoint_dir, refined_rel),
+                      'refined_rel': refined_rel})
     if n_vsearch > 0:  # any vsearch input means ha-repartition did not run
         from partis import utils
         print('  %s refine input: %d groups from ha-repartition, %d from vsearch (run ha-repartition first to refine its output)'

@@ -530,16 +530,26 @@ def build_uid_group_mapping(manifest, disjoint_dir):
     return uid_to_group
 
 # ----------------------------------------------------------------------------------------
+# the stage names, which double as the prefix of the file each stage writes, so anything naming a
+# stage or building one of these file names has to go through these and stage_fname()
+STAGE_REFINE = 'partition-refine'
+STAGE_HAREP = 'ha-repartition'
+STAGE_VSEARCH = 'partition'
 # most-refined first: the standalone actions can't update the manifest (array tasks would race on
 # it), so discovery has to find the refined output itself
-PARTITION_PRECEDENCE = ['partition-refine', 'ha-repartition', 'partition']
+PARTITION_PRECEDENCE = [STAGE_REFINE, STAGE_HAREP, STAGE_VSEARCH]
+
+
+def stage_fname(stage, locus):
+    # the partition file <stage> writes for <locus>
+    return '%s-%s.yaml' % (stage, locus)
 
 
 def discover_partition_path(ginfo, manifest_dir):
     # (relative path, stage that wrote it), or (None, None) if the group has no partition output
     fasta_dir = os.path.dirname(ginfo['fasta_path'])
     for stage in PARTITION_PRECEDENCE:
-        ppath = '%s/%s-%s.yaml' % (fasta_dir, stage, ginfo['locus'])
+        ppath = '%s/%s' % (fasta_dir, stage_fname(stage, ginfo['locus']))
         if os.path.exists('%s/%s' % (manifest_dir, ppath)):
             return ppath, stage
     return None, None
