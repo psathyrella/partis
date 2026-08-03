@@ -23,6 +23,12 @@ MAX_VSEARCH_PROCS = 8                  # cap on concurrent vsearch jobs (round 1
 MAX_TCM_THRESHOLD = 0.49               # safety clamp on round-2 threshold; vsearch --id requires <= 1.0 and high-SHM regimes can otherwise drive merge_factor*hi_bound past sensible bounds
 
 # ----------------------------------------------------------------------------------------
+def group_sw_cache_fname(locus):
+    # the per-group sw cache subset written for <locus> (partitiondriver's hash-named caches
+    # are a different convention and do not come through here)
+    return 'sw-cache-%s.yaml' % locus
+
+# ----------------------------------------------------------------------------------------
 def group_sequences_by_cdr3_length(annotation_list):
     # group uids and their input sequences by cdr3 length from sw annotation list
     # also extracts naive_seq for hfrac sub-grouping
@@ -219,7 +225,7 @@ def write_group_sw_caches(groups, glfo, annotation_list, outdir, locus):
             antns_by_c3len[uid_to_c3len[uid]].append(line)
     for c3len in sorted(groups):
         group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
-        sw_cache_path = '%s/sw-cache-%s.yaml' % (group_dir, locus)
+        sw_cache_path = '%s/%s' % (group_dir, group_sw_cache_fname(locus))
         utils.write_annotations(sw_cache_path, glfo, antns_by_c3len.get(c3len, []), utils.sw_cache_headers)
 
 # ----------------------------------------------------------------------------------------
@@ -298,7 +304,7 @@ def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, 
         utils.write_fasta(fasta_path, sub_seqfos)
         sub_uids = set(sfo['name'] for sfo in sub_seqfos)
         sub_antns = [uid_to_antn[uid] for uid in sub_uids if uid in uid_to_antn]
-        sw_cache_path = '%s/sw-cache-%s.yaml' % (sub_dir, locus)
+        sw_cache_path = '%s/%s' % (sub_dir, group_sw_cache_fname(locus))
         utils.write_annotations(sw_cache_path, sub_glfo, sub_antns, utils.sw_cache_headers)
         unique_naive = len(set(sfo.get('naive_seq', '') for sfo in sub_seqfos if sfo.get('naive_seq', '')))
         rel_fasta = 'groups/cdr3-%d/sub-groups/sub-%03d/%s.fa' % (c3len, isub, locus)
@@ -444,7 +450,7 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HF
         # re-read SW cache for this CDR3 group to get annotations AND the merged glfo
         # (multi-chunk path: merge_yamls reconciled glfos across chunks; using the outer glfo
         # from the first chunk would lose novel alleles from later chunks)
-        swc_path = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (outdir, c3len, locus)
+        swc_path = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_sw_cache_fname(locus))
         uid_to_antn = {}
         group_glfo = glfo
         if os.path.exists(swc_path):
@@ -530,8 +536,10 @@ def build_uid_group_mapping(manifest, disjoint_dir):
     return uid_to_group
 
 # ----------------------------------------------------------------------------------------
-# the stage names, which double as the prefix of the file each stage writes, so anything naming a
-# stage or building one of these file names has to go through these and stage_fname()
+# the stage names, which double as the prefix of the partition file each stage writes, so anything
+# writing, discovering or comparing a partition stage file goes through these and stage_fname().
+# bookkeeping artifacts (scratch workdirs, task lists, timing csvs, bundle markers) are not stage
+# files and are named where they are used
 STAGE_REFINE = 'partition-refine'
 STAGE_HAREP = 'ha-repartition'
 STAGE_VSEARCH = 'partition'
@@ -746,7 +754,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
 
         # merge per-chunk sw-cache fragments into final per-group files, then clean up
         for c3len in sorted(groups):
-            final_swc = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (outdir, c3len, locus)
+            final_swc = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_sw_cache_fname(locus))
             frags = chunk_fragments.get(c3len, [])
             if len(frags) == 1:
                 os.rename(frags[0], final_swc)

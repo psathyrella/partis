@@ -130,7 +130,7 @@ def _group_spec(disjoint_dir, group, locus):
     return {'group': group, 'fasta_dir': fasta_dir,
             'vsearch': '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_VSEARCH, locus)),
             'fasta': '%s/%s' % (disjoint_dir, group['fasta_path']),
-            'sw_cache': '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, locus),
+            'sw_cache': '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.group_sw_cache_fname(locus)),
             'workdir': '%s/%s/ha-repartition' % (disjoint_dir, fasta_dir),
             'harep_out_rel': harep_rel,
             'harep_out': '%s/%s' % (disjoint_dir, harep_rel)}
@@ -149,6 +149,12 @@ def group_specs(disjoint_dir, groups, locus):
 
 def task_list_fname(disjoint_dir, locus):
     return '%s/ha-repartition-task-list-%s.txt' % (disjoint_dir, locus)
+
+
+def bundle_marker_fname(disjoint_dir, job_start):
+    # done-marker for the task-list slice starting at <job_start>, written by the slice and
+    # looked for by whatever dispatched it
+    return '%s/ha-repartition-bundle-%d.done' % (disjoint_dir, job_start)
 
 
 def prepare_all(disjoint_dir, groups, locus, min_cluster_size=MIN_CLUSTER_SIZE):

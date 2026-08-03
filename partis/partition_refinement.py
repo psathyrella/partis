@@ -1116,6 +1116,12 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
 # ha_repartition module). The unit is the group (refine is pure-python, no per-cluster
 # fan-out), so there is no separate prepare step; assemble is assemble_groups.
 # ----------------------------------------------------------------------------
+def bundle_marker_fname(disjoint_dir, job_start):
+    # done-marker for the group slice starting at <job_start>, written by the slice and looked
+    # for by whatever dispatched it
+    return '%s/refine-bundle-%d.done' % (disjoint_dir, job_start)
+
+
 def group_specs(disjoint_dir, groups, locus):
     """Per-group refine I/O paths. Refine runs on the HA re-partition if it exists,
     else the vsearch partition; output is partition-refine-<locus>.yaml. Only groups
@@ -1127,7 +1133,7 @@ def group_specs(disjoint_dir, groups, locus):
         fasta_dir = os.path.dirname(group['fasta_path'])
         harep_p = '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_HAREP, locus))
         vsearch_p = '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_VSEARCH, locus))
-        sw = '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, locus)
+        sw = '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.group_sw_cache_fname(locus))
         inp = harep_p if os.path.exists(harep_p) else vsearch_p
         if not (os.path.exists(inp) and os.path.exists(sw)):
             continue

@@ -188,7 +188,7 @@ def run_ha_repartition_jobs_action(args):
     timing_csv = '%s/ha-repartition-timing-%s.csv' % (disjoint_dir, args.locus)
     ha_repartition.run_jobs_in_process(jobs, args, glfo, timing_csv=timing_csv)
     if len(jobs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
-        open('%s/ha-repartition-bundle-%d.done' % (disjoint_dir, args.job_start), 'w').close()
+        open(ha_repartition.bundle_marker_fname(disjoint_dir, args.job_start), 'w').close()
 
 # ----------------------------------------------------------------------------------------
 def assemble_ha_repartition_action(args):
@@ -216,7 +216,7 @@ def run_partition_refine_jobs_action(args):
     specs = specs[args.job_start : stop]
     partition_refinement.run_jobs(specs, naive_threshold=naive_thr, jaccard_threshold=jaccard_thr)
     if len(specs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
-        open('%s/refine-bundle-%d.done' % (disjoint_dir, args.job_start), 'w').close()
+        open(partition_refinement.bundle_marker_fname(disjoint_dir, args.job_start), 'w').close()
     print('  refined %d groups' % len(specs))
 
 # ----------------------------------------------------------------------------------------
@@ -1560,7 +1560,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             fasta_rel = ginfo['fasta_path']
             fasta_dir = os.path.dirname(fasta_rel)
             partition_rel_path = '%s/%s' % (fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_VSEARCH, ltmp))
-            sw_cache_rel = '%s/sw-cache-%s.yaml' % (fasta_dir, ltmp)
+            sw_cache_rel = '%s/%s' % (fasta_dir, disjointgrouper.group_sw_cache_fname(ltmp))
             partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
             ginfo['partition_path'] = partition_rel_path
             if os.path.exists(partition_path):
@@ -1599,7 +1599,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             bundle_size = int(math.ceil(total / float(n_bundles))) if n_bundles > 0 else 0
             ha_cmdfos = []
             for start in range(0, total, bundle_size) if bundle_size > 0 else []:
-                done_marker = '%s/ha-repartition-bundle-%d.done' % (disjoint_dir, start)
+                done_marker = ha_repartition.bundle_marker_fname(disjoint_dir, start)
                 if os.path.exists(done_marker):
                     continue
                 cmd = build_single_locus_cmd('run-ha-repartition-jobs', ltmp, args, parameter_dir=getpdir(ltmp),
@@ -1631,7 +1631,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             bundle_size = int(math.ceil(total / float(n_bundles))) if n_bundles > 0 else 0
             refine_cmdfos = []
             for start in range(0, total, bundle_size) if bundle_size > 0 else []:
-                done_marker = '%s/refine-bundle-%d.done' % (disjoint_dir, start)
+                done_marker = partition_refinement.bundle_marker_fname(disjoint_dir, start)
                 if os.path.exists(done_marker):
                     continue
                 cmd = build_single_locus_cmd('run-partition-refine-jobs', ltmp, args, parameter_dir=getpdir(ltmp),
