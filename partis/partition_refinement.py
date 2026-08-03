@@ -112,6 +112,8 @@ def estimate_naive_threshold(partition, uid_sw_naives):
         for uid in cluster:
             if uid in uid_sw_naives:
                 cluster_naives[uid] = uid_sw_naives[uid]
+        # dedup by sequence, so pairs of identical naives contribute nothing: the quantile below is
+        # fitted on the naives that disagree, not on every within-cluster pair
         unique_naives = list(set(cluster_naives.values()))
         if len(unique_naives) < 2:
             continue
@@ -877,6 +879,8 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
         uid_to_muts[uid] = get_mutations(info['seq'], info['naive'])
         uid_to_muts_with_base[uid] = get_mutations_with_base(info['seq'], info['naive'])
 
+    # one value for both steps: step 1's single-naive skip and fragment validator and step 2's
+    # cross-bucket merge all read it, so recalibrating it for one step moves the other
     naive_thresh = (naive_threshold if naive_threshold is not None
                     else estimate_naive_threshold(partition, uid_sw_naives))
     jaccard_thresh = (jaccard_threshold if jaccard_threshold is not None
