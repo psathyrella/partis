@@ -124,14 +124,16 @@ MIN_CLUSTER_SIZE = 3
 def _group_spec(disjoint_dir, group, locus):
     """Resolve the per-group HA re-partition I/O paths from a manifest group entry. Paths
     are derived from the group's fasta_path so this works with only the manifest on disk."""
+    from partis import disjointgrouper
     fasta_dir = os.path.dirname(group['fasta_path'])
+    harep_rel = '%s/%s' % (fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_HAREP, locus))
     return {'group': group, 'fasta_dir': fasta_dir,
-            'vsearch': '%s/%s/partition-%s.yaml' % (disjoint_dir, fasta_dir, locus),
+            'vsearch': '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_VSEARCH, locus)),
             'fasta': '%s/%s' % (disjoint_dir, group['fasta_path']),
             'sw_cache': '%s/%s/sw-cache-%s.yaml' % (disjoint_dir, fasta_dir, locus),
             'workdir': '%s/%s/ha-repartition' % (disjoint_dir, fasta_dir),
-            'harep_out_rel': '%s/ha-repartition-%s.yaml' % (fasta_dir, locus),
-            'harep_out': '%s/%s/ha-repartition-%s.yaml' % (disjoint_dir, fasta_dir, locus)}
+            'harep_out_rel': harep_rel,
+            'harep_out': '%s/%s' % (disjoint_dir, harep_rel)}
 
 
 def group_specs(disjoint_dir, groups, locus):
