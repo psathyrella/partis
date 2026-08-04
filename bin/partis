@@ -1544,7 +1544,7 @@ def run_all_loci(args, ig_or_tr='ig'):
 
         # step 1: CDR3 grouping
         manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
-        if os.path.exists(manifest_path):
+        if os.path.exists(manifest_path):  # existence is the grouping step's completion signal (read_manifest checks its counts)
             print('%s %s: manifest exists, skipping grouping: %s' % (utils.color('blue_bkg', 'create-disjoint-groups'), ltmp, manifest_path))
             manifest = disjointgrouper.read_manifest(manifest_path)
         else:
@@ -1563,7 +1563,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             sw_cache_rel = '%s/%s' % (fasta_dir, disjointgrouper.group_sw_cache_fname(ltmp))
             partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
             ginfo['partition_path'] = partition_rel_path
-            if os.path.exists(partition_path):
+            if os.path.exists(partition_path):  # existence is this group's partition completion signal
                 print('    group %d (cdr3 %d): partition exists, skipping' % (ginfo['group_id'], ginfo['cdr3_length']))
                 continue
             fasta_path = '%s/%s' % (disjoint_dir, fasta_rel)
@@ -1592,7 +1592,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             harep_bundles_per_proc = 8  # bundles per concurrency slot
             ha_concurrency = max(1, min(utils.n_available_cpus() - 1, args.n_procs))  # single-proc bundles: fill job cpus, capped at --n-procs
             harep_specs, harep_jobs = ha_repartition.prepare_all(disjoint_dir, manifest['groups'], ltmp)
-            n_todo = sum(1 for j in harep_jobs if not os.path.exists(j['outfname']))
+            n_todo = sum(1 for j in harep_jobs if not os.path.exists(j['outfname']))  # existence is each cluster's completion signal
             # bundle per-cluster HA jobs so glfo loads once per bundle, not per cluster; more bundles than slots for load balance
             total = len(harep_jobs)
             n_bundles = min(total, ha_concurrency * harep_bundles_per_proc) if total > 0 else 0
@@ -1625,7 +1625,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             refine_bundles_per_proc = 8  # bundles per concurrency slot
             ha_concurrency = max(1, min(utils.n_available_cpus() - 1, args.n_procs))  # single-proc bundles: fill job cpus, capped at --n-procs
             rspecs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], ltmp)
-            n_todo = sum(1 for spec in rspecs if not os.path.exists(spec['refined_out']))
+            n_todo = sum(1 for spec in rspecs if not os.path.exists(spec['refined_out']))  # existence is each group's refine completion signal
             total = len(rspecs)
             n_bundles = min(total, ha_concurrency * refine_bundles_per_proc) if total > 0 else 0
             bundle_size = int(math.ceil(total / float(n_bundles))) if n_bundles > 0 else 0
@@ -1646,7 +1646,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     utils.run_cmds(refine_cmdfos, n_max_procs=ha_concurrency, debug='write', progress=True)
             if not args.dry_run:
                 for spec in rspecs:  # assemble will use the refined output where it was written
-                    if os.path.exists(spec['refined_out']):
+                    if os.path.exists(spec['refined_out']):  # existence is refine's completion signal
                         spec['group']['partition_path'] = spec['refined_rel']
 
         # write updated manifest with partition paths

@@ -975,7 +975,9 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
     glfo, part_glfo, partition, uid_info, uid_sw_naives, uid_rearr_features,
     sw_info, uid_part_antns."""
     from partis import utils
+    from partis import disjointgrouper
     part_glfo, part_antns, cpath = utils.read_output(partition_fname)
+    disjointgrouper.check_stage_file_complete(partition_fname, part_antns, cpath)  # a truncated input silently shrinks the refined output
     partition = [list(c) for c in (cpath.best() if cpath is not None else [])]
     uid_info, uid_part_antns = {}, {}
     n_failed = 0
@@ -1134,7 +1136,7 @@ def group_specs(disjoint_dir, groups, locus):
         harep_p = '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_HAREP, locus))
         vsearch_p = '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.stage_fname(disjointgrouper.STAGE_VSEARCH, locus))
         sw = '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.group_sw_cache_fname(locus))
-        inp = harep_p if os.path.exists(harep_p) else vsearch_p
+        inp = harep_p if os.path.exists(harep_p) else vsearch_p  # existence is the ha-repartition completion signal
         if not (os.path.exists(inp) and os.path.exists(sw)):
             continue
         if inp == harep_p:
@@ -1178,7 +1180,7 @@ def run_jobs(specs, naive_threshold=None, jaccard_threshold=None):
         naive_threshold, jaccard_threshold = estimate_locuswide_thresholds(specs)
     totals, n_run = defaultdict(int), 0
     for spec in specs:
-        if os.path.exists(spec['refined_out']):
+        if os.path.exists(spec['refined_out']):  # existence is refine's completion signal, so a truncated output is never re-made
             continue
         inp = read_refine_inputs(spec['input'], spec['sw_cache'])
         refined = refine_partition(

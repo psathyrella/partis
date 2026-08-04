@@ -86,12 +86,14 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
     output. A cluster >= min_cluster_size with an HA result whose sub-clusters account
     for all its uids is replaced by those sub-clusters; otherwise it is kept as-is
     (conservative: never drop uids). Returns (repartitioned, n_split, n_kept)."""
-    from partis import utils, partition_refinement
+    from partis import utils, partition_refinement, disjointgrouper
     clusters = _load_best_partition(partition_fname)
     cdir = os.path.join(workdir, 'clusters')
     repartitioned, n_split, n_kept = [], 0, 0
     for idx, cluster in enumerate(clusters):
         result = os.path.join(cdir, cluster_id(idx, cluster), 'partition.yaml')
+        # existence is the per-cluster HA job's completion signal; a result that does not cover the
+        # cluster is rejected below, so a half-written one keeps the cluster whole rather than losing uids
         if len(cluster) >= min_cluster_size and os.path.exists(result):
             subs = _load_best_partition(result)
             if subs and set().union(*subs) == set(cluster):
@@ -105,7 +107,8 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
     # partition-step annotations (full-length HMM naive_seq/input_seqs), not the sw-cache
     # (which stores SW-trimmed, variable-length seqs). partition-refine consumes these
     # downstream and is accurate only on the full-length convention it was validated on.
-    glfo, part_antns, _ = utils.read_output(partition_fname)
+    glfo, part_antns, part_cpath = utils.read_output(partition_fname)
+    disjointgrouper.check_stage_file_complete(partition_fname, part_antns, part_cpath)  # free here: the file is already read
     ant_info = {}
     for antn in part_antns:
         for uid in antn['unique_ids']:
@@ -164,7 +167,7 @@ def prepare_all(disjoint_dir, groups, locus, min_cluster_size=MIN_CLUSTER_SIZE):
     specs = group_specs(disjoint_dir, groups, locus)
     all_jobs = []
     for spec in specs:
-        if os.path.exists(spec['harep_out']):
+        if os.path.exists(spec['harep_out']):  # existence is ha-repartition's completion signal, so a truncated output is never re-made
             continue
         spec['jobs'] = prepare(spec['vsearch'], spec['fasta'], spec['workdir'],
                                min_cluster_size=min_cluster_size)
@@ -204,7 +207,7 @@ def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
     base_workdir = args.workdir
     rows = []
     for i, job in enumerate(jobs):
-        if os.path.exists(job['outfname']):
+        if os.path.exists(job['outfname']):  # existence is this cluster's completion signal
             continue
         a = copy.copy(args)
         a.infname = job['infname']
@@ -232,7 +235,7 @@ def assemble_all(specs, min_cluster_size=MIN_CLUSTER_SIZE):
     downstream inputs to the re-partitioned partitions."""
     out = []
     for spec in specs:
-        if not os.path.exists(spec['harep_out']):
+        if not os.path.exists(spec['harep_out']):  # existence is ha-repartition's completion signal
             assemble(spec['vsearch'], spec['workdir'], spec['sw_cache'], spec['harep_out'],
                      min_cluster_size=min_cluster_size)
         out.append((spec['group'], spec['harep_out_rel']))

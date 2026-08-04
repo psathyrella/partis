@@ -509,20 +509,38 @@ def read_manifest(manifest_path):
         for required_key in ['group_id', 'cdr3_length', 'locus', 'sequence_count', 'fasta_path']:
             if required_key not in ginfo:
                 raise Exception('missing required key \'%s\' in group entry in manifest %s' % (required_key, manifest_path))
+    # the manifest is the one pipeline file written as block yaml, so a job killed mid-write can
+    # leave one that parses with its trailing groups gone. the counts are the only thing that says so
+    validate_sequence_count(manifest, fname=manifest_path, quiet=True)
     return manifest
 
 # ----------------------------------------------------------------------------------------
-def validate_sequence_count(manifest):
+def validate_sequence_count(manifest, fname=None, quiet=False):
     # verify that sum of group sequence counts equals total_grouped_sequences
+    fstr = '' if fname is None else ' in %s' % fname
     total_grouped = manifest['grouping-info']['total_grouped_sequences']
     group_sum = sum(g['sequence_count'] for g in manifest['groups'])
     if group_sum != total_grouped:
-        raise Exception('sequence count mismatch: sum of group counts %d does not equal total_grouped_sequences %d' % (group_sum, total_grouped))
+        raise Exception('sequence count mismatch%s: sum of the %d group counts %d does not equal total_grouped_sequences %d (a manifest truncated by a killed job loses its trailing groups)' % (fstr, len(manifest['groups']), group_sum, total_grouped))
     total_input = manifest['grouping-info']['total_input_sequences']
     n_failed = manifest['grouping-info']['failed_sequences']
     if total_grouped + n_failed != total_input:
-        raise Exception('sequence count mismatch: total_grouped %d + failed %d does not equal total_input %d' % (total_grouped, n_failed, total_input))
-    print('      sequence count validated: %d grouped + %d failed = %d total' % (total_grouped, n_failed, total_input))
+        raise Exception('sequence count mismatch%s: total_grouped %d + failed %d does not equal total_input %d' % (fstr, total_grouped, n_failed, total_input))
+    if not quiet:
+        print('      sequence count validated: %d grouped + %d failed = %d total' % (total_grouped, n_failed, total_input))
+
+# ----------------------------------------------------------------------------------------
+def check_stage_file_complete(fname, annotation_list, cpath):
+    # every annotated uid has to be in the file's best partition. a stage file written as block
+    # yaml (--write-full-yaml-output) and truncated at a line boundary parses fine but loses the
+    # tail of its partition list, and nothing else notices: validate_assembly and merge_yamls both
+    # size a file by its annotations, not by its partition, so the missing uids just vanish
+    antn_uids = set(u for l in (annotation_list or []) for u in l['unique_ids'])
+    best = cpath.best() if cpath is not None and cpath.i_best is not None else []
+    missing = antn_uids - set(u for c in best for u in c)
+    if len(missing) > 0:
+        raise Exception('incomplete partition file: %d of its %d annotated uids are missing from its partition (e.g. %s), so it was truncated or only partly written and its group has to be re-run (delete it first: an existing stage file is treated as a finished one): %s'
+                        % (len(missing), len(antn_uids), sorted(missing)[:3], fname))
 
 # ----------------------------------------------------------------------------------------
 def build_uid_group_mapping(manifest, disjoint_dir):
@@ -555,6 +573,8 @@ def stage_fname(stage, locus):
 
 def discover_partition_path(ginfo, manifest_dir):
     # (relative path, stage that wrote it), or (None, None) if the group has no partition output
+    # NOTE a stage file's existence is the completion signal for that stage, so a half-written one
+    # counts as finished; check_stage_file_complete() is what catches that when the file is read
     fasta_dir = os.path.dirname(ginfo['fasta_path'])
     for stage in PARTITION_PRECEDENCE:
         ppath = '%s/%s' % (fasta_dir, stage_fname(stage, ginfo['locus']))
@@ -633,7 +653,8 @@ def validate_assembly(manifest, manifest_dir):
             skipped.append(ginfo)
     skipped_seqs = sum(g['sequence_count'] for g in skipped)
     for ppath in get_partition_paths(manifest, manifest_dir):
-        _, annotation_list, _ = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
+        _, annotation_list, cpath = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
+        check_stage_file_complete(ppath, annotation_list, cpath)  # free here: the file is already read
         for line in annotation_list:
             for uid in line['unique_ids']:
                 if uid in all_uids:
