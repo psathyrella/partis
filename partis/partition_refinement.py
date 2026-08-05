@@ -1171,17 +1171,18 @@ def estimate_locuswide_threshold(specs):
     return estimate_naive_threshold(partition, uid_sw_naives)
 
 
-def run_jobs(specs, naive_threshold=None, overwrite=False):
+def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None):
     """Run refinement on a list of group specs (from group_specs), writing each group's
     refined partition. Production defaults (singleton-skip, junction guard, vdj override)
     -- the same config the standalone CLI and integrated step use. Groups whose
     refined output already exists are skipped unless <overwrite>. The naive threshold
     defaults to a locus-wide estimate over <specs>; when running a slice, pass one
-    estimated over the full group list."""
+    estimated over the full group list. Passing <locus> skips that estimate on a locus with no
+    D gene, since only the heavy merge reads the threshold and estimating it reads every input."""
     from argparse import Namespace
     from partis import utils
     oargs = Namespace(overwrite=overwrite)
-    if naive_threshold is None:
+    if naive_threshold is None and (locus is None or utils.has_d_gene(locus)):
         naive_threshold = estimate_locuswide_threshold(specs)
     totals, n_run = defaultdict(int), 0
     tlocus = time.time()

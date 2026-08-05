@@ -211,10 +211,11 @@ def run_partition_refine_jobs_action(args):
     specs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], args.locus)
     # locus-wide threshold: estimate over all groups (before slicing) so a sliced task uses
     # the same value as a whole-locus run.
-    naive_thr = partition_refinement.estimate_locuswide_threshold(specs) if len(specs) > 0 else None
+    # only the heavy merge reads the threshold, and estimating it reads every group's input
+    naive_thr = partition_refinement.estimate_locuswide_threshold(specs) if len(specs) > 0 and utils.has_d_gene(args.locus) else None
     stop = len(specs) if args.job_count is None else args.job_start + args.job_count
     specs = specs[args.job_start : stop]
-    partition_refinement.run_jobs(specs, naive_threshold=naive_thr, overwrite=args.overwrite)
+    partition_refinement.run_jobs(specs, naive_threshold=naive_thr, overwrite=args.overwrite, locus=args.locus)
     if len(specs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
         open(partition_refinement.bundle_marker_fname(disjoint_dir, args.job_start), 'w').close()
     print('  refined %d groups' % len(specs))
