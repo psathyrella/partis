@@ -22,6 +22,7 @@ integrated --partition-refine flag), which run run_jobs() over the disjoint grou
 import json
 import math
 import os
+import time
 from collections import defaultdict
 import numpy as np
 
@@ -893,25 +894,33 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     if light_chain:
         if verbose:
             print('\n=== light: shared-descent split (alpha=%.3g) ===' % alpha, flush=True)
+        tstart = time.time()
         wd_freqs, wd_n_seqs = repertoire_mutation_freqs(uid_to_muts_sw)
-        return split_on_shared_descent(partition, uid_info, uid_sw_naives, wd_freqs, wd_n_seqs,
-                                       alpha=alpha)
+        out = split_on_shared_descent(partition, uid_info, uid_sw_naives, wd_freqs, wd_n_seqs,
+                                      alpha=alpha)
+        print('  timing: shared-descent split %.2f s' % (time.time() - tstart), flush=True)
+        return out
 
     naive_thresh = (naive_threshold if naive_threshold is not None
                     else estimate_naive_threshold(partition, uid_sw_naives))
 
     if verbose:
         print('\n=== heavy: naive-identity split (EJ veto >= %.2f) ===' % EJ_SAME_FAMILY_FLOOR, flush=True)
+    tstart = time.time()
     split_partition = split_on_naive_identity(
         partition, uid_sw_naives, uid_to_muts_sw, min_cluster_size)
+    tsplit = time.time()
+    print('  timing: naive-identity split %.2f s' % (tsplit - tstart), flush=True)
 
     if verbose:
         print('\n=== heavy: naive-similarity merge (naive <= %.4f, min_agreement %.2f) ===' % (
             naive_thresh, min_agreement), flush=True)
-    return merge_on_naive_similarity(
+    out = merge_on_naive_similarity(
         split_partition, uid_info, uid_sw_naives, uid_to_muts_with_base, naive_thresh,
         min_agreement, min_fp_positions, skip_singleton_merge=skip_singleton_merge,
         uid_rearr_features=uid_rearr_features)
+    print('  timing: naive-similarity merge %.2f s' % (time.time() - tsplit), flush=True)
+    return out
 
 
 # ----------------------------------------------------------------------------
@@ -1173,9 +1182,11 @@ def run_jobs(specs, naive_threshold=None):
     if naive_threshold is None:
         naive_threshold = estimate_locuswide_threshold(specs)
     totals, n_run = defaultdict(int), 0
+    tlocus = time.time()
     for spec in specs:
         if os.path.exists(spec['refined_out']):  # existence is refine's completion signal, so a truncated output is never re-made
             continue
+        tgroup = time.time()
         inp = read_refine_inputs(spec['input'], spec['sw_cache'])
         refined = refine_partition(
             inp['partition'], inp['uid_info'], inp['uid_sw_naives'],
@@ -1183,9 +1194,11 @@ def run_jobs(specs, naive_threshold=None):
             naive_threshold=naive_threshold,
             skip_singleton_merge=True, min_agreement=0.15, verbose=False)
         cfo = write_full_output(spec['refined_out'], inp['part_glfo'], refined, inp['uid_part_antns'])
+        print('  timing: group %s total %.2f s' % (os.path.dirname(spec['refined_rel']), time.time() - tgroup), flush=True)
         n_run += 1
         for key, val in cfo.items():
             totals[key] += val
+    print('  timing: %d groups total %.2f s' % (n_run, time.time() - tlocus), flush=True)
     if totals['n_dropped'] > 0 or totals['n_fallback'] > 0:  # per-group counts are easy to miss, so total them
         print('  %s refine output over %d groups: dropped %d unannotatable uids, %d clusters (%d uids) fell back to singletons'
               % (utils.wrnstr(), n_run, totals['n_dropped'], totals['n_fallback'], totals['n_fallback_uids']), flush=True)
