@@ -2,7 +2,6 @@ from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
 import os
 import sys
-import glob
 import yaml
 import csv
 import shutil
@@ -669,42 +668,22 @@ def validate_assembly(manifest, manifest_dir):
     print('      assembly validation passed: %d sequences from %d groups (%d sequences in %d groups skipped%s)' % (total_seqs, len(manifest['groups']) - len(skipped), skipped_seqs, len(skipped), filter_msg))
 
 # ----------------------------------------------------------------------------------------
-def sw_cache_dir_patterns(locus):
-    # the layouts cache-parameters writes a per-part sw cache in, relative to a dir of parts
-    # (--sw-cachefname <dir>): locus-nested parameter dir, part dir named for the locus, then the
-    # dir itself, where the file name carries a uid hash rather than the locus so we cannot pin it
-    return ['*/parameters/%s/sw-cache*.yaml' % locus, '*%s/sw-cache*.yaml' % locus,
-            'sw-cache*.yaml']
-
-# ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths, locus):
-    # resolve <sw_cache_paths> to a list of files: accepts a single path string, a list of paths, or
-    # a directory of per-part sw caches (chunked cache-parameters at scale). Exactly one of the
-    # expected layouts has to hold, so we never silently take whichever one happens to be there.
+    # resolve <sw_cache_paths> to a list of files: a single path string or a list of paths. A dir can
+    # hold more than one candidate, so rather than guess we say what to pass instead.
     if not isinstance(sw_cache_paths, str):
         return list(sw_cache_paths)
-    if not os.path.isdir(sw_cache_paths):
-        return [sw_cache_paths]
-    patterns = sw_cache_dir_patterns(locus)
-    found = [(p, sorted(glob.glob('%s/%s' % (sw_cache_paths, p)))) for p in patterns]
-    found = [(p, fs) for p, fs in found if len(fs) > 0]
-    if len(found) == 0:
-        raise Exception('no %s sw cache files in %s (checked %s); pass the file itself, or a colon-separated list, if they are somewhere else'
-                        % (locus, sw_cache_paths, ', '.join(patterns)))
-    if len(found) > 1:
-        raise Exception('%s sw cache files in %s match more than one expected layout, so which to use is ambiguous: %s'
-                        % (locus, sw_cache_paths, '; '.join('%s (%d files)' % (p, len(fs)) for p, fs in found)))
-    pattern, paths = found[0]
-    if pattern != patterns[0]:  # nothing writes these for disjoint grouping, so say when one matched
-        print('      %s %s sw caches matched the fallback layout %s rather than the per-part parameter dirs' % (utils.wrnstr(), locus, pattern))
-    return paths
+    if os.path.isdir(sw_cache_paths):
+        raise Exception('--sw-cachefname is a directory (%s), which could hold more than one %s cache; pass the file, or a colon-separated list of files'
+                        % (sw_cache_paths, locus))
+    return [sw_cache_paths]
 
 # ----------------------------------------------------------------------------------------
 def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
-    # <sw_cache_paths>: single path string, list of paths, or directory (for chunked cache-parameters at scale).
+    # <sw_cache_paths>: single path string or list of paths.
     # For multiple caches, processes one chunk at a time to limit peak memory:
     #   - per-group FASTAs are written after all chunks are grouped (seqfos are lightweight)
     #   - per-group sw-cache fragments are written per chunk, then merged and cleaned up
