@@ -214,7 +214,7 @@ def run_partition_refine_jobs_action(args):
     naive_thr = partition_refinement.estimate_locuswide_threshold(specs) if len(specs) > 0 else None
     stop = len(specs) if args.job_count is None else args.job_start + args.job_count
     specs = specs[args.job_start : stop]
-    partition_refinement.run_jobs(specs, naive_threshold=naive_thr)
+    partition_refinement.run_jobs(specs, naive_threshold=naive_thr, overwrite=args.overwrite)
     if len(specs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
         open(partition_refinement.bundle_marker_fname(disjoint_dir, args.job_start), 'w').close()
     print('  refined %d groups' % len(specs))
@@ -1625,18 +1625,19 @@ def run_all_loci(args, ig_or_tr='ig'):
             refine_bundles_per_proc = 8  # bundles per concurrency slot
             ha_concurrency = max(1, min(utils.n_available_cpus() - 1, args.n_procs))  # single-proc bundles: fill job cpus, capped at --n-procs
             rspecs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], ltmp)
-            n_todo = sum(1 for spec in rspecs if not os.path.exists(spec['refined_out']))  # existence is each group's refine completion signal
+            n_todo = len(rspecs) if args.overwrite else sum(1 for spec in rspecs if not os.path.exists(spec['refined_out']))  # existence is each group's refine completion signal
             total = len(rspecs)
             n_bundles = min(total, ha_concurrency * refine_bundles_per_proc) if total > 0 else 0
             bundle_size = int(math.ceil(total / float(n_bundles))) if n_bundles > 0 else 0
             refine_cmdfos = []
             for start in range(0, total, bundle_size) if bundle_size > 0 else []:
                 done_marker = partition_refinement.bundle_marker_fname(disjoint_dir, start)
-                if os.path.exists(done_marker):
+                if os.path.exists(done_marker) and not args.overwrite:  # otherwise --overwrite could not reach the groups in a finished bundle
                     continue
                 cmd = build_single_locus_cmd('run-partition-refine-jobs', ltmp, args, parameter_dir=getpdir(ltmp),
                                              extra_args=['--disjoint-dir', disjoint_dir,
-                                                         '--job-start', str(start), '--job-count', str(bundle_size)])
+                                                         '--job-start', str(start), '--job-count', str(bundle_size)]
+                                                        + (['--overwrite'] if args.overwrite else []))
                 refine_cmdfos.append({'cmd_str' : cmd, 'outfname' : done_marker, 'workdir' : '%s/refine-bundle-work-%d' % (disjoint_dir, start)})
             if len(refine_cmdfos) > 0:
                 if args.dry_run:
@@ -1758,6 +1759,7 @@ parent_args.append({'name' : '--ig-or-tr', 'kwargs' : {'default' : 'ig', 'choice
 parent_args.append({'name' : '--paired-loci', 'kwargs' : {'action' : 'store_true', 'help' : 'Set this if input contains sequences from more than one locus (igh+igk+igl all together). Input can be specified either with --infname (in which case it will be automatically split apart by loci), or with --paired-indir (whose files must conform to the same conventions). It will then run the specified action on each of the single locus input files, and (if specified) merge the resulting partitions.'}})
 parent_args.append({'name' : '--reverse-negative-strands', 'kwargs' : {'action' : 'store_true', 'help' : 'If --paired-loci is set, align every sequence both forwards and revcomp\'d, then for each sequence keep the sense with better alignment. If *not* running with --paired-loci, then first run bin/split-loci.py separately with --reverse-negative-strands.'}})
 parent_args.append({'name' : '--dry-run', 'kwargs' : {'action' : 'store_true', 'help' : 'Just print subprocess commands that would be run without actually running them (only implemented for --paired-loci).'}})
+parent_args.append({'name' : '--overwrite', 'kwargs' : {'action' : 'store_true', 'help' : 'Remake output that already exists, rather than skipping it. Note that zero-length output is always remade whether or not this is set.'}})
 parent_args.append({'name' : '--species', 'kwargs' : {'default' : 'human', 'choices' : ('human', 'macaque', 'mouse', 'c57bl', 'balbc'), 'help' : 'Which species?'}})
 parent_args.append({'name' : '--queries', 'kwargs' : {'help' : 'Colon-separated list of query names to which to restrict the analysis'}})
 parent_args.append({'name' : '--queries-to-include', 'kwargs' : {'help' : 'When reading the input file, look for and include these additional uids when --n-random-queries is set (i.e. when they otherwise might be skipped). *Not* compatible with --n-max-queries. Contrast with --queries, which includes *only* the indicated uids. Additionally, these queries are treated differently e.g. when partition plotting or removing duplicate sequences.'}})

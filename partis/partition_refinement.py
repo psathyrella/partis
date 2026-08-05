@@ -1171,20 +1171,23 @@ def estimate_locuswide_threshold(specs):
     return estimate_naive_threshold(partition, uid_sw_naives)
 
 
-def run_jobs(specs, naive_threshold=None):
+def run_jobs(specs, naive_threshold=None, overwrite=False):
     """Run refinement on a list of group specs (from group_specs), writing each group's
     refined partition. Production defaults (singleton-skip, junction guard, vdj override)
     -- the same config the standalone CLI and integrated step use. Groups whose
-    refined output already exists are skipped. The naive threshold defaults to a
-    locus-wide estimate over <specs>; when running a slice, pass one estimated over
-    the full group list."""
+    refined output already exists are skipped unless <overwrite>. The naive threshold
+    defaults to a locus-wide estimate over <specs>; when running a slice, pass one
+    estimated over the full group list."""
+    from argparse import Namespace
     from partis import utils
+    oargs = Namespace(overwrite=overwrite)
     if naive_threshold is None:
         naive_threshold = estimate_locuswide_threshold(specs)
     totals, n_run = defaultdict(int), 0
     tlocus = time.time()
     for spec in specs:
-        if os.path.exists(spec['refined_out']):  # existence is refine's completion signal, so a truncated output is never re-made
+        # says what it skipped, and a zero-length output is removed and re-made rather than counted as done
+        if utils.output_exists(oargs, spec['refined_out'], outlabel='refine', offset=4):
             continue
         tgroup = time.time()
         inp = read_refine_inputs(spec['input'], spec['sw_cache'])
