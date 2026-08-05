@@ -209,12 +209,12 @@ def run_partition_refine_jobs_action(args):
     disjoint_dir = args.disjoint_dir if args.disjoint_dir is not None else _disjoint_locus_dir(args)
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     specs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], args.locus)
-    # locus-wide thresholds: estimate over all groups (before slicing) so a sliced task uses
-    # the same values as a whole-locus run.
-    naive_thr, jaccard_thr = partition_refinement.estimate_locuswide_thresholds(specs) if len(specs) > 0 else (None, None)
+    # locus-wide threshold: estimate over all groups (before slicing) so a sliced task uses
+    # the same value as a whole-locus run.
+    naive_thr = partition_refinement.estimate_locuswide_threshold(specs) if len(specs) > 0 else None
     stop = len(specs) if args.job_count is None else args.job_start + args.job_count
     specs = specs[args.job_start : stop]
-    partition_refinement.run_jobs(specs, naive_threshold=naive_thr, jaccard_threshold=jaccard_thr)
+    partition_refinement.run_jobs(specs, naive_threshold=naive_thr)
     if len(specs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
         open(partition_refinement.bundle_marker_fname(disjoint_dir, args.job_start), 'w').close()
     print('  refined %d groups' % len(specs))
