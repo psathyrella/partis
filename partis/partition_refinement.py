@@ -4,10 +4,11 @@ Pipeline-agnostic module: operates on a partition (list of clusters, each a list
 of uids) plus per-sequence annotations and SW naives, and returns a refined
 partition. Usable after any partis partition (standard or disjoint grouping).
 
-Step 1 runs on both chains, then the pipeline forks on D-gene presence, so no run
-performs all three steps:
+The pipeline forks on D-gene presence before step 1, so no run performs all three
+steps and step 1 differs by chain:
 
-  Step 1: Validated split (Jaccard proposes, per-sequence naive validates)
+  Step 1: Naive-identity split, HEAVY (exact sw naive proposes, shared mutations veto)
+  Step 1: Validated split, LIGHT (Jaccard proposes, per-sequence naive validates)
   Step 2: Incremental naive merge, HEAVY only (fingerprint validates, junction guards)
   Step 3: Shared-descent split of over-merged clusters, LIGHT only
 
@@ -375,6 +376,137 @@ def step1_validated_split(partition, uid_to_muts, uid_sw_naives,
     print('  step 1: %d proposed, %d accepted, %d rejected, %d skipped (single naive)' % (
         n_proposed, n_accepted, n_rejected, n_single_naive_skip), flush=True)
     print('  %d -> %d clusters' % (len(partition), len(result)), flush=True)
+    return result
+
+
+# shared-mutation fraction at which a cross-fragment pair certifies common descent
+EJ_SAME_FAMILY_FLOOR = 0.10
+
+
+def _union_find(n):
+    """(find, union) over n indices, with path halving."""
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[ra] = rb
+
+    return find, union
+
+
+def snap_unsupported(groups):
+    """Absorb each one-member naive group into the nearest corroborated (>= 2 member) group.
+    Returns (groups, n_members_snapped); no-op unless some group is corroborated and some is not."""
+    supported = [g for g in groups if len(g[1]) >= 2]
+    if len(supported) == 0 or len(supported) == len(groups):
+        return groups, 0
+    out = dict((nv, list(mem)) for nv, mem in supported)
+    n_snapped = 0
+    for nv, mem in groups:
+        if len(mem) >= 2:
+            continue
+        # nearest wins at any distance, and the key reads the frozen list so order cannot matter
+        best = min(supported, key=lambda s: (hamming_frac(nv, s[0]), -len(s[1]), s[0]))
+        out[best[0]].extend(mem)
+        n_snapped += len(mem)
+    return list(out.items()), n_snapped
+
+
+def cross_shared_counts(frag_of_uid, uid_muts):
+    """Shared base-specific mutation count for each cross-fragment uid pair sharing at least one.
+    Pairs sharing none are absent."""
+    inv = defaultdict(list)
+    for uid, muts in uid_muts.items():
+        for pos, base in muts.items():
+            inv[(pos, base)].append(uid)
+    pair_k = defaultdict(int)
+    for uids in inv.values():
+        if len(uids) < 2:
+            continue
+        for i in range(len(uids)):
+            fi = frag_of_uid.get(uids[i])
+            if fi is None:
+                continue
+            for j in range(i + 1, len(uids)):
+                fj = frag_of_uid.get(uids[j])
+                if fj is None or fi == fj:
+                    continue
+                a, b = uids[i], uids[j]
+                pair_k[(a, b) if a < b else (b, a)] += 1
+    return pair_k
+
+
+def step1_naive_split(partition, uid_sw_naives, uid_muts_sw, min_cluster_size=2,
+                      ej_floor=EJ_SAME_FAMILY_FLOOR):
+    """Step 1 (heavy): exact sw-naive identity proposes the split, shared mutations veto it.
+
+    Members are grouped by exact per-sequence sw naive, one-member groups are absorbed into the
+    nearest corroborated one, then fragments are re-merged when a cross-fragment pair's enhanced
+    jaccard reaches ej_floor. uid_muts_sw is mutations against each sequence's own sw naive.
+    """
+    result = []
+    ctr = defaultdict(int)
+
+    for cluster in partition:
+        if len(cluster) < min_cluster_size:
+            result.append(list(cluster))
+            ctr['below_min_size'] += 1
+            continue
+
+        uid_list = list(cluster)
+        cluster_naives = dict((u, uid_sw_naives[u]) for u in uid_list if u in uid_sw_naives)
+
+        if len(set(cluster_naives.values())) <= 1:  # nothing to propose
+            result.append(list(cluster))
+            ctr['single_naive'] += 1
+            continue
+        if len(cluster_naives) < len(uid_list):  # a member with no naive cannot be grouped, so fail closed
+            result.append(list(cluster))
+            ctr['missing_naive'] += 1
+            continue
+
+        groups = defaultdict(list)
+        for uid in uid_list:
+            groups[cluster_naives[uid]].append(uid)
+        proposed, n_snapped = snap_unsupported(list(groups.items()))
+        ctr['snapped'] += n_snapped
+        if len(proposed) <= 1:
+            result.append(list(cluster))
+            ctr['no_proposal'] += 1
+            continue
+
+        frags = [mem for _, mem in proposed]
+        ffind, funion = _union_find(len(frags))
+        frag_of_uid = dict((u, i) for i, f in enumerate(frags) for u in f)
+        muts_sw = dict((u, uid_muts_sw[u]) for u in uid_list if u in uid_muts_sw)
+        npos = dict((u, set(m)) for u, m in muts_sw.items())
+        for (a, b), k in cross_shared_counts(frag_of_uid, muts_sw).items():
+            if k / float(len(npos[a] | npos[b])) >= ej_floor:  # enhanced jaccard: shared over union
+                funion(frag_of_uid[a], frag_of_uid[b])
+                ctr['certified_pairs'] += 1
+
+        validated = defaultdict(list)
+        for i in range(len(frags)):
+            validated[ffind(i)].extend(frags[i])
+        groups_out = list(validated.values())
+        if len(groups_out) > 1:
+            ctr['accepted'] += 1
+            result.extend(groups_out)
+        else:
+            ctr['rejected'] += 1
+            result.append(list(cluster))
+
+    print('  step 1: %d accepted, %d rejected (veto), %d skipped (single naive), %d rejected (missing naive)' % (
+        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['missing_naive']), flush=True)
+    print('  %d members snapped, %d pairs certified, %d -> %d clusters' % (
+        ctr['snapped'], ctr['certified_pairs'], len(partition), len(result)), flush=True)
     return result
 
 
@@ -874,28 +1006,35 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     n_no_naive = sum(1 for uid in all_uids if uid not in uid_sw_naives)
     if n_no_naive > 0:  # validation keys off naives, so step 1 fails closed and keeps these fragments intact
         print('  warning: %d/%d input seqs have no sw naive (refine validates on naives; their fragments are kept intact)' % (n_no_naive, len(all_uids)), flush=True)
-    uid_to_muts, uid_to_muts_with_base = {}, {}
+    uid_to_muts, uid_to_muts_with_base, uid_to_muts_sw = {}, {}, {}
     for uid, info in uid_info.items():
         uid_to_muts[uid] = get_mutations(info['seq'], info['naive'])
         uid_to_muts_with_base[uid] = get_mutations_with_base(info['seq'], info['naive'])
+        if uid in uid_sw_naives:  # mutations against each sequence's own sw naive
+            uid_to_muts_sw[uid] = get_mutations_with_base(info['seq'], uid_sw_naives[uid])
 
-    # one value for both steps: step 1's single-naive skip and fragment validator and step 2's
-    # cross-bucket merge all read it, so recalibrating it for one step moves the other
-    naive_thresh = (naive_threshold if naive_threshold is not None
-                    else estimate_naive_threshold(partition, uid_sw_naives))
-    jaccard_thresh = (jaccard_threshold if jaccard_threshold is not None
-                      else estimate_jaccard_threshold(partition, uid_to_muts))
-
-    if verbose:
-        print('\n=== Step 1: Validated split (Jaccard >= %.4f, naive <= %.4f) ===' % (
-            jaccard_thresh, naive_thresh), flush=True)
-    split_partition = step1_validated_split(
-        partition, uid_to_muts, uid_sw_naives, jaccard_thresh, naive_thresh, min_cluster_size)
-
+    # resolved before any refinement, so the d-gene test gates all of it
     if light_chain is None:
         if not uid_rearr_features:  # otherwise the light path is taken silently
             print('  warning: no rearrangement features, so assuming light chain (step 2 will be skipped)', flush=True)
         light_chain = not _partition_has_real_d(uid_rearr_features)
+
+    naive_thresh = (naive_threshold if naive_threshold is not None
+                    else estimate_naive_threshold(partition, uid_sw_naives))
+
+    if light_chain:
+        jaccard_thresh = (jaccard_threshold if jaccard_threshold is not None
+                          else estimate_jaccard_threshold(partition, uid_to_muts))
+        if verbose:
+            print('\n=== Step 1: Validated split (Jaccard >= %.4f, naive <= %.4f) ===' % (
+                jaccard_thresh, naive_thresh), flush=True)
+        split_partition = step1_validated_split(
+            partition, uid_to_muts, uid_sw_naives, jaccard_thresh, naive_thresh, min_cluster_size)
+    else:
+        if verbose:
+            print('\n=== Step 1: Naive-identity split (EJ veto >= %.2f) ===' % EJ_SAME_FAMILY_FLOOR, flush=True)
+        split_partition = step1_naive_split(
+            partition, uid_sw_naives, uid_to_muts_sw, min_cluster_size)
 
     if light_chain:
         merged_partition = split_partition
