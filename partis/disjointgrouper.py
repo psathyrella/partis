@@ -135,7 +135,7 @@ def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None,
     # components: list of lists of centroid uids (one list per component)
     # max_bin_size: components exceeding this are emitted with a warning (never split).
     # min_group_size: components smaller than this are bundled together up to max_bin_size.
-    #   Components at or above min_group_size are emitted as separate bins -- TCM determined
+    #   Components at or above min_group_size are emitted as separate bins, since TCM determined
     #   they are distinct biological units and that signal must be preserved.
     # c3len: optional CDR3 length used only for log lines
     # returns: list of merged member uid lists (one list per output bin)

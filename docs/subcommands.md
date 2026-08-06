@@ -121,12 +121,14 @@ Two optional post-processing steps recover most of that accuracy while keeping v
 `--ha-repartition` reruns the full likelihood (HMM) clustering on each vsearch cluster of at least three sequences, one cluster at a time, and keeps the result only where it splits an over-merged cluster.
 Because each cluster is handled in isolation (a single keep-or-split decision, with no comparisons between clusters) this is fast, and it fixes the over-merging vsearch does on similar-but-distinct families.
 
-`--partition-refine` runs a three-step split/merge refinement on each group: it splits clusters that combine distinct naive rearrangements, merges fragments that share the same somatic mutations, and splits any remaining over-merges by linking only cells that share more mutations than chance (a per-cluster shared-descent test).
-The final split guards fork on chain: heavy chains add a V/D/J rearrangement guard and a concentration guard to protect deep clonal expansions, while light chains (with no informative D) relax those guards.
-When `--ha-repartition` is also set, refinement additionally recovers the small number of pure clusters the HA step over-splits, so the steps are always applied in the order vsearch, then `--ha-repartition`, then `--partition-refine`.
+`--partition-refine` runs post-partition refinement on each group, with the operators chosen by locus.
+Heavy chains split clusters that combine distinct naive rearrangements, then merge fragments whose somatic mutations agree.
+Light chains, which have no informative D, only split, linking cells only where they share more mutation than chance.
+The steps are always applied in the order vsearch, then `--ha-repartition`, then `--partition-refine`.
 
 Both flags require `--disjoint-groups`.
-Their output is single-chain only: when either is set on paired data, partis does not run the final paired combine (the refined single-chain partitions favor purity, which paired clustering would then over-split); run [`merge-paired-partitions`](#merge-paired-partitions) separately if paired clusters are wanted.
+Their output is single-chain only: when either is set on paired data, partis does not run the final paired combine, and [`merge-paired-partitions`](#merge-paired-partitions) refuses refined input.
+To get paired clusters, re-run `partition` without these flags.
 The per-cluster HA and per-group refine runs are single-proc and are bundled into processes scaled to the job's cpu allocation (each loading germline info once, then looping over its work), independent of `--n-max-subprocs` (which governs the per-group partition jobs).
 For running these steps as independent batch jobs, see [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), [`run-ha-repartition-jobs`](#run-ha-repartition-jobs), [`assemble-ha-repartition`](#assemble-ha-repartition), and [`run-partition-refine-jobs`](#run-partition-refine-jobs) below.
 
@@ -223,6 +225,7 @@ Run [refinement](#ha-re-partition-and-refinement) on a slice of the disjoint gro
 It refines each group's HA re-partition (or the vsearch partition, if the HA step was not run) in-process and writes a refined partition per group; reassemble the results with [`assemble-groups`](#assemble-groups).
 Requires `--locus` and `--parameter-dir` (the locus-level parameter directory).
 If partition files are not recorded in the manifest (e.g. when partition was run as standalone batch jobs), they are auto-discovered in the group directories.
+Groups whose refined output already exists are skipped unless `--overwrite` is set, so an interrupted run can be resumed by re-running the same command.
 This is the standalone version of the assembly step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.
 
 ### merge-paired-partitions

@@ -745,8 +745,8 @@ def split_by_weighted_descent(cluster, uid_muts, freqs, n_seqs, alpha=WEIGHTED_D
 def _partition_has_real_d(uid_rearr_features):
     """True if any uid carries a real (non-placeholder) D gene (heavy chain).
     Light loci (igk/igl) have no real D, so this is False for them, which is how
-    refine_partition picks the step-2 (heavy) vs step-3 (light) fork when
-    light_chain is not passed explicitly."""
+    refine_partition picks the heavy vs light fork when light_chain is not passed
+    explicitly."""
     if not uid_rearr_features:
         return False
     for feat in uid_rearr_features.values():
@@ -958,8 +958,8 @@ def pad_sw_naive(sw_seq, sw_naive, part_seq, ioff):
 
 def get_antn_key(antn, key, label):
     """The annotation's <key>, with no default. A default would flow onward as a real annotation
-    saying something false, e.g. an empty gene name into the step-2 junction guard or a zero
-    cdr3_length into the step-2 length bins. Failed queries carry none of these keys, so skip
+    saying something false, e.g. an empty gene name into the heavy junction guard or a zero
+    cdr3_length into the heavy merge's length bins. Failed queries carry none of these keys, so skip
     those before asking (partis writes them as invalid stubs of unique_ids and input_seqs)."""
     if key not in antn:
         raise Exception('no \'%s\' in %s annotation for %s (implicit info has to be added when reading)' % (key, label, ':'.join(antn['unique_ids'][:3])))
@@ -1008,7 +1008,7 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
         sw_seqs = get_ir_seqs(antn, 'sw cache')
         sw_naive = get_antn_key(antn, 'naive_seq', 'sw cache')
         vdj = tuple(get_antn_key(antn, '%s_gene' % r, 'sw cache') for r in utils.regions)
-        # junction boundaries for the step-2 guard
+        # junction boundaries for the heavy merge guard
         v_3p_del, j_5p_del = get_antn_key(antn, 'v_3p_del', 'sw cache'), get_antn_key(antn, 'j_5p_del', 'sw cache')
         for i, uid in enumerate(antn['unique_ids']):
             sw_info[uid] = antn
@@ -1037,7 +1037,7 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
     from all of them, so every uid must be in one padded frame (the sw cache is unpadded,
     each sequence in its own germline frame). A cluster whose multi-sequence synthesis
     fails is still emitted, as singletons, rather than dropped, so the written partition
-    and annotation list always match -- paired clustering requires an annotation for every
+    and annotation list always match, since paired clustering requires an annotation for every
     partition cluster. Uids whose annotation is invalid are dropped up front so one does
     not shatter its cluster.
     label: names the calling stage in the drop message, since ha-repartition calls this too.
@@ -1173,12 +1173,12 @@ def estimate_locuswide_threshold(specs):
 
 def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None):
     """Run refinement on a list of group specs (from group_specs), writing each group's
-    refined partition. Production defaults (singleton-skip, junction guard, vdj override)
-    -- the same config the standalone CLI and integrated step use. Groups whose
+    refined partition, with the production defaults (singleton-skip, junction guard, vdj
+    override) that the standalone CLI and integrated pipeline both use. Groups whose
     refined output already exists are skipped unless <overwrite>. The naive threshold
     defaults to a locus-wide estimate over <specs>; when running a slice, pass one
-    estimated over the full group list. Passing <locus> skips that estimate on a locus with no
-    D gene, since only the heavy merge reads the threshold and estimating it reads every input."""
+    estimated over the full group list. Passing <locus> skips that estimate on a locus with
+    no D gene, where no operator reads it."""
     from argparse import Namespace
     from partis import utils
     oargs = Namespace(overwrite=overwrite)
