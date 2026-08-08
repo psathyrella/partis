@@ -17,7 +17,7 @@ HFRAC_MAX_BIN_SIZE_DEFAULT = 100000    # bin-packing target cap on merged sub-gr
 HFRAC_MIN_SEQS_DEFAULT = 50000   # CDR3 groups smaller than this skip hfrac entirely
 
 # hfrac internal tuning (named to avoid magic numbers)
-BIN_PACK_TOLERANCE = 1.2               # allow up to 1.2 * cap before bin-packing fires
+BIN_PACK_TOLERANCE = 1.2               # bin-packing only fires past this multiple of the cap
 MAX_VSEARCH_PROCS = 8                  # cap on concurrent vsearch jobs (round 1 and round 2)
 MAX_TCM_THRESHOLD = 0.49               # safety clamp on round-2 threshold; vsearch --id requires <= 1.0 and high-SHM regimes can otherwise drive merge_factor*hi_bound past sensible bounds
 
@@ -133,7 +133,8 @@ def _tcm_merge_from_pairs(pairs_file, centroid_uids):
 def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None, min_group_size=HFRAC_MIN_SEQS_DEFAULT, c3len=None):
     # r1_results: list of (centroid_uid, [member_uids]) pairs from round 1
     # components: list of lists of centroid uids (one list per component)
-    # max_bin_size: components exceeding this are emitted with a warning (never split).
+    # max_bin_size: soft cap, components past max_bin_size * BIN_PACK_TOLERANCE are emitted
+    #   with a warning (never split).
     # min_group_size: components smaller than this are bundled together up to max_bin_size.
     #   Components at or above min_group_size are emitted as separate bins, since TCM determined
     #   they are distinct biological units and that signal must be preserved.
@@ -211,7 +212,7 @@ def write_group_fastas(groups, outdir, locus):
 
 # ----------------------------------------------------------------------------------------
 def write_group_sw_caches(groups, glfo, annotation_list, outdir, locus):
-    # write per-group sw-cache subsets so partition subprocesses don't have to read the huge full sw cache
+    # write per-group sw-cache subsets so partition subprocesses do not have to read the huge full sw cache
     uid_to_c3len = {}
     for c3len, seqfos in groups.items():
         for sfo in seqfos:
@@ -536,10 +537,15 @@ def check_stage_file_complete(fname, annotation_list, cpath):
     # size a file by its annotations, not by its partition, so the missing uids just vanish
     antn_uids = set(u for l in (annotation_list or []) for u in l['unique_ids'])
     best = cpath.best() if cpath is not None and cpath.i_best is not None else []
-    missing = antn_uids - set(u for c in best for u in c)
+    part_uids = set(u for c in best for u in c)
+    missing = antn_uids - part_uids
     if len(missing) > 0:
         raise Exception('incomplete partition file: %d of its %d annotated uids are missing from its partition (e.g. %s), so it was truncated or only partly written and its group has to be re-run (delete it first: an existing stage file is treated as a finished one): %s'
                         % (len(missing), len(antn_uids), sorted(missing)[:3], fname))
+    unannotated = part_uids - antn_uids  # the other truncation direction, which loses annotations rather than partition lines
+    if len(unannotated) > 0:
+        raise Exception('incomplete partition file: %d of its %d partitioned uids have no annotation (e.g. %s), so it was truncated or only partly written and its group has to be re-run (delete it first: an existing stage file is treated as a finished one): %s'
+                        % (len(unannotated), len(part_uids), sorted(unannotated)[:3], fname))
 
 # ----------------------------------------------------------------------------------------
 def build_uid_group_mapping(manifest, disjoint_dir):
@@ -560,7 +566,7 @@ def build_uid_group_mapping(manifest, disjoint_dir):
 STAGE_REFINE = 'partition-refine'
 STAGE_HAREP = 'ha-repartition'
 STAGE_VSEARCH = 'partition'
-# most-refined first: the standalone actions can't update the manifest (array tasks would race on
+# most-refined first: the standalone actions cannot update the manifest (array tasks would race on
 # it), so discovery has to find the refined output itself
 PARTITION_PRECEDENCE = [STAGE_REFINE, STAGE_HAREP, STAGE_VSEARCH]
 
@@ -632,8 +638,9 @@ def get_partition_paths(manifest, manifest_dir):
     if len(unknown_stage) > 0:
         print('      %s manifest partition_path names no known stage for %d groups (e.g. %s)' % (utils.wrnstr(), len(unknown_stage), unknown_stage[0]))
     nonzero = [(s, n) for s, n in stage_counts.items() if n > 0]
-    if len(nonzero) > 1:  # a mix means some groups' refine/ha-repartition didn't finish
-        print('      %s assembling a MIX of stages: %s' % (utils.wrnstr(), ', '.join('%d %s' % (n, s) for s, n in nonzero)))
+    if len(nonzero) > 1:  # a mix means some groups' refine/ha-repartition did not finish
+        raise Exception('cannot assemble a mix of stages (%s): some groups\' later stages did not finish, so the assembled partition would be part refined and part not. Re-run the missing stage (it skips groups that are already done), then assemble.'
+                        % ', '.join('%d %s' % (n, s) for s, n in nonzero))
     elif len(nonzero) == 1:
         print('      all %d groups from %s' % (nonzero[0][1], nonzero[0][0]))
     return paths
