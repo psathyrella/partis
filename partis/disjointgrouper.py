@@ -2,7 +2,6 @@ from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
 import os
 import sys
-import glob
 import yaml
 import csv
 import shutil
@@ -15,12 +14,18 @@ MANIFEST_FNAME = 'manifest.yaml'
 # hfrac defaults (referenced from bin/partis argparse so all three places stay in sync)
 HFRAC_MERGE_FACTOR_DEFAULT = 3.0       # round-2 TCM threshold = merge_factor * hi_bound
 HFRAC_MAX_BIN_SIZE_DEFAULT = 100000    # bin-packing target cap on merged sub-group size; 0 disables
-HFRAC_MIN_GROUP_SIZE_DEFAULT = 100     # CDR3 groups smaller than this skip hfrac entirely
+HFRAC_MIN_SEQS_DEFAULT = 50000   # CDR3 groups smaller than this skip hfrac entirely
 
 # hfrac internal tuning (named to avoid magic numbers)
-BIN_PACK_TOLERANCE = 1.2               # allow up to 1.2 * cap before bin-packing fires
+BIN_PACK_TOLERANCE = 1.2               # bin-packing only fires past this multiple of the cap
 MAX_VSEARCH_PROCS = 8                  # cap on concurrent vsearch jobs (round 1 and round 2)
 MAX_TCM_THRESHOLD = 0.49               # safety clamp on round-2 threshold; vsearch --id requires <= 1.0 and high-SHM regimes can otherwise drive merge_factor*hi_bound past sensible bounds
+
+# ----------------------------------------------------------------------------------------
+def group_sw_cache_fname(locus):
+    # the per-group sw cache subset written for <locus> (partitiondriver's hash-named caches
+    # are a different convention and do not come through here)
+    return 'sw-cache-%s.yaml' % locus
 
 # ----------------------------------------------------------------------------------------
 def group_sequences_by_cdr3_length(annotation_list):
@@ -125,12 +130,13 @@ def _tcm_merge_from_pairs(pairs_file, centroid_uids):
     return components
 
 # ----------------------------------------------------------------------------------------
-def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None, min_group_size=HFRAC_MIN_GROUP_SIZE_DEFAULT, c3len=None):
+def _merge_r1_subgroups_by_components(r1_results, components, max_bin_size=None, min_group_size=HFRAC_MIN_SEQS_DEFAULT, c3len=None):
     # r1_results: list of (centroid_uid, [member_uids]) pairs from round 1
     # components: list of lists of centroid uids (one list per component)
-    # max_bin_size: components exceeding this are emitted with a warning (never split).
+    # max_bin_size: soft cap, components past max_bin_size * BIN_PACK_TOLERANCE are emitted
+    #   with a warning (never split).
     # min_group_size: components smaller than this are bundled together up to max_bin_size.
-    #   Components at or above min_group_size are emitted as separate bins -- TCM determined
+    #   Components at or above min_group_size are emitted as separate bins, since TCM determined
     #   they are distinct biological units and that signal must be preserved.
     # c3len: optional CDR3 length used only for log lines
     # returns: list of merged member uid lists (one list per output bin)
@@ -206,7 +212,7 @@ def write_group_fastas(groups, outdir, locus):
 
 # ----------------------------------------------------------------------------------------
 def write_group_sw_caches(groups, glfo, annotation_list, outdir, locus):
-    # write per-group sw-cache subsets so partition subprocesses don't have to read the huge full sw cache
+    # write per-group sw-cache subsets so partition subprocesses do not have to read the huge full sw cache
     uid_to_c3len = {}
     for c3len, seqfos in groups.items():
         for sfo in seqfos:
@@ -219,7 +225,7 @@ def write_group_sw_caches(groups, glfo, annotation_list, outdir, locus):
             antns_by_c3len[uid_to_c3len[uid]].append(line)
     for c3len in sorted(groups):
         group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
-        sw_cache_path = '%s/sw-cache-%s.yaml' % (group_dir, locus)
+        sw_cache_path = '%s/%s' % (group_dir, group_sw_cache_fname(locus))
         utils.write_annotations(sw_cache_path, glfo, antns_by_c3len.get(c3len, []), utils.sw_cache_headers)
 
 # ----------------------------------------------------------------------------------------
@@ -298,7 +304,7 @@ def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, 
         utils.write_fasta(fasta_path, sub_seqfos)
         sub_uids = set(sfo['name'] for sfo in sub_seqfos)
         sub_antns = [uid_to_antn[uid] for uid in sub_uids if uid in uid_to_antn]
-        sw_cache_path = '%s/sw-cache-%s.yaml' % (sub_dir, locus)
+        sw_cache_path = '%s/%s' % (sub_dir, group_sw_cache_fname(locus))
         utils.write_annotations(sw_cache_path, sub_glfo, sub_antns, utils.sw_cache_headers)
         unique_naive = len(set(sfo.get('naive_seq', '') for sfo in sub_seqfos if sfo.get('naive_seq', '')))
         rel_fasta = 'groups/cdr3-%d/sub-groups/sub-%03d/%s.fa' % (c3len, isub, locus)
@@ -318,7 +324,7 @@ def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, 
         print('        cdr3-%d: %d seqs -> %d sub-groups (sizes: %s)' % (c3len, seqcount, len(sub_groups_list), ' '.join(str(len(sg)) for sg in sub_groups_list)))
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_GROUP_SIZE_DEFAULT):
+def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT):
     # apply hfrac sub-grouping within each CDR3 group, write per-sub-group outputs
     # single-cache in-memory path: annotation_list is fully loaded
     # min_group_size: CDR3 groups smaller than this skip hfrac and are written as single groups
@@ -385,7 +391,7 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
     return flattened_groups, all_group_infos
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_GROUP_SIZE_DEFAULT):
+def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT):
     # memory-efficient hfrac for multi-cache path: reads one CDR3 group SW cache at a time
     # min_group_size: CDR3 groups smaller than this skip hfrac and are written as single groups
 
@@ -444,7 +450,7 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HF
         # re-read SW cache for this CDR3 group to get annotations AND the merged glfo
         # (multi-chunk path: merge_yamls reconciled glfos across chunks; using the outer glfo
         # from the first chunk would lose novel alleles from later chunks)
-        swc_path = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (outdir, c3len, locus)
+        swc_path = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_sw_cache_fname(locus))
         uid_to_antn = {}
         group_glfo = glfo
         if os.path.exists(swc_path):
@@ -503,20 +509,43 @@ def read_manifest(manifest_path):
         for required_key in ['group_id', 'cdr3_length', 'locus', 'sequence_count', 'fasta_path']:
             if required_key not in ginfo:
                 raise Exception('missing required key \'%s\' in group entry in manifest %s' % (required_key, manifest_path))
+    # the manifest is the one pipeline file written as block yaml, so a job killed mid-write can
+    # leave one that parses with its trailing groups gone. the counts are the only thing that says so
+    validate_sequence_count(manifest, fname=manifest_path, quiet=True)
     return manifest
 
 # ----------------------------------------------------------------------------------------
-def validate_sequence_count(manifest):
+def validate_sequence_count(manifest, fname=None, quiet=False):
     # verify that sum of group sequence counts equals total_grouped_sequences
+    fstr = '' if fname is None else ' in %s' % fname
     total_grouped = manifest['grouping-info']['total_grouped_sequences']
     group_sum = sum(g['sequence_count'] for g in manifest['groups'])
     if group_sum != total_grouped:
-        raise Exception('sequence count mismatch: sum of group counts %d does not equal total_grouped_sequences %d' % (group_sum, total_grouped))
+        raise Exception('sequence count mismatch%s: sum of the %d group counts %d does not equal total_grouped_sequences %d (a manifest truncated by a killed job loses its trailing groups)' % (fstr, len(manifest['groups']), group_sum, total_grouped))
     total_input = manifest['grouping-info']['total_input_sequences']
     n_failed = manifest['grouping-info']['failed_sequences']
     if total_grouped + n_failed != total_input:
-        raise Exception('sequence count mismatch: total_grouped %d + failed %d does not equal total_input %d' % (total_grouped, n_failed, total_input))
-    print('      sequence count validated: %d grouped + %d failed = %d total' % (total_grouped, n_failed, total_input))
+        raise Exception('sequence count mismatch%s: total_grouped %d + failed %d does not equal total_input %d' % (fstr, total_grouped, n_failed, total_input))
+    if not quiet:
+        print('      sequence count validated: %d grouped + %d failed = %d total' % (total_grouped, n_failed, total_input))
+
+# ----------------------------------------------------------------------------------------
+def check_stage_file_complete(fname, annotation_list, cpath):
+    # every annotated uid has to be in the file's best partition. a stage file written as block
+    # yaml (--write-full-yaml-output) and truncated at a line boundary parses fine but loses the
+    # tail of its partition list, and nothing else notices: validate_assembly and merge_yamls both
+    # size a file by its annotations, not by its partition, so the missing uids just vanish
+    antn_uids = set(u for l in (annotation_list or []) for u in l['unique_ids'])
+    best = cpath.best() if cpath is not None and cpath.i_best is not None else []
+    part_uids = set(u for c in best for u in c)
+    missing = antn_uids - part_uids
+    if len(missing) > 0:
+        raise Exception('incomplete partition file: %d of its %d annotated uids are missing from its partition (e.g. %s), so it was truncated or only partly written and its group has to be re-run (delete it first: an existing stage file is treated as a finished one): %s'
+                        % (len(missing), len(antn_uids), sorted(missing)[:3], fname))
+    unannotated = part_uids - antn_uids  # the other truncation direction, which loses annotations rather than partition lines
+    if len(unannotated) > 0:
+        raise Exception('incomplete partition file: %d of its %d partitioned uids have no annotation (e.g. %s), so it was truncated or only partly written and its group has to be re-run (delete it first: an existing stage file is treated as a finished one): %s'
+                        % (len(unannotated), len(part_uids), sorted(unannotated)[:3], fname))
 
 # ----------------------------------------------------------------------------------------
 def build_uid_group_mapping(manifest, disjoint_dir):
@@ -530,25 +559,69 @@ def build_uid_group_mapping(manifest, disjoint_dir):
     return uid_to_group
 
 # ----------------------------------------------------------------------------------------
+# the stage names, which double as the prefix of the partition file each stage writes, so anything
+# writing, discovering or comparing a partition stage file goes through these and stage_fname().
+# bookkeeping artifacts (scratch workdirs, task lists, timing csvs, bundle markers) are not stage
+# files and are named where they are used
+STAGE_REFINE = 'partition-refine'
+STAGE_HAREP = 'ha-repartition'
+STAGE_VSEARCH = 'partition'
+# most-refined first: the standalone actions cannot update the manifest (array tasks would race on
+# it), so discovery has to find the refined output itself
+PARTITION_PRECEDENCE = [STAGE_REFINE, STAGE_HAREP, STAGE_VSEARCH]
+
+
+def stage_fname(stage, locus):
+    # the partition file <stage> writes for <locus>
+    return '%s-%s.yaml' % (stage, locus)
+
+
+def discover_partition_path(ginfo, manifest_dir):
+    # (relative path, stage that wrote it), or (None, None) if the group has no partition output
+    # NOTE a stage file's existence is the completion signal for that stage, so a half-written one
+    # counts as finished; check_stage_file_complete() is what catches that when the file is read
+    fasta_dir = os.path.dirname(ginfo['fasta_path'])
+    for stage in PARTITION_PRECEDENCE:
+        ppath = '%s/%s' % (fasta_dir, stage_fname(stage, ginfo['locus']))
+        if os.path.exists('%s/%s' % (manifest_dir, ppath)):
+            return ppath, stage
+    return None, None
+
+
+def resolve_partition_path(ginfo, manifest_dir):
+    # (relative path, stage that wrote it, whether the manifest was stale), or (None, None, False)
+    # if the group has no partition output. The manifest's partition_path can be stale, since
+    # standalone actions do not update it (array tasks would race), so always discover too and take
+    # whichever is more refined. Anything keying off the stage has to come through here.
+    dpath, dstage = discover_partition_path(ginfo, manifest_dir)
+    ppath = ginfo.get('partition_path')
+    if ppath is None:
+        return dpath, dstage, False
+    stage = next((s for s in PARTITION_PRECEDENCE if os.path.basename(ppath).startswith(s)), None)
+    if dpath is not None and (stage is None or PARTITION_PRECEDENCE.index(dstage) < PARTITION_PRECEDENCE.index(stage)):
+        return dpath, dstage, True
+    return ppath, stage, False
+
+
 def get_partition_paths(manifest, manifest_dir):
     # collect and verify partition file paths for a single locus
-    # if partition_path is set in manifest, use it directly
-    # if partition_path is None, try to discover the partition file in the group dir
-    # (supports standalone partition jobs that do not update the manifest)
     paths = []
     skipped_groups = []
     missing_files = []
+    n_superseded = 0
+    unknown_stage = []  # manifest name matches no stage and nothing more refined exists
+    stage_counts = collections.OrderedDict((s, 0) for s in PARTITION_PRECEDENCE)
     for ginfo in manifest['groups']:
-        ppath = ginfo.get('partition_path')
+        ppath, stage, superseded = resolve_partition_path(ginfo, manifest_dir)
         if ppath is None:
-            # check for partition file in the same directory as the fasta
-            fasta_dir = os.path.dirname(ginfo['fasta_path'])
-            default_ppath = '%s/partition-%s.yaml' % (fasta_dir, ginfo['locus'])
-            if os.path.exists('%s/%s' % (manifest_dir, default_ppath)):
-                ppath = default_ppath
-            else:
-                skipped_groups.append(ginfo['group_id'])
-                continue
+            skipped_groups.append(ginfo['group_id'])
+            continue
+        if superseded:
+            n_superseded += 1
+        if stage is None:
+            unknown_stage.append(os.path.basename(ppath))
+        else:
+            stage_counts[stage] += 1
         full_ppath = '%s/%s' % (manifest_dir, ppath)
         if not os.path.exists(full_ppath):
             missing_files.append(ginfo['group_id'])
@@ -560,6 +633,16 @@ def get_partition_paths(manifest, manifest_dir):
         print('      skipping %d groups with no partition output (e.g. too small): %s' % (len(skipped_groups), skipped_groups))
     if len(missing_files) > 0:
         raise Exception('partition files missing for %d groups (partition_path set but file not found): %s' % (len(missing_files), missing_files))
+    if n_superseded > 0:
+        print('      %s manifest partition_path was stale for %d groups, used the more refined output instead' % (utils.wrnstr(), n_superseded))
+    if len(unknown_stage) > 0:
+        print('      %s manifest partition_path names no known stage for %d groups (e.g. %s)' % (utils.wrnstr(), len(unknown_stage), unknown_stage[0]))
+    nonzero = [(s, n) for s, n in stage_counts.items() if n > 0]
+    if len(nonzero) > 1:  # a mix means some groups' refine/ha-repartition did not finish
+        raise Exception('cannot assemble a mix of stages (%s): some groups\' later stages did not finish, so the assembled partition would be part refined and part not. Re-run the missing stage (it skips groups that are already done), then assemble.'
+                        % ', '.join('%d %s' % (n, s) for s, n in nonzero))
+    elif len(nonzero) == 1:
+        print('      all %d groups from %s' % (nonzero[0][1], nonzero[0][0]))
     return paths
 
 # ----------------------------------------------------------------------------------------
@@ -567,10 +650,17 @@ def validate_assembly(manifest, manifest_dir):
     # validate uid uniqueness and sequence counts by reading partitioned groups
     all_uids = set()
     total_seqs = 0
-    skipped = [g for g in manifest['groups'] if g.get('partition_path') is None]
+    # compute skipped groups using same auto-discovery logic as get_partition_paths
+    skipped = []
+    for ginfo in manifest['groups']:
+        if ginfo.get('partition_path') is not None:
+            continue
+        if discover_partition_path(ginfo, manifest_dir)[0] is None:
+            skipped.append(ginfo)
     skipped_seqs = sum(g['sequence_count'] for g in skipped)
     for ppath in get_partition_paths(manifest, manifest_dir):
-        _, annotation_list, _ = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
+        _, annotation_list, cpath = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
+        check_stage_file_complete(ppath, annotation_list, cpath)  # free here: the file is already read
         for line in annotation_list:
             for uid in line['unique_ids']:
                 if uid in all_uids:
@@ -585,37 +675,26 @@ def validate_assembly(manifest, manifest_dir):
     print('      assembly validation passed: %d sequences from %d groups (%d sequences in %d groups skipped%s)' % (total_seqs, len(manifest['groups']) - len(skipped), skipped_seqs, len(skipped), filter_msg))
 
 # ----------------------------------------------------------------------------------------
-def resolve_sw_cache_paths(sw_cache_paths):
-    # resolve <sw_cache_paths> to a list: accepts a single path string, a list of paths, or a directory
-    # for directory input, checks two expected patterns:
-    #   paired/chunked layout: {dir}/*/parameters/*/sw-cache*.yaml
-    #   flat unpaired layout:  {dir}/*/parameters/sw-cache*.yaml
-    if isinstance(sw_cache_paths, str):
-        if os.path.isdir(sw_cache_paths):
-            paths = sorted(glob.glob('%s/*/parameters/*/sw-cache*.yaml' % sw_cache_paths))
-            if len(paths) == 0:
-                paths = sorted(glob.glob('%s/*/parameters/sw-cache*.yaml' % sw_cache_paths))
-            if len(paths) == 0:
-                paths = sorted(glob.glob('%s/*/sw-cache*.yaml' % sw_cache_paths))
-            if len(paths) == 0:
-                paths = sorted(glob.glob('%s/sw-cache*.yaml' % sw_cache_paths))
-            if len(paths) == 0:
-                raise Exception('no sw-cache*.yaml files found in %s (checked */parameters/*/sw-cache*.yaml, */parameters/sw-cache*.yaml, */sw-cache*.yaml, sw-cache*.yaml)' % sw_cache_paths)
-            return paths
-        else:
-            return [sw_cache_paths]
-    return list(sw_cache_paths)
+def resolve_sw_cache_paths(sw_cache_paths, locus):
+    # resolve <sw_cache_paths> to a list of files: a single path string or a list of paths. A dir can
+    # hold more than one candidate, so rather than guess we say what to pass instead.
+    if not isinstance(sw_cache_paths, str):
+        return list(sw_cache_paths)
+    if os.path.isdir(sw_cache_paths):
+        raise Exception('--sw-cachefname is a directory (%s), which could hold more than one %s cache; pass the file, or a colon-separated list of files'
+                        % (sw_cache_paths, locus))
+    return [sw_cache_paths]
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT):
+def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
-    # <sw_cache_paths>: single path string, list of paths, or directory (for chunked cache-parameters at scale).
+    # <sw_cache_paths>: single path string or list of paths.
     # For multiple caches, processes one chunk at a time to limit peak memory:
     #   - per-group FASTAs are written after all chunks are grouped (seqfos are lightweight)
     #   - per-group sw-cache fragments are written per chunk, then merged and cleaned up
-    sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths)
+    sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
     multi_cache = len(sw_cache_paths) > 1
 
     # compute hi hamming bound for hfrac sub-grouping
@@ -641,7 +720,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
         n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
         if hfrac:
-            groups, group_infos = _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size)
+            groups, group_infos = _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size)
         else:
             group_infos = write_group_fastas(groups, outdir, locus)
             write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
@@ -682,7 +761,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
 
         # merge per-chunk sw-cache fragments into final per-group files, then clean up
         for c3len in sorted(groups):
-            final_swc = '%s/groups/cdr3-%d/sw-cache-%s.yaml' % (outdir, c3len, locus)
+            final_swc = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_sw_cache_fname(locus))
             frags = chunk_fragments.get(c3len, [])
             if len(frags) == 1:
                 os.rename(frags[0], final_swc)
@@ -698,7 +777,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         # then dispatch all vsearch jobs in parallel
         # pass 2: read each CDR3 sw cache again, parse vsearch results, write sub-group outputs
         if hfrac:
-            _, group_infos = _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size)
+            _, group_infos = _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size)
 
     n_cdr3_groups = len(set(g['cdr3_length'] for g in group_infos)) if len(group_infos) > 0 else 0
     print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, n_cdr3_groups, n_failed))
