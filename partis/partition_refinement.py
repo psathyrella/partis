@@ -886,10 +886,15 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
             uid_to_muts_sw[uid] = get_mutations_with_base(info['seq'], uid_sw_naives[uid])
 
     # resolved before any refinement, so the d-gene test gates all of it
+    has_d = _partition_has_real_d(uid_rearr_features)
     if light_chain is None:
         if not uid_rearr_features:  # otherwise the light path is taken silently
             print('  warning: no rearrangement features, so assuming light chain', flush=True)
-        light_chain = not _partition_has_real_d(uid_rearr_features)
+        light_chain = not has_d
+    elif light_chain == has_d:  # cross check the caller's locus, since a stray d call means one of them is wrong
+        from partis import utils
+        print('  %s locus says %s chain but the d genes say %s: using the locus, but check the annotations'
+              % (utils.wrnstr(), 'light' if light_chain else 'heavy', 'heavy' if has_d else 'light'), flush=True)
 
     if light_chain:
         if verbose:
@@ -985,7 +990,7 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
     disjointgrouper.check_stage_file_complete(partition_fname, part_antns, cpath)  # a truncated input silently shrinks the refined output
     partition = [list(c) for c in (cpath.best() if cpath is not None else [])]
     uid_info, uid_part_antns = {}, {}
-    n_failed = 0
+    n_failed, n_short = 0, 0
     for antn in part_antns:
         failed = antn.get('invalid', False)  # sw/hmm failures, written as stubs with no annotation
         if failed:
@@ -996,10 +1001,23 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
             iseqs = get_ir_seqs(antn, 'partition')
         for i, uid in enumerate(antn['unique_ids']):
             uid_part_antns[uid] = antn  # write path synthesizes from these, so output stays in the input's padded frame
-            if not failed and i < len(iseqs):
-                uid_info[uid] = {'seq': iseqs[i], 'naive': naive, 'cdr3_length': cdr3}
+            if not failed:
+                if i < len(iseqs):
+                    uid_info[uid] = {'seq': iseqs[i], 'naive': naive, 'cdr3_length': cdr3}
+                else:  # fewer seqs than uids, i.e. a malformed annotation
+                    n_short += 1
     if n_failed > 0:
         print('  skipped %d failed queries (no annotation) in %s' % (n_failed, partition_fname), flush=True)
+    if n_short > 0:
+        print('  %s dropped %d uids whose annotation had fewer seqs than unique_ids in %s' % (utils.wrnstr(), n_short, partition_fname), flush=True)
+    # they carry no partition-frame seq to pad an sw naive against, and are dropped from the output
+    # anyway, so drop them here rather than letting them into grouping decisions
+    n_before = sum(len(c) for c in partition)
+    partition = [[u for u in c if u in uid_info] for c in partition]
+    partition = [c for c in partition if len(c) > 0]
+    n_unannotated = n_before - sum(len(c) for c in partition)
+    if n_unannotated > 0:
+        print('  %s dropped %d partitioned uids with no usable annotation before refining %s' % (utils.wrnstr(), n_unannotated, partition_fname), flush=True)
 
     sw_glfo, sw_antns, _ = utils.read_output(sw_cache_fname)
     sw_info, uid_sw_naives, uid_rearr_features = {}, {}, {}
@@ -1013,10 +1031,10 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
         for i, uid in enumerate(antn['unique_ids']):
             sw_info[uid] = antn
             uid_rearr_features[uid] = {'vdj': vdj, 'v_3p_del': v_3p_del, 'j_5p_del': j_5p_del}
-            naive = sw_naive
-            if uid in uid_info and i < len(sw_seqs):  # re-pad into the partition frame
-                naive = pad_sw_naive(sw_seqs[i], naive, uid_info[uid]['seq'],
-                                     sw_frame_offset(uid_part_antns[uid], antn))
+            if uid not in uid_info or i >= len(sw_seqs):  # nothing to pad against, and an
+                continue                                  # unpadded sw naive is in the wrong frame
+            naive = pad_sw_naive(sw_seqs[i], sw_naive, uid_info[uid]['seq'],
+                                 sw_frame_offset(uid_part_antns[uid], antn))
             if naive is None:  # frames disagree: drop, refine fails closed on missing naives
                 n_unalignable += 1
                 continue
@@ -1079,9 +1097,10 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
     n_dropped, n_fallback, n_fallback_uids = 0, 0, 0
     first_err = None
     for cluster in refined_partition:
-        cluster = [uid for uid in cluster if uid in ant_info]
-        good = [uid for uid in cluster if not ant_info[uid].get('invalid', False)]
-        n_dropped += len(cluster) - len(good)
+        known = [uid for uid in cluster if uid in ant_info]
+        n_dropped += len(cluster) - len(known)  # no annotation at all, so nothing to synthesize from
+        good = [uid for uid in known if not ant_info[uid].get('invalid', False)]
+        n_dropped += len(known) - len(good)
         if len(good) == 0:
             continue
         try:
@@ -1178,12 +1197,14 @@ def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None):
     refined output already exists are skipped unless <overwrite>. The naive threshold
     defaults to a locus-wide estimate over <specs>; when running a slice, pass one
     estimated over the full group list. Passing <locus> skips that estimate on a locus with
-    no D gene, where no operator reads it."""
+    no D gene, where no operator reads it, and pins the heavy/light fork for every group."""
     from argparse import Namespace
     from partis import utils
     oargs = Namespace(overwrite=overwrite)
-    if naive_threshold is None and (locus is None or utils.has_d_gene(locus)):
+    heavy = locus is None or utils.has_d_gene(locus)
+    if naive_threshold is None and heavy:
         naive_threshold = estimate_locuswide_threshold(specs)
+    light_chain = None if locus is None else not heavy  # locus wins over the per-group d-gene test
     totals, n_run = defaultdict(int), 0
     tlocus = time.time()
     for spec in specs:
@@ -1195,7 +1216,7 @@ def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None):
         refined = refine_partition(
             inp['partition'], inp['uid_info'], inp['uid_sw_naives'],
             uid_rearr_features=inp['uid_rearr_features'],
-            naive_threshold=naive_threshold,
+            naive_threshold=naive_threshold, light_chain=light_chain,
             skip_singleton_merge=True, min_agreement=0.15, verbose=False)
         cfo = write_full_output(spec['refined_out'], inp['part_glfo'], refined, inp['uid_part_antns'])
         print('  timing: group %s total %.2f s' % (os.path.dirname(spec['refined_rel']), time.time() - tgroup), flush=True)
