@@ -9,8 +9,8 @@ both in-process (driven by run_cmds) and as external array jobs.
              decides keep-or-split) on each cluster, reusing one pre-loaded glfo.
   assemble(): merge the per-cluster HA results over the vsearch partition (re-partitioned
              clusters replaced by their HA sub-clusters, others kept) and write a full
-             partis output file (annotations synthesized from the sw-cache, reusing
-             partition_refinement.write_full_output, no recompute).
+             partis output file (annotations synthesized from the input partition's own
+             annotations, reusing partition_refinement.write_full_output, no recompute).
 
 Per-cluster HA is a single keep-or-split decision with no between-cluster comparisons,
 so there is no max-cluster-size guard; min_cluster_size defaults to 3 (singletons and

@@ -106,7 +106,7 @@ See section [below](#subset-partition) on the `subset-partition` action, which f
 Setting `--disjoint-groups` splits sequences by CDR3 length, partitions each group independently, and concatenates the results.
 Since no clonal family can span two CDR3 lengths, the groups are guaranteed disjoint and the concatenation needs no further reconciliation.
 This can substantially speed up partitioning on large samples, since partitioning many smaller groups is much faster than one large partition.
-The number of concurrent per-group jobs is set with `--n-max-disjoint-jobs <n>` (default 3), and each job uses `--n-procs` processes unless overridden with `--n-sub-procs <n>`.
+The number of concurrent per-group jobs is set with `--n-max-subprocs <n>` (default 2), and each job uses `--n-procs` processes unless overridden with `--n-sub-procs <n>`.
 It can also be combined with `subset-partition` (i.e. `partis subset-partition --disjoint-groups`), in which case it speeds up the single-chain partition step within each subset.
 Adding `--hfrac` further splits CDR3 groups by naive hamming fraction into smaller sub-groups, controlled by `--hfrac-max-bin-size` (default 100000).
 Note that each sub-group is partitioned independently, and the clustering method depends on sub-group size: groups larger than `--max-n-seqs-to-likelihood-cluster` (default 50000) automatically use vsearch, while smaller groups use full likelihood clustering.
@@ -191,15 +191,15 @@ Since normal annotation, unlike partitioning, is easily split up into independen
 
 Split sequences for a single locus into disjoint CDR3 length groups, writing per-group FASTAs, per-group SW cache subsets, and a manifest to the output directory.
 Requires `--locus` and `--parameter-dir` (which must already contain an SW cache from a prior `cache-parameters` run).
-`--sw-cachefname` can point to a single SW cache file, a colon-separated list of files, or a directory containing multiple SW caches (e.g. from running cache-parameters independently on each part of a split input).
+`--sw-cachefname` can point to a single SW cache file or a colon-separated list of files (e.g. from running cache-parameters independently on each part of a split input).
 When running `cache-parameters` independently on unpaired data for this purpose, pass `--paired-loci --no-pairing-info` so the parameter directory layout is compatible with downstream functions.
-At scale, merge only HMM parameters and germline sets across parts externally, and pass the directory of per-part SW caches to `--sw-cachefname` rather than merging them into one file.
+At scale, merge only HMM parameters and germline sets across parts externally, and pass the per-part SW caches to `--sw-cachefname` as a colon-separated list rather than merging them into one file.
 This is the standalone version of the grouping step in `--disjoint-groups` (see [above](#disjoint-groups)), intended for workflows where each step is submitted as a separate batch job.
 
 ### assemble-groups
 
 Concatenate per-group partition results from disjoint grouping into a single output file for one locus.
-Requires `--locus` and `--outfname`.
+Requires `--locus`, `--outfname`, and the disjoint-groups directory (located via `--paired-outdir` or `--workdir`, or given explicitly with `--disjoint-dir`).
 
 ### create-ha-repartition-jobs
 
@@ -223,10 +223,10 @@ Run this once all [`run-ha-repartition-jobs`](#run-ha-repartition-jobs) tasks ha
 
 Run [refinement](#ha-re-partition-and-refinement) on a slice of the disjoint groups for a single locus, selected with `--job-start` and `--job-count`.
 It refines each group's HA re-partition (or the vsearch partition, if the HA step was not run) in-process and writes a refined partition per group; reassemble the results with [`assemble-groups`](#assemble-groups).
-Requires `--locus` and `--parameter-dir` (the locus-level parameter directory).
+Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and the disjoint-groups directory (located via `--paired-outdir` or `--workdir`, or given explicitly with `--disjoint-dir`).
 If partition files are not recorded in the manifest (e.g. when partition was run as standalone batch jobs), they are auto-discovered in the group directories.
 Groups whose refined output already exists are skipped unless `--overwrite` is set, so an interrupted run can be resumed by re-running the same command.
-This is the standalone version of the assembly step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.
+This is the standalone version of the refinement step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.
 
 ### merge-paired-partitions
 
