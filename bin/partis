@@ -532,7 +532,11 @@ def subset_partition(args):
             utils.remove_from_arglist(clist, '--is-simu')  # don't want to deal with subsetting input simulation file (and dual-use of --paired-indir), so just ignore --is-simu until merged run
         else:  # merged run
             utils.remove_from_arglist(clist, '--infname', has_arg=True)
-            utils.remove_from_arglist(clist, '--disjoint-groups')  # merged re-partition should not use disjoint grouping (it runs continue-from-input-partition)
+            # merged re-partition runs continue-from-input-partition, so the disjoint-only args do not apply (and --hfrac/--ha-repartition/--partition-refine are rejected without --disjoint-groups)
+            for targ in ['--disjoint-groups', '--hfrac', '--ha-repartition', '--partition-refine']:
+                utils.remove_from_arglist(clist, targ)
+            for targ in ['--hfrac-merge-factor', '--hfrac-max-bin-size', '--hfrac-min-seqs']:
+                utils.remove_from_arglist(clist, targ, has_arg=True)
             if args.paired_indir is None:  # if --paired-indir wasn't set (i.e. --infname *was* set), we want to use the extract-pairing-info/split-loci output in --paired-outdir
                 clist += ['--paired-indir', merged_odir]
             utils.replace_in_arglist(clist, '--parameter-dir', '%s/parameters'%merged_odir)
