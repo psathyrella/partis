@@ -79,10 +79,17 @@ def proc_budget(args):
     return max(1, min(args.n_procs, utils.n_available_cpus()))
 
 # ----------------------------------------------------------------------------------------
+def single_proc_concurrency(args):
+    # single-proc bundles: fill job cpus, capped at --n-procs
+    return max(1, min(utils.n_available_cpus() - 1, args.n_procs))
+
+# ----------------------------------------------------------------------------------------
 def disjoint_group_allocation(args):
-    # --n-procs is a ceiling, so split it into (jobs at once) x (procs per job) rather than multiplying by it
+    # split the --n-procs ceiling into (jobs at once) x (procs per job), rather than multiplying by it
     n_cpus = utils.n_available_cpus()
     budget = proc_budget(args)
+    if args.n_procs > n_cpus:
+        print('    note: --n-procs %d exceeds the %d available cpus, so using %d' % (args.n_procs, n_cpus, budget))
     n_jobs = max(1, min(args.n_max_subprocs, budget))
     n_procs = args.n_sub_procs if args.n_sub_procs is not None else max(1, budget // n_jobs)
     if n_jobs * n_procs > n_cpus:
@@ -550,7 +557,7 @@ def subset_partition(args):
             utils.remove_from_arglist(clist, '--is-simu')  # don't want to deal with subsetting input simulation file (and dual-use of --paired-indir), so just ignore --is-simu until merged run
         else:  # merged run
             utils.remove_from_arglist(clist, '--infname', has_arg=True)
-            # merged re-partition runs continue-from-input-partition, so the disjoint-only args do not apply (and --hfrac/--ha-repartition/--partition-refine are rejected without --disjoint-groups)
+            # merged re-partition runs continue-from-input-partition, so the disjoint-only args do not apply
             for targ in ['--disjoint-groups', '--hfrac', '--ha-repartition', '--partition-refine']:
                 utils.remove_from_arglist(clist, targ)
             for targ in ['--hfrac-merge-factor', '--hfrac-max-bin-size', '--hfrac-min-seqs']:
@@ -1616,7 +1623,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         # Repoints partition_path to the re-partitioned partition.
         if args.ha_repartition:
             harep_bundles_per_proc = 8  # bundles per concurrency slot
-            ha_concurrency = max(1, min(utils.n_available_cpus() - 1, args.n_procs))  # single-proc bundles: fill job cpus, capped at --n-procs
+            ha_concurrency = single_proc_concurrency(args)
             harep_specs, harep_jobs = ha_repartition.prepare_all(disjoint_dir, manifest['groups'], ltmp)
             n_todo = sum(1 for j in harep_jobs if not os.path.exists(j['outfname']))  # existence is each cluster's completion signal
             # bundle per-cluster HA jobs so glfo loads once per bundle, not per cluster; more bundles than slots for load balance
@@ -1649,7 +1656,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.partition_refine:
             import partis.partition_refinement as partition_refinement
             refine_bundles_per_proc = 8  # bundles per concurrency slot
-            ha_concurrency = max(1, min(utils.n_available_cpus() - 1, args.n_procs))  # single-proc bundles: fill job cpus, capped at --n-procs
+            ha_concurrency = single_proc_concurrency(args)
             rspecs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], ltmp)
             n_todo = len(rspecs) if args.overwrite else sum(1 for spec in rspecs if not os.path.exists(spec['refined_out']))  # existence is each group's refine completion signal
             total = len(rspecs)
