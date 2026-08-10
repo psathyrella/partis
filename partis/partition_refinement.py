@@ -4,8 +4,9 @@ Pipeline-agnostic module: operates on a partition (list of clusters, each a list
 of uids) plus per-sequence annotations and SW naives, and returns a refined
 partition. Usable after any partis partition (standard or disjoint grouping).
 
-Which operators run is decided by D-gene presence, resolved before any of them,
-because each operator is built on a signal only its locus carries:
+Which operators run is decided by the locus, resolved before any of them, because
+each operator is built on a signal only its locus carries. D-gene presence is the
+fallback when no locus is supplied, and a disagreement between the two only warns:
 
   HEAVY  split_on_naive_identity    exact sw naive proposes, shared mutations veto
          merge_on_naive_similarity  naive hamming proposes, mutation fingerprint
@@ -202,7 +203,9 @@ def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
 
     For each mutation position in fp1, check if fp2 has the same position
     with the same dominant base. Score = fraction of fp1's positions that
-    agree with fp2 (symmetric: take the average of both directions).
+    agree with fp2, symmetrised by taking the max of the two directions, so an
+    asymmetric pair passes when the small fragment's positions appear in the
+    large one.
 
     Returns (score, n_strong_max) where score is in [0, 1] and n_strong_max
     is the number of strong positions in the larger fingerprint.
@@ -658,7 +661,9 @@ def repertoire_mutation_freqs(uid_muts, n_seqs=None):
 
 def _weight_bins(muts, freqs, n_seqs, grid):
     """{(pos, base): (frequency, surprisal in whole grid bins)} for one sequence's mutations.
-    Each weight is binned, not the sums, which keeps the tail below exact."""
+    Each weight is binned rather than the sums, which is not a bound in either direction: the
+    dp returns the exact tail of the rounded statistic, which can sit above or below the tail
+    of the unrounded one."""
     floor = FREQ_SMOOTH_COUNT / n_seqs
     out = {}
     for pos, base in muts.items():
