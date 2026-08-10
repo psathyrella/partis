@@ -12,7 +12,7 @@ from . import treeutils
 def get_dummy_outfname(workdir, locus=None):
     return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-'+locus if locus is not None else '')
 
-actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info', 'write-fake-paired-annotations', 'create-disjoint-groups', 'assemble-groups']
+actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info', 'write-fake-paired-annotations', 'create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs']
 
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
@@ -112,6 +112,8 @@ def process(args):
     standalone_disjoint_actions = ['create-disjoint-groups', 'assemble-groups']
     if hasattr(args, 'hfrac') and args.hfrac and not getattr(args, 'disjoint_groups', False) and args.action not in standalone_disjoint_actions:
         raise Exception('--hfrac requires --disjoint-groups')
+    if (getattr(args, 'ha_repartition', False) or getattr(args, 'partition_refine', False)) and not getattr(args, 'disjoint_groups', False):
+        raise Exception('--ha-repartition/--partition-refine require --disjoint-groups')
 
     if args.outfname is None and args.paired_outdir is None and args.action in utils.existing_output_actions:
         raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)
@@ -329,7 +331,7 @@ def process(args):
         args.workdir = get_workdir(args.batch_system)
     else:
         args.workdir = args.workdir.rstrip('/')
-    if os.path.exists(args.workdir) and args.action not in ['create-disjoint-groups', 'assemble-groups']:
+    if os.path.exists(args.workdir) and args.action not in ['create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs']:
         raise Exception('workdir %s already exists' % args.workdir)
 
     if args.batch_system == 'sge' and args.batch_options is not None:
