@@ -114,6 +114,8 @@ def process(args):
         raise Exception('--hfrac requires --disjoint-groups')
     if (getattr(args, 'ha_repartition', False) or getattr(args, 'partition_refine', False)) and not getattr(args, 'disjoint_groups', False):
         raise Exception('--ha-repartition/--partition-refine require --disjoint-groups')
+    if (getattr(args, 'ha_repartition', False) or getattr(args, 'partition_refine', False)) and args.action.startswith('subset-'):
+        raise Exception('--ha-repartition/--partition-refine do not work with %s (refinement needs disjoint grouping over the whole sample): use \'partition --disjoint-groups\'' % args.action)
 
     if args.outfname is None and args.paired_outdir is None and args.action in utils.existing_output_actions:
         raise Exception('--outfname (or --paired-outdir, if using --paired-loci) required for %s' % args.action)
