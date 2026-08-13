@@ -74,7 +74,7 @@ def _read_vsearch_uc_with_centroids(cluster_file):
     return [(clusters[cid]['centroid'], clusters[cid]['members']) for cid in sorted(clusters)]
 
 # ----------------------------------------------------------------------------------------
-def _build_round2_tcm_cmd(centroid_naives, round2_threshold, workdir):
+def _build_round2_tcm_cmd(centroid_naives, round2_threshold, workdir, n_threads=1):
     # build a vsearch --allpairs_global command for round 2 TCM (transitive closure merge) on centroid naive sequences
     # returns (cmdfo dict, pairs_outfname) or (None, None) if fewer than 2 centroids
     if len(centroid_naives) < 2:
@@ -89,9 +89,9 @@ def _build_round2_tcm_cmd(centroid_naives, round2_threshold, workdir):
     # --maxaccepts 0 --maxrejects 0 so vsearch considers all pairs (not just first match)
     # this is a local override for hfrac TCM round 2 only, does not affect other vsearch calls in partis
     cmd = ('%s --allpairs_global %s --id %s --userout %s --userfields query+target+id '
-           '--gapopen 1000I/2E --match 2 --mismatch -4 --threads 1 --quiet '
+           '--gapopen 1000I/2E --match 2 --mismatch -4 --threads %d --quiet '
            '--maxaccepts 0 --maxrejects 0') % (
-        vsearch_binary, infname, str(1.0 - round2_threshold), outfname)
+        vsearch_binary, infname, str(1.0 - round2_threshold), outfname, n_threads)
     return {'cmd_str': cmd, 'outfname': outfname, 'workdir': workdir}, outfname
 
 # ----------------------------------------------------------------------------------------
@@ -228,13 +228,30 @@ def write_group_sw_caches(groups, glfo, annotation_list, outdir, locus):
         utils.write_annotations(sw_cache_path, glfo, antns_by_c3len.get(c3len, []), utils.sw_cache_headers)
 
 # ----------------------------------------------------------------------------------------
-def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size):
+def _split_procs(sizes, budget):
+    # split the proc budget over vsearch jobs: threads per job proportional to job size (floor 1),
+    # concurrency set so the running jobs sum to at most the budget.
+    # <sizes> must be largest-first. returns (threads per job, n concurrent jobs)
+    budget = max(1, budget)
+    total = sum(sizes)
+    threads = [max(1, min(budget, int(budget * s / total))) if total > 0 else 1 for s in sizes]
+    n_jobs, used = 0, 0
+    for n_threads in threads:
+        if n_jobs > 0 and used + n_threads > budget:
+            break
+        used += n_threads
+        n_jobs += 1
+    return threads, max(1, n_jobs)
+
+# ----------------------------------------------------------------------------------------
+def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs):
     # build vsearch greedy clustering commands for each CDR3 group above min_group_size
-    # returns cmdfos (for run_cmds), vsearch_groups (c3len -> workdir), small_groups (set of c3len)
+    # returns cmdfos (largest group first), n concurrent jobs, vsearch_groups (c3len -> workdir), small_groups (set of c3len)
     vsearch_binary = utils.get_vsearch_binary()
     cmdfos = []
     vsearch_groups = {}
     small_groups = set()
+    big_groups = []
     for c3len, seqfos in sorted(groups.items()):
         if len(seqfos) < min_group_size:
             small_groups.add(c3len)
@@ -243,6 +260,10 @@ def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size):
         if len(naive_seqdict) == 0:
             small_groups.add(c3len)
             continue
+        big_groups.append((c3len, naive_seqdict))
+    big_groups.sort(key=lambda g: len(g[1]), reverse=True)  # largest first, so the long pole starts first
+    threads, n_jobs = _split_procs([len(nsd) for _, nsd in big_groups], n_procs)
+    for (c3len, naive_seqdict), n_threads in zip(big_groups, threads):
         workdir = '%s/groups/cdr3-%d/_vsearch_work' % (outdir, c3len)
         utils.prep_dir(workdir)
         infname = workdir + '/input.fa'
@@ -250,11 +271,11 @@ def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size):
             for name, seq in naive_seqdict.items():
                 f.write('>%s\n%s\n' % (name, seq))
         outfname = workdir + '/vsearch-clusters.txt'
-        cmd = '%s --cluster_fast %s --id %s --uc %s --gapopen 1000I/2E --match 2 --mismatch -4 --threads 1' % (
-            vsearch_binary, infname, str(1. - hi_bound), outfname)
+        cmd = '%s --cluster_fast %s --id %s --uc %s --gapopen 1000I/2E --match 2 --mismatch -4 --threads %d' % (
+            vsearch_binary, infname, str(1. - hi_bound), outfname, n_threads)
         cmdfos.append({'cmd_str': cmd, 'outfname': outfname, 'workdir': workdir})
         vsearch_groups[c3len] = workdir
-    return cmdfos, vsearch_groups, small_groups
+    return cmdfos, n_jobs, vsearch_groups, small_groups
 
 # ----------------------------------------------------------------------------------------
 def _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs):
@@ -270,24 +291,28 @@ def _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs
         # high-SHM regime: merge_factor * hi_bound exceeds the safety clamp, so the user-supplied merge_factor has no effect on this run
         print('        %s round-2 TCM threshold clamped: merge_factor*hi_bound = %.2f*%.4f = %.4f > MAX_TCM_THRESHOLD %.2f, using %.2f (merge_factor effectively ignored)' % (
             utils.color('yellow', 'warning'), merge_factor, hi_bound, raw_threshold, MAX_TCM_THRESHOLD, MAX_TCM_THRESHOLD))
+    r2_candidates = []
     for c3len, r1_results in r1_by_c3len.items():
         if len(r1_results) < 2:
             comps_by_c3len[c3len] = [[c] for c, _ in r1_results]
             continue
         naive_by_uid = {sfo['name']: sfo['naive_seq'] for sfo in groups[c3len] if sfo.get('naive_seq', '')}
         centroid_naives = {c: naive_by_uid[c] for c, _ in r1_results if c in naive_by_uid}
-        r2_workdir = '%s/groups/cdr3-%d/_round2_tcm' % (outdir, c3len)
-        cmdfo, pairs_fname = _build_round2_tcm_cmd(centroid_naives, round2_threshold, r2_workdir)
-        if cmdfo is None:
+        if len(centroid_naives) < 2:
             comps_by_c3len[c3len] = [[c] for c, _ in r1_results]
             continue
+        r2_candidates.append((c3len, centroid_naives))
+    r2_candidates.sort(key=lambda g: len(g[1]), reverse=True)  # largest first, so the long pole starts first
+    r2_threads, n_procs2 = _split_procs([len(cn) for _, cn in r2_candidates], n_procs)
+    for (c3len, centroid_naives), n_threads in zip(r2_candidates, r2_threads):
+        r2_workdir = '%s/groups/cdr3-%d/_round2_tcm' % (outdir, c3len)
+        cmdfo, pairs_fname = _build_round2_tcm_cmd(centroid_naives, round2_threshold, r2_workdir, n_threads)
         r2_cmdfos.append(cmdfo)
         r2_workdirs[c3len] = r2_workdir
         r2_pairs_files[c3len] = pairs_fname
     if len(r2_cmdfos) > 0:
-        n_procs2 = min(n_procs, len(r2_cmdfos))
-        print('        running %d round 2 TCM jobs (%d concurrent, %.2fx hi_bound = %.4f threshold)' % (
-            len(r2_cmdfos), n_procs2, merge_factor, round2_threshold))
+        print('        running %d round 2 TCM jobs (%d concurrent, %d procs, %.2fx hi_bound = %.4f threshold)' % (
+            len(r2_cmdfos), n_procs2, n_procs, merge_factor, round2_threshold))
         utils.run_cmds(r2_cmdfos, n_max_procs=n_procs2)
     for c3len, pairs_fname in r2_pairs_files.items():
         centroid_uids = [c for c, _ in r1_by_c3len[c3len]]
@@ -334,11 +359,10 @@ def _apply_hfrac_and_write(groups, hi_bound, outdir, locus, glfo, annotation_lis
         uid_to_antn[line['unique_ids'][0]] = line
 
     # round 1: vsearch greedy clustering
-    cmdfos, vsearch_groups, small_groups = _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size)
+    cmdfos, n_r1_jobs, vsearch_groups, small_groups = _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs)
     if len(cmdfos) > 0:
-        n_r1_procs = min(n_procs, len(cmdfos))
-        print('        running %d vsearch hfrac jobs (%d concurrent)' % (len(cmdfos), n_r1_procs))
-        utils.run_cmds(cmdfos, n_max_procs=n_r1_procs)
+        print('        running %d vsearch hfrac jobs (%d concurrent, %d procs)' % (len(cmdfos), n_r1_jobs, n_procs))
+        utils.run_cmds(cmdfos, n_max_procs=n_r1_jobs)
 
     # parse round 1 results
     r1_by_c3len = {}
@@ -395,11 +419,10 @@ def _apply_hfrac_two_pass(groups, hi_bound, outdir, locus, glfo, merge_factor=HF
     # min_group_size: CDR3 groups smaller than this skip hfrac and are written as single groups
 
     # round 1: vsearch greedy clustering
-    cmdfos, vsearch_groups, small_groups = _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size)
+    cmdfos, n_r1_jobs, vsearch_groups, small_groups = _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs)
     if len(cmdfos) > 0:
-        n_r1_procs = min(n_procs, len(cmdfos))
-        print('        running %d vsearch hfrac jobs (%d concurrent)' % (len(cmdfos), n_r1_procs))
-        utils.run_cmds(cmdfos, n_max_procs=n_r1_procs)
+        print('        running %d vsearch hfrac jobs (%d concurrent, %d procs)' % (len(cmdfos), n_r1_jobs, n_procs))
+        utils.run_cmds(cmdfos, n_max_procs=n_r1_jobs)
 
     # parse round 1 results
     r1_by_c3len = {}
