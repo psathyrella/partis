@@ -195,16 +195,18 @@ Requires `--locus` and `--parameter-dir` (which must already contain an SW cache
 When running `cache-parameters` independently on unpaired data for this purpose, pass `--paired-loci --no-pairing-info` so the parameter directory layout is compatible with downstream functions.
 At scale, merge only HMM parameters and germline sets across parts externally, and pass the per-part SW caches to `--sw-cachefname` as a colon-separated list rather than merging them into one file.
 This is the standalone version of the grouping step in `--disjoint-groups` (see [above](#disjoint-groups)), intended for workflows where each step is submitted as a separate batch job.
+Note that this and the other standalone disjoint-grouping actions run on one locus, so they take `--workdir` (not `--paired-outdir`, which requires `--paired-loci`, which in turn unsets `--locus`).
+To write into the same tree as an integrated `--disjoint-groups` run, set `--workdir` to that run's `single-chain/` subdir, since the integrated pipeline writes groups to `<paired-outdir>/single-chain/disjoint-groups/<locus>/`.
 
 ### assemble-groups
 
 Concatenate per-group partition results from disjoint grouping into a single output file for one locus.
-Requires `--locus`, `--outfname`, and the disjoint-groups directory (located via `--paired-outdir` or `--workdir`, or given explicitly with `--disjoint-dir`).
+Requires `--locus`, `--outfname`, and the disjoint-groups directory (located via `--workdir`, or given explicitly with `--disjoint-dir`).
 
 ### create-ha-repartition-jobs
 
 Write the per-cluster inputs for [HA re-partition](#ha-re-partition-and-refinement) for a single locus: for every vsearch cluster of at least three sequences it writes a per-cluster FASTA, plus a task list enumerating all the per-cluster jobs.
-Requires `--locus` and the disjoint-groups directory produced by [`create-disjoint-groups`](#create-disjoint-groups) (located via `--paired-outdir` or `--workdir`, or given explicitly with `--disjoint-dir`).
+Requires `--locus` and the disjoint-groups directory produced by [`create-disjoint-groups`](#create-disjoint-groups) (located via `--workdir`, or given explicitly with `--disjoint-dir`).
 This is the standalone version of the HA re-partition setup, intended for workflows where each step is submitted as a separate batch job.
 
 ### run-ha-repartition-jobs
@@ -223,7 +225,7 @@ Run this once all [`run-ha-repartition-jobs`](#run-ha-repartition-jobs) tasks ha
 
 Run [refinement](#ha-re-partition-and-refinement) on a slice of the disjoint groups for a single locus, selected with `--job-start` and `--job-count`.
 It refines each group's HA re-partition (or the vsearch partition, if the HA step was not run) in-process and writes a refined partition per group; reassemble the results with [`assemble-groups`](#assemble-groups).
-Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and the disjoint-groups directory (located via `--paired-outdir` or `--workdir`, or given explicitly with `--disjoint-dir`).
+Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and the disjoint-groups directory (located via `--workdir`, or given explicitly with `--disjoint-dir`).
 If partition files are not recorded in the manifest (e.g. when partition was run as standalone batch jobs), they are auto-discovered in the group directories.
 Groups whose refined output already exists are skipped unless `--overwrite` is set, so an interrupted run can be resumed by re-running the same command.
 This is the standalone version of the refinement step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.
