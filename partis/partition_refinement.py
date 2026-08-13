@@ -20,6 +20,7 @@ Entry point: refine_partition(); its defaults run with singleton-skip and the
 junction guard. Driven by the run-partition-refine-jobs action (and the
 integrated --partition-refine flag), which run run_jobs() over the disjoint groups.
 """
+import csv
 import json
 import math
 import os
@@ -331,21 +332,215 @@ def cross_shared_counts(frag_of_uid, uid_muts):
     return pair_k
 
 
+# ----------------------------------------------------------------------------
+# Convergence-aware veto for the heavy split. Members sharing an inferred
+# rearrangement is evidence of common descent only when that rearrangement is rare
+# enough that generating it repeatedly is implausible, so the veto reads both.
+# ----------------------------------------------------------------------------
+
+# members that must share the modal rearrangement for the veto to apply
+PGEN_VETO_MIN_SHARED = 4
+PGEN_MIN_PROB = 1e-9  # floor for a rearrangement the parameter tables never saw
+PGEN_SAMPLE_DRAWS = 1000000  # rearrangements drawn to estimate the veto's cutoff
+PGEN_SAMPLE_SEED = 1  # fixed, so one parameter dir always gives one cutoff
+
+# (name, file, [varying column, conditioning columns...]) for each term of the factorisation
+PGEN_TABLE_SPECS = [
+    ('v', 'v_gene-probs.csv', ['v_gene']),
+    ('d', 'd_gene-probs.csv', ['d_gene']),
+    ('j', 'j_gene-probs.csv', ['j_gene']),
+    ('v_3p_del', 'v_gene-v_3p_del-probs.csv', ['v_3p_del', 'v_gene']),
+    ('d_5p_del', 'd_gene-d_5p_del-probs.csv', ['d_5p_del', 'd_gene']),
+    ('d_3p_del', 'd_gene-d_3p_del-probs.csv', ['d_3p_del', 'd_gene']),
+    ('j_5p_del', 'j_gene-j_5p_del-probs.csv', ['j_5p_del', 'j_gene']),
+    ('len_vd', 'd_gene-vd_insertion-probs.csv', ['vd_insertion', 'd_gene']),
+    ('len_dj', 'j_gene-dj_insertion-probs.csv', ['dj_insertion', 'j_gene']),
+]
+
+
+def read_pgen_tables(parameter_dir):
+    """Read the pgen factorisation's count tables from <parameter_dir>/hmm (the locus-level
+    parameter dir) and normalise each within its conditioning variable. Returns
+    {name: {(value, conditioned-on...): probability}}, or None if the dir or any table is
+    missing or unreadable, which leaves the pgen veto off rather than failing the run."""
+    if parameter_dir is None:
+        return None
+    tdir = '%s/hmm' % parameter_dir
+    if not os.path.isdir(tdir):  # also accept the hmm dir itself
+        tdir = parameter_dir
+    tables = {}
+    for name, fname, cols in PGEN_TABLE_SPECS:
+        counts = defaultdict(dict)
+        try:
+            with open('%s/%s' % (tdir, fname)) as tfile:
+                for row in csv.DictReader(tfile):
+                    counts[tuple(row[c] for c in cols[1:])][row[cols[0]]] = float(row['count'])
+        except (IOError, OSError, KeyError, ValueError):
+            return None
+        tables[name] = {}
+        for cond, cfo in counts.items():
+            tot = sum(cfo.values())
+            for val, count in cfo.items():
+                tables[name][(val,) + cond] = count / tot if tot > 0 else 0.
+    return tables
+
+
+def get_rearrangement(feat):
+    """The full rearrangement (v, d, j, four deletions, two insertion lengths) from one uid's
+    rearrangement features, or None if any of them is missing."""
+    if feat is None or feat.get('vdj') is None:
+        return None
+    vals = [feat.get(k) for k in ('v_3p_del', 'd_5p_del', 'd_3p_del', 'j_5p_del', 'len_vd', 'len_dj')]
+    if any(v is None for v in vals):
+        return None
+    return tuple(feat['vdj']) + tuple(vals)
+
+
+def rearrangement_lpgen(rearr, tables):
+    """log10 generation probability of one rearrangement (from get_rearrangement()), as the
+    product of the parameter dir's marginals times 0.25 per inserted base."""
+    v, d, j, v_3p_del, d_5p_del, d_3p_del, j_5p_del, len_vd, len_dj = rearr
+    terms = [('v', (v,)), ('d', (d,)), ('j', (j,)),
+             ('v_3p_del', (str(v_3p_del), v)), ('d_5p_del', (str(d_5p_del), d)),
+             ('d_3p_del', (str(d_3p_del), d)), ('j_5p_del', (str(j_5p_del), j)),
+             ('len_vd', (str(len_vd), d)), ('len_dj', (str(len_dj), j))]
+    lpgen = sum(math.log10(max(tables[name].get(key, 0.), PGEN_MIN_PROB)) for name, key in terms)
+    return lpgen + (len_vd + len_dj) * math.log10(0.25)
+
+
+def get_cluster_rearrangement(uids, uid_rearr_features):
+    """Modal full rearrangement over a cluster's members and how many carry it, or (None, 0)."""
+    counts = defaultdict(int)
+    for uid in uids:
+        rearr = get_rearrangement(uid_rearr_features.get(uid) if uid_rearr_features is not None else None)
+        if rearr is not None:
+            counts[rearr] += 1
+    if len(counts) == 0:
+        return None, 0
+    modal = max(counts, key=counts.get)
+    return modal, counts[modal]
+
+
+def _sampling_choices(table):
+    """{conditioned-on: (values, probabilities)} for weighted sampling from a normalised table."""
+    by_cond = defaultdict(list)
+    for key, prob in table.items():
+        by_cond[key[1:]].append((key[0], prob))
+    choices = {}
+    for cond, vfo in by_cond.items():
+        probs = np.array([p for _, p in vfo])
+        choices[cond] = ([v for v, _ in vfo], probs / probs.sum())  # p= wants an exact sum
+    return choices
+
+
+def _index_groups(picks):
+    """{drawn value: index array} over a sampled column, i.e. which draws condition on what."""
+    order = np.argsort(picks, kind='stable')
+    spicks = picks[order]
+    edges = np.flatnonzero(np.concatenate(([True], spicks[1:] != spicks[:-1], [True])))
+    return dict((spicks[edges[i]], order[edges[i] : edges[i + 1]]) for i in range(len(edges) - 1))
+
+
+def _draw_conditioned(rng, choices, groups, genes, n_draws):
+    """One draw per index in <groups> ({gene index: draw indices}), from the distribution
+    conditioned on that gene. Returns (values, their log10 probabilities); every table
+    conditioned on a gene is keyed by an integer, and a gene the table never saw draws zero at
+    the probability floor."""
+    vals = np.zeros(n_draws)
+    lprobs = np.full(n_draws, math.log10(PGEN_MIN_PROB))
+    for igene, idxs in groups.items():
+        cond = (genes[igene],)
+        if cond not in choices:
+            continue
+        cvals, cprobs = choices[cond]
+        picks = rng.choice(len(cvals), size=len(idxs), p=cprobs)
+        vals[idxs] = np.asarray(cvals, dtype=float)[picks]
+        lprobs[idxs] = np.log10(np.maximum(cprobs[picks], PGEN_MIN_PROB))
+    return vals, lprobs
+
+
+def sample_pgen_median(tables, n_draws=PGEN_SAMPLE_DRAWS, seed=PGEN_SAMPLE_SEED):
+    """Median log10 pgen of rearrangements drawn from <tables>, i.e. of the rearrangement
+    distribution the parameter dir itself defines. A generative property of the locus, so it
+    needs no pass over the data and does not depend on how the input happened to be clustered.
+    Deterministic given <seed>."""
+    rng = np.random.RandomState(seed)
+    choices = dict((name, _sampling_choices(tables[name])) for name, _, _ in PGEN_TABLE_SPECS)
+    lpgens = np.zeros(n_draws)
+    genes, groups = {}, {}
+    for reg in ('v', 'd', 'j'):
+        genes[reg], cprobs = choices[reg][()]
+        picks = rng.choice(len(genes[reg]), size=n_draws, p=cprobs)
+        lpgens += np.log10(np.maximum(cprobs[picks], PGEN_MIN_PROB))
+        groups[reg] = _index_groups(picks)
+    for name, reg in [('v_3p_del', 'v'), ('d_5p_del', 'd'), ('d_3p_del', 'd'), ('j_5p_del', 'j')]:
+        lpgens += _draw_conditioned(rng, choices[name], groups[reg], genes[reg], n_draws)[1]
+    for name, reg in [('len_vd', 'd'), ('len_dj', 'j')]:
+        lens, lprobs = _draw_conditioned(rng, choices[name], groups[reg], genes[reg], n_draws)
+        lpgens += lprobs + lens * math.log10(0.25)  # each inserted base is uniform over 4
+    return float(np.median(lpgens))
+
+
+_pgen_veto_cache = {}  # parameter dir -> (tables, cutoff), since every group resolves the same dir
+
+
+def pgen_veto_inputs(parameter_dir):
+    """(tables, log10 pgen cutoff) for the heavy split's veto, derived from <parameter_dir>
+    alone. Both None, with a warning rather than a failure, when the dir is absent or its tables
+    are unreadable. Cached, so a locus samples its cutoff once."""
+    if parameter_dir in _pgen_veto_cache:
+        return _pgen_veto_cache[parameter_dir]
+    from partis import utils
+    tables = read_pgen_tables(parameter_dir)
+    if tables is None:
+        print('  %s no pgen tables under %s, so the heavy split\'s pgen veto is off'
+              % (utils.wrnstr(), parameter_dir), flush=True)
+        cutoff = None
+    else:
+        cutoff = sample_pgen_median(tables)
+        print('  pgen veto: cutoff (model median over %d draws) log10 pgen %.2f' % (PGEN_SAMPLE_DRAWS, cutoff), flush=True)
+    _pgen_veto_cache[parameter_dir] = (tables, cutoff)
+    return tables, cutoff
+
+
 def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_size=2,
-                            ej_floor=EJ_SAME_FAMILY_FLOOR):
+                            ej_floor=EJ_SAME_FAMILY_FLOOR, uid_rearr_features=None,
+                            pgen_tables=None, pgen_cutoff=None,
+                            pgen_veto_min_shared=PGEN_VETO_MIN_SHARED):
     """Heavy split: exact sw-naive identity proposes the split, shared mutations veto it.
 
     Members are grouped by exact per-sequence sw naive, one-member groups are absorbed into the
     nearest corroborated one, then fragments are re-merged when a cross-fragment pair's enhanced
     jaccard reaches ej_floor. uid_muts_sw is mutations against each sequence's own sw naive.
+
+    pgen_veto_min_shared: keep a cluster whole, unsplit, when this many members share its modal
+    rearrangement and that rearrangement's log10 pgen is at or below <pgen_cutoff>, i.e. when it
+    is too rare for that many independent recombinations. Keyed on the rearrangement rather than
+    on the naive, so convergently-similar naives do not trip it. 0 or None disables the veto, as
+    does a missing pgen_tables or pgen_cutoff.
     """
     result = []
     ctr = defaultdict(int)
+    pgen_veto_on = (pgen_tables is not None and pgen_cutoff is not None
+                    and pgen_veto_min_shared is not None and pgen_veto_min_shared > 0)
+
+    def pgen_vetoed(uids):
+        if not pgen_veto_on:
+            return False
+        rearr, n_shared = get_cluster_rearrangement(uids, uid_rearr_features)
+        if rearr is None or n_shared < pgen_veto_min_shared:
+            return False
+        return rearrangement_lpgen(rearr, pgen_tables) <= pgen_cutoff
 
     for cluster in partition:
         if len(cluster) < min_cluster_size:
             result.append(list(cluster))
             ctr['below_min_size'] += 1
+            continue
+
+        if pgen_vetoed(cluster):
+            result.append(list(cluster))
+            ctr['pgen_veto'] += 1
             continue
 
         uid_list = list(cluster)
@@ -391,8 +586,9 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
             ctr['rejected'] += 1
             result.append(list(cluster))
 
-    print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d rejected (missing naive)' % (
-        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['missing_naive']), flush=True)
+    pgen_label = ', %d held (pgen veto)' % ctr['pgen_veto'] if ctr['pgen_veto'] > 0 else ''
+    print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d rejected (missing naive)%s' % (
+        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['missing_naive'], pgen_label), flush=True)
     print('  %d members snapped, %d pairs certified, %d -> %d clusters' % (
         ctr['snapped'], ctr['certified_pairs'], len(partition), len(result)), flush=True)
     return result
@@ -854,19 +1050,26 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
                      naive_threshold=None,
                      min_agreement=0.15, min_fp_positions=0, skip_singleton_merge=True,
                      min_cluster_size=2, light_chain=None, alpha=WEIGHTED_DESCENT_ALPHA,
+                     parameter_dir=None, pgen_veto_min_shared=PGEN_VETO_MIN_SHARED,
                      verbose=True, random_seed=None):
     """Run refinement and return the refined partition.
 
     partition: list of clusters, each a list of uids.
     uid_info: uid -> {'seq', 'naive', 'cdr3_length'} (partition annotations).
     uid_sw_naives: uid -> per-sequence SW naive_seq.
-    uid_rearr_features: uid -> {'vdj': (v, d, j), 'v_3p_del', 'j_5p_del'}.
+    uid_rearr_features: uid -> {'vdj': (v, d, j), 'v_3p_del', 'j_5p_del', 'd_5p_del',
+    'd_3p_del', 'len_vd', 'len_dj'}.
 
     Which operators run forks on chain, since each is built on the signal its locus
     provides: heavy splits on naive identity then merges on naive similarity, light
     splits on shared descent and nothing else. light_chain: if None, inferred from
     D-gene presence in uid_rearr_features.
     alpha: link threshold for the light shared-descent test.
+
+    parameter_dir: the locus-level parameter dir, and the only input the heavy split's pgen
+    veto takes: both its pgen tables and its cutoff are derived from it here, so any caller
+    passing the same dir refines the same way. Absent or unreadable, the veto warns and stays
+    off. It reaches only the heavy fork.
 
     random_seed: seeds the global RNG. Refinement reads no RNG, so this changes nothing.
     """
@@ -914,11 +1117,17 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     naive_thresh = (naive_threshold if naive_threshold is not None
                     else estimate_naive_threshold(partition, uid_sw_naives))
 
+    pgen_tables, pgen_cutoff = (pgen_veto_inputs(parameter_dir) if pgen_veto_min_shared
+                                else (None, None))
     if verbose:
-        print('\n=== heavy: naive-identity split (EJ veto >= %.2f) ===' % EJ_SAME_FAMILY_FLOOR, flush=True)
+        pgen_str = ('' if pgen_cutoff is None
+                    else ', pgen veto at %d shared and log10 pgen <= %.2f' % (pgen_veto_min_shared, pgen_cutoff))
+        print('\n=== heavy: naive-identity split (EJ veto >= %.2f%s) ===' % (EJ_SAME_FAMILY_FLOOR, pgen_str), flush=True)
     tstart = time.time()
     split_partition = split_on_naive_identity(
-        partition, uid_sw_naives, uid_to_muts_sw, min_cluster_size)
+        partition, uid_sw_naives, uid_to_muts_sw, min_cluster_size,
+        uid_rearr_features=uid_rearr_features, pgen_tables=pgen_tables, pgen_cutoff=pgen_cutoff,
+        pgen_veto_min_shared=pgen_veto_min_shared)
     tsplit = time.time()
     print('  timing: naive-identity split %.2f s' % (tsplit - tstart), flush=True)
 
@@ -1033,9 +1242,14 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
         vdj = tuple(get_antn_key(antn, '%s_gene' % r, 'sw cache') for r in utils.regions)
         # junction boundaries for the heavy merge guard
         v_3p_del, j_5p_del = get_antn_key(antn, 'v_3p_del', 'sw cache'), get_antn_key(antn, 'j_5p_del', 'sw cache')
+        # the rest of the rearrangement, for the heavy split's pgen veto
+        d_5p_del, d_3p_del = get_antn_key(antn, 'd_5p_del', 'sw cache'), get_antn_key(antn, 'd_3p_del', 'sw cache')
+        len_vd, len_dj = [len(get_antn_key(antn, '%s_insertion' % b, 'sw cache')) for b in ('vd', 'dj')]
         for i, uid in enumerate(antn['unique_ids']):
             sw_info[uid] = antn
-            uid_rearr_features[uid] = {'vdj': vdj, 'v_3p_del': v_3p_del, 'j_5p_del': j_5p_del}
+            uid_rearr_features[uid] = {'vdj': vdj, 'v_3p_del': v_3p_del, 'j_5p_del': j_5p_del,
+                                       'd_5p_del': d_5p_del, 'd_3p_del': d_3p_del,
+                                       'len_vd': len_vd, 'len_dj': len_dj}
             if uid not in uid_info or i >= len(sw_seqs):  # nothing to pad against, and an
                 continue                                  # unpadded sw naive is in the wrong frame
             naive = pad_sw_naive(sw_seqs[i], sw_naive, uid_info[uid]['seq'],
@@ -1195,14 +1409,17 @@ def estimate_locuswide_threshold(specs):
     return estimate_naive_threshold(partition, uid_sw_naives)
 
 
-def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None):
+def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter_dir=None,
+             pgen_veto_min_shared=PGEN_VETO_MIN_SHARED):
     """Run refinement on a list of group specs (from group_specs), writing each group's
     refined partition, with the production defaults (singleton-skip, junction guard, vdj
     override) that the standalone CLI and integrated pipeline both use. Groups whose
     refined output already exists are skipped unless <overwrite>. The naive threshold
     defaults to a locus-wide estimate over <specs>; when running a slice, pass one
     estimated over the full group list. Passing <locus> skips that estimate on a locus with
-    no D gene, where no operator reads it, and pins the heavy/light fork for every group."""
+    no D gene, where no operator reads it, and pins the heavy/light fork for every group.
+    <parameter_dir> is the locus-level parameter dir, and is passed straight through: refine
+    derives the heavy split's pgen veto from it."""
     from argparse import Namespace
     from partis import utils
     oargs = Namespace(overwrite=overwrite)
@@ -1222,6 +1439,7 @@ def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None):
             inp['partition'], inp['uid_info'], inp['uid_sw_naives'],
             uid_rearr_features=inp['uid_rearr_features'],
             naive_threshold=naive_threshold, light_chain=light_chain,
+            parameter_dir=parameter_dir, pgen_veto_min_shared=pgen_veto_min_shared,
             skip_singleton_merge=True, min_agreement=0.15, verbose=False)
         cfo = write_full_output(spec['refined_out'], inp['part_glfo'], refined, inp['uid_part_antns'])
         print('  timing: group %s total %.2f s' % (os.path.dirname(spec['refined_rel']), time.time() - tgroup), flush=True)
