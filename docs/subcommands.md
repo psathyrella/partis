@@ -191,17 +191,19 @@ Since normal annotation, unlike partitioning, is easily split up into independen
 
 Split sequences for a single locus into disjoint CDR3 length groups, writing per-group FASTAs, per-group SW cache subsets, and a manifest to the output directory.
 Requires `--locus` and `--parameter-dir` (which must already contain an SW cache from a prior `cache-parameters` run).
-`--sw-cachefname` can point to a single SW cache file or a colon-separated list of files (e.g. from running cache-parameters independently on each part of a split input).
+`--sw-cachefname` can point to a single SW cache file, a colon-separated list of files (e.g. from running cache-parameters independently on each part of a split input), or a parent directory holding the per-chunk output dirs, in which case the caches are found at `<dir>/chunk<i>-out/parameters/<locus>/sw-cache.yaml` and used in numerical chunk order.
 When running `cache-parameters` independently on unpaired data for this purpose, pass `--paired-loci --no-pairing-info` so the parameter directory layout is compatible with downstream functions.
-At scale, merge only HMM parameters and germline sets across parts externally, and pass the per-part SW caches to `--sw-cachefname` as a colon-separated list rather than merging them into one file.
+At scale, merge only HMM parameters across parts externally, and pass the per-part SW caches to `--sw-cachefname` as a list (or parent directory) rather than merging them into one file.
+The grouping step itself unions the germline sets of all the SW caches it reads, and writes every per-group cache against that union, so the groups all use one set of gene labels.
+It does not re-derive gene calls: each sequence keeps whatever gene SW assigned to it against its own part's germline set, so if you want calls made against a single germline set you have to merge the parameter directories before running SW.
 This is the standalone version of the grouping step in `--disjoint-groups` (see [above](#disjoint-groups)), intended for workflows where each step is submitted as a separate batch job.
 Note that this and the other standalone disjoint-grouping actions run on one locus, so they take `--workdir` (not `--paired-outdir`, which requires `--paired-loci`, which in turn unsets `--locus`).
-To write into the same tree as an integrated `--disjoint-groups` run, set `--workdir` to that run's `single-chain/` subdir, since the integrated pipeline writes groups to `<paired-outdir>/single-chain/disjoint-groups/<locus>/`.
+Groups are written to `<workdir>/single-chain/disjoint-groups/<locus>/`, the same layout the integrated pipeline uses, so to write into the same tree as an integrated `--disjoint-groups` run, set `--workdir` to the path you would pass that run as `--paired-outdir`.
 
 ### assemble-groups
 
 Concatenate per-group partition results from disjoint grouping into a single output file for one locus.
-Requires `--locus`, `--outfname`, and the disjoint-groups directory (located via `--workdir`, or given explicitly with `--disjoint-dir`).
+Requires `--locus`, `--outfname`, and the disjoint-groups directory (located via `--workdir`, i.e. `<workdir>/single-chain/disjoint-groups/<locus>/`, or given explicitly with `--disjoint-dir`).
 
 ### create-ha-repartition-jobs
 

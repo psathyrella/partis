@@ -6,8 +6,11 @@ import yaml
 import csv
 import shutil
 import collections
+import glob
+import re
 
 from . import utils
+from . import glutils
 
 MANIFEST_FNAME = 'manifest.yaml'
 
@@ -698,13 +701,22 @@ def validate_assembly(manifest, manifest_dir):
 
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths, locus):
-    # resolve <sw_cache_paths> to a list of files: a single path string or a list of paths. A dir can
-    # hold more than one candidate, so rather than guess we say what to pass instead.
+    # resolve <sw_cache_paths> to a list of files: a single path string, a list of paths, or a parent
+    # dir of chunk<i>-out dirs (chunks sorted numerically, since order sets the fragment indices).
     if not isinstance(sw_cache_paths, str):
         return list(sw_cache_paths)
     if os.path.isdir(sw_cache_paths):
-        raise Exception('--sw-cachefname is a directory (%s), which could hold more than one %s cache; pass the file, or a colon-separated list of files'
-                        % (sw_cache_paths, locus))
+        pattern = '%s/chunk*-out/parameters/%s/sw-cache.yaml' % (sw_cache_paths, locus)
+        cpaths = glob.glob(pattern)
+        if len(cpaths) == 0:
+            raise Exception('--sw-cachefname is a directory (%s) but no chunk sw caches matched %s; pass the file, or a colon-separated list of files'
+                            % (sw_cache_paths, pattern))
+        def ichunk(fn):
+            mtch = re.search(r'chunk([0-9]+)-out', fn)
+            if mtch is None:
+                raise Exception('couldn\'t get chunk index from %s' % fn)
+            return int(mtch.group(1))
+        return sorted(cpaths, key=ichunk)
     return [sw_cache_paths]
 
 # ----------------------------------------------------------------------------------------
@@ -751,7 +763,15 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
     else:
         # multiple sw caches: process one chunk at a time
         print('      processing %d sw cache files for %s' % (len(sw_cache_paths), locus))
-        glfo = None
+        # pre-pass: union the chunks' germline sets, so every fragment is written against one label set
+        glfo, chunk_name_maps = None, []
+        for swpath in sw_cache_paths:
+            tglfo, _, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True, skip_annotations=True)
+            if glfo is None:
+                glfo, tmap = tglfo, {r : {} for r in utils.regions}
+            else:
+                glfo, tmap = glutils.get_merged_glfo(glfo, tglfo)  # union names are retained, so earlier chunks' maps stay valid
+            chunk_name_maps.append(tmap)
         all_groups = collections.OrderedDict()  # cdr3_length -> [seqfos] (lightweight: uid + seq only)
         n_failed = 0
         n_seqs = 0
@@ -759,9 +779,8 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
 
         for ichunk, swpath in enumerate(sw_cache_paths):
             print('      chunk %d/%d: %s' % (ichunk + 1, len(sw_cache_paths), swpath))
-            tglfo, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
-            if glfo is None:
-                glfo = tglfo
+            _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
+            utils.update_gene_names_in_annotation_list(tantn_list, chunk_name_maps[ichunk])  # rename genes dropped by the union
             chunk_groups, chunk_failed = group_sequences_by_cdr3_length(tantn_list)
             n_failed += chunk_failed
             n_seqs += sum(len(seqfos) for seqfos in chunk_groups.values()) + chunk_failed
@@ -774,7 +793,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
                 uid_set = set(sfo['name'] for sfo in seqfos)
                 chunk_antns = [line for line in tantn_list if len(line['unique_ids']) == 1 and line['unique_ids'][0] in uid_set]
                 utils.mkdir(frag_path, isfile=True)
-                utils.write_annotations(frag_path, tglfo, chunk_antns, utils.sw_cache_headers)
+                utils.write_annotations(frag_path, glfo, chunk_antns, utils.sw_cache_headers)
                 chunk_fragments[c3len].append(frag_path)
 
             del tantn_list  # free chunk annotations
@@ -793,8 +812,9 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
                 utils.merge_yamls(final_swc, frags, utils.sw_cache_headers, dont_write_git_info=True)
                 for frag in frags:
                     os.remove(frag)
-        # NOTE if multiple chunks inferred different novel alleles, glfo from the first chunk is used.
-        # For proper germline reconciliation across chunks, merge parameter dirs before grouping.
+        # NOTE every fragment is written against the union germline set, but gene calls are still whatever
+        # SW assigned per chunk against that chunk's own germline set; grouping does not re-derive them.
+        # For gene calls made against a single germline set, merge parameter dirs before running SW.
 
         # apply hfrac after merging: two-pass approach for memory efficiency
         # pass 1: read each CDR3 sw cache, write naive FASTAs (lightweight)
