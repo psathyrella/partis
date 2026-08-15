@@ -340,29 +340,35 @@ def cross_shared_counts(frag_of_uid, uid_muts):
 
 # members that must share the modal rearrangement for the veto to apply
 PGEN_VETO_MIN_SHARED = 4
-PGEN_MIN_PROB = 1e-9  # floor for a rearrangement the parameter tables never saw
+PGEN_MIN_PROB = 1e-9  # probability floor for a value the tables never saw
 PGEN_SAMPLE_DRAWS = 1000000  # rearrangements drawn to estimate the veto's cutoff
 PGEN_SAMPLE_SEED = 1  # fixed, so one parameter dir always gives one cutoff
 
-# (name, file, [varying column, conditioning columns...]) for each term of the factorisation
-PGEN_TABLE_SPECS = [
-    ('v', 'v_gene-probs.csv', ['v_gene']),
-    ('d', 'd_gene-probs.csv', ['d_gene']),
-    ('j', 'j_gene-probs.csv', ['j_gene']),
-    ('v_3p_del', 'v_gene-v_3p_del-probs.csv', ['v_3p_del', 'v_gene']),
-    ('d_5p_del', 'd_gene-d_5p_del-probs.csv', ['d_5p_del', 'd_gene']),
-    ('d_3p_del', 'd_gene-d_3p_del-probs.csv', ['d_3p_del', 'd_gene']),
-    ('j_5p_del', 'j_gene-j_5p_del-probs.csv', ['j_5p_del', 'j_gene']),
-    ('len_vd', 'd_gene-vd_insertion-probs.csv', ['vd_insertion', 'd_gene']),
-    ('len_dj', 'j_gene-dj_insertion-probs.csv', ['dj_insertion', 'j_gene']),
-]
+# (name, column) per factorisation term; file and conditioning columns come from utils
+_PGEN_TABLE_COLUMNS = [('v', 'v_gene'), ('d', 'd_gene'), ('j', 'j_gene'),
+                       ('v_3p_del', 'v_3p_del'), ('d_5p_del', 'd_5p_del'),
+                       ('d_3p_del', 'd_3p_del'), ('j_5p_del', 'j_5p_del'),
+                       ('len_vd', 'vd_insertion'), ('len_dj', 'dj_insertion')]
+
+
+def _pgen_table_specs():
+    """(name, file, [varying column, conditioning columns...]) per factorisation term."""
+    from partis import utils
+    specs = []
+    for name, column in _PGEN_TABLE_COLUMNS:
+        cols = [column] + utils.column_dependencies[column]
+        specs.append((name, utils.get_parameter_fname(column_and_deps=cols), cols))
+    return specs
+
+
+PGEN_TABLE_SPECS = _pgen_table_specs()
 
 
 def read_pgen_tables(parameter_dir):
-    """Read the pgen factorisation's count tables from <parameter_dir>/hmm (the locus-level
+    """Read the P(r) factorisation's count tables from <parameter_dir>/hmm (the locus-level
     parameter dir) and normalise each within its conditioning variable. Returns
-    {name: {(value, conditioned-on...): probability}}, or None if the dir or any table is
-    missing or unreadable, which leaves the pgen veto off rather than failing the run."""
+    {name: {(value, conditioned-on...): probability}}, or None if <parameter_dir> is None.
+    Raises if a dir was passed but a table is missing or unreadable."""
     if parameter_dir is None:
         return None
     tdir = '%s/hmm' % parameter_dir
@@ -375,8 +381,8 @@ def read_pgen_tables(parameter_dir):
             with open('%s/%s' % (tdir, fname)) as tfile:
                 for row in csv.DictReader(tfile):
                     counts[tuple(row[c] for c in cols[1:])][row[cols[0]]] = float(row['count'])
-        except (IOError, OSError, KeyError, ValueError):
-            return None
+        except (IOError, OSError, KeyError, ValueError) as terr:
+            raise Exception('couldn\'t read pgen table %s/%s (%s)' % (tdir, fname, terr))
         tables[name] = {}
         for cond, cfo in counts.items():
             tot = sum(cfo.values())
@@ -397,8 +403,9 @@ def get_rearrangement(feat):
 
 
 def rearrangement_lpgen(rearr, tables):
-    """log10 generation probability of one rearrangement (from get_rearrangement()), as the
-    product of the parameter dir's marginals times 0.25 per inserted base."""
+    """log10 P(r): the probability of generating the single inferred rearrangement (from
+    get_rearrangement()), as the product of the parameter dir's marginals times 0.25 per inserted
+    base. Comparable only against values from the same factorisation."""
     v, d, j, v_3p_del, d_5p_del, d_3p_del, j_5p_del, len_vd, len_dj = rearr
     terms = [('v', (v,)), ('d', (d,)), ('j', (j,)),
              ('v_3p_del', (str(v_3p_del), v)), ('d_5p_del', (str(d_5p_del), d)),
@@ -417,7 +424,7 @@ def get_cluster_rearrangement(uids, uid_rearr_features):
             counts[rearr] += 1
     if len(counts) == 0:
         return None, 0
-    modal = max(counts, key=counts.get)
+    modal = max(sorted(counts), key=counts.get)  # sorted so ties don't depend on dict order
     return modal, counts[modal]
 
 
@@ -429,6 +436,8 @@ def _sampling_choices(table):
     choices = {}
     for cond, vfo in by_cond.items():
         probs = np.array([p for _, p in vfo])
+        if probs.sum() <= 0:  # nothing to draw, and normalising would divide by zero
+            continue
         choices[cond] = ([v for v, _ in vfo], probs / probs.sum())  # p= wants an exact sum
     return choices
 
@@ -460,10 +469,9 @@ def _draw_conditioned(rng, choices, groups, genes, n_draws):
 
 
 def sample_pgen_median(tables, n_draws=PGEN_SAMPLE_DRAWS, seed=PGEN_SAMPLE_SEED):
-    """Median log10 pgen of rearrangements drawn from <tables>, i.e. of the rearrangement
-    distribution the parameter dir itself defines. A generative property of the locus, so it
-    needs no pass over the data and does not depend on how the input happened to be clustered.
-    Deterministic given <seed>."""
+    """Median log10 P(r) of rearrangements drawn from <tables>, i.e. of the rearrangement
+    distribution the parameter dir itself defines, so it does not depend on how the input was
+    clustered. Deterministic given <seed>."""
     rng = np.random.RandomState(seed)
     choices = dict((name, _sampling_choices(tables[name])) for name, _, _ in PGEN_TABLE_SPECS)
     lpgens = np.zeros(n_draws)
@@ -485,22 +493,27 @@ _pgen_veto_cache = {}  # parameter dir -> (tables, cutoff), since every group re
 
 
 def pgen_veto_inputs(parameter_dir):
-    """(tables, log10 pgen cutoff) for the heavy split's veto, derived from <parameter_dir>
-    alone. Both None, with a warning rather than a failure, when the dir is absent or its tables
-    are unreadable. Cached, so a locus samples its cutoff once."""
+    """(tables, log10 P(r) cutoff) for the heavy split's veto, derived from <parameter_dir>
+    alone. Both None, with a warning, when no dir was passed; an unreadable dir raises rather
+    than warns (see read_pgen_tables). Cached, so a locus samples its cutoff once."""
     if parameter_dir in _pgen_veto_cache:
         return _pgen_veto_cache[parameter_dir]
     from partis import utils
     tables = read_pgen_tables(parameter_dir)
     if tables is None:
-        print('  %s no pgen tables under %s, so the heavy split\'s pgen veto is off'
-              % (utils.wrnstr(), parameter_dir), flush=True)
+        print('  %s no parameter dir passed, so the heavy split\'s pgen veto is off'
+              % utils.wrnstr(), flush=True)
         cutoff = None
     else:
         cutoff = sample_pgen_median(tables)
         print('  pgen veto: cutoff (model median over %d draws) log10 pgen %.2f' % (PGEN_SAMPLE_DRAWS, cutoff), flush=True)
     _pgen_veto_cache[parameter_dir] = (tables, cutoff)
     return tables, cutoff
+
+
+def validate_pgen_tables(parameter_dir):
+    """Read the pgen tables and discard them, to check the parameter dir is complete."""
+    read_pgen_tables(parameter_dir)
 
 
 def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_size=2,
@@ -514,10 +527,11 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
     jaccard reaches ej_floor. uid_muts_sw is mutations against each sequence's own sw naive.
 
     pgen_veto_min_shared: keep a cluster whole, unsplit, when this many members share its modal
-    rearrangement and that rearrangement's log10 pgen is at or below <pgen_cutoff>, i.e. when it
+    rearrangement and that rearrangement's log10 P(r) is at or below <pgen_cutoff>, i.e. when it
     is too rare for that many independent recombinations. Keyed on the rearrangement rather than
-    on the naive, so convergently-similar naives do not trip it. 0 or None disables the veto, as
-    does a missing pgen_tables or pgen_cutoff.
+    on the naive, so convergently-similar naives do not trip it. The veto is not optional in the
+    pipeline; 0 or None turns it off for two-arm measurement only, as does a missing pgen_tables
+    or pgen_cutoff.
     """
     result = []
     ctr = defaultdict(int)
@@ -586,9 +600,10 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
             ctr['rejected'] += 1
             result.append(list(cluster))
 
+    # held counts clusters the veto touched, not ones whose outcome it changed
     pgen_label = ', %d held (pgen veto)' % ctr['pgen_veto'] if ctr['pgen_veto'] > 0 else ''
-    print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d rejected (missing naive)%s' % (
-        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['missing_naive'], pgen_label), flush=True)
+    print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d skipped (no proposal), %d rejected (missing naive)%s' % (
+        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['no_proposal'], ctr['missing_naive'], pgen_label), flush=True)
     print('  %d members snapped, %d pairs certified, %d -> %d clusters' % (
         ctr['snapped'], ctr['certified_pairs'], len(partition), len(result)), flush=True)
     return result
