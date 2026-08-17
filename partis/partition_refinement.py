@@ -1436,6 +1436,35 @@ def estimate_locuswide_threshold(specs):
     return estimate_naive_threshold(partition, uid_sw_naives)
 
 
+def locuswide_threshold_fname(disjoint_dir, locus):
+    return '%s/naive-threshold-%s.json' % (disjoint_dir, locus)
+
+
+def locuswide_threshold(disjoint_dir, specs, locus, overwrite=False):
+    """Locus-wide naive threshold, cached beside the manifest, None where nothing reads it.
+
+    Invalidated by a change in the spec count or in any input's mtime.
+    """
+    from . import utils
+    if len(specs) == 0 or not utils.has_d_gene(locus):
+        return None
+    mtimes = [os.path.getmtime(spec['input']) for spec in specs]
+    signal = {'n_specs': len(specs), 'input_mtime_max': max(mtimes), 'input_mtime_sum': sum(mtimes)}
+    fname = locuswide_threshold_fname(disjoint_dir, locus)
+    if not overwrite and os.path.exists(fname):
+        with open(fname) as tfile:
+            cfo = json.load(tfile)
+        if all(cfo.get(key) == val for key, val in signal.items()):
+            return float(cfo['threshold'])
+        print('  locus-wide threshold cache is stale, re-estimating: %s' % fname, flush=True)
+    cfo = dict(signal, threshold=repr(estimate_locuswide_threshold(specs)))  # repr so the float round trips exactly
+    tmpfname = '%s.tmp.%d' % (fname, os.getpid())  # atomic, so concurrent slices race without corrupting
+    with open(tmpfname, 'w') as tfile:
+        json.dump(cfo, tfile)
+    os.replace(tmpfname, fname)
+    return float(cfo['threshold'])
+
+
 def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter_dir=None,
              length_veto_min_shared=LENGTH_VETO_MIN_SHARED):
     """Run refinement on a list of group specs (from group_specs), writing each group's
