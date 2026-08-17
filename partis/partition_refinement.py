@@ -594,6 +594,41 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
 VDJ_OVERRIDE_MIN_FRAG = 20
 
 
+def onehot_naives(arr, n_byte):
+    """(n, len) uint8 naives -> (one-hot over the non-N symbols present, non-N mask), both float32.
+
+    One-hot inner product counts matching non-N positions, mask inner product counts compared
+    positions, so N-aware hamming is a matrix product. Counts are integral in float32.
+    """
+    symbols = [s for s in np.unique(arr) if s != n_byte]
+    n_seqs, seq_len = arr.shape
+    oh = np.zeros((n_seqs, seq_len * len(symbols)), dtype=np.float32)
+    for si, sym in enumerate(symbols):
+        oh[:, si * seq_len:(si + 1) * seq_len] = (arr == sym)
+    return oh, (arr != n_byte).astype(np.float32)
+
+
+def naive_pairs_below(oh, mask, idx_a, idx_b, threshold, symmetric, chunk_size=2000):
+    """Yield index pairs whose N-aware naive hamming frac is at or below <threshold>, blocked to
+    bound memory. symmetric means idx_a and idx_b are the same set, so only one triangle is walked
+    and each pair comes out once; otherwise the two sets must be disjoint."""
+    for ca in range(0, len(idx_a), chunk_size):
+        ra = idx_a[ca:ca + chunk_size]
+        oh_a, mask_a = oh[ra], mask[ra]
+        cb_start = ca if symmetric else 0
+        for cb in range(cb_start, len(idx_b), chunk_size):
+            rb = idx_b[cb:cb + chunk_size]
+            compared = (mask_a @ mask[rb].T).astype(np.int32)
+            matches = (oh_a @ oh[rb].T).astype(np.int32)
+            mism = compared - matches
+            dists = np.where(compared > 0, mism / np.maximum(compared, 1), 1.0)
+            for pa, pb in np.argwhere(dists <= threshold):
+                ia, ib = ra[pa], rb[pb]
+                if symmetric and ia >= ib:
+                    continue
+                yield (ia, ib) if ia < ib else (ib, ia)
+
+
 def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                               uid_to_muts_with_base, naive_threshold,
                               min_agreement=0.15, min_fp_positions=0,
@@ -604,6 +639,10 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     For each CDR3 group, find clusters with similar naives (candidates),
     then only merge if their mutation fingerprints agree. This prevents
     false merges of unrelated sequences with similar naives.
+
+    Naive distances are computed only within groups that could survive the junction guard, and as a
+    matrix product rather than elementwise. Both leave the partition unchanged; the candidate and
+    junction-rejection counters drop, since blocked pairs are no longer examined.
 
     If skip_singleton_merge=True, skip merge attempts where BOTH clusters
     are singletons. True singletons (survived vsearch + HA) should stay
@@ -686,36 +725,41 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                 return 'rescue'
             return 'block'
 
+        def examine(i, j):
+            # one naive-similar fragment pair through the junction guard and the fingerprint validator
+            nonlocal n_naive_candidates, n_accepted, n_rejected_fingerprint
+            nonlocal n_rejected_insufficient, n_rejected_junction, n_vdj_override, n_skipped_singleton
+            if find(i) == find(j):
+                return
+            # skip singleton-singleton merges: both survived vsearch+HA
+            # as singletons, likely true singletons not fragments
+            if skip_singleton_merge and frag_sizes[i] == 1 and frag_sizes[j] == 1:
+                n_skipped_singleton += 1
+                return
+            n_naive_candidates += 1
+            verdict = junction_verdict(i, j)
+            if verdict == 'block':
+                n_rejected_junction += 1
+                return
+            if verdict == 'rescue':
+                n_vdj_override += 1
+            fp_i, n_i = frag_fps[i]
+            fp_j, n_j = frag_fps[j]
+            agreement, n_strong = fingerprint_agreement(
+                fp_i, n_i, fp_j, n_j, min_fp_positions)
+            if agreement < 0:
+                n_rejected_insufficient += 1
+            elif agreement >= min_agreement:
+                union(i, j)
+                n_accepted += 1
+            else:
+                n_rejected_fingerprint += 1
+
         # within same-naive bucket: always naive-similar, just check fingerprint
         for naive_seq, indices in naive_to_frags.items():
             for ii in range(len(indices)):
                 for jj in range(ii + 1, len(indices)):
-                    i, j = indices[ii], indices[jj]
-                    if find(i) == find(j):
-                        continue
-                    # skip singleton-singleton merges: both survived vsearch+HA
-                    # as singletons, likely true singletons not fragments
-                    if skip_singleton_merge and frag_sizes[i] == 1 and frag_sizes[j] == 1:
-                        n_skipped_singleton += 1
-                        continue
-                    n_naive_candidates += 1
-                    verdict = junction_verdict(i, j)
-                    if verdict == 'block':
-                        n_rejected_junction += 1
-                        continue
-                    if verdict == 'rescue':
-                        n_vdj_override += 1
-                    fp_i, n_i = frag_fps[i]
-                    fp_j, n_j = frag_fps[j]
-                    agreement, n_strong = fingerprint_agreement(
-                        fp_i, n_i, fp_j, n_j, min_fp_positions)
-                    if agreement < 0:
-                        n_rejected_insufficient += 1
-                    elif agreement >= min_agreement:
-                        union(i, j)
-                        n_accepted += 1
-                    else:
-                        n_rejected_fingerprint += 1
+                    examine(indices[ii], indices[jj])
 
         # cross-bucket: vectorized pairwise hamming to find near-match naives
         unique_naives = list(naive_to_frags.keys())
@@ -726,51 +770,59 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
 
             if len(same_len) >= 2:
                 arr = np.frombuffer(''.join(same_len).encode(), dtype=np.uint8).reshape(len(same_len), seq_len)
-                n_byte = ord('N')
-                # chunked pairwise to bound memory when there are many unique naives
-                chunk_size = 2000
-                for ci in range(0, len(same_len), chunk_size):
-                    ci_end = min(ci + chunk_size, len(same_len))
-                    chunk_i = arr[ci:ci_end]
-                    for cj in range(ci, len(same_len), chunk_size):
-                        cj_end = min(cj + chunk_size, len(same_len))
-                        chunk_j = arr[cj:cj_end]
-                        # N-aware hamming (matches hamming_frac): drop positions where either naive is N
-                        valid = (chunk_i[:, None, :] != n_byte) & (chunk_j[None, :, :] != n_byte)
-                        mism = ((chunk_i[:, None, :] != chunk_j[None, :, :]) & valid).sum(axis=2)
-                        compared = valid.sum(axis=2)
-                        dists = np.where(compared > 0, mism / np.maximum(compared, 1), 1.0)
-                        pairs = np.argwhere(dists <= naive_threshold)
-                        for pi, pj in pairs:
-                            ni_idx = ci + pi
-                            nj_idx = cj + pj
-                            if ni_idx >= nj_idx:
+                oh, mask = onehot_naives(arr, ord('N'))
+
+                def examine_naive_pair(ni_idx, nj_idx):
+                    for i in naive_to_frags[same_len[ni_idx]]:
+                        for j in naive_to_frags[same_len[nj_idx]]:
+                            examine(i, j)
+
+                # only pairs that could survive the junction guard get a distance: same key, either
+                # side missing a key, or a shared vdj triple where the rescue is live
+                naive_keys, wildcard = [], []
+                key_groups, vdj_groups = defaultdict(list), defaultdict(list)
+                vdj_live = set()
+                if vdj_override_min > 0:
+                    for vdj, size in zip(frag_vdjs, frag_sizes):
+                        if vdj is not None and size >= vdj_override_min:
+                            vdj_live.add(vdj)
+                for idx, naive_seq in enumerate(same_len):
+                    keys, vdjs = set(), set()
+                    for i in naive_to_frags[naive_seq]:
+                        if frag_juncs[i] is None:
+                            keys = None
+                            break
+                        keys.add(frag_juncs[i])
+                        if frag_vdjs[i] in vdj_live:
+                            vdjs.add(frag_vdjs[i])
+                    naive_keys.append(keys)
+                    if keys is None:
+                        wildcard.append(idx)
+                    else:
+                        for key in keys:
+                            key_groups[key].append(idx)
+                        for vdj in vdjs:
+                            vdj_groups[vdj].append(idx)
+
+                for group in key_groups.values():
+                    if len(group) >= 2:
+                        for ni_idx, nj_idx in naive_pairs_below(oh, mask, group, group, naive_threshold, True):
+                            examine_naive_pair(ni_idx, nj_idx)
+                # a keyless naive passes the guard against anything, so it needs all of same_len
+                if len(wildcard) > 0:
+                    keyed = [idx for idx in range(len(same_len)) if naive_keys[idx] is not None]
+                    for ni_idx, nj_idx in naive_pairs_below(oh, mask, wildcard, wildcard, naive_threshold, True):
+                        examine_naive_pair(ni_idx, nj_idx)
+                    if len(keyed) > 0:
+                        for ni_idx, nj_idx in naive_pairs_below(oh, mask, wildcard, keyed, naive_threshold, False):
+                            examine_naive_pair(ni_idx, nj_idx)
+                # rescue-eligible pairs, minus the same-key ones already done above
+                for group in vdj_groups.values():
+                    if len(group) >= 2:
+                        for ni_idx, nj_idx in naive_pairs_below(oh, mask, group, group, naive_threshold, True):
+                            if len(naive_keys[ni_idx] & naive_keys[nj_idx]) > 0:
                                 continue
-                            for i in naive_to_frags[same_len[ni_idx]]:
-                                for j in naive_to_frags[same_len[nj_idx]]:
-                                    if find(i) == find(j):
-                                        continue
-                                    if skip_singleton_merge and frag_sizes[i] == 1 and frag_sizes[j] == 1:
-                                        n_skipped_singleton += 1
-                                        continue
-                                    n_naive_candidates += 1
-                                    verdict = junction_verdict(i, j)
-                                    if verdict == 'block':
-                                        n_rejected_junction += 1
-                                        continue
-                                    if verdict == 'rescue':
-                                        n_vdj_override += 1
-                                    fp_i, n_i = frag_fps[i]
-                                    fp_j, n_j = frag_fps[j]
-                                    agreement, n_strong = fingerprint_agreement(
-                                        fp_i, n_i, fp_j, n_j, min_fp_positions)
-                                    if agreement < 0:
-                                        n_rejected_insufficient += 1
-                                    elif agreement >= min_agreement:
-                                        union(i, j)
-                                        n_accepted += 1
-                                    else:
-                                        n_rejected_fingerprint += 1
+                            examine_naive_pair(ni_idx, nj_idx)
 
             # handle different-length naives with Python fallback (rare)
             for n1 in diff_len:
@@ -784,29 +836,7 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                         continue
                     for i in naive_to_frags[n1]:
                         for j in naive_to_frags[n2_seq]:
-                            if find(i) == find(j):
-                                continue
-                            if skip_singleton_merge and frag_sizes[i] == 1 and frag_sizes[j] == 1:
-                                n_skipped_singleton += 1
-                                continue
-                            n_naive_candidates += 1
-                            verdict = junction_verdict(i, j)
-                            if verdict == 'block':
-                                n_rejected_junction += 1
-                                continue
-                            if verdict == 'rescue':
-                                n_vdj_override += 1
-                            fp_i, n_i = frag_fps[i]
-                            fp_j, n_j = frag_fps[j]
-                            agreement, n_strong = fingerprint_agreement(
-                                fp_i, n_i, fp_j, n_j, min_fp_positions)
-                            if agreement < 0:
-                                n_rejected_insufficient += 1
-                            elif agreement >= min_agreement:
-                                union(i, j)
-                                n_accepted += 1
-                            else:
-                                n_rejected_fingerprint += 1
+                            examine(i, j)
 
         components = defaultdict(list)
         for i in range(n):
