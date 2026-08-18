@@ -1227,7 +1227,8 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
     sw_info, uid_part_antns."""
     from partis import utils
     from partis import disjointgrouper
-    part_glfo, part_antns, cpath = utils.read_output(partition_fname)
+    # refine reads only stored keys
+    part_glfo, part_antns, cpath = utils.read_output(partition_fname, dont_add_implicit_info=True)
     disjointgrouper.check_stage_file_complete(partition_fname, part_antns, cpath)  # a truncated input silently shrinks the refined output
     partition = [list(c) for c in (cpath.best() if cpath is not None else [])]
     uid_info, uid_part_antns = {}, {}
@@ -1260,7 +1261,7 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
     if n_unannotated > 0:
         print('  %s dropped %d partitioned uids with no usable annotation before refining %s' % (utils.wrnstr(), n_unannotated, partition_fname), flush=True)
 
-    sw_glfo, sw_antns, _ = utils.read_output(sw_cache_fname)
+    sw_glfo, sw_antns, _ = utils.read_output(sw_cache_fname, dont_add_implicit_info=True)
     sw_info, uid_sw_naives, uid_rearr_features = {}, {}, {}
     n_unalignable = 0
     for antn in sw_antns:  # the sw cache has no failed queries in it (waterer.write_cachefile)
