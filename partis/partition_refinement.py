@@ -881,17 +881,21 @@ def repertoire_mutation_freqs(uid_muts, n_seqs=None):
     return {pb: c / n for pb, c in counts.items()}, n
 
 
-def _weight_bins(muts, freqs, n_seqs, grid):
+def _weight_bins(muts, freqs, n_seqs, grid, n_obs=None):
     """{(pos, base): (frequency, surprisal in whole grid bins)} for one sequence's mutations.
     Each weight is binned rather than the sums, which is not a bound in either direction: the
     dp returns the exact tail of the rounded statistic, which can sit above or below the tail
-    of the unrounded one."""
+    of the unrounded one.
+
+    n_obs: per-(pos, base) observation count from the frequency table. Where given it sets
+    that key's floor; keys absent from it fall back to n_seqs."""
     floor = FREQ_SMOOTH_COUNT / n_seqs
     out = {}
     for pos, base in muts.items():
         p = freqs.get((pos, base), 0.0)
-        if p < floor:
-            p = floor
+        pfloor = floor if n_obs is None else FREQ_SMOOTH_COUNT / max(n_obs.get((pos, base), n_seqs), 1)
+        if p < pfloor:
+            p = pfloor
         elif p > 1.0:
             p = 1.0
         nbin = int(round(-math.log(p) / grid))
@@ -899,11 +903,11 @@ def _weight_bins(muts, freqs, n_seqs, grid):
     return out
 
 
-def _conditional_pvalue(muts_cond, shared, freqs, n_seqs, grid):
+def _conditional_pvalue(muts_cond, shared, freqs, n_seqs, grid, n_obs=None):
     """P(T >= T_obs), where T sums the surprisals of whichever of <muts_cond> another sequence
     carries independently. Exact by dp over binned surprisal, with everything at or above the
     observed value collected into a tail bucket."""
-    wb = _weight_bins(muts_cond, freqs, n_seqs, grid)
+    wb = _weight_bins(muts_cond, freqs, n_seqs, grid, n_obs=n_obs)
     t_obs = sum(wb[pb][1] for pb in shared if pb in wb)
     if t_obs <= 0:
         return 1.0
@@ -974,22 +978,24 @@ def split_by_weighted_descent(cluster, uid_muts, freqs, n_seqs, alpha=WEIGHTED_D
 # parameter-dir). Frequencies come from the germline V/J mute-freqs tables in the
 # parameter directory instead of repertoire_mutation_freqs over the refine input, so
 # the null no longer moves with refine-input (bin) size. Added alongside the shipped
-# repertoire-input statistic above; does not alter repertoire_mutation_freqs,
-# weighted_shared_descent_pvalue, _conditional_pvalue or _weight_bins. The V/J
-# germline-frame position mapping below is reused, not re-derived.
+# per-input statistic above; does not alter repertoire_mutation_freqs or
+# weighted_shared_descent_pvalue. The V/J germline-frame position mapping below is
+# reused, not re-derived.
 # TEMPORARY: the flag and the light_freqs_param_dir side channel both go away once
 # parameter_dir is a first-class argument to refine_partition/run_jobs; the tables are
 # then read from that and the read becomes unconditional rather than opt-in.
 # ----------------------------------------------------------------------------
 
-_PARAM_MUTE_FREQ_CACHE = {}  # (mute_freq_dir, gene) -> {pos: {base: freq}} or None
+_PARAM_MUTE_FREQ_CACHE = {}  # (mute_freq_dir, gene) -> {pos: {base: freq, _N_OBS_KEY: n}} or None
+_N_OBS_KEY = 'n_obs'  # not a base, so no collision with the A/C/G/T keys beside it
 
 
 def load_param_mute_freq_csv(mute_freq_dir, gene):
     """Per-position mutation frequencies for one germline gene, from
     <mute_freq_dir>/<gene, '*' -> '_star_'>.csv (parameter-dir hmm/mute-freqs layout).
     None if the file does not exist or carries no rows (e.g. a light-locus D
-    placeholder, header-only)."""
+    placeholder, header-only). Each row also carries _N_OBS_KEY, the summed *_obs counts
+    at that position."""
     key = (mute_freq_dir, gene)
     if key in _PARAM_MUTE_FREQ_CACHE:
         return _PARAM_MUTE_FREQ_CACHE[key]
@@ -1000,7 +1006,9 @@ def load_param_mute_freq_csv(mute_freq_dir, gene):
         rows = {}
         with open(fname) as ffile:
             for row in csv.DictReader(ffile):
-                rows[int(row['position'])] = {b: float(row[b]) for b in ('A', 'C', 'G', 'T')}
+                frow = {b: float(row[b]) for b in ('A', 'C', 'G', 'T')}
+                frow[_N_OBS_KEY] = sum(float(row.get(b + '_obs') or 0) for b in ('A', 'C', 'G', 'T'))
+                rows[int(row['position'])] = frow
         if not rows:
             rows = None
     _PARAM_MUTE_FREQ_CACHE[key] = rows
@@ -1057,12 +1065,13 @@ def param_dir_classify_pos(pos, bounds):
     return 'other'
 
 
-def param_dir_mutation_freq(pos, base, antn, glfo, mute_freq_dir):
-    """Germline mutation frequency for one (partition-frame position, base) in the frame
-    of <antn> (a partition-frame annotation, matching the frame <pos> is already in).
-    None where there is no germline source: D-region (light loci have no real D) and
-    every insertion (fv/vd/dj/jf) have no germline base by definition; the caller falls
-    back to the existing smoothing floor for these, same as it does today."""
+def param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir):
+    """(frequency, n_obs) for one (partition-frame position, base) in the frame of <antn>
+    (a partition-frame annotation, matching the frame <pos> is already in). n_obs is the
+    observation count behind that germline position.
+
+    (None, None) where there is no germline source: D-region (light loci have no real D)
+    and every insertion (fv/vd/dj/jf) have no germline base by definition."""
     bounds = param_dir_region_bounds(antn, glfo)
     region = param_dir_classify_pos(pos, bounds)
     if region == 'v':
@@ -1073,17 +1082,23 @@ def param_dir_mutation_freq(pos, base, antn, glfo, mute_freq_dir):
     elif region == 'd':
         gl_pos, gene = pos - bounds['start_d'] + antn['d_5p_del'], antn['d_gene']
     else:
-        return None
+        return None, None
     rows = load_param_mute_freq_csv(mute_freq_dir, gene)
     if rows is None or gl_pos not in rows:
-        return None
-    return rows[gl_pos].get(base)
+        return None, None
+    n_obs = rows[gl_pos].get(_N_OBS_KEY)
+    return rows[gl_pos].get(base), (n_obs if n_obs else None)
+
+
+def param_dir_mutation_freq(pos, base, antn, glfo, mute_freq_dir):
+    """Germline mutation frequency for one (partition-frame position, base)."""
+    return param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir)[0]
 
 
 def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=None):
-    """{(pos, base): freq} for one uid's own mutations, sourced from the parameter
-    directory instead of repertoire_mutation_freqs. 0.0 (the caller's smoothing floor
-    then applies) wherever there is no germline source or no partition-frame annotation.
+    """({(pos, base): freq}, {(pos, base): n_obs}) for one uid's own mutations, sourced
+    from the parameter directory. 0.0 wherever there is no germline source or no
+    partition-frame annotation; those (pos, base) are absent from the n_obs map.
 
     counts, if passed, is incremented in place so the caller can report how often the
     fallback fires and why: 'no_antn' (uid has no partition-frame annotation) and
@@ -1094,41 +1109,46 @@ def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=N
     if antn is None:
         if counts is not None:
             counts['no_antn'] = counts.get('no_antn', 0) + 1
-        return {(pos, base): 0.0 for pos, base in muts.items()}
+        return {(pos, base): 0.0 for pos, base in muts.items()}, {}
     if counts is not None and param_dir_region_bounds(antn, glfo) is None:
         counts['gene_missing_from_glfo'] = counts.get('gene_missing_from_glfo', 0) + 1
-    out = {}
+    out, obs = {}, {}
     for pos, base in muts.items():
-        f = param_dir_mutation_freq(pos, base, antn, glfo, mute_freq_dir)
+        f, n_obs = param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir)
         out[(pos, base)] = f if f is not None else 0.0
-    return out
+        if n_obs is not None:
+            obs[(pos, base)] = n_obs
+    return out, obs
 
 
-def weighted_shared_descent_pvalue_param_dir(muts_a, muts_b, freqs_a, freqs_b, n_seqs, grid=WEIGHT_GRID_NATS):
-    """Same statistic as weighted_shared_descent_pvalue, but each sequence's mutation
-    frequencies come from its own parameter-dir table (freqs_a, freqs_b) rather than one
-    shared repertoire-wide table, since the germline frequency of a given position
-    depends on which V/J gene that sequence used. Added alongside the shipped function;
-    does not alter it. Reuses _conditional_pvalue unmodified."""
+def weighted_shared_descent_pvalue_param_dir(muts_a, muts_b, freqs_a, freqs_b, n_seqs, grid=WEIGHT_GRID_NATS,
+                                             n_obs_a=None, n_obs_b=None):
+    """Probability that two unrelated sequences would share mutations this improbable, with
+    each sequence scored against its own parameter-dir table (freqs_a, freqs_b) rather than
+    one shared locus-wide table, since the germline frequency of a position depends on which
+    V/J gene that sequence used. Returns 1.0 when nothing is shared."""
     shared = [(pos, base) for pos, base in muts_a.items() if muts_b.get(pos) == base]
     if not shared:
         return 1.0
-    pa = _conditional_pvalue(muts_a, shared, freqs_a, n_seqs, grid)
-    pb = _conditional_pvalue(muts_b, shared, freqs_b, n_seqs, grid)
+    pa = _conditional_pvalue(muts_a, shared, freqs_a, n_seqs, grid, n_obs=n_obs_a)
+    pb = _conditional_pvalue(muts_b, shared, freqs_b, n_seqs, grid, n_obs=n_obs_b)
     return math.exp(0.5 * (math.log(max(pa, _TINY)) + math.log(max(pb, _TINY))))
 
 
 def split_by_weighted_descent_param_dir(cluster, uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs,
                                          alpha=WEIGHTED_DESCENT_ALPHA, counts=None):
-    """Same greedy non-transitive centroid split as split_by_weighted_descent, but scoring
-    pairs with weighted_shared_descent_pvalue_param_dir (parameter-dir frequencies)
-    instead of a single repertoire-wide table. counts: see uid_param_dir_freqs."""
+    """Split one cluster by weighted shared descent, assigning members to non-transitive
+    greedy centroids, scoring each pair against the two sequences' own parameter-dir
+    frequencies rather than a single locus-wide table. Returns a list of sub-clusters
+    (lists of uids). counts: see uid_param_dir_freqs."""
     members = list(cluster)
     n = len(members)
     if n <= 1:
         return [list(members)]
     order = sorted(range(n), key=lambda i: -len(uid_muts.get(members[i], {}) or {}))
-    freq_cache = {u: uid_param_dir_freqs(u, uid_muts.get(u, {}), uid_part_antns, glfo, mute_freq_dir, counts=counts) for u in members}
+    cache = {u: uid_param_dir_freqs(u, uid_muts.get(u, {}), uid_part_antns, glfo, mute_freq_dir, counts=counts) for u in members}
+    freq_cache = {u: fo[0] for u, fo in cache.items()}
+    obs_cache = {u: fo[1] for u, fo in cache.items()}
     assigned = [False] * n
     clusters = []
     for i in order:
@@ -1144,7 +1164,8 @@ def split_by_weighted_descent_param_dir(cluster, uid_muts, uid_part_antns, glfo,
             if not mi or not mo:  # no mutations is no evidence either way
                 continue
             p = weighted_shared_descent_pvalue_param_dir(
-                mi, mo, freq_cache[members[i]], freq_cache[members[o]], n_seqs)
+                mi, mo, freq_cache[members[i]], freq_cache[members[o]], n_seqs,
+                n_obs_a=obs_cache[members[i]], n_obs_b=obs_cache[members[o]])
             if p < alpha:
                 sub.append(members[o])
                 assigned[o] = True
@@ -1182,9 +1203,9 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, freqs, n_seqs,
     uid_part_antns, glfo, light_freqs_param_dir: opt-in (--light-freqs-from-parameter-dir).
     When light_freqs_param_dir is set, each cluster is split with
     split_by_weighted_descent_param_dir instead, which sources per-uid frequencies from
-    that directory rather than from <freqs>; <n_seqs> is still used (for the smoothing
-    floor). Default (light_freqs_param_dir=None) is unchanged from before this option
-    existed.
+    that directory rather than from <freqs>, and the smoothing floor comes from that
+    directory's per-position observation counts; <n_seqs> is then the fallback floor for
+    positions the tables cannot cover (insertions, D).
     """
     result = []
     n_resplit = n_skipped = n_input_seqs = 0
