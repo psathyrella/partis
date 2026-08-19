@@ -5170,12 +5170,12 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
 # merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub> (only works with paired dir structure)
 # some things are handled nicelycorrectly, others more hackily
 def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig'):
-    from . import glutils, paircluster
+    from . import glutils, paircluster, fraction_uncertainty
     # ----------------------------------------------------------------------------------------
     print('    merging parameters from %d subdirs (e.g. %s) to %s' % (n_subsets, subdfn(0), merged_odir))
     for ltmp in sub_loci(ig_or_tr):
         if os.path.exists('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp)):  # just looks for one of the last thing we would've written
-            print('       %s: subset-merged input exists, not rewriting' % locstr(ltmp))
+            print('       %s %s: subset-merged input exists, not rewriting' % (color('yellow', 'warning'), locstr(ltmp)))
             continue
         mkdir('%s/parameters/%s' % (merged_odir, ltmp))
         def swfn(dname): return '%s/parameters/%s/sw-cache.yaml'%(dname, ltmp)
@@ -5188,7 +5188,9 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
         makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
+        merged_mfreq_counts = {}  # summed counts, keyed by gene then position, same per-position dict shape mutefreqer uses
         def gpfn(dname, l, r): return '%s/parameters/%s/hmm/%s_gene-probs.csv' % (dname, l, r)
+        def mffn(dname, l): return '%s/parameters/%s/hmm/mute-freqs' % (dname, l)
         for isub in range(n_subsets):
             for hfn in glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
                 makelink('%s/parameters/%s/hmm/hmms' % (fpath(merged_odir), ltmp), fpath(hfn), os.path.basename(hfn))
@@ -5207,6 +5209,37 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                     if name_mapping is not None and gene_name in name_mapping[treg]:
                         gene_name = name_mapping[treg][gene_name]
                     merged_gene_counts[treg][gene_name] += int(tline['count'])
+            # sum per-base obs counts, remapping names as for gene-probs above; accumulate here rather than after the loop, since name_mapping is rebound per subset
+            if sub_glfo is not None and os.path.isdir(mffn(subdfn(isub), ltmp)):
+                for mfgfn in glob.glob('%s/*.csv' % mffn(subdfn(isub), ltmp)):
+                    gene = unsanitize_name(os.path.basename(mfgfn)[:-len('.csv')])
+                    region = get_region(gene)
+                    gene_name = gene
+                    if name_mapping is not None and gene in name_mapping[region]:
+                        gene_name = name_mapping[region][gene]
+                    gl_seq = sub_glfo['seqs'][region].get(gene)  # this subset's glfo is keyed on its own pre-remapping name
+                    gcounts = merged_mfreq_counts.setdefault(gene_name, {})
+                    for tline in csvlines(mfgfn):
+                        position = int(tline['position'])
+                        gl_nuke = gl_seq[position] if gl_seq is not None and position < len(gl_seq) else None
+                        pcounts = gcounts.get(position)
+                        if pcounts is None:
+                            pcounts = {n : 0 for n in nukes}
+                            pcounts['total'] = 0
+                            pcounts['gl_nuke'] = gl_nuke
+                            gcounts[position] = pcounts
+                        elif pcounts['gl_nuke'] is None and gl_nuke is not None:  # first subset whose glfo covers this position sets the germline base
+                            pcounts['gl_nuke'] = gl_nuke
+                        elif gl_nuke is not None and pcounts['gl_nuke'] is not None and gl_nuke != pcounts['gl_nuke']:
+                            # counts taken against a different germline are in a different frame, so drop rather than sum them
+                            print('        %s germline base disagreement for %s at position %d (%s vs %s), not summing this subset\'s counts there' % (color('red', 'warning'), color_gene(gene_name), position, pcounts['gl_nuke'], gl_nuke))
+                            continue
+                        obs_sum = 0
+                        for nuke in nukes:
+                            nobs = int(tline[nuke + '_obs'])
+                            pcounts[nuke] += nobs
+                            obs_sum += nobs
+                        pcounts['total'] += obs_sum
         if merged_glfo is None:  # none of them exists
             continue
         glutils.write_glfo('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp), merged_glfo)
@@ -5216,6 +5249,29 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                 writer.writeheader()
                 for gene, count in merged_gene_counts[treg].items():
                     writer.writerow({'%s_gene'%treg : gene, 'count' : count})
+        if len(merged_mfreq_counts) > 0:  # freqs and errors are recomputed from the summed counts, never averaged across subsets
+            mfreq_odir = mffn(merged_odir, ltmp)
+            mkdir(mfreq_odir)
+            nuke_header = [n + xtra for n in nukes for xtra in ('', '_obs', '_lo_err', '_hi_err')]
+            for gene, gcounts in merged_mfreq_counts.items():
+                with open('%s/%s.csv' % (mfreq_odir, sanitize_name(gene)), csv_wmode()) as gfile:
+                    writer = csv.DictWriter(gfile, ('position', 'mute_freq', 'lo_err', 'hi_err') + tuple(nuke_header))
+                    writer.writeheader()
+                    for position in sorted(gcounts.keys()):
+                        pcounts = gcounts[position]
+                        if pcounts['gl_nuke'] is None:  # with no germline base there is no way to say which of the four counts is unmutated
+                            print('        %s no germline base found for %s position %d, dropping it from the merged mute-freqs' % (color('yellow', 'warning'), color_gene(gene), position))
+                            continue
+                        total = pcounts['total']
+                        n_mutated = total - pcounts[pcounts['gl_nuke']]
+                        mlo, mhi = fraction_uncertainty.err(n_mutated, total)
+                        row = {'position' : position, 'mute_freq' : (float(n_mutated) / total if total > 0 else 0.), 'lo_err' : mlo, 'hi_err' : mhi}
+                        for nuke in nukes:
+                            nlo, nhi = fraction_uncertainty.err(pcounts[nuke], total)
+                            row[nuke] = float(pcounts[nuke]) / total if total > 0 else 0.
+                            row[nuke + '_obs'] = pcounts[nuke]
+                            row[nuke + '_lo_err'], row[nuke + '_hi_err'] = nlo, nhi
+                        writer.writerow(row)
         if include_hmm_cache_files:  # these aren't parameters, but don't want to change the name, either, oh well
             subfns = ['%s/single-chain/persistent-cache-%s.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
             merge_csvs('%s/single-chain/persistent-cache-%s.csv'% (merged_odir, ltmp), subfns)
