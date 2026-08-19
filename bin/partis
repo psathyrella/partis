@@ -245,8 +245,11 @@ def run_partition_refine_jobs_action(args):
     naive_thr = partition_refinement.locuswide_threshold(disjoint_dir, specs, args.locus)
     stop = len(specs) if args.job_count is None else args.job_start + args.job_count
     specs = specs[args.job_start : stop]
+    light_freqs_param_dir = os.path.join(args.parameter_dir, 'hmm', 'mute-freqs') if args.light_freqs_from_parameter_dir else None
+    if light_freqs_param_dir is not None:
+        partition_refinement.validate_mute_freq_tables(light_freqs_param_dir)
     partition_refinement.run_jobs(specs, naive_threshold=naive_thr, overwrite=args.overwrite, locus=args.locus,
-                                  parameter_dir=args.parameter_dir)
+                                  parameter_dir=args.parameter_dir, light_freqs_param_dir=light_freqs_param_dir)
     if len(specs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
         open(partition_refinement.bundle_marker_fname(disjoint_dir, args.job_start), 'w').close()
     print('  refined %d groups' % len(specs))
@@ -1664,6 +1667,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         # bundles, all reading one cached locus-wide threshold primed here.
         if args.partition_refine:
             import partis.partition_refinement as partition_refinement
+            if args.light_freqs_from_parameter_dir:  # check here as well as in each bundle, so a missing table fails before any group runs
+                partition_refinement.validate_mute_freq_tables(os.path.join(getpdir(ltmp), 'hmm', 'mute-freqs'))
             refine_bundles_per_proc = 8  # bundles per concurrency slot
             ha_concurrency = single_proc_concurrency(args)
             rspecs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], ltmp)
@@ -2086,6 +2091,7 @@ subargs['partition'].append({'name' : '--disjoint-groups', 'kwargs' : {'action' 
 subargs['partition'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'When used with --disjoint-groups, further split CDR3 groups by naive hamming fraction into sub-groups. Reduces group sizes for better parallelism and potentially enables HA clustering on smaller sub-groups.'}})
 subargs['partition'].append({'name' : '--partition-refine', 'kwargs' : {'action' : 'store_true', 'help' : 'With --disjoint-groups, run post-partition refinement (partis.partition_refinement) on each group before assembling: heavy chain splits then merges, light chain splits only. Reads each group\'s partition + sw-cache and writes a refined partition; no SW/HMM is re-run.'}})
 subargs['partition'].append({'name' : '--ha-repartition', 'kwargs' : {'action' : 'store_true', 'help' : 'With --disjoint-groups, HA re-partition each group before partition-refine/assemble: keep-or-split HA on every vsearch cluster >= 3, then merge the sub-clusters. Runs as independent per-cluster jobs.'}})
+subargs['partition'].append({'name' : '--light-freqs-from-parameter-dir', 'kwargs' : {'action' : 'store_true', 'help' : 'With --partition-refine on a light locus (igk/igl), source the shared-descent mutation frequencies from --parameter-dir\'s hmm/mute-freqs tables instead of estimating them over the refine input. Removes the frequency null\'s dependence on refine-input (bin) size. Default off, in which case behavior is unchanged.'}})  # temporary: goes away once parameter_dir is a first-class argument to refinement
 subargs['partition'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['partition'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Target maximum sequences per hfrac sub-group. A soft target: bin-packing only fires past %.1fx this value, and a single indivisible component larger than that is emitted whole with a warning. Set to 0 to disable.' % disjointgrouper.BIN_PACK_TOLERANCE}})
 subargs['partition'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
@@ -2110,6 +2116,7 @@ subargs['run-partition-refine-jobs'] = []
 subargs['run-partition-refine-jobs'].append({'name' : '--job-start', 'kwargs' : {'type' : int, 'default' : 0, 'help' : 'Index of the first group to refine (for external array orchestration).'}})
 subargs['run-partition-refine-jobs'].append({'name' : '--job-count', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'Number of groups to refine starting at --job-start (bundled into one array task). Default runs to the end.'}})
 subargs['run-partition-refine-jobs'].append({'name' : '--disjoint-dir', 'kwargs' : {'default' : None, 'help' : 'Explicit path to the disjoint-groups/<locus> dir (overrides the default derived from --workdir).'}})
+subargs['run-partition-refine-jobs'].append({'name' : '--light-freqs-from-parameter-dir', 'kwargs' : {'action' : 'store_true', 'help' : 'see help under \'partition\' action'}})  # temporary, see note under 'partition'
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})

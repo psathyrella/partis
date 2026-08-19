@@ -969,6 +969,189 @@ def split_by_weighted_descent(cluster, uid_muts, freqs, n_seqs, alpha=WEIGHTED_D
     return clusters
 
 
+# ----------------------------------------------------------------------------
+# Light link test, parameter-dir frequency source (opt-in, --light-freqs-from-
+# parameter-dir). Frequencies come from the germline V/J mute-freqs tables in the
+# parameter directory instead of repertoire_mutation_freqs over the refine input, so
+# the null no longer moves with refine-input (bin) size. Added alongside the shipped
+# repertoire-input statistic above; does not alter repertoire_mutation_freqs,
+# weighted_shared_descent_pvalue, _conditional_pvalue or _weight_bins. The V/J
+# germline-frame position mapping below is reused, not re-derived.
+# TEMPORARY: the flag and the light_freqs_param_dir side channel both go away once
+# parameter_dir is a first-class argument to refine_partition/run_jobs; the tables are
+# then read from that and the read becomes unconditional rather than opt-in.
+# ----------------------------------------------------------------------------
+
+_PARAM_MUTE_FREQ_CACHE = {}  # (mute_freq_dir, gene) -> {pos: {base: freq}} or None
+
+
+def load_param_mute_freq_csv(mute_freq_dir, gene):
+    """Per-position mutation frequencies for one germline gene, from
+    <mute_freq_dir>/<gene, '*' -> '_star_'>.csv (parameter-dir hmm/mute-freqs layout).
+    None if the file does not exist or carries no rows (e.g. a light-locus D
+    placeholder, header-only)."""
+    key = (mute_freq_dir, gene)
+    if key in _PARAM_MUTE_FREQ_CACHE:
+        return _PARAM_MUTE_FREQ_CACHE[key]
+    import csv
+    fname = os.path.join(mute_freq_dir, gene.replace('*', '_star_') + '.csv')
+    rows = None
+    if os.path.exists(fname):
+        rows = {}
+        with open(fname) as ffile:
+            for row in csv.DictReader(ffile):
+                rows[int(row['position'])] = {b: float(row[b]) for b in ('A', 'C', 'G', 'T')}
+        if not rows:
+            rows = None
+    _PARAM_MUTE_FREQ_CACHE[key] = rows
+    return rows
+
+
+def param_dir_region_bounds(antn, glfo):
+    """[start, end) bounds for v/d/j in the partition-frame coordinate <antn> is already
+    in, rebuilt from glfo germline lengths since v_gl_seq/d_gl_seq/j_gl_seq are
+    add_implicit_info()-only and absent from these no-recompute annotations."""
+    def gl_len(region, gene, del_5p, del_3p):
+        uneroded = glfo['seqs'].get(region, {}).get(gene)
+        if uneroded is None:
+            return None
+        length = len(uneroded) - del_5p - del_3p
+        return length if length >= 0 else None
+    try:
+        len_v = gl_len('v', antn['v_gene'], antn['v_5p_del'], antn['v_3p_del'])
+        len_d = gl_len('d', antn['d_gene'], antn['d_5p_del'], antn['d_3p_del'])
+        len_j = gl_len('j', antn['j_gene'], antn['j_5p_del'], antn['j_3p_del'])
+    except (KeyError, TypeError):
+        return None
+    if len_v is None or len_d is None or len_j is None:
+        return None
+    start_v = len(antn['fv_insertion'])
+    end_v = start_v + len_v
+    start_d = end_v + len(antn['vd_insertion'])
+    end_d = start_d + len_d
+    start_j = end_d + len(antn['dj_insertion'])
+    end_j = start_j + len_j
+    end_jf = end_j + len(antn['jf_insertion'])
+    return {'start_v': start_v, 'end_v': end_v, 'start_d': start_d, 'end_d': end_d,
+            'start_j': start_j, 'end_j': end_j, 'end_jf': end_jf}
+
+
+def param_dir_classify_pos(pos, bounds):
+    """Region label ('v'/'d'/'j'/'insertion'/'other') for one partition-frame position."""
+    if bounds is None:
+        return 'other'
+    if pos < bounds['start_v']:
+        return 'insertion'  # fv_insertion
+    if pos < bounds['end_v']:
+        return 'v'
+    if pos < bounds['start_d']:
+        return 'insertion'  # vd_insertion
+    if pos < bounds['end_d']:
+        return 'd'
+    if pos < bounds['start_j']:
+        return 'insertion'  # dj_insertion
+    if pos < bounds['end_j']:
+        return 'j'
+    if pos < bounds['end_jf']:
+        return 'insertion'  # jf_insertion
+    return 'other'
+
+
+def param_dir_mutation_freq(pos, base, antn, glfo, mute_freq_dir):
+    """Germline mutation frequency for one (partition-frame position, base) in the frame
+    of <antn> (a partition-frame annotation, matching the frame <pos> is already in).
+    None where there is no germline source: D-region (light loci have no real D) and
+    every insertion (fv/vd/dj/jf) have no germline base by definition; the caller falls
+    back to the existing smoothing floor for these, same as it does today."""
+    bounds = param_dir_region_bounds(antn, glfo)
+    region = param_dir_classify_pos(pos, bounds)
+    if region == 'v':
+        offset = max(0, len(antn['fv_insertion']) - antn['v_5p_del'])
+        gl_pos, gene = pos - offset, antn['v_gene']
+    elif region == 'j':
+        gl_pos, gene = pos - bounds['start_j'] + antn['j_5p_del'], antn['j_gene']
+    elif region == 'd':
+        gl_pos, gene = pos - bounds['start_d'] + antn['d_5p_del'], antn['d_gene']
+    else:
+        return None
+    rows = load_param_mute_freq_csv(mute_freq_dir, gene)
+    if rows is None or gl_pos not in rows:
+        return None
+    return rows[gl_pos].get(base)
+
+
+def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=None):
+    """{(pos, base): freq} for one uid's own mutations, sourced from the parameter
+    directory instead of repertoire_mutation_freqs. 0.0 (the caller's smoothing floor
+    then applies) wherever there is no germline source or no partition-frame annotation.
+
+    counts, if passed, is incremented in place so the caller can report how often the
+    fallback fires and why: 'no_antn' (uid has no partition-frame annotation) and
+    'gene_missing_from_glfo' (the uid's v/d/j gene call is not in <glfo>, so
+    param_dir_region_bounds can't be built and every one of the uid's positions falls
+    back to the smoothing floor with no parameter-dir signal at all)."""
+    antn = uid_part_antns.get(uid)
+    if antn is None:
+        if counts is not None:
+            counts['no_antn'] = counts.get('no_antn', 0) + 1
+        return {(pos, base): 0.0 for pos, base in muts.items()}
+    if counts is not None and param_dir_region_bounds(antn, glfo) is None:
+        counts['gene_missing_from_glfo'] = counts.get('gene_missing_from_glfo', 0) + 1
+    out = {}
+    for pos, base in muts.items():
+        f = param_dir_mutation_freq(pos, base, antn, glfo, mute_freq_dir)
+        out[(pos, base)] = f if f is not None else 0.0
+    return out
+
+
+def weighted_shared_descent_pvalue_param_dir(muts_a, muts_b, freqs_a, freqs_b, n_seqs, grid=WEIGHT_GRID_NATS):
+    """Same statistic as weighted_shared_descent_pvalue, but each sequence's mutation
+    frequencies come from its own parameter-dir table (freqs_a, freqs_b) rather than one
+    shared repertoire-wide table, since the germline frequency of a given position
+    depends on which V/J gene that sequence used. Added alongside the shipped function;
+    does not alter it. Reuses _conditional_pvalue unmodified."""
+    shared = [(pos, base) for pos, base in muts_a.items() if muts_b.get(pos) == base]
+    if not shared:
+        return 1.0
+    pa = _conditional_pvalue(muts_a, shared, freqs_a, n_seqs, grid)
+    pb = _conditional_pvalue(muts_b, shared, freqs_b, n_seqs, grid)
+    return math.exp(0.5 * (math.log(max(pa, _TINY)) + math.log(max(pb, _TINY))))
+
+
+def split_by_weighted_descent_param_dir(cluster, uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs,
+                                         alpha=WEIGHTED_DESCENT_ALPHA, counts=None):
+    """Same greedy non-transitive centroid split as split_by_weighted_descent, but scoring
+    pairs with weighted_shared_descent_pvalue_param_dir (parameter-dir frequencies)
+    instead of a single repertoire-wide table. counts: see uid_param_dir_freqs."""
+    members = list(cluster)
+    n = len(members)
+    if n <= 1:
+        return [list(members)]
+    order = sorted(range(n), key=lambda i: -len(uid_muts.get(members[i], {}) or {}))
+    freq_cache = {u: uid_param_dir_freqs(u, uid_muts.get(u, {}), uid_part_antns, glfo, mute_freq_dir, counts=counts) for u in members}
+    assigned = [False] * n
+    clusters = []
+    for i in order:
+        if assigned[i]:
+            continue
+        assigned[i] = True
+        sub = [members[i]]
+        mi = uid_muts.get(members[i])
+        for o in order:
+            if assigned[o]:
+                continue
+            mo = uid_muts.get(members[o])
+            if not mi or not mo:  # no mutations is no evidence either way
+                continue
+            p = weighted_shared_descent_pvalue_param_dir(
+                mi, mo, freq_cache[members[i]], freq_cache[members[o]], n_seqs)
+            if p < alpha:
+                sub.append(members[o])
+                assigned[o] = True
+        clusters.append(sub)
+    return clusters
+
+
 def _partition_has_real_d(uid_rearr_features):
     """True if any uid carries a real (non-placeholder) D gene (heavy chain).
     Light loci (igk/igl) have no real D, so this is False for them, which is how
@@ -986,7 +1169,8 @@ def _partition_has_real_d(uid_rearr_features):
 
 
 def split_on_shared_descent(partition, uid_info, uid_sw_naives, freqs, n_seqs,
-                            alpha=WEIGHTED_DESCENT_ALPHA):
+                            alpha=WEIGHTED_DESCENT_ALPHA, uid_part_antns=None, glfo=None,
+                            light_freqs_param_dir=None):
     """Light split: split over-merged clusters by weighted shared descent
     (split_by_weighted_descent). Every cluster of size >= 2 is passed to the
     proposer. Light chain only.
@@ -994,9 +1178,17 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, freqs, n_seqs,
     freqs, n_seqs: from repertoire_mutation_freqs over the whole refine input.
     alpha: link threshold for the weighted shared-descent test
     (default WEIGHTED_DESCENT_ALPHA).
+
+    uid_part_antns, glfo, light_freqs_param_dir: opt-in (--light-freqs-from-parameter-dir).
+    When light_freqs_param_dir is set, each cluster is split with
+    split_by_weighted_descent_param_dir instead, which sources per-uid frequencies from
+    that directory rather than from <freqs>; <n_seqs> is still used (for the smoothing
+    floor). Default (light_freqs_param_dir=None) is unchanged from before this option
+    existed.
     """
     result = []
     n_resplit = n_skipped = n_input_seqs = 0
+    param_dir_counts = {} if light_freqs_param_dir is not None else None
 
     for cluster in partition:
         if len(cluster) < 2:
@@ -1011,7 +1203,12 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, freqs, n_seqs,
                 uid_muts[uid] = get_mutations_with_base(uid_info[uid]['seq'], uid_sw_naives[uid])
 
         n_input_seqs += len(cluster)
-        pieces = split_by_weighted_descent(list(cluster), uid_muts, freqs, n_seqs, alpha)
+        if light_freqs_param_dir is not None:
+            pieces = split_by_weighted_descent_param_dir(
+                list(cluster), uid_muts, uid_part_antns, glfo, light_freqs_param_dir, n_seqs, alpha,
+                counts=param_dir_counts)
+        else:
+            pieces = split_by_weighted_descent(list(cluster), uid_muts, freqs, n_seqs, alpha)
         result.extend(pieces)
         if len(pieces) > 1:
             n_resplit += 1
@@ -1020,6 +1217,15 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, freqs, n_seqs,
     print('  shared-descent split [alpha=%.3g]: %d re-split (%d seqs processed), %d skipped, %d -> %d clusters (%d singletons)' % (
         alpha, n_resplit, n_input_seqs, n_skipped,
         len(partition), len(result), n_result_singletons), flush=True)
+    if param_dir_counts:
+        from partis import utils
+        n_gene_missing = param_dir_counts.get('gene_missing_from_glfo', 0)
+        n_no_antn = param_dir_counts.get('no_antn', 0)
+        if n_gene_missing > 0 or n_no_antn > 0:
+            print('  %s parameter-dir freqs: %d uid-lookups had a v/d/j gene call missing from glfo '
+                  '(no region bounds, every position fell back to the smoothing floor with no parameter-dir '
+                  'signal), %d uids had no partition-frame annotation' % (
+                      utils.wrnstr(), n_gene_missing, n_no_antn), flush=True)
     return result
 
 
@@ -1072,12 +1278,15 @@ def calc_metrics(true_partition, inf_partition):
     return purity, completeness
 
 
+# light_freqs_param_dir is a temporary side channel; delete it once parameter_dir is
+# threaded into refine_partition/run_jobs as a first-class argument, and read from that.
 def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None,
                      naive_threshold=None,
                      min_agreement=0.15, min_fp_positions=0, skip_singleton_merge=True,
                      min_cluster_size=2, light_chain=None, alpha=WEIGHTED_DESCENT_ALPHA,
                      parameter_dir=None, length_veto_min_shared=LENGTH_VETO_MIN_SHARED,
-                     verbose=True, random_seed=None):
+                     verbose=True, random_seed=None,
+                     light_freqs_param_dir=None, uid_part_antns=None, glfo=None):
     """Run refinement and return the refined partition.
 
     partition: list of clusters, each a list of uids.
@@ -1096,6 +1305,13 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     length veto takes: its length cutoff is derived from it here, so any caller passing the
     same dir refines the same way. Absent, the veto warns and stays off; present but
     incomplete, it raises instead. It reaches only the heavy locus.
+
+    light_freqs_param_dir, uid_part_antns, glfo: opt-in (--light-freqs-from-parameter-dir),
+    light chain only. When light_freqs_param_dir is set, the shared-descent split sources
+    per-uid mutation frequencies from this directory's hmm/mute-freqs csvs (keyed by each
+    uid's own V/J gene call) instead of repertoire_mutation_freqs over the refine input;
+    uid_part_antns and glfo (both from read_refine_inputs()) are then required. Default
+    (light_freqs_param_dir=None) leaves behavior exactly as before this option existed.
 
     random_seed: seeds the global RNG. Refinement reads no RNG, so this changes nothing.
     """
@@ -1132,11 +1348,20 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
 
     if light_chain:
         if verbose:
-            print('\n=== light: shared-descent split (alpha=%.3g) ===' % alpha, flush=True)
+            print('\n=== light: shared-descent split (alpha=%.3g%s) ===' % (
+                alpha, ', freqs from parameter dir' if light_freqs_param_dir else ''), flush=True)
         tstart = time.time()
         wd_freqs, wd_n_seqs = repertoire_mutation_freqs(uid_to_muts_sw)
-        out = split_on_shared_descent(partition, uid_info, uid_sw_naives, wd_freqs, wd_n_seqs,
-                                      alpha=alpha)
+        if light_freqs_param_dir is not None:
+            if uid_part_antns is None or glfo is None:
+                raise Exception('--light-freqs-from-parameter-dir requires uid_part_antns and glfo '
+                                 '(pass through from read_refine_inputs())')
+            out = split_on_shared_descent(partition, uid_info, uid_sw_naives, wd_freqs, wd_n_seqs,
+                                          alpha=alpha, uid_part_antns=uid_part_antns, glfo=glfo,
+                                          light_freqs_param_dir=light_freqs_param_dir)
+        else:
+            out = split_on_shared_descent(partition, uid_info, uid_sw_naives, wd_freqs, wd_n_seqs,
+                                          alpha=alpha)
         print('  timing: shared-descent split %.2f s' % (time.time() - tstart), flush=True)
         return out
 
@@ -1466,17 +1691,33 @@ def locuswide_threshold(disjoint_dir, specs, locus, overwrite=False):
     return float(cfo['threshold'])
 
 
+def validate_mute_freq_tables(mfdir):
+    """Check the per-gene mute-freqs tables in <mfdir> are there. Any locus can have them; the
+    shared-descent split is the only consumer today. Raises rather than falling back: without them
+    the split would silently revert to estimating frequencies over its own input, which is the
+    scope dependence reading them removes."""
+    import glob
+    if not os.path.isdir(mfdir) or len(glob.glob('%s/*.csv' % mfdir)) == 0:
+        raise Exception('no per-gene mutation frequency tables in %s. a parameter dir merged before '
+                        'mute-freqs merging existed will not have them, so re-merge into a fresh dir.' % mfdir)
+
+
 def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter_dir=None,
-             length_veto_min_shared=LENGTH_VETO_MIN_SHARED):
+             length_veto_min_shared=LENGTH_VETO_MIN_SHARED, light_freqs_param_dir=None):
     """Run refinement on a list of group specs (from group_specs), writing each group's
     refined partition, with the production defaults (singleton-skip, junction guard, vdj
     override) that the standalone CLI and integrated pipeline both use. Groups whose
     refined output already exists are skipped unless <overwrite>. The naive threshold
     defaults to a locus-wide estimate over <specs>; when running a slice, pass one
     estimated over the full group list. Passing <locus> skips that estimate on a locus with
-    no D gene, where no operator reads it, and pins the heavy/light choice for every group.
+    no D gene, where no operator reads it, and pins the heavy/light fork for every group.
     <parameter_dir> is the locus-level parameter dir, and is passed straight through: refine
-    derives the heavy split's length veto from it."""
+    derives the heavy split's length veto from it.
+
+    light_freqs_param_dir: opt-in (--light-freqs-from-parameter-dir), None by default. When
+    set, the light shared-descent split sources its mutation frequencies from this
+    directory's per-gene mute-freqs csvs instead of the refine input; see
+    refine_partition()."""
     from argparse import Namespace
     from partis import utils
     oargs = Namespace(overwrite=overwrite)
@@ -1497,7 +1738,12 @@ def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter
             uid_rearr_features=inp['uid_rearr_features'],
             naive_threshold=naive_threshold, light_chain=light_chain,
             parameter_dir=parameter_dir, length_veto_min_shared=length_veto_min_shared,
-            skip_singleton_merge=True, min_agreement=0.15, verbose=False)
+            skip_singleton_merge=True, min_agreement=0.15, verbose=False,
+            light_freqs_param_dir=light_freqs_param_dir,
+            uid_part_antns=inp['uid_part_antns'] if light_freqs_param_dir else None,
+            # gene calls on uid_part_antns are partition-frame (from spec['input']), so the glfo
+            # that resolves them has to be part_glfo, not the sw glfo inp['glfo'] (sw_cache_fname)
+            glfo=inp['part_glfo'] if light_freqs_param_dir else None)
         cfo = write_full_output(spec['refined_out'], inp['part_glfo'], refined, inp['uid_part_antns'])
         print('  timing: group %s total %.2f s' % (os.path.dirname(spec['refined_rel']), time.time() - tgroup), flush=True)
         n_run += 1
