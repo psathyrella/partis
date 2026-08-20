@@ -988,6 +988,7 @@ def split_by_weighted_descent(cluster, uid_muts, freqs, n_seqs, alpha=WEIGHTED_D
 
 _PARAM_MUTE_FREQ_CACHE = {}  # (mute_freq_dir, gene) -> {pos: {base: freq, _N_OBS_KEY: n}} or None
 _N_OBS_KEY = 'n_obs'  # not a base, so no collision with the A/C/G/T keys beside it
+NO_GERMLINE_FREQ = 0.25  # uniform over the four bases where there is no germline source
 
 
 def load_param_mute_freq_csv(mute_freq_dir, gene):
@@ -1097,8 +1098,8 @@ def param_dir_mutation_freq(pos, base, antn, glfo, mute_freq_dir):
 
 def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=None):
     """({(pos, base): freq}, {(pos, base): n_obs}) for one uid's own mutations, sourced
-    from the parameter directory. 0.0 wherever there is no germline source or no
-    partition-frame annotation; those (pos, base) are absent from the n_obs map.
+    from the parameter directory. NO_GERMLINE_FREQ wherever there is no germline source or
+    no partition-frame annotation; those (pos, base) are absent from the n_obs map.
 
     counts, if passed, is incremented in place so the caller can report how often the
     fallback fires and why: 'no_antn' (uid has no partition-frame annotation) and
@@ -1109,13 +1110,13 @@ def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=N
     if antn is None:
         if counts is not None:
             counts['no_antn'] = counts.get('no_antn', 0) + 1
-        return {(pos, base): 0.0 for pos, base in muts.items()}, {}
+        return {(pos, base): NO_GERMLINE_FREQ for pos, base in muts.items()}, {}
     if counts is not None and param_dir_region_bounds(antn, glfo) is None:
         counts['gene_missing_from_glfo'] = counts.get('gene_missing_from_glfo', 0) + 1
     out, obs = {}, {}
     for pos, base in muts.items():
         f, n_obs = param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir)
-        out[(pos, base)] = f if f is not None else 0.0
+        out[(pos, base)] = f if f is not None else NO_GERMLINE_FREQ
         if n_obs is not None:
             obs[(pos, base)] = n_obs
     return out, obs
