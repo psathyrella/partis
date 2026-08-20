@@ -1557,11 +1557,24 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
     import os
     from partis import utils
     from partis import clusterpath
+    from partis import indelutils
 
     def _annotate(uids):
         antn = utils.synthesize_multi_seq_line_from_reco_info(uids, ant_info, warn=False)
         utils.remove_all_implicit_info(antn)
         utils.add_implicit_info(glfo, antn, reset_indel_genes=True)
+        return antn
+
+    def _fast_singleton(uid):
+        # slice the stored annotation instead of rebuilding its implicit info, same result for one uid
+        src = ant_info[uid]
+        iseq = src['unique_ids'].index(uid)
+        if indelutils.has_indels_line(src, iseq):  # these need _annotate's reset_indel_genes
+            return None
+        antn = utils.synthesize_single_seq_line(src, iseq)
+        antn['indelfos'] = [indelutils.get_empty_indel()]
+        for key in utils.special_indel_columns_for_output:  # writer takes key order from indelfos
+            antn.pop(key, None)
         return antn
 
     def _pad_to_uniform_length(antns):
@@ -1598,7 +1611,8 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
         if len(good) == 0:
             continue
         try:
-            annotation_list.append(_annotate(good))
+            antn = _fast_singleton(good[0]) if len(good) == 1 else None
+            annotation_list.append(antn if antn is not None else _annotate(good))
             out_partition.append(list(good))
         except Exception as e:  # fall back to singletons on synthesis failure
             first_err = first_err if first_err is not None else repr(e)
