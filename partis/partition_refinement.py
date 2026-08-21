@@ -365,11 +365,41 @@ def _rearr_prob_table_specs():
 REARR_PROB_TABLE_SPECS = _rearr_prob_table_specs()
 
 
+def _insertion_base_lprobs(tdir):
+    """{boundary: expected log10 probability per inserted base}, for each of utils.boundaries
+    ('vd', 'dj'). Sourced from <tdir>/<boundary>_insertion_content.csv, the same real per-base
+    composition recombinator.read_insertion_content() reads, rather than assuming a uniform
+    0.25 per base; falls back to uniform (log10(0.25), the prior constant) where that file is
+    missing, empty or unreadable, same convention as recombinator's own default_content().
+    Since uid_rearr_features carries only insertion length and not the inserted bases
+    themselves, this is the base composition's entropy (in log10 units), the expected
+    per-base log-probability, not a lookup of any specific base."""
+    from partis import utils
+    uniform_lprob = math.log10(0.25)
+    lprobs = {}
+    for bound in utils.boundaries:
+        counts = {}
+        try:
+            with open('%s/%s_insertion_content.csv' % (tdir, bound)) as cfile:
+                for row in csv.DictReader(cfile):
+                    counts[row['%s_insertion_content' % bound]] = float(row['count'])
+        except (IOError, OSError, KeyError, ValueError):
+            counts = {}
+        total = sum(counts.values())
+        if total <= 0:
+            lprobs[bound] = uniform_lprob
+            continue
+        lprobs[bound] = sum((counts.get(n, 0.) / total) * math.log10(counts.get(n, 0.) / total)
+                             for n in utils.nukes if counts.get(n, 0.) > 0)
+    return lprobs
+
+
 def read_rearr_prob_tables(parameter_dir):
     """Read the P(r) factorisation's count tables from <parameter_dir>/hmm (the locus-level
     parameter dir) and normalise each within its conditioning variable. Returns
-    {name: {(value, conditioned-on...): probability}}, or None if <parameter_dir> is None.
-    Raises if a dir was passed but a table is missing or unreadable."""
+    {name: {(value, conditioned-on...): probability}}, plus a '_insertion_lprob' key (see
+    _insertion_base_lprobs()), or None if <parameter_dir> is None. Raises if a dir was passed
+    but a table is missing or unreadable."""
     if parameter_dir is None:
         return None
     tdir = '%s/hmm' % parameter_dir
@@ -389,6 +419,7 @@ def read_rearr_prob_tables(parameter_dir):
             tot = sum(cfo.values())
             for val, count in cfo.items():
                 tables[name][(val,) + cond] = count / tot if tot > 0 else 0.
+    tables['_insertion_lprob'] = _insertion_base_lprobs(tdir)
     return tables
 
 
@@ -405,15 +436,18 @@ def get_rearrangement(feat):
 
 def rearrangement_lprob(rearr, tables):
     """log10 P(r): the probability of generating the single inferred rearrangement (from
-    get_rearrangement()), as the product of the parameter dir's marginals times 0.25 per inserted
-    base. Comparable only against values from the same factorisation."""
+    get_rearrangement()), as the product of the parameter dir's marginals times the expected
+    per-base probability from its own insertion content (see _insertion_base_lprobs(), and
+    read_rearr_prob_tables() for where tables['_insertion_lprob'] comes from). Comparable only
+    against values from the same factorisation."""
     v, d, j, v_3p_del, d_5p_del, d_3p_del, j_5p_del, len_vd, len_dj = rearr
     terms = [('v', (v,)), ('d', (d,)), ('j', (j,)),
              ('v_3p_del', (str(v_3p_del), v)), ('d_5p_del', (str(d_5p_del), d)),
              ('d_3p_del', (str(d_3p_del), d)), ('j_5p_del', (str(j_5p_del), j)),
              ('len_vd', (str(len_vd), d)), ('len_dj', (str(len_dj), j))]
     lprob = sum(math.log10(max(tables[name].get(key, 0.), REARR_PROB_MIN)) for name, key in terms)
-    return lprob + (len_vd + len_dj) * math.log10(0.25)
+    ins_lprob = tables.get('_insertion_lprob', {})
+    return lprob + len_vd * ins_lprob.get('vd', math.log10(0.25)) + len_dj * ins_lprob.get('dj', math.log10(0.25))
 
 
 def get_cluster_rearrangement(uids, uid_rearr_features):
@@ -484,9 +518,11 @@ def sample_rearr_prob_median(tables, n_draws=REARR_PROB_SAMPLE_DRAWS, seed=REARR
         groups[reg] = _index_groups(picks)
     for name, reg in [('v_3p_del', 'v'), ('d_5p_del', 'd'), ('d_3p_del', 'd'), ('j_5p_del', 'j')]:
         rearr_lprobs += _draw_conditioned(rng, choices[name], groups[reg], genes[reg], n_draws)[1]
+    ins_lprob = tables.get('_insertion_lprob', {})
     for name, reg in [('len_vd', 'd'), ('len_dj', 'j')]:
         lens, lprobs = _draw_conditioned(rng, choices[name], groups[reg], genes[reg], n_draws)
-        rearr_lprobs += lprobs + lens * math.log10(0.25)  # each inserted base is uniform over 4
+        bound = name[len('len_'):]  # 'vd' or 'dj'
+        rearr_lprobs += lprobs + lens * ins_lprob.get(bound, math.log10(0.25))
     return float(np.median(rearr_lprobs))
 
 
