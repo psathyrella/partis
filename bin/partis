@@ -1579,7 +1579,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         print('%s %s with disjoint groups:' % (utils.color('blue_bkg', 'partition'), utils.color('blue', ltmp)))
         if args.partition_refine and utils.has_d_gene(ltmp):  # check up front for an incomplete parameter dir
             import partis.partition_refinement as partition_refinement
-            partition_refinement.validate_pgen_tables(getpdir(ltmp))
+            partition_refinement.validate_rearr_prob_tables(getpdir(ltmp))
 
         # step 1: CDR3 grouping
         manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
