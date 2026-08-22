@@ -24,6 +24,7 @@ import csv
 import json
 import math
 import os
+import random
 import time
 from collections import defaultdict
 import numpy as np
@@ -862,10 +863,127 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
 # member's mutation set, so it stays defined for a cluster of any size.
 # ----------------------------------------------------------------------------
 
-WEIGHTED_DESCENT_ALPHA = 0.005  # link threshold (weighted-surprisal tail cutoff)
 WEIGHT_GRID_NATS = 0.25  # bin width for the exact tail dp
 FREQ_SMOOTH_COUNT = 0.5  # count floor for an unobserved (position, base)
 _TINY = 1e-300
+
+# derive_bin_alpha's fdr targets and null-tail fit constants
+WEIGHTED_DESCENT_FDR_PRIMARY = 0.05
+WEIGHTED_DESCENT_FDR_RETRY = 0.25
+WEIGHTED_DESCENT_FIT_FLOOR = 1e-3  # p above this is signal-free bulk, fitted then extrapolated inwards
+WEIGHTED_DESCENT_MIN_TAIL_N = 10  # degenerate-fit floor, not a trust threshold
+WEIGHTED_DESCENT_SE_Z = 1.0  # rate_hat - z*SE, SE = rate_hat/sqrt(n)
+WEIGHTED_DESCENT_RATE_FLOOR = 1e-6
+WEIGHTED_DESCENT_CAND = [10 ** (-e / 2.0) for e in range(40, 1, -1)]  # log-spaced candidates, tightest first
+
+
+def _fit_null_tail_se(sample, z=WEIGHTED_DESCENT_SE_Z, min_n=WEIGHTED_DESCENT_MIN_TAIL_N):
+    """Exponential fit to u = -log10(p) over the signal-free bulk, rate pulled down by z*SE.
+    Returns (rate, u0, frac), or None below <min_n> tail points or on a degenerate fit."""
+    u0 = -math.log10(WEIGHTED_DESCENT_FIT_FLOOR)
+    tail = [-math.log10(p) for p in sample if 0 < p < WEIGHTED_DESCENT_FIT_FLOOR]
+    n = len(tail)
+    if n < min_n:
+        return None
+    frac = n / float(len(sample))
+    mean_excess = sum(u - u0 for u in tail) / n
+    if mean_excess <= 0:
+        return None
+    rate_hat = 1.0 / mean_excess
+    se = rate_hat / math.sqrt(n)
+    rate = max(rate_hat - z * se, WEIGHTED_DESCENT_RATE_FLOOR)
+    return rate, u0, frac
+
+
+def _expected_null_below(cut, fit, n_total):
+    rate, u0, frac = fit
+    u = -math.log10(cut)
+    if u <= u0:
+        return None  # inside the fitted region, so the fit says nothing useful
+    return n_total * frac * math.exp(-rate * (u - u0))
+
+
+def _fdr_cutoff(target, fit, counts, n_total):
+    """Loosest candidate in WEIGHTED_DESCENT_CAND whose extrapolated null share stays under <target>."""
+    best = None
+    for cut, cnt in zip(WEIGHTED_DESCENT_CAND, counts):
+        exp_null = _expected_null_below(cut, fit, n_total)
+        if exp_null is None or cnt == 0:
+            continue
+        if min(1.0, exp_null / float(cnt)) <= target:  # keep scanning: loosest passing cutoff wins
+            best = cut
+    return best
+
+
+def derive_bin_alpha(sample, counts, n_total):
+    """Fit the null tail, then WEIGHTED_DESCENT_FDR_PRIMARY with one retry at WEIGHTED_DESCENT_FDR_RETRY. Returns
+    (alpha, diag), alpha None if the fit fails or neither target is reachable."""
+    fit = _fit_null_tail_se(sample)
+    if fit is None:
+        return None, {'fit_rate': None, 'fit_frac': None, 'rule': None}
+    diag = {'fit_rate': fit[0], 'fit_frac': fit[2]}
+    for target in (WEIGHTED_DESCENT_FDR_PRIMARY, WEIGHTED_DESCENT_FDR_RETRY):
+        cutoff = _fdr_cutoff(target, fit, counts, n_total)
+        if cutoff is not None:
+            return cutoff, dict(diag, rule='fdr:%.3g' % target)
+    return None, dict(diag, rule=None)
+
+
+def _scan_bin_full_pairs(clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs,
+                          counts=None, sample_cap=2000000, seed=1):
+    """Full within-cluster pairwise scan across every cluster in one bin, one shared
+    _PerUidPvalCache. Returns (pair_pvals, sample, cand_counts, n_total): pair_pvals is
+    {cluster_index: {(u, v): p}} for p < 1.0 pairs, reused by split_by_weighted_descent so the
+    final split needs no further dp; sample is a reservoir sample of p for the null-tail fit;
+    cand_counts is the exact (unsampled) count of p below each WEIGHTED_DESCENT_CAND candidate."""
+    rng = random.Random(seed)
+    cache = _PerUidPvalCache(n_seqs, WEIGHT_GRID_NATS)
+    freq_cache, obs_cache = {}, {}
+    pair_pvals = {}
+    sample, n_seen, n_total = [], 0, 0
+    cand_counts = [0] * len(WEIGHTED_DESCENT_CAND)
+    for ci, (cluster, uid_muts) in enumerate(clusters_uid_muts):
+        members = list(cluster)
+        n = len(members)
+        if n < 2:
+            continue
+        order = sorted(range(n), key=lambda i: -len(uid_muts.get(members[i], {}) or {}))
+        for u in members:
+            if u not in freq_cache:
+                freq_cache[u], obs_cache[u] = uid_param_dir_freqs(
+                    u, uid_muts.get(u, {}), uid_part_antns, glfo, mute_freq_dir, counts=counts)
+        pairs_here = {}
+        for idx, i in enumerate(order):
+            mi = uid_muts.get(members[i])
+            if not mi:
+                continue
+            ui = members[i]
+            for o in order[idx + 1:]:
+                mo = uid_muts.get(members[o])
+                if not mo:
+                    continue
+                uo = members[o]
+                p = weighted_shared_descent_pvalue(
+                    mi, mo, freq_cache[ui], freq_cache[uo], n_seqs,
+                    n_obs_a=obs_cache[ui], n_obs_b=obs_cache[uo],
+                    cache=cache, uid_a=ui, uid_b=uo)
+                if p >= 1.0:
+                    continue
+                pairs_here[(ui, uo)] = p
+                n_total += 1
+                for k, cut in enumerate(WEIGHTED_DESCENT_CAND):
+                    if p < cut:
+                        cand_counts[k] += 1
+                if len(sample) < sample_cap:
+                    sample.append(p)
+                else:
+                    j = rng.randint(0, n_seen)
+                    if j < sample_cap:
+                        sample[j] = p
+                n_seen += 1
+        if pairs_here:
+            pair_pvals[ci] = pairs_here
+    return pair_pvals, sample, cand_counts, n_total
 
 
 def _weight_bins(muts, freqs, n_seqs, grid, n_obs=None):
@@ -1152,20 +1270,33 @@ def weighted_shared_descent_pvalue(muts_a, muts_b, freqs_a, freqs_b, n_seqs, gri
 
 
 def split_by_weighted_descent(cluster, uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs,
-                               alpha=WEIGHTED_DESCENT_ALPHA, counts=None):
+                               alpha, counts=None, pair_pvals=None):
     """Split one cluster by weighted shared descent, assigning members to non-transitive
     greedy centroids, scoring each pair against the two sequences' own parameter-dir
     frequencies rather than a single locus-wide table. Returns a list of sub-clusters
-    (lists of uids). counts: see uid_param_dir_freqs."""
+    (lists of uids). counts: see uid_param_dir_freqs.
+
+    pair_pvals: optional {(u, v): p} from _scan_bin_full_pairs. When given, this is a pure
+    dict-lookup pass with no further p-value computation."""
     members = list(cluster)
     n = len(members)
     if n <= 1:
         return [list(members)]
     order = sorted(range(n), key=lambda i: -len(uid_muts.get(members[i], {}) or {}))
-    cache = {u: uid_param_dir_freqs(u, uid_muts.get(u, {}), uid_part_antns, glfo, mute_freq_dir, counts=counts) for u in members}
-    freq_cache = {u: fo[0] for u, fo in cache.items()}
-    obs_cache = {u: fo[1] for u, fo in cache.items()}
-    pval_cache = _PerUidPvalCache(n_seqs, WEIGHT_GRID_NATS)
+    if pair_pvals is None:
+        cache = {u: uid_param_dir_freqs(u, uid_muts.get(u, {}), uid_part_antns, glfo, mute_freq_dir, counts=counts) for u in members}
+        freq_cache = {u: fo[0] for u, fo in cache.items()}
+        obs_cache = {u: fo[1] for u, fo in cache.items()}
+        pval_cache = _PerUidPvalCache(n_seqs, WEIGHT_GRID_NATS)
+
+    def pval(ui, mi, uo, mo):
+        if pair_pvals is not None:
+            return pair_pvals.get((ui, uo), pair_pvals.get((uo, ui), 1.0))
+        return weighted_shared_descent_pvalue(
+            mi, mo, freq_cache[ui], freq_cache[uo], n_seqs,
+            n_obs_a=obs_cache[ui], n_obs_b=obs_cache[uo],
+            cache=pval_cache, uid_a=ui, uid_b=uo)
+
     assigned = [False] * n
     clusters = []
     for i in order:
@@ -1182,11 +1313,7 @@ def split_by_weighted_descent(cluster, uid_muts, uid_part_antns, glfo, mute_freq
             if not mi or not mo:  # no mutations is no evidence either way
                 continue
             uo = members[o]
-            p = weighted_shared_descent_pvalue(
-                mi, mo, freq_cache[ui], freq_cache[uo], n_seqs,
-                n_obs_a=obs_cache[ui], n_obs_b=obs_cache[uo],
-                cache=pval_cache, uid_a=ui, uid_b=uo)
-            if p < alpha:
+            if pval(ui, mi, uo, mo) < alpha:
                 sub.append(members[o])
                 assigned[o] = True
         clusters.append(sub)
@@ -1210,7 +1337,7 @@ def _partition_has_real_d(uid_rearr_features):
 
 
 def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, glfo, mute_freq_dir,
-                            n_seqs, alpha=WEIGHTED_DESCENT_ALPHA):
+                            n_seqs, alpha=None):
     """Light split: split over-merged clusters by weighted shared descent
     (split_by_weighted_descent). Every cluster of size >= 2 is passed to the
     proposer. Light chain only.
@@ -1218,36 +1345,61 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, 
     uid_part_antns, glfo, mute_freq_dir: source each uid's own V/J germline mute-freqs
     table (see uid_param_dir_freqs). n_seqs is the fallback smoothing floor for positions
     the tables cannot cover (insertions, D).
-    alpha: link threshold for the weighted shared-descent test
-    (default WEIGHTED_DESCENT_ALPHA).
-    """
+
+    alpha: link threshold. None (default): derive one per-bin threshold via derive_bin_alpha,
+    no split at all for this bin if that fails. Pass an explicit float to use one fixed
+    threshold for every cluster instead."""
     result = []
     n_resplit = n_skipped = n_input_seqs = 0
     param_dir_counts = {}
 
+    clusters_uid_muts = []
     for cluster in partition:
         if len(cluster) < 2:
             result.append(cluster)
             n_skipped += 1
             continue
-
         # per-cell mutations vs the SW naive, for the proposer
         uid_muts = {}
         for uid in cluster:
             if uid in uid_sw_naives and uid in uid_info:
                 uid_muts[uid] = get_mutations_with_base(uid_info[uid]['seq'], uid_sw_naives[uid])
-
         n_input_seqs += len(cluster)
+        clusters_uid_muts.append((cluster, uid_muts))
+
+    bin_alpha, pair_pvals = alpha, {}
+    if alpha is None:
+        pair_pvals, sample, cand_counts, n_scanned = _scan_bin_full_pairs(
+            clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, counts=param_dir_counts)
+        bin_alpha, fit_diag = derive_bin_alpha(sample, cand_counts, n_scanned)
+        if fit_diag['fit_rate'] is None:
+            print('  shared-descent null fit: FAILED (fewer than %d tail p-values in %d pairs scanned)' % (
+                WEIGHTED_DESCENT_MIN_TAIL_N, n_scanned), flush=True)
+        else:
+            print('  shared-descent null fit: rate=%.4g frac=%.4g (%d pairs scanned)' % (
+                fit_diag['fit_rate'], fit_diag['fit_frac'], n_scanned), flush=True)
+        if bin_alpha is None:
+            print('  shared-descent: no cutoff met fdr:%.3g or the fdr:%.3g retry -- NO ACTION, '
+                  'all %d clusters in this bin left unchanged' % (
+                      WEIGHTED_DESCENT_FDR_PRIMARY, WEIGHTED_DESCENT_FDR_RETRY, len(clusters_uid_muts)), flush=True)
+        else:
+            print('  shared-descent: cutoff %.4g derived via %s' % (bin_alpha, fit_diag['rule']), flush=True)
+
+    for ci, (cluster, uid_muts) in enumerate(clusters_uid_muts):
+        if bin_alpha is None:
+            result.append(cluster)  # no defensible cutoff for this bin: leave every cluster as-is
+            continue
         pieces = split_by_weighted_descent(
-            list(cluster), uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, alpha,
-            counts=param_dir_counts)
+            list(cluster), uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, bin_alpha,
+            counts=param_dir_counts, pair_pvals=pair_pvals.get(ci) if alpha is None else None)
         result.extend(pieces)
         if len(pieces) > 1:
             n_resplit += 1
 
     n_result_singletons = sum(1 for c in result if len(c) == 1)
-    print('  shared-descent split [alpha=%.3g]: %d re-split (%d seqs processed), %d skipped, %d -> %d clusters (%d singletons)' % (
-        alpha, n_resplit, n_input_seqs, n_skipped,
+    alpha_label = '%.3g' % bin_alpha if bin_alpha is not None else 'none (no split)'
+    print('  shared-descent split [alpha=%s]: %d re-split (%d seqs processed), %d skipped, %d -> %d clusters (%d singletons)' % (
+        alpha_label, n_resplit, n_input_seqs, n_skipped,
         len(partition), len(result), n_result_singletons), flush=True)
     n_gene_missing = param_dir_counts.get('gene_missing_from_glfo', 0)
     n_no_antn = param_dir_counts.get('no_antn', 0)
@@ -1312,7 +1464,7 @@ def calc_metrics(true_partition, inf_partition):
 def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None,
                      naive_threshold=None,
                      min_agreement=0.15, min_fp_positions=0, skip_singleton_merge=True,
-                     min_cluster_size=2, light_chain=None, alpha=WEIGHTED_DESCENT_ALPHA,
+                     min_cluster_size=2, light_chain=None, alpha=None,
                      parameter_dir=None, length_veto_min_shared=LENGTH_VETO_MIN_SHARED,
                      verbose=True, random_seed=None,
                      mute_freq_dir=None, uid_part_antns=None, glfo=None):
@@ -1324,11 +1476,12 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     uid_rearr_features: uid -> {'vdj': (v, d, j), 'v_3p_del', 'j_5p_del', 'd_5p_del',
     'd_3p_del', 'len_vd', 'len_dj'}.
 
-    Which operators run depends on chain, since each is built on the signal its locus
-    provides: the heavy locus splits on naive identity then merges on naive similarity,
-    light loci split on shared descent and nothing else. light_chain: if None, inferred
-    from D-gene presence in uid_rearr_features.
-    alpha: link threshold for the light shared-descent test.
+    Which operators run forks on chain, since each is built on the signal its locus
+    provides: heavy splits on naive identity then merges on naive similarity, light
+    splits on shared descent and nothing else. light_chain: if None, inferred from
+    D-gene presence in uid_rearr_features.
+    alpha: light shared-descent link threshold. None (default): derive per-bin, see
+    split_on_shared_descent.
 
     parameter_dir: the locus-level parameter dir, and the only input the heavy locus's
     length veto takes: its length cutoff is derived from it here, so any caller passing the
@@ -1378,7 +1531,8 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
             raise Exception('light-chain refine requires mute_freq_dir, uid_part_antns and glfo '
                              '(pass through from read_refine_inputs())')
         if verbose:
-            print('\n=== light: shared-descent split (alpha=%.3g) ===' % alpha, flush=True)
+            alpha_label = '%.3g' % alpha if alpha is not None else 'auto'
+            print('\n=== light: shared-descent split (alpha=%s) ===' % alpha_label, flush=True)
         tstart = time.time()
         out = split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, glfo,
                                       mute_freq_dir, len(uid_to_muts_sw), alpha=alpha)
