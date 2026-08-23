@@ -25,6 +25,8 @@ import json
 import math
 import os
 import random
+import struct
+import tempfile
 import time
 from collections import defaultdict
 import numpy as np
@@ -929,30 +931,54 @@ def derive_bin_alpha(sample, counts, n_total):
     return None, dict(diag, rule=None)
 
 
-def _scan_bin_full_pairs(clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs,
+_PAIR_BLOCK_HEADER = '<I'  # n_pairs in this cluster's block
+_PAIR_RECORD = '<iif'  # (i, o): positions in that cluster's own member list; p: float32
+_PAIR_RECORD_SIZE = struct.calcsize(_PAIR_RECORD)
+
+
+def _write_pair_block(spill_f, pairs_here):
+    """Append one cluster's block (count header, then that many (i, o, p) records) to the
+    bin's spill file. Always writes a block, even count 0, to stay in lockstep with
+    clusters_uid_muts for the sequential re-read."""
+    spill_f.write(struct.pack(_PAIR_BLOCK_HEADER, len(pairs_here)))
+    for i, o, p in pairs_here:
+        spill_f.write(struct.pack(_PAIR_RECORD, i, o, p))
+
+
+def _read_pair_block(spill_f):
+    """Read back one _write_pair_block() block. Returns {(i, o): p}, or None for an empty
+    block (caller falls back to split_by_weighted_descent's own recompute)."""
+    n_pairs, = struct.unpack(_PAIR_BLOCK_HEADER, spill_f.read(struct.calcsize(_PAIR_BLOCK_HEADER)))
+    if n_pairs == 0:
+        return None
+    buf = spill_f.read(_PAIR_RECORD_SIZE * n_pairs)
+    return {(i, o): p for i, o, p in struct.iter_unpack(_PAIR_RECORD, buf)}
+
+
+def _scan_bin_full_pairs(clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, spill_f,
                           counts=None, sample_cap=2000000, seed=1):
     """Full within-cluster pairwise scan across every cluster in one bin, one shared
-    _PerUidPvalCache. Returns (pair_pvals, sample, cand_counts, n_total): pair_pvals is
-    {cluster_index: {(u, v): p}} for p < 1.0 pairs, reused by split_by_weighted_descent so the
-    final split needs no further dp; sample is a reservoir sample of p for the null-tail fit;
-    cand_counts is the exact (unsampled) count of p below each WEIGHTED_DESCENT_CAND candidate."""
+    _PerUidPvalCache. Every p < 1.0 pair is appended to <spill_f> one cluster-block at a time
+    (see _write_pair_block), never held past its own cluster. Returns (sample, cand_counts,
+    n_total): sample is a reservoir sample of p for the null-tail fit; cand_counts is the exact
+    (unsampled) count of p below each WEIGHTED_DESCENT_CAND candidate."""
     rng = random.Random(seed)
     cache = _PerUidPvalCache(n_seqs, WEIGHT_GRID_NATS)
     freq_cache, obs_cache = {}, {}
-    pair_pvals = {}
     sample, n_seen, n_total = [], 0, 0
     cand_counts = [0] * len(WEIGHTED_DESCENT_CAND)
-    for ci, (cluster, uid_muts) in enumerate(clusters_uid_muts):
+    for cluster, uid_muts in clusters_uid_muts:
         members = list(cluster)
         n = len(members)
         if n < 2:
+            _write_pair_block(spill_f, [])
             continue
         order = sorted(range(n), key=lambda i: -len(uid_muts.get(members[i], {}) or {}))
         for u in members:
             if u not in freq_cache:
                 freq_cache[u], obs_cache[u] = uid_param_dir_freqs(
                     u, uid_muts.get(u, {}), uid_part_antns, glfo, mute_freq_dir, counts=counts)
-        pairs_here = {}
+        pairs_here = []
         for idx, i in enumerate(order):
             mi = uid_muts.get(members[i])
             if not mi:
@@ -969,7 +995,7 @@ def _scan_bin_full_pairs(clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir,
                     cache=cache, uid_a=ui, uid_b=uo)
                 if p >= 1.0:
                     continue
-                pairs_here[(ui, uo)] = p
+                pairs_here.append((i, o, p))
                 n_total += 1
                 for k, cut in enumerate(WEIGHTED_DESCENT_CAND):
                     if p < cut:
@@ -981,9 +1007,8 @@ def _scan_bin_full_pairs(clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir,
                     if j < sample_cap:
                         sample[j] = p
                 n_seen += 1
-        if pairs_here:
-            pair_pvals[ci] = pairs_here
-    return pair_pvals, sample, cand_counts, n_total
+        _write_pair_block(spill_f, pairs_here)
+    return sample, cand_counts, n_total
 
 
 def _weight_bins(muts, freqs, n_seqs, grid, n_obs=None):
@@ -1276,8 +1301,9 @@ def split_by_weighted_descent(cluster, uid_muts, uid_part_antns, glfo, mute_freq
     frequencies rather than a single locus-wide table. Returns a list of sub-clusters
     (lists of uids). counts: see uid_param_dir_freqs.
 
-    pair_pvals: optional {(u, v): p} from _scan_bin_full_pairs. When given, this is a pure
-    dict-lookup pass with no further p-value computation."""
+    pair_pvals: optional {(i, o): p} from _scan_bin_full_pairs (via _read_pair_block), i/o
+    positions in this same <cluster>'s member list. When given, this is a pure dict-lookup
+    pass with no further p-value computation."""
     members = list(cluster)
     n = len(members)
     if n <= 1:
@@ -1289,9 +1315,9 @@ def split_by_weighted_descent(cluster, uid_muts, uid_part_antns, glfo, mute_freq
         obs_cache = {u: fo[1] for u, fo in cache.items()}
         pval_cache = _PerUidPvalCache(n_seqs, WEIGHT_GRID_NATS)
 
-    def pval(ui, mi, uo, mo):
+    def pval(i, mi, o, mo, ui, uo):
         if pair_pvals is not None:
-            return pair_pvals.get((ui, uo), pair_pvals.get((uo, ui), 1.0))
+            return pair_pvals.get((i, o), pair_pvals.get((o, i), 1.0))
         return weighted_shared_descent_pvalue(
             mi, mo, freq_cache[ui], freq_cache[uo], n_seqs,
             n_obs_a=obs_cache[ui], n_obs_b=obs_cache[uo],
@@ -1313,7 +1339,7 @@ def split_by_weighted_descent(cluster, uid_muts, uid_part_antns, glfo, mute_freq
             if not mi or not mo:  # no mutations is no evidence either way
                 continue
             uo = members[o]
-            if pval(ui, mi, uo, mo) < alpha:
+            if pval(i, mi, o, mo, ui, uo) < alpha:
                 sub.append(members[o])
                 assigned[o] = True
         clusters.append(sub)
@@ -1367,10 +1393,13 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, 
         n_input_seqs += len(cluster)
         clusters_uid_muts.append((cluster, uid_muts))
 
-    bin_alpha, pair_pvals = alpha, {}
+    bin_alpha, spill_path = alpha, None
     if alpha is None:
-        pair_pvals, sample, cand_counts, n_scanned = _scan_bin_full_pairs(
-            clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, counts=param_dir_counts)
+        scratch_dir = os.environ.get('SLURM_TMPDIR') or os.environ.get('TMPDIR') or '/tmp'
+        spill_fd, spill_path = tempfile.mkstemp(prefix='refine-pairpvals-', dir=scratch_dir)
+        with os.fdopen(spill_fd, 'wb') as spill_f:
+            sample, cand_counts, n_scanned = _scan_bin_full_pairs(
+                clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, spill_f, counts=param_dir_counts)
         bin_alpha, fit_diag = derive_bin_alpha(sample, cand_counts, n_scanned)
         if fit_diag['fit_rate'] is None:
             print('  shared-descent null fit: FAILED (fewer than %d tail p-values in %d pairs scanned)' % (
@@ -1385,16 +1414,26 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, 
         else:
             print('  shared-descent: cutoff %.4g derived via %s' % (bin_alpha, fit_diag['rule']), flush=True)
 
-    for ci, (cluster, uid_muts) in enumerate(clusters_uid_muts):
-        if bin_alpha is None:
-            result.append(cluster)  # no defensible cutoff for this bin: leave every cluster as-is
-            continue
-        pieces = split_by_weighted_descent(
-            list(cluster), uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, bin_alpha,
-            counts=param_dir_counts, pair_pvals=pair_pvals.get(ci) if alpha is None else None)
-        result.extend(pieces)
-        if len(pieces) > 1:
-            n_resplit += 1
+    try:
+        spill_r = open(spill_path, 'rb') if bin_alpha is not None and spill_path is not None else None
+        try:
+            for cluster, uid_muts in clusters_uid_muts:
+                if bin_alpha is None:
+                    result.append(cluster)  # no defensible cutoff for this bin: leave every cluster as-is
+                    continue
+                pair_pvals = _read_pair_block(spill_r) if spill_r is not None else None
+                pieces = split_by_weighted_descent(
+                    list(cluster), uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, bin_alpha,
+                    counts=param_dir_counts, pair_pvals=pair_pvals)
+                result.extend(pieces)
+                if len(pieces) > 1:
+                    n_resplit += 1
+        finally:
+            if spill_r is not None:
+                spill_r.close()
+    finally:
+        if spill_path is not None:
+            os.remove(spill_path)
 
     n_result_singletons = sum(1 for c in result if len(c) == 1)
     alpha_label = '%.3g' % bin_alpha if bin_alpha is not None else 'none (no split)'
