@@ -16,8 +16,8 @@ MANIFEST_FNAME = 'manifest.yaml'
 
 # hfrac defaults (referenced from bin/partis argparse so all three places stay in sync)
 HFRAC_MERGE_FACTOR_DEFAULT = 3.0       # round-2 TCM threshold = merge_factor * hi_bound
-HFRAC_MAX_BIN_SIZE_DEFAULT = 100000    # bin-packing target cap on merged sub-group size; 0 disables
-HFRAC_MIN_SEQS_DEFAULT = 50000   # CDR3 groups smaller than this skip hfrac entirely
+HFRAC_MAX_BIN_SIZE_DEFAULT = 200000    # bin-packing target cap on merged sub-group size; 0 disables
+HFRAC_MIN_SEQS_DEFAULT = 240000   # CDR3 groups smaller than this skip hfrac entirely
 
 # hfrac internal tuning (named to avoid magic numbers)
 BIN_PACK_TOLERANCE = 1.2               # bin-packing only fires past this multiple of the cap

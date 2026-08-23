@@ -1011,19 +1011,19 @@ def _scan_bin_full_pairs(clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir,
     return sample, cand_counts, n_total
 
 
-def _weight_bins(muts, freqs, n_seqs, grid, n_obs=None):
+def _weight_bins(muts, freqs, n_seqs, grid, n_obs):
     """{(pos, base): (frequency, surprisal in whole grid bins)} for one sequence's mutations.
     Each weight is binned rather than the sums, which is not a bound in either direction: the
     dp returns the exact tail of the rounded statistic, which can sit above or below the tail
     of the unrounded one.
 
-    n_obs: per-(pos, base) observation count from the frequency table. Where given it sets
-    that key's floor; keys absent from it fall back to n_seqs."""
-    floor = FREQ_SMOOTH_COUNT / n_seqs
+    n_obs: per-(pos, base) observation count from the per-gene mute-freqs table, sets that
+    key's floor. A no-signal position is absent from n_obs, but its freq is already
+    NO_GERMLINE_FREQ there, well above any floor n_seqs could produce as the .get() default."""
     out = {}
     for pos, base in muts.items():
         p = freqs.get((pos, base), 0.0)
-        pfloor = floor if n_obs is None else FREQ_SMOOTH_COUNT / max(n_obs.get((pos, base), n_seqs), 1)
+        pfloor = FREQ_SMOOTH_COUNT / max(n_obs.get((pos, base), n_seqs), 1)
         if p < pfloor:
             p = pfloor
         elif p > 1.0:
@@ -1058,7 +1058,7 @@ def _conditional_pvalue_from_wb(wb, shared):
     return min(max(tail, 0.0), 1.0)
 
 
-def _conditional_pvalue(muts_cond, shared, freqs, n_seqs, grid, n_obs=None):
+def _conditional_pvalue(muts_cond, shared, freqs, n_seqs, grid, n_obs):
     """P(T >= T_obs), where T sums the surprisals of whichever of <muts_cond> another sequence
     carries independently. Exact by dp over binned surprisal, with everything at or above the
     observed value collected into a tail bucket."""
@@ -1258,7 +1258,8 @@ def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=N
     fallback fires and why: 'no_antn' (uid has no partition-frame annotation) and
     'gene_missing_from_glfo' (the uid's v/d/j gene call is not in <glfo>, so
     param_dir_region_bounds can't be built and every one of the uid's positions falls
-    back to the smoothing floor with no parameter-dir signal at all)."""
+    back to NO_GERMLINE_FREQ, not the smoothing floor, since there is no per-gene
+    mute-freqs signal at all)."""
     antn = uid_part_antns.get(uid)
     if antn is None:
         if counts is not None:
@@ -1275,11 +1276,11 @@ def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=N
     return out, obs
 
 
-def weighted_shared_descent_pvalue(muts_a, muts_b, freqs_a, freqs_b, n_seqs, grid=WEIGHT_GRID_NATS,
-                                    n_obs_a=None, n_obs_b=None, cache=None, uid_a=None, uid_b=None):
+def weighted_shared_descent_pvalue(muts_a, muts_b, freqs_a, freqs_b, n_seqs, n_obs_a, n_obs_b,
+                                    grid=WEIGHT_GRID_NATS, cache=None, uid_a=None, uid_b=None):
     """Probability that two unrelated sequences would share mutations this improbable, with
-    each sequence scored against its own parameter-dir table (freqs_a, freqs_b) rather than
-    one shared locus-wide table, since the germline frequency of a position depends on which
+    each sequence scored against its own per-gene mute-freqs table (freqs_a, freqs_b) rather
+    than one shared locus-wide table, since the germline frequency of a position depends on which
     V/J gene that sequence used. Returns 1.0 when nothing is shared. Pass <cache>/<uid_a>/
     <uid_b> to route through a _PerUidPvalCache instead of recomputing from scratch."""
     shared = [(pos, base) for pos, base in muts_a.items() if muts_b.get(pos) == base]
@@ -1297,7 +1298,7 @@ def weighted_shared_descent_pvalue(muts_a, muts_b, freqs_a, freqs_b, n_seqs, gri
 def split_by_weighted_descent(cluster, uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs,
                                alpha, counts=None, pair_pvals=None):
     """Split one cluster by weighted shared descent, assigning members to non-transitive
-    greedy centroids, scoring each pair against the two sequences' own parameter-dir
+    greedy centroids, scoring each pair against the two sequences' own per-gene mute-freqs
     frequencies rather than a single locus-wide table. Returns a list of sub-clusters
     (lists of uids). counts: see uid_param_dir_freqs.
 
@@ -1369,8 +1370,8 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, 
     proposer. Light chain only.
 
     uid_part_antns, glfo, mute_freq_dir: source each uid's own V/J germline mute-freqs
-    table (see uid_param_dir_freqs). n_seqs is the fallback smoothing floor for positions
-    the tables cannot cover (insertions, D).
+    table (see uid_param_dir_freqs). Positions the tables cannot cover (insertions, D)
+    fall back to NO_GERMLINE_FREQ, not a smoothing floor.
 
     alpha: link threshold. None (default): derive one per-bin threshold via derive_bin_alpha,
     no split at all for this bin if that fails. Pass an explicit float to use one fixed
@@ -1444,9 +1445,9 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, 
     n_no_antn = param_dir_counts.get('no_antn', 0)
     if n_gene_missing > 0 or n_no_antn > 0:
         from partis import utils
-        print('  %s parameter-dir freqs: %d uid-lookups had a v/d/j gene call missing from glfo '
-              '(no region bounds, every position fell back to the smoothing floor with no parameter-dir '
-              'signal), %d uids had no partition-frame annotation' % (
+        print('  %s per-gene mute-freqs: %d uid-lookups had a v/d/j gene call missing from glfo '
+              '(no region bounds, every position fell back to NO_GERMLINE_FREQ, not the smoothing floor, '
+              'since there was no per-gene mute-freqs signal), %d uids had no partition-frame annotation' % (
                   utils.wrnstr(), n_gene_missing, n_no_antn), flush=True)
     return result
 
