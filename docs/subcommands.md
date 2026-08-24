@@ -109,13 +109,12 @@ This can substantially speed up partitioning on large samples, since partitionin
 The number of concurrent per-group jobs is set with `--n-max-procs <n>` (default 2), and those jobs split `--n-procs` among themselves (so the total stays within it) unless the per-job count is overridden with `--n-sub-procs <n>`.
 It can also be combined with `subset-partition` (i.e. `partis subset-partition --disjoint-groups`), in which case it speeds up the single-chain partition step within each subset.
 Adding `--hfrac` further splits CDR3 groups by naive hamming fraction into smaller sub-groups, controlled by `--hfrac-max-bin-size` (default 100000).
-Note that each sub-group is partitioned independently, and the clustering method depends on sub-group size: groups larger than `--max-n-seqs-to-likelihood-cluster` (default 50000) automatically use vsearch, while smaller groups use full likelihood clustering.
-To use vsearch on all groups regardless of size, pass `--fast`.
+Each sub-group is partitioned independently with vsearch clustering (`--naive-vsearch`/`--fast`), always, regardless of group size; `--no-naive-vsearch` overrides this if full likelihood clustering is genuinely wanted for a group.
 For running the individual steps separately (e.g. as independent batch jobs), see [`create-disjoint-groups`](#create-disjoint-groups) and [`assemble-groups`](#assemble-groups) below.
 
 ##### HA re-partition and refinement
 
-With `--disjoint-groups`, large groups are partitioned with the fast vsearch method (see [above](#disjoint-groups)), which trades some accuracy for speed.
+With `--disjoint-groups`, every group is partitioned with the fast vsearch method (see [above](#disjoint-groups)), which trades some accuracy for speed.
 Two optional post-processing steps recover most of that accuracy while keeping vsearch's speed.
 
 `--ha-repartition` reruns the full likelihood (HMM) clustering on each vsearch cluster of at least three sequences, one cluster at a time, and keeps the result only where it splits an over-merged cluster.
@@ -197,40 +196,67 @@ At scale, merge only HMM parameters across parts externally, and pass the per-pa
 The grouping step itself unions the germline sets of all the SW caches it reads, and writes every per-group cache against that union, so the groups all use one set of gene labels.
 It does not re-derive gene calls: each sequence keeps whatever gene SW assigned to it against its own part's germline set, so if you want calls made against a single germline set you have to merge the parameter directories before running SW.
 This is the standalone version of the grouping step in `--disjoint-groups` (see [above](#disjoint-groups)), intended for workflows where each step is submitted as a separate batch job.
-Note that this and the other standalone disjoint-grouping actions run on one locus, so they take `--workdir` (not `--paired-outdir`, which requires `--paired-loci`, which in turn unsets `--locus`).
-Groups are written to `<workdir>/single-chain/disjoint-groups/<locus>/`, the same layout the integrated pipeline uses, so to write into the same tree as an integrated `--disjoint-groups` run, set `--workdir` to the path you would pass that run as `--paired-outdir`.
+
+All six standalone disjoint-grouping actions below take one `--locus` and use `--paired-outdir` for the disjoint-groups root, the same flag and directory layout (`<paired-outdir>/single-chain/disjoint-groups/<locus>/`) the integrated `--disjoint-groups` pipeline uses. `--paired-loci` gets turned on automatically to satisfy `--paired-outdir`'s own validation, but `--locus` is preserved (unlike the integrated path, where it is nulled and the loci come from the data). `--workdir` keeps its normal meaning (scratch) and is not used for this.
+
+```
+partis create-disjoint-groups --locus igh --parameter-dir params/ \
+  --paired-outdir out/ --hfrac --n-procs 8
+```
 
 ### assemble-groups
 
 Concatenate per-group partition results from disjoint grouping into a single output file for one locus.
-Requires `--locus`, `--outfname`, and the disjoint-groups directory (located via `--workdir`, i.e. `<workdir>/single-chain/disjoint-groups/<locus>/`, or given explicitly with `--disjoint-dir`).
+Requires `--locus`, `--outfname`, and `--paired-outdir` (the same root passed to `create-disjoint-groups`).
+
+```
+partis assemble-groups --locus igh --paired-outdir out/ --outfname out/partition-igh.yaml
+```
 
 ### create-ha-repartition-jobs
 
 Write the per-cluster inputs for [HA re-partition](#ha-re-partition-and-refinement) for a single locus: for every vsearch cluster of at least three sequences it writes a per-cluster FASTA, plus a task list enumerating all the per-cluster jobs.
-Requires `--locus` and the disjoint-groups directory produced by [`create-disjoint-groups`](#create-disjoint-groups) (located via `--workdir`, or given explicitly with `--disjoint-dir`).
+Requires `--locus` and `--paired-outdir` (the disjoint-groups root produced by [`create-disjoint-groups`](#create-disjoint-groups)).
 This is the standalone version of the HA re-partition setup, intended for workflows where each step is submitted as a separate batch job.
+
+```
+partis create-ha-repartition-jobs --locus igh --paired-outdir out/
+```
 
 ### run-ha-repartition-jobs
 
 Run HA re-partition on a slice of the task list written by [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), selected with `--job-start` and `--job-count`, so each batch (array) task handles one contiguous block of clusters.
 Each invocation loads germline info once and clusters its assigned vsearch clusters in-process (the same code path as the integrated `--ha-repartition`), and appends per-cluster timing to `ha-repartition-timing-<locus>.csv`.
-Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and the disjoint-groups directory.
+Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and `--paired-outdir`.
+
+```
+partis run-ha-repartition-jobs --locus igh --parameter-dir params/igh \
+  --paired-outdir out/ --job-start 0 --job-count 50
+```
 
 ### assemble-ha-repartition
 
 Merge the per-cluster HA results into per-group re-partitioned partitions for a single locus (each over-merged cluster is replaced by its split; all others are kept unchanged).
-Requires `--locus` and the disjoint-groups directory.
+Requires `--locus` and `--paired-outdir`.
 Run this once all [`run-ha-repartition-jobs`](#run-ha-repartition-jobs) tasks have finished.
+
+```
+partis assemble-ha-repartition --locus igh --paired-outdir out/
+```
 
 ### run-partition-refine-jobs
 
 Run [refinement](#ha-re-partition-and-refinement) on a slice of the disjoint groups for a single locus, selected with `--job-start` and `--job-count`.
 It refines each group's HA re-partition (or the vsearch partition, if the HA step was not run) in-process and writes a refined partition per group; reassemble the results with [`assemble-groups`](#assemble-groups).
-Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and the disjoint-groups directory (located via `--workdir`, or given explicitly with `--disjoint-dir`).
+Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and `--paired-outdir`.
 If partition files are not recorded in the manifest (e.g. when partition was run as standalone batch jobs), they are auto-discovered in the group directories.
 Groups whose refined output already exists are skipped unless `--overwrite` is set, so an interrupted run can be resumed by re-running the same command.
 This is the standalone version of the refinement step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.
+
+```
+partis run-partition-refine-jobs --locus igh --parameter-dir params/igh \
+  --paired-outdir out/ --job-start 0 --job-count 20
+```
 
 ### merge-paired-partitions
 

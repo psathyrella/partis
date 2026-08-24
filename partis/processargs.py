@@ -14,7 +14,7 @@ def get_dummy_outfname(workdir, locus=None):
 
 actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info', 'write-fake-paired-annotations', 'create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs']
 
-single_locus_actions = ['create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs']  # standalone disjoint-grouping actions that run on one locus
+single_locus_actions = ['create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs']  # standalone disjoint-grouping actions; always take one --locus
 
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
@@ -92,7 +92,7 @@ def process(args):
         sys.argv.append('--paired-loci')
         args.no_pairing_info = True
         sys.argv.append('--no-pairing-info')
-        if args.paired_outdir is None:
+        if args.paired_outdir is None and args.outfname is not None and args.action not in single_locus_actions:  # don't derive --paired-outdir from --outfname here for single-locus actions
             args.paired_outdir = utils.getprefix(args.outfname)
             print('         --outfname converted to --paired-outdir %s (per-locus outputs will be e.g. %s/partition-igh.yaml)' % (args.paired_outdir, args.paired_outdir))
             args.outfname = None
@@ -112,6 +112,8 @@ def process(args):
 
     if args.action == 'partition' and args.disjoint_groups and not args.paired_loci:
         auto_enable_paired_loci('--disjoint-groups')
+    if args.action in single_locus_actions and not args.paired_loci:  # turns on --paired-loci so --paired-outdir is allowed; --locus stays set
+        auto_enable_paired_loci(args.action)
     standalone_disjoint_actions = ['create-disjoint-groups', 'assemble-groups']
     if hasattr(args, 'hfrac') and args.hfrac and not getattr(args, 'disjoint_groups', False) and args.action not in standalone_disjoint_actions:
         raise Exception('--hfrac requires --disjoint-groups')
@@ -149,9 +151,7 @@ def process(args):
 
     if args.action == 'merge-paired-partitions':
         assert args.paired_loci
-    if args.paired_loci:
-        if args.action in single_locus_actions:
-            raise Exception('--paired-loci is not supported for \'%s\', which runs on a single locus (use --locus and --workdir)' % args.action)
+    if args.paired_loci and args.action not in single_locus_actions:
         if user_set_paired_loci and utils.is_in_arglist(sys.argv, '--locus'):  # only if the user set both; auto_enable_paired_loci() already prints a note
             print('  %s ignoring --locus %s since --paired-loci is set (all loci are run)' % (utils.wrnstr(), args.locus))
         args.locus = None
@@ -195,10 +195,11 @@ def process(args):
             raise Exception('if you set either --droplet-id-separators or --droplet-id-indicies you need to set both of them (guessing defaults is proving to be too dangerous)')
         if args.plot_annotation_performance:
             print('  %s ignoring --plot-annotation-performance for paired clustering since it\'s going to be a bit fiddly to implement' % utils.color('yellow', 'warning'))
-    else:
+    elif not args.paired_loci:
         if args.paired_indir is not None:
             raise Exception('need to set --paired-loci if --paired-indir is set')
         args.ig_or_tr = args.locus[:2]  # this maybe/probably doesn't need to happen
+    # else: single-locus action with --paired-loci on; --locus/--outfname/--ig-or-tr untouched
     if not args.paired_loci and (args.paired_indir is not None or args.paired_outdir is not None):
         raise Exception('--paired-loci must be set if either --paired-indir or --paired-outdir is set')
     if args.reverse_negative_strands and not args.paired_loci:
