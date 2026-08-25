@@ -7,7 +7,9 @@ wins when both sets have the same sequence under different names:
     on top of imgt), so we keep our established (old) names.
   - replacement: the new set is a newer version of the *same* source (e.g. a fresh ogrdb
     pull), so it's authoritative -- its (new) names win, and any old genes missing from it
-    get a warning (maybe real upstream removals, maybe a botched download).
+    get a warning (maybe real upstream removals, maybe a botched download). Note that
+    "replacement" only sets this precedence: the missing genes are still *kept* (it's a
+    union either way), so actually removing them is a separate, manual decision.
   # augmentation (new genes from a different source), new set already in partis layout:
   ./data/germlines/merge-germline-set.py --species human --new-dir <partis-layout-dir> --expected augmentation --write
   # replacement (newer version of the same source):
@@ -32,11 +34,18 @@ human: download from https://ogrdb.airr-community.org/germline_sets/Human
     - add something like: `glutils.write_glfo('ogrdb-ref/ogrdb-sanitized', glfo, debug=True)` to `bin/partis` where `args.sanitize_input_germlines` gets used
   - also added genes from genomic sequencing in engelbrecht/rodriguez papers, downloaded from vdjbase
 
-macaque: from ogrdb https://ogrdb.airr-community.org/germline_sets/Macaca%20mulatta
+macaque/ is merged from imgt, ramesh, and ogrdb (the bulk of it is now ogrdb)
+  - ogrdb https://ogrdb.airr-community.org/germline_sets/Macaca%20mulatta
   - sets G00091 (IGH), G00092 (IGK), G00093 (IGL); pulled via the api, e.g.
     curl https://ogrdb.airr-community.org/api/germline/set/G00091/published/ungapped
   - staged (split per region) in ogrdb-download/macaque/, merged in with
     merge-germline-set.py --species macaque --expected replacement (issue #396)
+  - note that this was a union merge (as always), so while ogrdb names/seqs won on
+    conflicts, 217 genes from the previous imgt+ramesh set that aren't in ogrdb were
+    kept (38 ighv, 23 ighd, 91 igkv, 64 iglv, 1 iglj). They're flagged as "old-only" in
+    changelog/2026-07-30-ogrdb-macaque-update.log; nobody has yet checked whether these
+    are real upstream removals (in which case we'd want to drop them) or just genes
+    ogrdb hasn't included.
 
 mouse/ is merged from imgt, ogrdb c57bl, and ogrdb balbc
 
