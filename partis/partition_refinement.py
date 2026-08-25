@@ -334,92 +334,60 @@ def cross_shared_counts(frag_of_uid, uid_muts):
 
 # ----------------------------------------------------------------------------
 # Convergence-aware veto for the heavy split. Members sharing an inferred
-# rearrangement is evidence of common descent only when that rearrangement is rare
-# enough that generating it repeatedly is implausible, so the veto reads both.
+# rearrangement is evidence of common descent only when that rearrangement's total
+# insertion length is rare enough that generating it repeatedly by independent
+# convergent recombination is implausible, so the veto reads both.
 # ----------------------------------------------------------------------------
 
 # members that must share the modal rearrangement for the veto to apply
-REARR_PROB_VETO_MIN_SHARED = 4
-REARR_PROB_MIN = 1e-9  # probability floor for a value the tables never saw, well below the
-# smallest probability any observed table entry can reach
-REARR_PROB_SAMPLE_DRAWS = 1000000  # rearrangements drawn to estimate the veto's cutoff
-REARR_PROB_SAMPLE_SEED = 1  # fixed, so one parameter dir always gives one cutoff
+LENGTH_VETO_MIN_SHARED = 4
+LENGTH_SAMPLE_DRAWS = 1000000  # rearrangements drawn to estimate the veto's cutoff
+LENGTH_SAMPLE_SEED = 1  # fixed, so one parameter dir always gives one cutoff
 
-# (name, column) per factorisation term; file and conditioning columns come from utils
-_REARR_PROB_TABLE_COLUMNS = [('v', 'v_gene'), ('d', 'd_gene'), ('j', 'j_gene'),
-                             ('v_3p_del', 'v_3p_del'), ('d_5p_del', 'd_5p_del'),
-                             ('d_3p_del', 'd_3p_del'), ('j_5p_del', 'j_5p_del'),
-                             ('len_vd', 'vd_insertion'), ('len_dj', 'dj_insertion')]
+# (name, column) for the two gene marginals and the two length tables the cutoff is
+# sampled from; d/j gene draws condition len_vd/len_dj so the sampled median reflects
+# the parameter dir's real length distribution rather than an unconditioned one
+_LENGTH_TABLE_COLUMNS = [('d', 'd_gene'), ('j', 'j_gene'),
+                         ('len_vd', 'vd_insertion'), ('len_dj', 'dj_insertion')]
 
 
-def _rearr_prob_table_specs():
-    """(name, file, [varying column, conditioning columns...]) per factorisation term."""
+def _length_table_specs():
+    """(name, file, [varying column, conditioning columns...]) per table."""
     from partis import utils
     specs = []
-    for name, column in _REARR_PROB_TABLE_COLUMNS:
+    for name, column in _LENGTH_TABLE_COLUMNS:
         cols = [column] + utils.column_dependencies[column]
         specs.append((name, utils.get_parameter_fname(column_and_deps=cols), cols))
     return specs
 
 
-REARR_PROB_TABLE_SPECS = _rearr_prob_table_specs()
+LENGTH_TABLE_SPECS = _length_table_specs()
 
 
-def _insertion_base_lprobs(tdir):
-    """{boundary: expected log10 probability per inserted base}, for each of utils.boundaries
-    ('vd', 'dj'). Sourced from <tdir>/<boundary>_insertion_content.csv, the same real per-base
-    composition recombinator.read_insertion_content() reads, rather than assuming a uniform
-    0.25 per base; falls back to uniform (log10(0.25), the prior constant) where that file is
-    missing, empty or unreadable, same convention as recombinator's own default_content().
-    Since uid_rearr_features carries only insertion length and not the inserted bases
-    themselves, this is the base composition's entropy (in log10 units), the expected
-    per-base log-probability, not a lookup of any specific base."""
-    from partis import utils
-    uniform_lprob = math.log10(0.25)
-    lprobs = {}
-    for bound in utils.boundaries:
-        counts = {}
-        try:
-            with open('%s/%s_insertion_content.csv' % (tdir, bound)) as cfile:
-                for row in csv.DictReader(cfile):
-                    counts[row['%s_insertion_content' % bound]] = float(row['count'])
-        except (IOError, OSError, KeyError, ValueError):
-            counts = {}
-        total = sum(counts.values())
-        if total <= 0:
-            lprobs[bound] = uniform_lprob
-            continue
-        lprobs[bound] = sum((counts.get(n, 0.) / total) * math.log10(counts.get(n, 0.) / total)
-                             for n in utils.nukes if counts.get(n, 0.) > 0)
-    return lprobs
-
-
-def read_rearr_prob_tables(parameter_dir):
-    """Read the P(r) factorisation's count tables from <parameter_dir>/hmm (the locus-level
-    parameter dir) and normalise each within its conditioning variable. Returns
-    {name: {(value, conditioned-on...): probability}}, plus a '_insertion_lprob' key (see
-    _insertion_base_lprobs()), or None if <parameter_dir> is None. Raises if a dir was passed
-    but a table is missing or unreadable."""
+def read_length_tables(parameter_dir):
+    """Read the d/j gene marginals and the len_vd/len_dj tables from <parameter_dir>/hmm (the
+    locus-level parameter dir) and normalise each within its conditioning variable. Returns
+    {name: {(value, conditioned-on...): probability}}, or None if <parameter_dir> is None.
+    Raises if a dir was passed but a table is missing or unreadable."""
     if parameter_dir is None:
         return None
     tdir = '%s/hmm' % parameter_dir
     if not os.path.isdir(tdir):  # also accept the hmm dir itself
         tdir = parameter_dir
     tables = {}
-    for name, fname, cols in REARR_PROB_TABLE_SPECS:
+    for name, fname, cols in LENGTH_TABLE_SPECS:
         counts = defaultdict(dict)
         try:
             with open('%s/%s' % (tdir, fname)) as tfile:
                 for row in csv.DictReader(tfile):
                     counts[tuple(row[c] for c in cols[1:])][row[cols[0]]] = float(row['count'])
         except (IOError, OSError, KeyError, ValueError) as terr:
-            raise Exception('couldn\'t read rearr-prob table %s/%s (%s)' % (tdir, fname, terr))
+            raise Exception('couldn\'t read length table %s/%s (%s)' % (tdir, fname, terr))
         tables[name] = {}
         for cond, cfo in counts.items():
             tot = sum(cfo.values())
             for val, count in cfo.items():
                 tables[name][(val,) + cond] = count / tot if tot > 0 else 0.
-    tables['_insertion_lprob'] = _insertion_base_lprobs(tdir)
     return tables
 
 
@@ -432,22 +400,6 @@ def get_rearrangement(feat):
     if any(v is None for v in vals):
         return None
     return tuple(feat['vdj']) + tuple(vals)
-
-
-def rearrangement_lprob(rearr, tables):
-    """log10 P(r): the probability of generating the single inferred rearrangement (from
-    get_rearrangement()), as the product of the parameter dir's marginals times the expected
-    per-base probability from its own insertion content (see _insertion_base_lprobs(), and
-    read_rearr_prob_tables() for where tables['_insertion_lprob'] comes from). Comparable only
-    against values from the same factorisation."""
-    v, d, j, v_3p_del, d_5p_del, d_3p_del, j_5p_del, len_vd, len_dj = rearr
-    terms = [('v', (v,)), ('d', (d,)), ('j', (j,)),
-             ('v_3p_del', (str(v_3p_del), v)), ('d_5p_del', (str(d_5p_del), d)),
-             ('d_3p_del', (str(d_3p_del), d)), ('j_5p_del', (str(j_5p_del), j)),
-             ('len_vd', (str(len_vd), d)), ('len_dj', (str(len_dj), j))]
-    lprob = sum(math.log10(max(tables[name].get(key, 0.), REARR_PROB_MIN)) for name, key in terms)
-    ins_lprob = tables.get('_insertion_lprob', {})
-    return lprob + len_vd * ins_lprob.get('vd', math.log10(0.25)) + len_dj * ins_lprob.get('dj', math.log10(0.25))
 
 
 def get_cluster_rearrangement(uids, uid_rearr_features):
@@ -486,12 +438,9 @@ def _index_groups(picks):
 
 
 def _draw_conditioned(rng, choices, groups, genes, n_draws):
-    """One draw per index in <groups> ({gene index: draw indices}), from the distribution
-    conditioned on that gene. Returns (values, their log10 probabilities); every table
-    conditioned on a gene is keyed by an integer, and a gene the table never saw draws zero at
-    the probability floor."""
+    """One draw per index in <groups> ({gene index: draw indices}), from the length
+    distribution conditioned on that gene. A gene the table never saw draws length zero."""
     vals = np.zeros(n_draws)
-    lprobs = np.full(n_draws, math.log10(REARR_PROB_MIN))
     for igene, idxs in groups.items():
         cond = (genes[igene],)
         if cond not in choices:
@@ -499,89 +448,84 @@ def _draw_conditioned(rng, choices, groups, genes, n_draws):
         cvals, cprobs = choices[cond]
         picks = rng.choice(len(cvals), size=len(idxs), p=cprobs)
         vals[idxs] = np.asarray(cvals, dtype=float)[picks]
-        lprobs[idxs] = np.log10(np.maximum(cprobs[picks], REARR_PROB_MIN))
-    return vals, lprobs
+    return vals
 
 
-def sample_rearr_prob_median(tables, n_draws=REARR_PROB_SAMPLE_DRAWS, seed=REARR_PROB_SAMPLE_SEED):
-    """Median log10 P(r) of rearrangements drawn from <tables>, i.e. of the rearrangement
-    distribution the parameter dir itself defines, so it does not depend on how the input was
-    clustered. Deterministic given <seed>."""
+def sample_length_median(tables, n_draws=LENGTH_SAMPLE_DRAWS, seed=LENGTH_SAMPLE_SEED):
+    """Median total insertion length (len_vd + len_dj) of rearrangements drawn from <tables>,
+    i.e. of the rearrangement distribution the parameter dir itself defines, so it does not
+    depend on how the input was clustered. d and j gene are drawn first so len_vd/len_dj come
+    from their real gene-conditioned distributions rather than an unconditioned one.
+    Deterministic given <seed>."""
     rng = np.random.RandomState(seed)
-    choices = dict((name, _sampling_choices(tables[name])) for name, _, _ in REARR_PROB_TABLE_SPECS)
-    rearr_lprobs = np.zeros(n_draws)
+    choices = dict((name, _sampling_choices(tables[name])) for name, _, _ in LENGTH_TABLE_SPECS)
     genes, groups = {}, {}
-    for reg in ('v', 'd', 'j'):
+    for reg in ('d', 'j'):
         genes[reg], cprobs = choices[reg][()]
         picks = rng.choice(len(genes[reg]), size=n_draws, p=cprobs)
-        rearr_lprobs += np.log10(np.maximum(cprobs[picks], REARR_PROB_MIN))
         groups[reg] = _index_groups(picks)
-    for name, reg in [('v_3p_del', 'v'), ('d_5p_del', 'd'), ('d_3p_del', 'd'), ('j_5p_del', 'j')]:
-        rearr_lprobs += _draw_conditioned(rng, choices[name], groups[reg], genes[reg], n_draws)[1]
-    ins_lprob = tables.get('_insertion_lprob', {})
+    lens_total = np.zeros(n_draws)
     for name, reg in [('len_vd', 'd'), ('len_dj', 'j')]:
-        lens, lprobs = _draw_conditioned(rng, choices[name], groups[reg], genes[reg], n_draws)
-        bound = name[len('len_'):]  # 'vd' or 'dj'
-        rearr_lprobs += lprobs + lens * ins_lprob.get(bound, math.log10(0.25))
-    return float(np.median(rearr_lprobs))
+        lens_total += _draw_conditioned(rng, choices[name], groups[reg], genes[reg], n_draws)
+    return float(np.median(lens_total))
 
 
-_rearr_prob_veto_cache = {}  # parameter dir -> (tables, cutoff), since every group resolves the same dir
+_length_veto_cache = {}  # parameter dir -> (tables, cutoff), since every group resolves the same dir
 
 
-def rearr_prob_veto_inputs(parameter_dir):
-    """(tables, log10 P(r) cutoff) for the heavy split's veto, derived from <parameter_dir>
-    alone. Both None, with a warning, when no dir was passed; an unreadable dir raises rather
-    than warns (see read_rearr_prob_tables). Cached, so a locus samples its cutoff once."""
-    if parameter_dir in _rearr_prob_veto_cache:
-        return _rearr_prob_veto_cache[parameter_dir]
+def length_veto_inputs(parameter_dir):
+    """(tables, length cutoff) for the heavy split's veto, derived from <parameter_dir> alone.
+    Both None, with a warning, when no dir was passed; an unreadable dir raises rather than
+    warns (see read_length_tables). Cached, so a locus samples its cutoff once."""
+    if parameter_dir in _length_veto_cache:
+        return _length_veto_cache[parameter_dir]
     from partis import utils
-    tables = read_rearr_prob_tables(parameter_dir)
+    tables = read_length_tables(parameter_dir)
     if tables is None:
-        print('  %s no parameter dir passed, so the heavy split\'s rearr-prob veto is off'
+        print('  %s no parameter dir passed, so the heavy split\'s length veto is off'
               % utils.wrnstr(), flush=True)
         cutoff = None
     else:
-        cutoff = sample_rearr_prob_median(tables)
-        print('  rearr-prob veto: cutoff (model median over %d draws) log10 P(r) %.2f' % (REARR_PROB_SAMPLE_DRAWS, cutoff), flush=True)
-    _rearr_prob_veto_cache[parameter_dir] = (tables, cutoff)
+        cutoff = sample_length_median(tables)
+        print('  length veto: cutoff (model median over %d draws) len_vd + len_dj >= %.1f' % (LENGTH_SAMPLE_DRAWS, cutoff), flush=True)
+    _length_veto_cache[parameter_dir] = (tables, cutoff)
     return tables, cutoff
 
 
-def validate_rearr_prob_tables(parameter_dir):
-    """Read the rearr-prob tables and discard them, to check the parameter dir is complete."""
-    read_rearr_prob_tables(parameter_dir)
+def validate_length_tables(parameter_dir):
+    """Read the length veto's tables and discard them, to check the parameter dir is complete."""
+    read_length_tables(parameter_dir)
 
 
 def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_size=2,
                             ej_floor=EJ_SAME_FAMILY_FLOOR, uid_rearr_features=None,
-                            rearr_prob_tables=None, rearr_prob_cutoff=None,
-                            rearr_prob_veto_min_shared=REARR_PROB_VETO_MIN_SHARED):
+                            length_cutoff=None,
+                            length_veto_min_shared=LENGTH_VETO_MIN_SHARED):
     """Heavy split: exact sw-naive identity proposes the split, shared mutations veto it.
 
     Members are grouped by exact per-sequence sw naive, one-member groups are absorbed into the
     nearest corroborated one, then fragments are re-merged when a cross-fragment pair's enhanced
     jaccard reaches ej_floor. uid_muts_sw is mutations against each sequence's own sw naive.
 
-    rearr_prob_veto_min_shared: keep a cluster whole, unsplit, when this many members share its modal
-    rearrangement and that rearrangement's log10 P(r) is at or below <rearr_prob_cutoff>, i.e. when it
-    is too rare for that many independent recombinations. Keyed on the rearrangement rather than
-    on the naive, so convergently-similar naives do not trip it. The veto is not optional in the
-    pipeline; 0 or None turns it off for two-arm measurement only, as does a missing rearr_prob_tables
-    or rearr_prob_cutoff.
+    length_veto_min_shared: keep a cluster whole, unsplit, when this many members share its modal
+    rearrangement and that rearrangement's total insertion length (len_vd + len_dj) is at or
+    above <length_cutoff>, i.e. long enough that reproducing it by independent convergent
+    recombination is implausible. Keyed on the rearrangement rather than on the naive, so
+    convergently-similar naives do not trip it. Disabled, with a log line, when no
+    <length_cutoff> was derived, i.e. no parameter dir was passed.
     """
     result = []
     ctr = defaultdict(int)
-    rearr_prob_veto_on = (rearr_prob_tables is not None and rearr_prob_cutoff is not None
-                          and rearr_prob_veto_min_shared is not None and rearr_prob_veto_min_shared > 0)
+    length_veto_on = (length_cutoff is not None
+                      and length_veto_min_shared is not None and length_veto_min_shared > 0)
 
-    def rearr_prob_vetoed(uids):
-        if not rearr_prob_veto_on:
+    def length_vetoed(uids):
+        if not length_veto_on:
             return False
         rearr, n_shared = get_cluster_rearrangement(uids, uid_rearr_features)
-        if rearr is None or n_shared < rearr_prob_veto_min_shared:
+        if rearr is None or n_shared < length_veto_min_shared:
             return False
-        return rearrangement_lprob(rearr, rearr_prob_tables) <= rearr_prob_cutoff
+        return rearr[7] + rearr[8] >= length_cutoff  # len_vd + len_dj
 
     for cluster in partition:
         if len(cluster) < min_cluster_size:
@@ -589,9 +533,9 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
             ctr['below_min_size'] += 1
             continue
 
-        if rearr_prob_vetoed(cluster):
+        if length_vetoed(cluster):
             result.append(list(cluster))
-            ctr['rearr_prob_veto'] += 1
+            ctr['length_veto'] += 1
             continue
 
         uid_list = list(cluster)
@@ -638,9 +582,9 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
             result.append(list(cluster))
 
     # held counts clusters the veto touched, not ones whose outcome it changed
-    rearr_prob_label = ', %d held (rearr-prob veto)' % ctr['rearr_prob_veto'] if ctr['rearr_prob_veto'] > 0 else ''
+    length_label = ', %d held (length veto)' % ctr['length_veto'] if ctr['length_veto'] > 0 else ''
     print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d skipped (no proposal), %d rejected (missing naive)%s' % (
-        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['no_proposal'], ctr['missing_naive'], rearr_prob_label), flush=True)
+        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['no_proposal'], ctr['missing_naive'], length_label), flush=True)
     print('  %d members snapped, %d pairs certified, %d -> %d clusters' % (
         ctr['snapped'], ctr['certified_pairs'], len(partition), len(result)), flush=True)
     return result
@@ -998,8 +942,8 @@ def split_by_weighted_descent(cluster, uid_muts, freqs, n_seqs, alpha=WEIGHTED_D
 def _partition_has_real_d(uid_rearr_features):
     """True if any uid carries a real (non-placeholder) D gene (heavy chain).
     Light loci (igk/igl) have no real D, so this is False for them, which is how
-    refine_partition picks the heavy vs light fork when light_chain is not passed
-    explicitly."""
+    refine_partition picks between the heavy locus and light loci operators when
+    light_chain is not passed explicitly."""
     if not uid_rearr_features:
         return False
     for feat in uid_rearr_features.values():
@@ -1102,7 +1046,7 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
                      naive_threshold=None,
                      min_agreement=0.15, min_fp_positions=0, skip_singleton_merge=True,
                      min_cluster_size=2, light_chain=None, alpha=WEIGHTED_DESCENT_ALPHA,
-                     parameter_dir=None, rearr_prob_veto_min_shared=REARR_PROB_VETO_MIN_SHARED,
+                     parameter_dir=None, length_veto_min_shared=LENGTH_VETO_MIN_SHARED,
                      verbose=True, random_seed=None):
     """Run refinement and return the refined partition.
 
@@ -1112,16 +1056,16 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     uid_rearr_features: uid -> {'vdj': (v, d, j), 'v_3p_del', 'j_5p_del', 'd_5p_del',
     'd_3p_del', 'len_vd', 'len_dj'}.
 
-    Which operators run forks on chain, since each is built on the signal its locus
-    provides: heavy splits on naive identity then merges on naive similarity, light
-    splits on shared descent and nothing else. light_chain: if None, inferred from
-    D-gene presence in uid_rearr_features.
+    Which operators run depends on chain, since each is built on the signal its locus
+    provides: the heavy locus splits on naive identity then merges on naive similarity,
+    light loci split on shared descent and nothing else. light_chain: if None, inferred
+    from D-gene presence in uid_rearr_features.
     alpha: link threshold for the light shared-descent test.
 
-    parameter_dir: the locus-level parameter dir, and the only input the heavy split's
-    rearr-prob veto takes: both its rearr-prob tables and its cutoff are derived from it here,
-    so any caller passing the same dir refines the same way. Absent or unreadable, the veto warns and stays
-    off. It reaches only the heavy fork.
+    parameter_dir: the locus-level parameter dir, and the only input the heavy locus's
+    length veto takes: its length cutoff is derived from it here, so any caller passing the
+    same dir refines the same way. Absent or unreadable, the veto warns and stays off. It
+    reaches only the heavy locus.
 
     random_seed: seeds the global RNG. Refinement reads no RNG, so this changes nothing.
     """
@@ -1169,18 +1113,18 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     naive_thresh = (naive_threshold if naive_threshold is not None
                     else estimate_naive_threshold(partition, uid_sw_naives))
 
-    rearr_prob_tables, rearr_prob_cutoff = (
-        rearr_prob_veto_inputs(parameter_dir) if rearr_prob_veto_min_shared else (None, None))
+    _, length_cutoff = (
+        length_veto_inputs(parameter_dir) if length_veto_min_shared else (None, None))
     if verbose:
-        rearr_prob_str = ('' if rearr_prob_cutoff is None
-                          else ', rearr-prob veto at %d shared and log10 P(r) <= %.2f' % (
-                              rearr_prob_veto_min_shared, rearr_prob_cutoff))
-        print('\n=== heavy: naive-identity split (EJ veto >= %.2f%s) ===' % (EJ_SAME_FAMILY_FLOOR, rearr_prob_str), flush=True)
+        length_str = ('' if length_cutoff is None
+                      else ', length veto at %d shared and len_vd + len_dj >= %.1f' % (
+                          length_veto_min_shared, length_cutoff))
+        print('\n=== heavy: naive-identity split (EJ veto >= %.2f%s) ===' % (EJ_SAME_FAMILY_FLOOR, length_str), flush=True)
     tstart = time.time()
     split_partition = split_on_naive_identity(
         partition, uid_sw_naives, uid_to_muts_sw, min_cluster_size,
-        uid_rearr_features=uid_rearr_features, rearr_prob_tables=rearr_prob_tables, rearr_prob_cutoff=rearr_prob_cutoff,
-        rearr_prob_veto_min_shared=rearr_prob_veto_min_shared)
+        uid_rearr_features=uid_rearr_features, length_cutoff=length_cutoff,
+        length_veto_min_shared=length_veto_min_shared)
     tsplit = time.time()
     print('  timing: naive-identity split %.2f s' % (tsplit - tstart), flush=True)
 
@@ -1295,7 +1239,7 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
         vdj = tuple(get_antn_key(antn, '%s_gene' % r, 'sw cache') for r in utils.regions)
         # junction boundaries for the heavy merge guard
         v_3p_del, j_5p_del = get_antn_key(antn, 'v_3p_del', 'sw cache'), get_antn_key(antn, 'j_5p_del', 'sw cache')
-        # the rest of the rearrangement, for the heavy split's rearr-prob veto
+        # the rest of the rearrangement, for the heavy split's length veto
         d_5p_del, d_3p_del = get_antn_key(antn, 'd_5p_del', 'sw cache'), get_antn_key(antn, 'd_3p_del', 'sw cache')
         len_vd, len_dj = [len(get_antn_key(antn, '%s_insertion' % b, 'sw cache')) for b in ('vd', 'dj')]
         for i, uid in enumerate(antn['unique_ids']):
@@ -1463,16 +1407,16 @@ def estimate_locuswide_threshold(specs):
 
 
 def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter_dir=None,
-             rearr_prob_veto_min_shared=REARR_PROB_VETO_MIN_SHARED):
+             length_veto_min_shared=LENGTH_VETO_MIN_SHARED):
     """Run refinement on a list of group specs (from group_specs), writing each group's
     refined partition, with the production defaults (singleton-skip, junction guard, vdj
     override) that the standalone CLI and integrated pipeline both use. Groups whose
     refined output already exists are skipped unless <overwrite>. The naive threshold
     defaults to a locus-wide estimate over <specs>; when running a slice, pass one
     estimated over the full group list. Passing <locus> skips that estimate on a locus with
-    no D gene, where no operator reads it, and pins the heavy/light fork for every group.
+    no D gene, where no operator reads it, and pins the heavy/light choice for every group.
     <parameter_dir> is the locus-level parameter dir, and is passed straight through: refine
-    derives the heavy split's rearr-prob veto from it."""
+    derives the heavy split's length veto from it."""
     from argparse import Namespace
     from partis import utils
     oargs = Namespace(overwrite=overwrite)
@@ -1492,7 +1436,7 @@ def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter
             inp['partition'], inp['uid_info'], inp['uid_sw_naives'],
             uid_rearr_features=inp['uid_rearr_features'],
             naive_threshold=naive_threshold, light_chain=light_chain,
-            parameter_dir=parameter_dir, rearr_prob_veto_min_shared=rearr_prob_veto_min_shared,
+            parameter_dir=parameter_dir, length_veto_min_shared=length_veto_min_shared,
             skip_singleton_merge=True, min_agreement=0.15, verbose=False)
         cfo = write_full_output(spec['refined_out'], inp['part_glfo'], refined, inp['uid_part_antns'])
         print('  timing: group %s total %.2f s' % (os.path.dirname(spec['refined_rel']), time.time() - tgroup), flush=True)
