@@ -5169,8 +5169,22 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
 # ----------------------------------------------------------------------------------------
 # merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub> (only works with paired dir structure)
 # some things are handled nicelycorrectly, others more hackily
+# NOTE only merges the 'hmm' parameter type, not 'sw'
 def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig'):
     from . import glutils, paircluster, fraction_uncertainty
+    gene_index_cols = set(r + '_gene' for r in regions)  # index columns that hold a gene name, so need remapping
+    simple_count_columns = ['seq_content', 'cluster_size'] + [b + '_insertion_content' for b in boundaries]  # single-key count tables, no gene name involved
+    # ----------------------------------------------------------------------------------------
+    def remap_index_values(cols_in_order, raw_values, name_mapping):
+        if name_mapping is None:
+            return tuple(raw_values)
+        remapped = []
+        for col, val in zip(cols_in_order, raw_values):
+            region = col.split('_')[0] if col in gene_index_cols else None
+            if region is not None and val in name_mapping[region]:
+                val = name_mapping[region][val]
+            remapped.append(val)
+        return tuple(remapped)
     # ----------------------------------------------------------------------------------------
     print('    merging parameters from %d subdirs (e.g. %s) to %s' % (n_subsets, subdfn(0), merged_odir))
     for ltmp in sub_loci(ig_or_tr):
@@ -5184,11 +5198,18 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
             continue
         merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
-        mean_mut_fns = ['%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
-        mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
-        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
+        # these overall mean-freq/n-muted histograms aren't summed, just linked from one subset, which should be fine
+        sentinel_hist_fnames = ['all-mean-mute-freqs.csv', 'all-mean-n-muted.csv'] + ['%s-mean-%s.csv' % (r, mstr) for r in regions for mstr in ('mute-freqs', 'n-muted')]
+        for hfname in sentinel_hist_fnames:
+            sub_hfns = [f for f in ('%s/parameters/%s/hmm/%s' % (subdfn(i), ltmp, hfname) for i in range(n_subsets)) if os.path.exists(f)]
+            if len(sub_hfns) == 0:
+                continue
+            makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(sub_hfns[0]), hfname)
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         merged_mfreq_counts = {}  # summed counts, keyed by gene then position, same per-position dict shape mutefreqer uses
+        merged_length_counts = {}  # summed counts for the deletion/insertion tables, keyed by column then remapped index tuple
+        merged_all_counts = defaultdict(int)  # summed counts for all-probs.csv, keyed by remapped index tuple
+        merged_simple_counts = {c : defaultdict(int) for c in simple_count_columns}
         def gpfn(dname, l, r): return '%s/parameters/%s/hmm/%s_gene-probs.csv' % (dname, l, r)
         def mffn(dname, l): return '%s/parameters/%s/hmm/mute-freqs' % (dname, l)
         for isub in range(n_subsets):
@@ -5209,6 +5230,33 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                     if name_mapping is not None and gene_name in name_mapping[treg]:
                         gene_name = name_mapping[treg][gene_name]
                     merged_gene_counts[treg][gene_name] += int(tline['count'])
+            # sum the deletion/insertion-length count tables the same way as gene-probs, remapping gene columns in the index and accumulating here since name_mapping is rebound per subset
+            for coltup in column_dependency_tuples:
+                col = coltup[0]
+                if col in gene_index_cols:  # v/d/j gene counts already summed just above
+                    continue
+                cols_in_order = list(coltup)
+                lfn = '%s/parameters/%s/hmm/%s' % (subdfn(isub), ltmp, get_parameter_fname(column_and_deps=cols_in_order))
+                if not os.path.exists(lfn):
+                    continue
+                table_counts = merged_length_counts.setdefault(col, defaultdict(int))
+                for tline in csvlines(lfn):
+                    key = remap_index_values(cols_in_order, [tline[c] for c in cols_in_order], name_mapping)
+                    table_counts[key] += int(tline['count'])
+            # same sum, for the one table keyed on the full rearrangement (all genes plus every deletion and insertion length)
+            all_cols = list(index_columns) + ['cdr3_length']
+            afn = '%s/parameters/%s/hmm/%s' % (subdfn(isub), ltmp, get_parameter_fname(column='all'))
+            if os.path.exists(afn):
+                for tline in csvlines(afn):
+                    key = remap_index_values(all_cols, [tline[c] for c in all_cols], name_mapping)
+                    merged_all_counts[key] += int(tline['count'])
+            # sum the single-key count tables (base content, cluster size), no gene identity so no remapping needed
+            for scol in simple_count_columns:
+                sfn = '%s/parameters/%s/hmm/%s.csv' % (subdfn(isub), ltmp, scol)
+                if not os.path.exists(sfn):
+                    continue
+                for tline in csvlines(sfn):
+                    merged_simple_counts[scol][tline[scol]] += int(tline['count'])
             # sum per-base obs counts, remapping names as for gene-probs above; accumulate here rather than after the loop, since name_mapping is rebound per subset
             if sub_glfo is not None and os.path.isdir(mffn(subdfn(isub), ltmp)):
                 for mfgfn in glob.glob('%s/*.csv' % mffn(subdfn(isub), ltmp)):
@@ -5272,6 +5320,35 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                             row[nuke + '_obs'] = pcounts[nuke]
                             row[nuke + '_lo_err'], row[nuke + '_hi_err'] = nlo, nhi
                         writer.writerow(row)
+        for col, table_counts in merged_length_counts.items():  # write the summed deletion/insertion-length tables, same recompute-not-average approach as the mute-freqs table above
+            cols_in_order = [col] + column_dependencies[col]
+            lfn = '%s/parameters/%s/hmm/%s' % (merged_odir, ltmp, get_parameter_fname(column_and_deps=cols_in_order))
+            with open(lfn, csv_wmode()) as lfile:
+                writer = csv.DictWriter(lfile, cols_in_order + ['count'])
+                writer.writeheader()
+                for key, count in table_counts.items():
+                    row = dict(zip(cols_in_order, key))
+                    row['count'] = count
+                    writer.writerow(row)
+        if len(merged_all_counts) > 0:  # write the summed full-rearrangement table
+            all_cols = list(index_columns) + ['cdr3_length']
+            afn = '%s/parameters/%s/hmm/%s' % (merged_odir, ltmp, get_parameter_fname(column='all'))
+            with open(afn, csv_wmode()) as afile:
+                writer = csv.DictWriter(afile, all_cols + ['count'])
+                writer.writeheader()
+                for key, count in merged_all_counts.items():
+                    row = dict(zip(all_cols, key))
+                    row['count'] = count
+                    writer.writerow(row)
+        for scol, counts in merged_simple_counts.items():  # write the summed single-key count tables
+            if len(counts) == 0:
+                continue
+            sfn = '%s/parameters/%s/hmm/%s.csv' % (merged_odir, ltmp, scol)
+            with open(sfn, csv_wmode()) as sfile:
+                writer = csv.DictWriter(sfile, [scol, 'count'])
+                writer.writeheader()
+                for val, count in counts.items():
+                    writer.writerow({scol : val, 'count' : count})
         if include_hmm_cache_files:  # these aren't parameters, but don't want to change the name, either, oh well
             subfns = ['%s/single-chain/persistent-cache-%s.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
             merge_csvs('%s/single-chain/persistent-cache-%s.csv'% (merged_odir, ltmp), subfns)
