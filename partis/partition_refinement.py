@@ -202,6 +202,10 @@ def get_cluster_fingerprint(uids, uid_to_muts_with_base):
     return fingerprint, n_with_muts
 
 
+# floor on the strong-position vote count, so a small fragment can't trivially dominate its own fingerprint
+FINGERPRINT_MIN_COUNT_FLOOR = 2
+
+
 def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
     """Measure agreement between two cluster fingerprints.
 
@@ -211,8 +215,9 @@ def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
     asymmetric pair passes when the small fragment's positions appear in the
     large one.
 
-    Returns (score, n_strong_max) where score is in [0, 1] and n_strong_max
-    is the number of strong positions in the larger fingerprint.
+    Returns (score, winning_strong_count) where score is in [0, 1] and
+    winning_strong_count is the number of strong positions on the side that
+    sourced the winning direction (fwd or rev, whichever scored higher).
     High score = strong agreement (likely same family).
     Low score = independent mutations (likely different families).
 
@@ -224,7 +229,7 @@ def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
         return -1.0, 0
 
     def count_strong(fp, n):
-        min_count = max(1, n // 2)
+        min_count = max(FINGERPRINT_MIN_COUNT_FLOOR, n // 2)
         count = 0
         for pos, bases in fp.items():
             dominant_base = max(bases, key=bases.get)
@@ -236,9 +241,8 @@ def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
         """Fraction of source's strong positions that appear in target."""
         if source_n == 0:
             return 0.0, 0
-        # "strong" positions: mutated by at least half the source members
-        # for singletons: all positions are strong (count=1, n=1, 1/1 >= 0.5)
-        min_count = max(1, source_n // 2)
+        # strong: mutated by at least half the source members
+        min_count = max(FINGERPRINT_MIN_COUNT_FLOOR, source_n // 2)
         strong_positions = []
         for pos, bases in source_fp.items():
             dominant_base = max(bases, key=bases.get)
@@ -263,12 +267,14 @@ def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
     if min_fp_positions > 0 and n_strong_max < min_fp_positions:
         return -1.0, n_strong_max
 
-    fwd, _ = directional_agreement(fp1, n1, fp2, n2)
-    rev, _ = directional_agreement(fp2, n2, fp1, n1)
+    fwd, n_strong_fwd = directional_agreement(fp1, n1, fp2, n2)
+    rev, n_strong_rev = directional_agreement(fp2, n2, fp1, n1)
 
     # asymmetric clusters (one large, one small): take the max, since the small
     # cluster's positions should appear in the large one if they are the same family
-    return max(fwd, rev), n_strong_max
+    if fwd >= rev:
+        return fwd, n_strong_fwd
+    return rev, n_strong_rev
 
 
 # shared-mutation fraction at which a cross-fragment pair certifies common descent
@@ -634,7 +640,7 @@ def naive_pairs_below(oh, mask, idx_a, idx_b, threshold, symmetric, chunk_size=2
 
 def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                               uid_to_muts_with_base, naive_threshold,
-                              min_agreement=0.15, min_fp_positions=0,
+                              min_agreement=0.15, min_fp_positions=0, min_strong_positions=4,
                               skip_singleton_merge=False, uid_rearr_features=None,
                               junction_guard=True, vdj_override_min=VDJ_OVERRIDE_MIN_FRAG):
     """Heavy merge: incremental naive merge with fingerprint validation.
@@ -659,6 +665,9 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     vdj_override_min: rescue a junction-rejected union when both fragments share
     a v/d/j triple and the larger one has at least this many members, i.e. only
     where the modal annotation is trustworthy. 0 disables the override.
+
+    min_strong_positions: reject a union whose winning direction has fewer than
+    this many strong positions.
     """
     cdr3_frags = defaultdict(list)
     for cluster in split_partition:
@@ -752,7 +761,7 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                 fp_i, n_i, fp_j, n_j, min_fp_positions)
             if agreement < 0:
                 n_rejected_insufficient += 1
-            elif agreement >= min_agreement:
+            elif agreement >= min_agreement and n_strong >= min_strong_positions:
                 union(i, j)
                 n_accepted += 1
             else:
@@ -1400,7 +1409,8 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, 
         spill_fd, spill_path = tempfile.mkstemp(prefix='refine-pairpvals-', dir=scratch_dir)
         with os.fdopen(spill_fd, 'wb') as spill_f:
             sample, cand_counts, n_scanned = _scan_bin_full_pairs(
-                clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, spill_f, counts=param_dir_counts)
+                clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, spill_f,
+                counts=param_dir_counts)
         bin_alpha, fit_diag = derive_bin_alpha(sample, cand_counts, n_scanned)
         if fit_diag['fit_rate'] is None:
             print('  shared-descent null fit: FAILED (fewer than %d tail p-values in %d pairs scanned)' % (
@@ -1503,7 +1513,8 @@ def calc_metrics(true_partition, inf_partition):
 
 def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None,
                      naive_threshold=None,
-                     min_agreement=0.15, min_fp_positions=0, skip_singleton_merge=True,
+                     min_agreement=0.15, min_fp_positions=0, min_strong_positions=4,
+                     skip_singleton_merge=True,
                      min_cluster_size=2, light_chain=None, alpha=None,
                      parameter_dir=None, length_veto_min_shared=LENGTH_VETO_MIN_SHARED,
                      verbose=True, random_seed=None,
@@ -1602,8 +1613,8 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
             naive_thresh, min_agreement), flush=True)
     out = merge_on_naive_similarity(
         split_partition, uid_info, uid_sw_naives, uid_to_muts_with_base, naive_thresh,
-        min_agreement, min_fp_positions, skip_singleton_merge=skip_singleton_merge,
-        uid_rearr_features=uid_rearr_features)
+        min_agreement, min_fp_positions, min_strong_positions=min_strong_positions,
+        skip_singleton_merge=skip_singleton_merge, uid_rearr_features=uid_rearr_features)
     print('  timing: naive-similarity merge %.2f s' % (time.time() - tsplit), flush=True)
     return out
 
