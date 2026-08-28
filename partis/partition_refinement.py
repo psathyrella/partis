@@ -297,7 +297,8 @@ MERGE_WEIGHTED_SCORE_CUTOFF = 2.0
 def mute_freq_weighted_score(frag1, fp1, n1, frag2, fp2, n2, uid_to_muts_with_base, get_uid_freqs):
     """Sum of -log10(population mutation frequency) over the winning direction's agreeing
     strong positions: agreement at a rare position counts for more than at a common hotspot.
-    get_uid_freqs(uid) -> {(pos, base): freq}, see uid_param_dir_freqs."""
+    get_uid_freqs(uid) -> {(pos, base): freq}, each uid's own per-position mutation
+    frequencies from the parameter directory."""
     win_side, agree = fingerprint_winning_agreement(fp1, n1, fp2, n2)
     if len(agree) == 0:
         return 0.0
@@ -1008,7 +1009,7 @@ def _write_pair_block(spill_f, pairs_here):
 
 
 def _read_pair_block(spill_f):
-    """Read back one _write_pair_block() block. Returns {(i, o): p}, or None for an empty
+    """Read back one written block. Returns {(i, o): p}, or None for an empty
     block (caller falls back to split_by_weighted_descent's own recompute)."""
     n_pairs, = struct.unpack(_PAIR_BLOCK_HEADER, spill_f.read(struct.calcsize(_PAIR_BLOCK_HEADER)))
     if n_pairs == 0:
@@ -1020,8 +1021,8 @@ def _read_pair_block(spill_f):
 def _scan_bin_full_pairs(clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, spill_f,
                           counts=None, sample_cap=2000000, seed=1):
     """Full within-cluster pairwise scan across every cluster in one bin, one shared
-    _PerUidPvalCache. Every p < 1.0 pair is appended to <spill_f> one cluster-block at a time
-    (see _write_pair_block), never held past its own cluster. Returns (sample, cand_counts,
+    _PerUidPvalCache. Every p < 1.0 pair is appended to <spill_f> one cluster-block at a
+    time, never held past its own cluster. Returns (sample, cand_counts,
     n_total): sample is a reservoir sample of p for the null-tail fit; cand_counts is the exact
     (unsampled) count of p below each WEIGHTED_DESCENT_CAND candidate."""
     rng = random.Random(seed)
@@ -1208,7 +1209,7 @@ NO_GERMLINE_FREQ = 0.25  # uniform over the four bases where there is no germlin
 
 def load_param_mute_freq_csv(mute_freq_dir, gene):
     """Per-position mutation frequencies for one germline gene, from
-    <mute_freq_dir>/<gene, '*' -> '_star_'>.csv (parameter-dir hmm/mute-freqs layout).
+    <mute_freq_dir>/<gene, '*' -> '_star_'>.csv.
     None if the file does not exist or carries no rows (e.g. a light-locus D
     placeholder, header-only). Each row also carries _N_OBS_KEY, the summed *_obs counts
     at that position."""
@@ -1362,11 +1363,12 @@ def split_by_weighted_descent(cluster, uid_muts, uid_part_antns, glfo, mute_freq
     """Split one cluster by weighted shared descent, assigning members to non-transitive
     greedy centroids, scoring each pair against the two sequences' own per-gene mute-freqs
     frequencies rather than a single locus-wide table. Returns a list of sub-clusters
-    (lists of uids). counts: see uid_param_dir_freqs.
+    (lists of uids). counts: optional dict, incremented in place per fallback reason when
+    a uid's own mutation frequency can't be sourced from the parameter directory.
 
-    pair_pvals: optional {(i, o): p} from _scan_bin_full_pairs (via _read_pair_block), i/o
-    positions in this same <cluster>'s member list. When given, this is a pure dict-lookup
-    pass with no further p-value computation."""
+    pair_pvals: optional {(i, o): p}, precomputed p-values keyed by this same <cluster>'s
+    member-list positions. When given, this is a pure dict-lookup pass with no further
+    p-value computation."""
     members = list(cluster)
     n = len(members)
     if n <= 1:
@@ -1427,17 +1429,16 @@ def _partition_has_real_d(uid_rearr_features):
 
 def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, glfo, mute_freq_dir,
                             n_seqs, alpha=None):
-    """Light split: split over-merged clusters by weighted shared descent
-    (split_by_weighted_descent). Every cluster of size >= 2 is passed to the
-    proposer. Light chain only.
+    """Light split: split over-merged clusters by weighted shared descent. Every
+    cluster of size >= 2 is passed to the proposer. Light chain only.
 
     uid_part_antns, glfo, mute_freq_dir: source each uid's own V/J germline mute-freqs
-    table (see uid_param_dir_freqs). Positions the tables cannot cover (insertions, D)
-    fall back to NO_GERMLINE_FREQ, not a smoothing floor.
+    table. Positions the table cannot cover (insertions, D) fall back to
+    NO_GERMLINE_FREQ, not a smoothing floor.
 
-    alpha: link threshold. None (default): derive one per-bin threshold via derive_bin_alpha,
-    no split at all for this bin if that fails. Pass an explicit float to use one fixed
-    threshold for every cluster instead."""
+    alpha: link threshold. None (default): fit one per-bin threshold from the pair
+    p-value null tail, no split at all for this bin if that fails. Pass an explicit
+    float to use one fixed threshold for every cluster instead."""
     result = []
     n_resplit = n_skipped = n_input_seqs = 0
     param_dir_counts = {}
@@ -1633,7 +1634,7 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     if light_chain:
         missing = [n for n, v in (('mute_freq_dir', mute_freq_dir), ('uid_part_antns', uid_part_antns), ('glfo', glfo)) if v is None]
         if missing:
-            raise Exception('light-chain refine missing %s (pass through from read_refine_inputs())' % ', '.join(missing))
+            raise Exception('light-chain refine missing %s' % ', '.join(missing))
         if verbose:
             alpha_label = '%.3g' % alpha if alpha is not None else 'auto'
             print('\n=== light: shared-descent split (alpha=%s) ===' % alpha_label, flush=True)
@@ -1645,7 +1646,7 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
 
     missing = [n for n, v in (('mute_freq_dir', mute_freq_dir), ('uid_part_antns', uid_part_antns), ('glfo', glfo)) if v is None]
     if missing:
-        raise Exception('heavy-chain refine missing %s (pass through from read_refine_inputs())' % ', '.join(missing))
+        raise Exception('heavy-chain refine missing %s' % ', '.join(missing))
 
     naive_thresh = (naive_threshold if naive_threshold is not None
                     else estimate_naive_threshold(partition, uid_sw_naives))
@@ -2011,7 +2012,7 @@ def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter
     <parameter_dir> is the locus-level parameter dir, and is passed straight through: refine
     derives the heavy split's length veto from it.
 
-    mute_freq_dir: required for any light-chain group, see refine_partition()."""
+    mute_freq_dir: required, both chains read it."""
     from argparse import Namespace
     from partis import utils
     oargs = Namespace(overwrite=overwrite)
