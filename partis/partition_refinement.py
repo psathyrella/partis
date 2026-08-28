@@ -476,7 +476,7 @@ _length_veto_cache = {}  # parameter dir -> (tables, cutoff), since every group 
 def length_veto_inputs(parameter_dir):
     """(tables, length cutoff) for the heavy split's veto, derived from <parameter_dir> alone.
     Both None, with a warning, when no dir was passed; an unreadable dir raises rather than
-    warns (see read_length_tables). Cached, so a locus samples its cutoff once."""
+    warns. Cached, so a locus samples its cutoff once."""
     if parameter_dir in _length_veto_cache:
         return _length_veto_cache[parameter_dir]
     from partis import utils
@@ -959,7 +959,7 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, freqs, n_seqs,
                             alpha=WEIGHTED_DESCENT_ALPHA):
     """Light split: split over-merged clusters by weighted shared descent
     (split_by_weighted_descent). Every cluster of size >= 2 is passed to the
-    proposer. Light chain only (see refine_partition).
+    proposer. Light chain only.
 
     freqs, n_seqs: from repertoire_mutation_freqs over the whole refine input.
     alpha: link threshold for the weighted shared-descent test
@@ -1064,8 +1064,8 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
 
     parameter_dir: the locus-level parameter dir, and the only input the heavy locus's
     length veto takes: its length cutoff is derived from it here, so any caller passing the
-    same dir refines the same way. Absent or unreadable, the veto warns and stays off. It
-    reaches only the heavy locus.
+    same dir refines the same way. Absent, the veto warns and stays off; present but
+    incomplete, it raises instead. It reaches only the heavy locus.
 
     random_seed: seeds the global RNG. Refinement reads no RNG, so this changes nothing.
     """
