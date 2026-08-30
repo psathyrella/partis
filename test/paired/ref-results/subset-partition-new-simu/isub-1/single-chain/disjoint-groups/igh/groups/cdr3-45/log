@@ -1,0 +1,20 @@
+[91mrun[0m /partis-dev/bin/partis partition --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 4 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-45/igh.fa --outfname test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-45/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-45/sw-cache-igh.yaml --naive-vsearch
+  --input-metafnames: added meta info for 10 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
+partitioning     (with test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/hmm)
+smith-waterman
+  vsearch: 10 / 10 v annotations (0 failed) with 2 v genes in 0.1 sec
+        reading sw results from test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-45/sw-cache-igh.yaml
+      info for 10 / 10 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 8 (0.800) unproductive
+        water time: 0.0
+hmm
+  caching all 10 naive sequences (0.3s)
+         collapsed 10 sequences (10 initial naive seqs/clusters) into 6 unique naive sequences over 1 cdr3 lengths (0.0 sec)
+    using hfrac bound for vsearch 0.018
+    running vsearch 1 times (once for each cdr3 length class): . 
+      vsearch time: 0.1
+getting annotations for final partition
+      calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
+  subcluster annotating 2 clusters with steps:  (0.2s) (0.1s) 
+    subcluster annotation time 0.4
+      total time: 0.8
