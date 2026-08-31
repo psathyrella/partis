@@ -7,6 +7,7 @@ import sys
 import itertools
 import math
 import os
+import shutil
 import glob
 import csv
 from io import open
@@ -2006,7 +2007,7 @@ class PartitionDriver(object):
                 os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
                 if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
                     os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
-                os.rmdir(subworkdir)
+                shutil.rmtree(subworkdir, ignore_errors=True)  # os.rmdir can fail on stray nfs leftovers
 
         return cpath
 
