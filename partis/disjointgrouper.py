@@ -13,6 +13,10 @@ from . import utils
 from . import glutils
 
 MANIFEST_FNAME = 'manifest.yaml'
+MULTIFILE_INDEX_FNAME = 'index.yaml'
+
+MULTIFILE_MIN_SEQS = 2000000           # locus totals above this get a multifile output dir, not one merged file
+MULTIFILE_MAX_SEQS_PER_FILE = 1000000  # per-output-file cap; an indivisible group can still exceed it
 
 # hfrac defaults (referenced from bin/partis argparse so all three places stay in sync)
 HFRAC_MERGE_FACTOR_DEFAULT = 3.0       # round-2 TCM threshold = merge_factor * hi_bound
@@ -613,6 +617,12 @@ def discover_partition_path(ginfo, manifest_dir):
     return None, None
 
 
+def stage_from_path(ppath):
+    # which stage wrote <ppath>, by its filename. precedence order matters: 'partition-refine'
+    # has to be tested before 'partition'
+    return next((s for s in PARTITION_PRECEDENCE if os.path.basename(ppath).startswith(s)), None)
+
+
 def resolve_partition_path(ginfo, manifest_dir):
     # (relative path, stage that wrote it, whether the manifest was stale), or (None, None, False)
     # if the group has no partition output. The manifest's partition_path can be stale, since
@@ -622,7 +632,7 @@ def resolve_partition_path(ginfo, manifest_dir):
     ppath = ginfo.get('partition_path')
     if ppath is None:
         return dpath, dstage, False
-    stage = next((s for s in PARTITION_PRECEDENCE if os.path.basename(ppath).startswith(s)), None)
+    stage = stage_from_path(ppath)
     if dpath is not None and (stage is None or PARTITION_PRECEDENCE.index(dstage) < PARTITION_PRECEDENCE.index(stage)):
         return dpath, dstage, True
     return ppath, stage, False
@@ -674,8 +684,10 @@ def get_partition_paths(manifest, manifest_dir):
 # ----------------------------------------------------------------------------------------
 def validate_assembly(manifest, gpaths):
     # validate uid uniqueness and sequence counts by reading partitioned groups
+    # also returns per-group counts, free here since every file is already read
     all_uids = set()
     total_seqs = 0
+    counts = {}
     for ginfo, ppath in gpaths:
         _, annotation_list, cpath = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
         check_stage_file_complete(ppath, annotation_list, cpath)  # free here: the file is already read
@@ -684,13 +696,16 @@ def validate_assembly(manifest, gpaths):
                 if uid in all_uids:
                     raise Exception('duplicate uid %s found across groups' % uid)
                 all_uids.add(uid)
-        total_seqs += sum(len(line['unique_ids']) for line in annotation_list)
+        csizes = [len(line['unique_ids']) for line in annotation_list]
+        counts[ginfo['group_id']] = {'sequence_count' : sum(csizes), 'cluster_count' : len(csizes), 'largest_cluster_size' : max(csizes) if len(csizes) > 0 else 0}
+        total_seqs += sum(csizes)
     expected = manifest['grouping-info']['total_grouped_sequences']
     if total_seqs > expected:
         raise Exception('sequence count exceeds expected after assembly: found %d in partition files, expected at most %d' % (total_seqs, expected))
     filtered = expected - total_seqs
     filter_msg = ' (%d filtered during partition)' % filtered if filtered > 0 else ''
     print('      assembly validation passed: %d sequences from %d groups%s' % (total_seqs, len(gpaths), filter_msg))
+    return counts
 
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths, locus):
@@ -829,25 +844,152 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
     return manifest
 
 # ----------------------------------------------------------------------------------------
+def multifile_dir_path(outfname):
+    # named for <outfname>, not the locus, so nothing has to guess a locus back out of a path
+    return '%s-multifile' % utils.getprefix(os.path.abspath(outfname))
+
+# ----------------------------------------------------------------------------------------
+def multifile_fname(outfname, c3len, ifile):
+    # partition-igh.yaml -> partition-igh-cdr3-48-000.yaml. the suffix is unconditional, so a
+    # one-file cdr3 group needs no special case
+    return '%s-cdr3-%d-%03d.yaml' % (utils.getprefix(os.path.basename(outfname)), c3len, ifile)
+
+# ----------------------------------------------------------------------------------------
+def pack_multifile_output(gpaths, counts):
+    # pack each cdr3 group's leaf partitions into output files up to MULTIFILE_MAX_SEQS_PER_FILE, in manifest
+    # order. one file never spans two cdr3 groups, so the cdr3 length in its name stays exact
+    by_c3len = collections.OrderedDict()
+    for ginfo, ppath in gpaths:
+        by_c3len.setdefault(ginfo['cdr3_length'], []).append((ginfo, ppath))
+    fspecs = []
+    for c3len, glist in by_c3len.items():
+        cur, cur_seqs = [], 0
+        for ginfo, ppath in glist:
+            nseq = counts[ginfo['group_id']]['sequence_count']
+            if len(cur) > 0 and cur_seqs + nseq > MULTIFILE_MAX_SEQS_PER_FILE:
+                fspecs.append((c3len, cur))
+                cur, cur_seqs = [], 0
+            cur.append((ginfo, ppath))
+            cur_seqs += nseq
+        if len(cur) > 0:
+            fspecs.append((c3len, cur))
+    return fspecs
+
+# ----------------------------------------------------------------------------------------
+def write_multifile_output(locus, manifest, gpaths, counts, outfname):
+    # one output file per cdr3 group, subdivided at the per-file cap, plus an index
+    fspecs = pack_multifile_output(gpaths, counts)
+    mfiledir = multifile_dir_path(outfname)
+    utils.prep_dir(mfiledir, wildlings=['*.yaml'])  # a re-run can write fewer files than the last one did
+    headers = list(utils.annotation_headers)
+    ifiles = collections.defaultdict(int)
+    findex, n_oversize = [], 0
+    print('      writing %d output files for %s (%d cdr3 groups) to %s' % (len(fspecs), locus, len(set(c for c, _ in fspecs)), mfiledir))
+    for c3len, glist in fspecs:
+        fname = multifile_fname(outfname, c3len, ifiles[c3len])
+        ifiles[c3len] += 1
+        # merge even a one-group file, so every file is best-partition-only like the merged output
+        # (the germline sets were already unioned at grouping time, so nothing to reconcile here)
+        utils.merge_yamls('%s/%s' % (mfiledir, fname), [p for _, p in glist], headers, best_partition_only=True, dont_write_git_info=True)
+        gcounts = [counts[g['group_id']] for g, _ in glist]
+        nseq = sum(c['sequence_count'] for c in gcounts)
+        if nseq > MULTIFILE_MAX_SEQS_PER_FILE:
+            n_oversize += 1
+        findex.append({
+            'path' : fname,
+            'cdr3_length' : c3len,
+            'group_ids' : [g['group_id'] for g, _ in glist],
+            # a list since one file can hold several groups, but almost always a single entry
+            'built_from' : sorted(set(stage_from_path(p) for _, p in glist)),
+            'hfrac_binning' : any('sub_group_id' in g for g, _ in glist),
+            'sequence_count' : nseq,
+            'cluster_count' : sum(c['cluster_count'] for c in gcounts),
+            'largest_cluster_size' : max(c['largest_cluster_size'] for c in gcounts),
+        })
+    if n_oversize > 0:
+        print('      %s %d files are over the per-file cap: their groups hold an indivisible unit larger than it' % (utils.wrnstr(), n_oversize))
+    return write_multifile_index(locus, manifest, findex, mfiledir)
+
+# ----------------------------------------------------------------------------------------
+def write_multifile_index(locus, manifest, findex, mfiledir):
+    # externally visible, so the counts are named by which stage they refer to rather than by 'total'
+    ginfo = manifest['grouping-info']
+    n_seqs = sum(f['sequence_count'] for f in findex)
+    index = {
+        'locus' : locus,
+        'assembly' : {
+            'status' : 'multifile',
+            'n_files' : len(findex),
+            'n_cdr3_groups' : len(set(f['cdr3_length'] for f in findex)),
+            'n_sequences_in_sw_cache' : ginfo['total_input_sequences'],
+            'n_sequences_no_cdr3' : ginfo['failed_sequences'],
+            'n_sequences_grouped' : ginfo['total_grouped_sequences'],
+            'n_sequences_dropped_in_partition' : ginfo['total_grouped_sequences'] - n_seqs,
+            'n_sequences_in_output' : n_seqs,
+            'n_clusters_in_output' : sum(f['cluster_count'] for f in findex),
+            'built_from' : sorted(set(st for f in findex for st in f['built_from'])),
+        },
+        'files' : findex,
+    }
+    validate_multifile_index(index)
+    index_path = '%s/%s' % (mfiledir, MULTIFILE_INDEX_FNAME)
+    with open(index_path, 'w') as ifile:
+        yaml.dump(index, ifile, width=400, default_flow_style=False, sort_keys=False)
+    print('      wrote index to %s' % index_path)
+    return index_path
+
+# ----------------------------------------------------------------------------------------
+def validate_multifile_index(index, fname=None):
+    # the identities that say no group or sequence went missing between stages
+    fstr = '' if fname is None else ' in %s' % fname
+    ainfo = index['assembly']
+    for key, fkey in [('n_sequences_in_output', 'sequence_count'), ('n_clusters_in_output', 'cluster_count')]:
+        fsum = sum(f[fkey] for f in index['files'])
+        if ainfo[key] != fsum:
+            raise Exception('multifile index mismatch%s: %s %d does not equal the sum of the %d files\' %s %d' % (fstr, key, ainfo[key], len(index['files']), fkey, fsum))
+    if ainfo['n_sequences_in_output'] + ainfo['n_sequences_dropped_in_partition'] != ainfo['n_sequences_grouped']:
+        raise Exception('multifile index mismatch%s: output %d + dropped during partition %d does not equal grouped %d' % (fstr, ainfo['n_sequences_in_output'], ainfo['n_sequences_dropped_in_partition'], ainfo['n_sequences_grouped']))
+    if ainfo['n_sequences_grouped'] + ainfo['n_sequences_no_cdr3'] != ainfo['n_sequences_in_sw_cache']:
+        raise Exception('multifile index mismatch%s: grouped %d + no cdr3 %d does not equal the sw cache count %d' % (fstr, ainfo['n_sequences_grouped'], ainfo['n_sequences_no_cdr3'], ainfo['n_sequences_in_sw_cache']))
+    if ainfo['n_files'] < ainfo['n_cdr3_groups']:
+        raise Exception('multifile index mismatch%s: %d files is fewer than the %d cdr3 groups they cover' % (fstr, ainfo['n_files'], ainfo['n_cdr3_groups']))
+
+# ----------------------------------------------------------------------------------------
+def read_multifile_index(index_path):
+    if not os.path.exists(index_path):
+        raise Exception('multifile index does not exist: %s' % index_path)
+    with open(index_path) as ifile:
+        index = yaml.safe_load(ifile)
+    for required_key in ['locus', 'assembly', 'files']:
+        if required_key not in index:
+            raise Exception('missing required key \'%s\' in multifile index %s' % (required_key, index_path))
+    validate_multifile_index(index, fname=index_path)
+    return index
+
+# ----------------------------------------------------------------------------------------
 def assemble_groups(locus, disjoint_dir, outfname):
     # validate and concatenate per-group partition results for a single locus
+    # loci past MULTIFILE_MIN_SEQS get a multifile output dir, since one merged file will not fit in memory
     manifest_path = '%s/%s' % (disjoint_dir, MANIFEST_FNAME)
     print('    assembling groups from %s' % manifest_path)
     manifest = read_manifest(manifest_path)
     disjoint_dir = os.path.abspath(disjoint_dir)
 
     gpaths = get_partition_paths(manifest, disjoint_dir)
-    validate_assembly(manifest, gpaths)
+    counts = validate_assembly(manifest, gpaths)
     manifest['assembly']['validation']['uids_unique'] = True
     manifest['assembly']['validation']['sequence_count_preserved'] = True
 
     utils.mkdir(outfname, isfile=True)
-    headers = list(utils.annotation_headers)
-    print('      merging %d partition files for %s:' % (len(gpaths), locus))
-    utils.merge_yamls(outfname, [p for _, p in gpaths], headers, best_partition_only=True, dont_write_git_info=True, debug=True)
-
-    manifest['assembly']['status'] = 'merged'
-    manifest['assembly']['merged_output_path'] = outfname
+    if manifest['grouping-info']['total_grouped_sequences'] > MULTIFILE_MIN_SEQS:
+        manifest['assembly']['status'] = 'multifile'
+        manifest['assembly']['multifile_index_path'] = write_multifile_output(locus, manifest, gpaths, counts, outfname)
+    else:
+        headers = list(utils.annotation_headers)
+        print('      merging %d partition files for %s:' % (len(gpaths), locus))
+        utils.merge_yamls(outfname, [p for _, p in gpaths], headers, best_partition_only=True, dont_write_git_info=True, debug=True)
+        manifest['assembly']['status'] = 'merged'
+        manifest['assembly']['merged_output_path'] = outfname
 
     with open(manifest_path, 'w') as mfile:
         yaml.dump(manifest, mfile, width=400, default_flow_style=False)

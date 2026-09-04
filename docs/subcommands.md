@@ -15,6 +15,7 @@
   - [subset-partition](#subset-partition)
   - [create-disjoint-groups](#create-disjoint-groups) split sequences by CDR3 length for independent partition (standalone action for batch workflows)
   - [assemble-groups](#assemble-groups) concatenate per-group partition results (standalone action for batch workflows)
+    - [multifile output](#multifile-output)
   - [create-ha-repartition-jobs](#create-ha-repartition-jobs) write per-cluster inputs for HA re-partition (standalone action for batch workflows)
   - [run-ha-repartition-jobs](#run-ha-repartition-jobs) run HA re-partition on a slice of clusters (standalone action for batch workflows)
   - [assemble-ha-repartition](#assemble-ha-repartition) merge per-cluster HA results into per-group partitions (standalone action for batch workflows)
@@ -212,6 +213,67 @@ Requires `--locus`, `--outfname`, and `--paired-outdir` (the same root passed to
 ```
 partis assemble-groups --locus igh --paired-outdir out/ --outfname out/partition-igh.yaml
 ```
+
+#### multifile output
+
+Partition output for one locus spread over several files instead of one, for loci too large for a single file.
+Only [disjoint grouping](#disjoint-groups) writes it, i.e. `partition --disjoint-groups` or `assemble-groups`, and only past two million sequences in the locus, so a normal partition run always writes the single `--outfname`.
+
+The directory and its files are named after `--outfname`, with the CDR3 length and file number added:
+
+```
+out/
+└── partition-igh-multifile/
+    ├── index.yaml
+    ├── partition-igh-cdr3-33-000.yaml
+    ├── partition-igh-cdr3-48-000.yaml     # one CDR3 group, split over two files
+    ├── partition-igh-cdr3-48-001.yaml
+    └── partition-igh-cdr3-51-000.yaml
+```
+
+There is no `out/partition-igh.yaml`.
+Each file is a self-contained partition file, covering one CDR3 group rather than the whole locus.
+The clustering is the same one you'd get in a merged output.
+
+`index.yaml` lists every file in the directory with its CDR3 length and its sequence and cluster counts, together with the totals for the locus.
+
+```yaml
+locus: igh
+assembly:
+  status: multifile
+  n_files: 47
+  n_cdr3_groups: 44
+  n_sequences_in_sw_cache: 17000000
+  n_sequences_no_cdr3: 812
+  n_sequences_grouped: 16999188
+  n_sequences_dropped_in_partition: 14738
+  n_sequences_in_output: 16983810
+  n_clusters_in_output: 9123456
+  built_from:
+  - partition-refine
+files:
+- path: partition-igh-cdr3-48-000.yaml   # relative to this index
+  cdr3_length: 48
+  group_ids:
+  - 112
+  - 113
+  - 114
+  built_from:
+  - partition-refine
+  hfrac_binning: true
+  sequence_count: 998412
+  cluster_count: 41003
+  largest_cluster_size: 12408
+```
+
+`built_from` records which partition files each output file was assembled from.
+
+The counts are checked when the index is written and again when it's read, so you can rely on:
+
+- `n_sequences_in_output` is the sum of the per-file `sequence_count`s
+- `n_clusters_in_output` is the sum of the per-file `cluster_count`s
+- `n_sequences_in_output` plus `n_sequences_dropped_in_partition` is `n_sequences_grouped`
+- `n_sequences_grouped` plus `n_sequences_no_cdr3` is `n_sequences_in_sw_cache`
 
 ### create-ha-repartition-jobs
 
