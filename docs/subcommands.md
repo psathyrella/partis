@@ -275,6 +275,10 @@ The counts are checked when the index is written and again when it's read, so yo
 - `n_sequences_in_output` plus `n_sequences_dropped_in_partition` is `n_sequences_grouped`
 - `n_sequences_grouped` plus `n_sequences_no_cdr3` is `n_sequences_in_sw_cache`
 
+To read one back, pass the directory, its `index.yaml`, or the `--outfname` path, to anything that takes a partis output file, e.g. `bin/parse-output.py`.
+This concatenates all the files, so it uses as much memory as a merged output would; read the files listed in the index one at a time to avoid that.
+You can't rewrite one in place, so actions that update an existing output file, e.g. `get-selection-metrics --add-selection-metrics-to-outfname`, refuse a multifile input.
+
 ### create-ha-repartition-jobs
 
 Write the per-cluster inputs for [HA re-partition](#ha-re-partition-and-refinement) for a single locus: for every vsearch cluster of at least three sequences it writes a per-cluster FASTA, plus a task list enumerating all the per-cluster jobs.

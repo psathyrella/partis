@@ -148,7 +148,7 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
     lpfos = {k : {} for k in ['glfos', 'antn_lists', 'cpaths']}
     for ltmp in tmploci:  # read single-locus output files
         ofn = ofn_fcn(ltmp, lpair=lpair)
-        if not os.path.exists(ofn):
+        if not os.path.exists(ofn) and not utils.multifile_output_exists(ofn):  # a multifile locus has no <ofn>, but read_output() finds its dir
             for k in lpfos:
                 lpfos[k][ltmp] = copy.deepcopy(nulldict[k])
             if debug:

@@ -765,7 +765,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             elif persistent_cache:
                 bstr = 'persistent-cache'
                 sfx = 'csv'
-            elif args.action in ['view-output', 'get-selection-metrics'] and not recursed and not os.path.exists(getofn(ltmp, joint=joint, partition_only=partition_only, trees=trees, lpair=lpair, recursed=True)):  # ok this is ugly, but it's nice to have 'view-output' automatically figure out if it's simulation or inference output (and yes it's also nice to have different file names for them (partition-igh.yaml vs igh.yaml))
+            elif args.action in ['view-output', 'get-selection-metrics'] and not recursed and not utils.output_or_multifile_exists(getofn(ltmp, joint=joint, partition_only=partition_only, trees=trees, lpair=lpair, recursed=True)):  # ok this is ugly, but it's nice to have 'view-output' automatically figure out if it's simulation or inference output (and yes it's also nice to have different file names for them (partition-igh.yaml vs igh.yaml))
                 bstr = ''
             else:
                 bstr ='partition'

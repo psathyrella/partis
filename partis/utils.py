@@ -7445,6 +7445,12 @@ def output_exists(args, outfname, outlabel=None, leave_zero_len=False, offset=No
     if offset is None: offset = 22  # weird default setting method so we can call it also with the fcn below (without setting default value in two places)
 
     if not os.path.exists(outfname):
+        if multifile_output_exists(outfname):  # the locus went multifile, so <outfname> was never written but the locus is finished
+            if args.overwrite:
+                raise Exception('output %s is a multifile dir, rm it by hand' % multifile_dir(outfname))
+            if debug:
+                print('%s%smultifile output exists, %s (%s)' % (offset * ' ', outlabel, 'skipping' if todostr is None else todostr, multifile_dir(outfname)))
+            return True
         return False
 
     if not leave_zero_len and os.stat(outfname).st_size == 0:
@@ -8052,12 +8058,72 @@ def read_cpath(fname, n_max_queries=-1, seed_unique_id=None, skip_annotations=Fa
     return cpath
 
 # ----------------------------------------------------------------------------------------
+# a locus too big for one file gets a <outfname>-multifile/ dir beside the path that would have
+# held it, so anything resolving an output path has to look for both (format: docs/subcommands.md)
+def multifile_dir(fname):
+    return '%s-multifile' % getprefix(os.path.abspath(fname))
+
+# ----------------------------------------------------------------------------------------
+# index for <fname>, whether that's the dir, the index itself, or the single-file path it replaced
+def multifile_index_path(fname):
+    from . import disjointgrouper
+    if os.path.basename(fname) == disjointgrouper.MULTIFILE_INDEX_FNAME:
+        return fname
+    if os.path.isdir(fname):
+        return '%s/%s' % (fname, disjointgrouper.MULTIFILE_INDEX_FNAME)
+    if os.path.exists(fname):  # a real file isn't multifile, even with a stale dir beside it
+        return None
+    return '%s/%s' % (multifile_dir(fname), disjointgrouper.MULTIFILE_INDEX_FNAME)
+
+# ----------------------------------------------------------------------------------------
+def multifile_output_exists(fname):
+    return os.path.exists(multifile_index_path(fname) or '')
+
+# ----------------------------------------------------------------------------------------
+def output_or_multifile_exists(fname):  # <fname> itself, or the multifile dir that replaced it
+    return os.path.exists(fname) or multifile_output_exists(fname)
+
+# ----------------------------------------------------------------------------------------
+# concatenate every file in a multifile dir into the glfo, annotation list and partition a merged
+# output would have given, so this costs the memory the writer avoids
+def read_multifile_output(index_path, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, skip_annotations=False, debug=False):
+    from . import clusterpath
+    from . import disjointgrouper
+    index = disjointgrouper.read_multifile_index(index_path)
+    mfdir = os.path.dirname(os.path.abspath(index_path))
+    ainfo = index['assembly']
+    print('    reading %d multifile output files (%d seqs in %d clusters) from %s' % (ainfo['n_files'], ainfo['n_sequences_in_output'], ainfo['n_clusters_in_output'], mfdir))
+    glfo, partition = None, []
+    annotation_list = None if skip_annotations else []
+    for ifo in index['files']:
+        if n_max_queries > 0 and annotation_list is not None and len(annotation_list) >= n_max_queries:
+            break
+        n_left = -1 if n_max_queries < 0 or annotation_list is None else n_max_queries - len(annotation_list)
+        tglfo, tantns, tcpath = read_yaml_output('%s/%s' % (mfdir, ifo['path']), n_max_queries=n_left, synth_single_seqs=synth_single_seqs,
+                                                 dont_add_implicit_info=dont_add_implicit_info, seed_unique_id=seed_unique_id, skip_annotations=skip_annotations, debug=debug)
+        if glfo is None:
+            glfo = tglfo  # every file was written against the same germline set, so the first stands for all
+        if tantns is not None:
+            annotation_list += tantns
+        if len(tcpath.partitions) > 0:
+            partition += tcpath.partitions[tcpath.i_best]  # each file is best-partition-only, and no cluster can span two files
+    n_seqs = sum(len(c) for c in partition)
+    if n_max_queries < 0 and n_seqs != ainfo['n_sequences_in_output']:
+        raise Exception('read %d sequences from the %d files in %s, but its index says %d' % (n_seqs, ainfo['n_files'], mfdir, ainfo['n_sequences_in_output']))
+    return glfo, annotation_list, clusterpath.ClusterPath(partition=partition, seed_unique_id=seed_unique_id)
+
+# ----------------------------------------------------------------------------------------
 def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, glfo_dir=None, locus=None, skip_failed_queries=False, is_partition_file=False, debug=False):
     from . import clusterpath
     from . import glutils
     annotation_list = None
 
-    if getsuffix(fname) == '.csv':
+    if multifile_output_exists(fname):  # <fname> is a multifile dir, its index, or the single-file path that a multifile locus replaced
+        assert cpath is None  # see note in read_yaml_output()
+        glfo, annotation_list, cpath = read_multifile_output(multifile_index_path(fname), n_max_queries=n_max_queries, synth_single_seqs=synth_single_seqs,
+                                                             dont_add_implicit_info=dont_add_implicit_info, seed_unique_id=seed_unique_id, skip_annotations=skip_annotations, debug=debug)
+
+    elif getsuffix(fname) == '.csv':
         cluster_annotation_fname = fname.replace('.csv', '-cluster-annotations.csv')
         if os.path.exists(cluster_annotation_fname) or is_partition_file:  # i.e. if <fname> is a partition file
             assert cpath is None   # see note in read_yaml_output()
