@@ -629,9 +629,9 @@ def resolve_partition_path(ginfo, manifest_dir):
 
 
 def get_partition_paths(manifest, manifest_dir):
-    # collect and verify partition file paths for a single locus
-    paths = []
-    skipped_groups = []
+    # collect and verify partition file paths for a single locus, as (group info, path) pairs
+    gpaths = []
+    no_output = []
     missing_files = []
     n_superseded = 0
     unknown_stage = []  # manifest name matches no stage and nothing more refined exists
@@ -639,7 +639,7 @@ def get_partition_paths(manifest, manifest_dir):
     for ginfo in manifest['groups']:
         ppath, stage, superseded = resolve_partition_path(ginfo, manifest_dir)
         if ppath is None:
-            skipped_groups.append(ginfo['group_id'])
+            no_output.append(ginfo)
             continue
         if superseded:
             n_superseded += 1
@@ -649,15 +649,16 @@ def get_partition_paths(manifest, manifest_dir):
             stage_counts[stage] += 1
         full_ppath = '%s/%s' % (manifest_dir, ppath)
         if not os.path.exists(full_ppath):
-            missing_files.append(ginfo['group_id'])
+            missing_files.append(ginfo)
             continue
         if os.path.getsize(full_ppath) == 0:
             raise Exception('partition file is empty for group %d: %s' % (ginfo['group_id'], full_ppath))
-        paths.append(full_ppath)
-    if len(skipped_groups) > 0:
-        print('      skipping %d groups with no partition output (e.g. too small): %s' % (len(skipped_groups), skipped_groups))
-    if len(missing_files) > 0:
-        raise Exception('partition files missing for %d groups (partition_path set but file not found): %s' % (len(missing_files), missing_files))
+        gpaths.append((ginfo, full_ppath))
+    for glist, dstr in [(no_output, 'have no partition output'), (missing_files, 'have a manifest partition_path whose file is gone')]:
+        if len(glist) == 0:
+            continue
+        raise Exception('%d of %d groups %s, so their partition jobs failed (re-running the stage skips the groups that are already done): %s'
+                        % (len(glist), len(manifest['groups']), dstr, ', '.join('group %d (cdr3-%d, %d seqs, %s)' % (g['group_id'], g['cdr3_length'], g['sequence_count'], os.path.dirname(g['fasta_path'])) for g in glist[:5])))
     if n_superseded > 0:
         print('      %s manifest partition_path was stale for %d groups, used the more refined output instead' % (utils.wrnstr(), n_superseded))
     if len(unknown_stage) > 0:
@@ -668,22 +669,14 @@ def get_partition_paths(manifest, manifest_dir):
                         % ', '.join('%d %s' % (n, s) for s, n in nonzero))
     elif len(nonzero) == 1:
         print('      all %d groups from %s' % (nonzero[0][1], nonzero[0][0]))
-    return paths
+    return gpaths
 
 # ----------------------------------------------------------------------------------------
-def validate_assembly(manifest, manifest_dir):
+def validate_assembly(manifest, gpaths):
     # validate uid uniqueness and sequence counts by reading partitioned groups
     all_uids = set()
     total_seqs = 0
-    # compute skipped groups using same auto-discovery logic as get_partition_paths
-    skipped = []
-    for ginfo in manifest['groups']:
-        if ginfo.get('partition_path') is not None:
-            continue
-        if discover_partition_path(ginfo, manifest_dir)[0] is None:
-            skipped.append(ginfo)
-    skipped_seqs = sum(g['sequence_count'] for g in skipped)
-    for ppath in get_partition_paths(manifest, manifest_dir):
+    for ginfo, ppath in gpaths:
         _, annotation_list, cpath = utils.read_yaml_output(ppath, dont_add_implicit_info=True)
         check_stage_file_complete(ppath, annotation_list, cpath)  # free here: the file is already read
         for line in annotation_list:
@@ -692,12 +685,12 @@ def validate_assembly(manifest, manifest_dir):
                     raise Exception('duplicate uid %s found across groups' % uid)
                 all_uids.add(uid)
         total_seqs += sum(len(line['unique_ids']) for line in annotation_list)
-    expected = manifest['grouping-info']['total_grouped_sequences'] - skipped_seqs
+    expected = manifest['grouping-info']['total_grouped_sequences']
     if total_seqs > expected:
-        raise Exception('sequence count exceeds expected after assembly: found %d in partition files, expected at most %d (total %d minus %d skipped)' % (total_seqs, expected, manifest['grouping-info']['total_grouped_sequences'], skipped_seqs))
+        raise Exception('sequence count exceeds expected after assembly: found %d in partition files, expected at most %d' % (total_seqs, expected))
     filtered = expected - total_seqs
     filter_msg = ' (%d filtered during partition)' % filtered if filtered > 0 else ''
-    print('      assembly validation passed: %d sequences from %d groups (%d sequences in %d groups skipped%s)' % (total_seqs, len(manifest['groups']) - len(skipped), skipped_seqs, len(skipped), filter_msg))
+    print('      assembly validation passed: %d sequences from %d groups%s' % (total_seqs, len(gpaths), filter_msg))
 
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths, locus):
@@ -843,18 +836,19 @@ def assemble_groups(locus, disjoint_dir, outfname):
     manifest = read_manifest(manifest_path)
     disjoint_dir = os.path.abspath(disjoint_dir)
 
-    validate_assembly(manifest, disjoint_dir)
+    gpaths = get_partition_paths(manifest, disjoint_dir)
+    validate_assembly(manifest, gpaths)
     manifest['assembly']['validation']['uids_unique'] = True
     manifest['assembly']['validation']['sequence_count_preserved'] = True
 
     utils.mkdir(outfname, isfile=True)
-    yaml_list = get_partition_paths(manifest, disjoint_dir)
     headers = list(utils.annotation_headers)
-    print('      merging %d partition files for %s:' % (len(yaml_list), locus))
-    utils.merge_yamls(outfname, yaml_list, headers, best_partition_only=True, dont_write_git_info=True, debug=True)
+    print('      merging %d partition files for %s:' % (len(gpaths), locus))
+    utils.merge_yamls(outfname, [p for _, p in gpaths], headers, best_partition_only=True, dont_write_git_info=True, debug=True)
 
     manifest['assembly']['status'] = 'merged'
     manifest['assembly']['merged_output_path'] = outfname
+
     with open(manifest_path, 'w') as mfile:
         yaml.dump(manifest, mfile, width=400, default_flow_style=False)
     print('      updated manifest')
