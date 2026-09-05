@@ -54,9 +54,9 @@ smith-waterman  (writing parameters)
       kept 16 (0.500) unproductive
         writing sw results to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
     writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw (0.6 sec)
-    water time: 1.0  (ig-sw 0.7  processing 0.1)
+    water time: 0.9  (ig-sw 0.6  processing 0.1)
   writing hmms     removed 90 genes from glfo (leaving v 8  d 10  j 6)
-(0.2 sec)
+(0.1 sec)
 hmm
     reading output
         read 32 hmm output lines with 32 sequences in 32 events  (0 failures)
@@ -64,8 +64,8 @@ hmm
          infra time: 0.6
       hmm step time: 0.9
   writing hmms     removed 2  genes from glfo (leaving v 8  d 9  j 5)
-(0.2 sec)
-      total time: 2.8
+(0.1 sec)
+      total time: 2.7
 [44mcache-parameters[0m [94migk[0m:
     removed 1 arg strs that were specific to action 'partition': --disjoint-groups
 [91mrun[0m /partis-dev/bin/partis cache-parameters --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igk.fa --crash-on-duplicate-uids --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
@@ -87,19 +87,19 @@ smith-waterman  (writing parameters)
       info for 18 / 18 = 1.000   (removed: 0 failed)
       kept 5 (0.278) unproductive
         writing sw results to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
-    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw (0.5 sec)
-    water time: 0.8  (ig-sw 0.5  processing 0.1)
+    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw (0.4 sec)
+    water time: 0.8  (ig-sw 0.5  processing 0.2)
   writing hmms     removed 13 genes from glfo (leaving v 7  d 1  j 6)
 (0.1 sec)
 hmm
     reading output
         read 18 hmm output lines with 18 sequences in 18 events  (0 failures)
-    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/hmm (0.4 sec)
-         infra time: 0.5
-      hmm step time: 0.7
+    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/hmm (0.5 sec)
+         infra time: 0.6
+      hmm step time: 0.8
   writing hmms     removed 0  genes from glfo (leaving v 7  d 1  j 6)
 (0.1 sec)
-      total time: 2.3
+      total time: 2.4
 [44mcache-parameters[0m [94migl[0m:
     removed 1 arg strs that were specific to action 'partition': --disjoint-groups
 [91mrun[0m /partis-dev/bin/partis cache-parameters --locus igl --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igl.fa --crash-on-duplicate-uids --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
@@ -108,18 +108,18 @@ caching parameters
   vsearch: 11 / 11 v annotations (0 failed) with 5 v genes in 0.1 sec
     keeping 3 / 494 v genes
 smith-waterman  (new-allele fitting)
-  vsearch: 11 / 11 v annotations (0 failed) with 3 v genes in 0.1 sec
+  vsearch: 11 / 11 v annotations (0 failed) with 3 v genes in -0.0 sec
     running 10 procs for 11 seqs
       info for 11 / 11 = 1.000   (removed: 0 failed)
       kept 7 (0.636) unproductive
-    water time: 0.2  (ig-sw 0.0  processing 0.1)
+    water time: 0.1  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 11 / 11 v annotations (0 failed) with 3 v genes in 0.1 sec
     running 10 procs for 11 seqs
       info for 11 / 11 = 1.000   (removed: 0 failed)
       kept 7 (0.636) unproductive
         writing sw results to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
-    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw (0.2 sec)
+    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw (0.3 sec)
     water time: 0.4  (ig-sw 0.3  processing 0.1)
   writing hmms     removed 36 genes from glfo (leaving v 3  d 1  j 2)
 (0.1 sec)
@@ -131,7 +131,7 @@ hmm
       hmm step time: 0.4
   writing hmms     removed 0  genes from glfo (leaving v 3  d 1  j 2)
 (0.1 sec)
-      total time: 1.4
+      total time: 1.3
 [44mpartition[0m [94migh[0m with disjoint groups:
       reading sw cache for igh from test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
       igh: 32 sequences in 6 cdr3 length groups (0 failed)
@@ -143,8 +143,7 @@ hmm
     running 6 group partition jobs (2 concurrent x 4 procs, logs in test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-*/out): . . . . . . 
     assembling groups from test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/manifest.yaml
       all 6 groups from partition
-      assembly validation passed: 32 sequences from 6 groups (0 sequences in 0 groups skipped)
-      all 6 groups from partition
+      assembly validation passed: 32 sequences from 6 groups
       merging 6 partition files for igh:
         2 sequences in 1 clusters from /partis-dev/test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-42/partition-igh.yaml
         10 sequences in 2 clusters from /partis-dev/test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-45/partition-igh.yaml
@@ -165,8 +164,7 @@ hmm
     running 4 group partition jobs (2 concurrent x 4 procs, logs in test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-*/out): . . . . 
     assembling groups from test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/manifest.yaml
       all 4 groups from partition
-      assembly validation passed: 18 sequences from 4 groups (0 sequences in 0 groups skipped)
-      all 4 groups from partition
+      assembly validation passed: 18 sequences from 4 groups
       merging 4 partition files for igk:
         1 sequences in 1 clusters from /partis-dev/test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-30/partition-igk.yaml
         5 sequences in 2 clusters from /partis-dev/test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-33/partition-igk.yaml
@@ -185,8 +183,7 @@ hmm
     running 2 group partition jobs (2 concurrent x 4 procs, logs in test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igl/groups/cdr3-*/out): . . 
     assembling groups from test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igl/manifest.yaml
       all 2 groups from partition
-      assembly validation passed: 11 sequences from 2 groups (0 sequences in 0 groups skipped)
-      all 2 groups from partition
+      assembly validation passed: 11 sequences from 2 groups
       merging 2 partition files for igl:
         9 sequences in 2 clusters from /partis-dev/test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igl/groups/cdr3-33/partition-igl.yaml
         2 sequences in 1 clusters from /partis-dev/test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igl/groups/cdr3-39/partition-igl.yaml
@@ -224,8 +221,8 @@ smith-waterman
       kept 12 (0.600) unproductive
         water time: 0.0
 hmm
-  subcluster annotating 9 clusters with steps:  (0.2s) (0.2s) 
-    subcluster annotation time 0.5
+  subcluster annotating 9 clusters with steps:  (0.3s) (0.2s) 
+    subcluster annotation time 0.4
       total time: 0.6
   need to get annotations for 4/9 joint igk clusters
 [44mannotate[0m [94migh+igk[0m:[94m igk[0m
@@ -241,7 +238,7 @@ smith-waterman
       kept 5 (0.278) unproductive
         water time: 0.0
 hmm
-  subcluster annotating 9 clusters with steps:  (0.4s) (0.1s) 
+  subcluster annotating 9 clusters with steps:  (0.2s) (0.1s) 
     subcluster annotation time 0.4
       total time: 0.5
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
@@ -274,8 +271,8 @@ smith-waterman
         water time: 0.0
 hmm
   subcluster annotating 3 clusters with steps:  (0.2s) (0.1s) 
-    subcluster annotation time 0.4
-      total time: 0.5
+    subcluster annotation time 0.3
+      total time: 0.4
   need to get annotations for 1/3 joint igl clusters
 [44mannotate[0m [94migh+igl[0m:[94m igl[0m
     removed 1 arg strs that were specific to action 'partition': --disjoint-groups
@@ -290,9 +287,9 @@ smith-waterman
       kept 7 (0.636) unproductive
         water time: 0.0
 hmm
-  subcluster annotating 3 clusters with steps:  (0.1s) (0.1s) 
-    subcluster annotation time 0.2
-      total time: 0.3
+  subcluster annotating 3 clusters with steps:  (0.2s) (0.1s) 
+    subcluster annotation time 0.3
+      total time: 0.4
   --input-metafnames: no meta info added from test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml
   concatenating heavy chain loci:
       [94mh[0m starting with 9 annotations (20 seqs)
@@ -306,4 +303,4 @@ hmm
         [94mh[0m   12 --> 12  
         [95mk[0m    7 --> 9    [91m+2[0m
         [92ml[0m    3 --> 3   
-      total time: 32.2
+      total time: 31.0

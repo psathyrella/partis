@@ -1,0 +1,21 @@
+[91mrun[0m /partis-dev/bin/partis partition --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 4 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-81/igh.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-81/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-81/sw-cache-igh.yaml --naive-vsearch
+  --input-metafnames: added meta info for 8 sequences from test/paired/new-results-slow/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
+partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igh/hmm)
+smith-waterman
+  vsearch: 8 / 8 v annotations (0 failed) with 1 v gene in 0.1 sec
+        reading sw results from test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-81/sw-cache-igh.yaml
+      info for 8 / 8 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 3 (0.375) unproductive
+        water time: 0.0
+hmm
+  caching all 8 naive sequences (0.2s)
+         collapsed 8 sequences (8 initial naive seqs/clusters) into 5 unique naive sequences over 1 cdr3 lengths (0.0 sec)
+    using hfrac bound for vsearch 0.014
+    running vsearch 1 times (once for each cdr3 length class): . 
+      vsearch time: 0.1
+getting annotations for final partition
+      calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
+    reading output
+        read 5 hmm output lines with 8 sequences in 5 events  (0 failures)
+      hmm step time: 0.2
+      total time: 0.7

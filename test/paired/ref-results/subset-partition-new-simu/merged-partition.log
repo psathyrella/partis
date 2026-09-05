@@ -33,10 +33,10 @@ hmm
    16 clusters with 3 procs (0.2s)
    16 clusters with 2 procs (0.1s)
    16 clusters with 1 proc (0.4s)
-       partition loop time: 1.5
+       partition loop time: 1.4
 getting annotations for final partition
-  subcluster annotating 11 clusters with steps:  (0.3s) (0.2s) (0.1s) 
-    subcluster annotation time 0.6
+  subcluster annotating 11 clusters with steps:  (0.2s) (0.2s) (0.1s) 
+    subcluster annotation time 0.5
     [93mwarning[0m added 2 / 56 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 2 / 56 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 2 / 56 missing ids as singletons to inferred partition, to match ids in true partition
@@ -49,7 +49,7 @@ getting annotations for final partition
     [93mwarning[0m added 2 / 56 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 2 / 56 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 2 / 56 missing ids as singletons to inferred partition, to match ids in true partition
-      total time: 2.2
+      total time: 2.0
 [44mpartition[0m [94migk[0m:
 [91mrun[0m /partis-dev/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --is-simu --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/merged-subsets/meta.yaml --parameter-dir test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters/igk --input-partition-fname test/paired/new-results/subset-partition-new-simu/merged-subsets/partition-igk.yaml --continue-from-input-partition --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results/test/simu/igk.yaml --outfname test/paired/new-results/subset-partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml
   [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'dfb054e5f3-igk' with value from test/paired/new-results/subset-partition-new-simu/merged-subsets/meta.yaml: ['45608f381d-igh', '45608f381d-igl', 'dfb054e5f3-igh'] --> ['dfb054e5f3-igh']
@@ -174,7 +174,7 @@ smith-waterman
       kept 18 (0.500) unproductive
         water time: 0.0
 hmm
-  subcluster annotating 10 clusters with steps:  (0.3s) (0.2s) 
+  subcluster annotating 10 clusters with steps:  (0.2s) (0.2s) 
     subcluster annotation time 0.4
       total time: 0.5
   need to get annotations for 7/10 joint igk clusters
@@ -191,7 +191,7 @@ smith-waterman
       kept 9 (0.250) unproductive
         water time: 0.0
 hmm
-  subcluster annotating 10 clusters with steps:  (0.3s) (0.1s) (0.1s) 
+  subcluster annotating 10 clusters with steps:  (0.2s) (0.1s) (0.1s) 
     subcluster annotation time 0.5
       total time: 0.6
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
@@ -267,4 +267,4 @@ hmm
         [94mh[0m   11 --> 14   [91m+3[0m
         [95mk[0m    7 --> 10   [91m+3[0m
         [92ml[0m    3 --> 4    [91m+1[0m
-      total time: 14.3
+      total time: 13.9

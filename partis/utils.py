@@ -4777,10 +4777,10 @@ def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE 
         if debug:
             print_aligned_seqs(iatn)
         sw_ldists, sw_rdists = zip(*[get_pad_parameters(sw_info[iatn['unique_ids'][i]], input_glfo) for i, u in enumerate(iatn['unique_ids'])])
-        sw_ldist, sw_rdist = [get_single_entry(list(set(l))) for l in [sw_ldists, sw_rdists]]
+        sw_ldist, sw_rdist = [max(l) for l in [sw_ldists, sw_rdists]]
         ia_ldist, ia_rdist = get_pad_parameters(iatn, input_glfo)  # they should all be the same, so can use 0 (?)
         leftpad, rightpad = sw_ldist - ia_ldist, sw_rdist - ia_rdist
-        if leftpad == 0 and rpad == 0:
+        if leftpad == 0 and rightpad == 0:
             print('    %s lengths don\'t match when re-padding hmm seqs, but padding parameters are the same (will probably crash just below)' % wrnstr())
         else:
             re_pad_atn(leftpad, rightpad, iatn, input_glfo, debug=debug)
