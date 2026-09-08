@@ -4758,7 +4758,7 @@ def re_pad_atn(n_fv_pad, n_jf_pad, atn, glfo, extra_str='      ', debug=False): 
 # Here we add any extra padding in the sw info (which will have been padded on the full sample when reading the subset-merged sw cache file)
 # UPDATE: actually also need to *trim* padding in input annotations, at least for the case we're subset partitioning and ignoring small clusters, in which case sw padding in the merge process will be missing all the sequences from small clusters, so it can end up with less padding than the original sw (and thus input annotation)
 # NOTE that in most cases this just modifies elements in <input_antn_list>, but sometimes also modifies the list, so in general you need to e.g. remake any associated annotation dict from the calling fcn
-def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE quite similar to pad_seqs_to_same_length() in waterer.py (although there we change a lot more stuff by hand, i think because i didn't yet have remove_all_implicit_info [or maybe bc that would be slower])
+def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, sw_glfo, debug=False):  # NOTE quite similar to pad_seqs_to_same_length() in waterer.py (although there we change a lot more stuff by hand, i think because i didn't yet have remove_all_implicit_info [or maybe bc that would be slower])
     from . import indelutils
     # ----------------------------------------------------------------------------------------
     def has_bad_lengths(iatn):
@@ -4776,7 +4776,7 @@ def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE 
             continue
         if debug:
             print_aligned_seqs(iatn)
-        sw_ldists, sw_rdists = zip(*[get_pad_parameters(sw_info[iatn['unique_ids'][i]], input_glfo) for i, u in enumerate(iatn['unique_ids'])])
+        sw_ldists, sw_rdists = zip(*[get_pad_parameters(sw_info[iatn['unique_ids'][i]], sw_glfo) for i, u in enumerate(iatn['unique_ids'])])  # sw annotations can reference v genes that aren't in the input partition's glfo
         sw_ldist, sw_rdist = [max(l) for l in [sw_ldists, sw_rdists]]
         ia_ldist, ia_rdist = get_pad_parameters(iatn, input_glfo)  # they should all be the same, so can use 0 (?)
         leftpad, rightpad = sw_ldist - ia_ldist, sw_rdist - ia_rdist
