@@ -25,7 +25,7 @@ This supersedes the old mouse-only, python2 parse-ogrdb.py. Run with the venv ac
 (so `import partis...` resolves); from the partis main dir, e.g.:
 
   ./data/germlines/merge-germline-set.py --species macaque \\
-      --new-dir data/germlines/ogrdb-download/macaque --sanitize \\
+      --new-dir data/germlines/ogrdb-download/macaque --sanitize-names \\
       --expected replacement --write
 
   ./data/germlines/merge-germline-set.py --species human \\

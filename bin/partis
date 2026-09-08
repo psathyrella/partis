@@ -162,7 +162,7 @@ def assemble_groups_action(args):
     if args.outfname is None:
         raise Exception('--outfname must be set for assemble-groups')
     disjoint_dir = disjoint_dir_for(args.paired_outdir, args.locus)
-    disjointgrouper.assemble_groups(args.locus, disjoint_dir, args.outfname)
+    disjointgrouper.assemble_groups(args.locus, disjoint_dir, args.outfname, multifile_min_seqs=args.multifile_min_seqs, multifile_max_seqs_per_file=args.multifile_max_seqs_per_file)
 
 # ----------------------------------------------------------------------------------------
 def refined_single_chain_loci(getofn, loci):
@@ -175,7 +175,7 @@ def refined_single_chain_loci(getofn, loci):
         if not os.path.exists(mfn):
             continue
         for ginfo in disjointgrouper.read_manifest(mfn)['groups']:
-            if disjointgrouper.resolve_partition_path(ginfo, ddir)[1] == disjointgrouper.STAGE_REFINE:  # resolve, since the manifest's name is stale whenever the standalone actions wrote the refined output
+            if disjointgrouper.resolve_partition_path(ginfo, ddir)[1] in [disjointgrouper.STAGE_REFINE, disjointgrouper.STAGE_HAREP]:  # resolve, since the manifest's name is stale whenever the standalone actions wrote the refined output
                 rfloci.append(ltmp)
                 break
     return rfloci
@@ -1430,7 +1430,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             return None
         rfloci = refined_single_chain_loci(getofn, sloci())  # also catches merge-paired-partitions, which has no such args
         if len(rfloci) > 0:
-            raise Exception('single chain input for %s came from partition-refine, whose output is single-chain only: refining before pairing degrades the heavy chain, so the paired clusters would be worse than without it. Re-run partition without --partition-refine/--ha-repartition to get paired clusters.' % ' '.join(rfloci))
+            raise Exception('single chain input for %s came from partition-refine or ha-repartition, whose output is single-chain only: refining before pairing degrades the heavy chain, so the paired clusters would be worse than without it. Re-run partition without --partition-refine/--ha-repartition to get paired clusters.' % ' '.join(rfloci))
         true_outfos = None if args.is_data else {k : read_true_files(merged=mgd, no_plot=True) for k, mgd in [('merged', True), ('lpairs', False)]}
         paircluster.clean_pair_info(args, single_outfos['cpaths'], single_outfos['antn_lists'], plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), true_outfos=true_outfos, debug=args.debug_paired_clustering)
         lp_infos = {}
@@ -1699,7 +1699,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 yaml.dump(manifest, mfile, width=400, default_flow_style=False)
 
         # step 3: concatenate per-group partition results
-        disjointgrouper.assemble_groups(ltmp, disjoint_dir, getofn(ltmp))
+        disjointgrouper.assemble_groups(ltmp, disjoint_dir, getofn(ltmp), multifile_min_seqs=args.multifile_min_seqs, multifile_max_seqs_per_file=args.multifile_max_seqs_per_file)
 
     # ----------------------------------------------------------------------------------------
     if args.action == 'simulate':
@@ -2088,6 +2088,8 @@ subargs['partition'].append({'name' : '--ha-repartition', 'kwargs' : {'action' :
 subargs['partition'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['partition'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Target maximum sequences per hfrac sub-group. A soft target: bin-packing only fires past %.1fx this value, and a single indivisible component larger than that is emitted whole with a warning. Set to 0 to disable.' % disjointgrouper.BIN_PACK_TOLERANCE}})
 subargs['partition'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
+subargs['partition'].append({'name' : '--multifile-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MIN_SEQS_DEFAULT, 'help' : 'With --disjoint-groups, loci with more sequences than this assemble into a directory of partition files plus an index, rather than one merged file (one merged file does not fit in memory past this size). Lower it to exercise the multifile path on a small sample.'}})
+subargs['partition'].append({'name' : '--multifile-max-seqs-per-file', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT, 'help' : 'Sequences per file in a multifile assembly. A soft cap: one CDR3 group is never spread over two files, so an indivisible group larger than this is written whole with a warning.'}})
 subargs['partition'].append({'name' : '--n-max-procs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Disjoint group jobs split --n-procs among themselves so the total stays within it (override the per-job count with --n-sub-procs); subset-partition subsets each get the full --n-procs. The HA re-partition and partition-refine stages are single-proc and scale to the job cpu allocation instead (capped at --n-procs).'}})
 subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'dest' : 'n_max_procs', 'default' : argparse.SUPPRESS, 'help' : argparse.SUPPRESS}})  # old name for --n-max-procs
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job, overriding the default split of --n-procs among --n-max-procs concurrent jobs. Setting this above the split can oversubscribe the available cpus (you get a warning, not an error).'}})
@@ -2097,6 +2099,10 @@ subargs['create-disjoint-groups'].append({'name' : '--hfrac', 'kwargs' : {'actio
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
+
+subargs['assemble-groups'] = []
+subargs['assemble-groups'].append({'name' : '--multifile-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MIN_SEQS_DEFAULT, 'help' : 'Loci with more sequences than this assemble into a directory of partition files plus an index, rather than one merged file. Lower it to exercise the multifile path on a small sample.'}})
+subargs['assemble-groups'].append({'name' : '--multifile-max-seqs-per-file', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT, 'help' : 'Sequences per file in a multifile assembly. A soft cap: one CDR3 group is never spread over two files, so an indivisible group larger than this is written whole with a warning.'}})
 
 subargs['create-ha-repartition-jobs'] = []
 subargs['assemble-ha-repartition'] = []

@@ -341,7 +341,7 @@ def process(args):
         args.workdir = get_workdir(args.batch_system)
     else:
         args.workdir = args.workdir.rstrip('/')
-    if os.path.exists(args.workdir) and args.action not in ['create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs']:
+    if os.path.exists(args.workdir) and args.action not in single_locus_actions:  # array tasks of one action share a workdir
         raise Exception('workdir %s already exists' % args.workdir)
 
     if args.batch_system == 'sge' and args.batch_options is not None:

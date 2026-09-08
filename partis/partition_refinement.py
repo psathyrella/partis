@@ -113,6 +113,9 @@ def get_mutations_with_base(seq, naive):
     return muts
 
 
+NAIVE_THRESHOLD_FALLBACK = 0.01  # used only when no cluster is big enough to fit a threshold on
+
+
 def estimate_naive_threshold(partition, uid_sw_naives):
     within_hammings = []
     for cluster in partition:
@@ -132,8 +135,9 @@ def estimate_naive_threshold(partition, uid_sw_naives):
                 h = hamming_frac(unique_naives[i], unique_naives[j])
                 within_hammings.append(h)
     if len(within_hammings) == 0:
-        print('  no within-cluster naive pairs, using default 0.01')
-        return 0.01
+        from partis import utils
+        print('  %s no within-cluster naive pairs, so the merge threshold falls back to %.3f rather than being fitted' % (utils.wrnstr(), NAIVE_THRESHOLD_FALLBACK), flush=True)
+        return NAIVE_THRESHOLD_FALLBACK
     within_hammings.sort()
     n = len(within_hammings)
     p90 = within_hammings[min(int(n * 0.90), n - 1)]
@@ -218,7 +222,7 @@ def fingerprint_strong_positions(fp, n):
     return out
 
 
-def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
+def fingerprint_agreement(fp1, n1, fp2, n2):
     """Measure agreement between two cluster fingerprints.
 
     For each mutation position in fp1, check if fp2 has the same position
@@ -234,8 +238,7 @@ def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
     Low score = independent mutations (likely different families).
 
     Returns score=-1 for insufficient signal: when either cluster has no member
-    carrying mutations, or, if min_fp_positions > 0, when both have fewer strong
-    positions than the threshold.
+    carrying mutations.
     """
     if n1 == 0 or n2 == 0:
         return -1.0, 0
@@ -247,12 +250,6 @@ def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
             return 0.0, 0
         n_agree = sum(1 for pos, base in strong if pos in target_fp and base in target_fp[pos])
         return n_agree / len(strong), len(strong)
-
-    n_strong_max = max(len(fingerprint_strong_positions(fp1, n1)), len(fingerprint_strong_positions(fp2, n2)))
-
-    # if both clusters have too few strong positions, signal is insufficient
-    if min_fp_positions > 0 and n_strong_max < min_fp_positions:
-        return -1.0, n_strong_max
 
     fwd, n_strong_fwd = directional_agreement(fp1, n1, fp2)
     rev, n_strong_rev = directional_agreement(fp2, n2, fp1)
@@ -291,7 +288,8 @@ def mutation_carrier(frag_uids, pos, base, uid_to_muts_with_base):
 
 
 MERGE_WEIGHTED_FREQ_FLOOR = 1e-4  # clamp before log10, well below NO_GERMLINE_FREQ
-MERGE_WEIGHTED_SCORE_CUTOFF = 2.0
+MERGE_WEIGHTED_SCORE_CUTOFF = 2.0  # evidence a merge must clear to be accepted, raised to cut the false-merge rate
+MIN_FINGERPRINT_AGREEMENT = 0.15  # least fingerprint agreement a merge candidate can have
 
 
 def mute_freq_weighted_score(frag1, fp1, n1, frag2, fp2, n2, uid_to_muts_with_base, get_uid_freqs):
@@ -626,8 +624,8 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
 
     # held counts clusters the veto touched, not ones whose outcome it changed
     length_label = ', %d held (length veto)' % ctr['length_veto'] if ctr['length_veto'] > 0 else ''
-    print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d skipped (no proposal), %d rejected (missing naive)%s' % (
-        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['no_proposal'], ctr['missing_naive'], length_label), flush=True)
+    print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d skipped (no proposal), %d rejected (missing naive), %d skipped (below min cluster size)%s' % (
+        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['no_proposal'], ctr['missing_naive'], ctr['below_min_size'], length_label), flush=True)
     print('  %d members snapped, %d pairs certified, %d -> %d clusters' % (
         ctr['snapped'], ctr['certified_pairs'], len(partition), len(result)), flush=True)
     return result
@@ -674,7 +672,7 @@ def naive_pairs_below(oh, mask, idx_a, idx_b, threshold, symmetric, chunk_size=2
 
 def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                               uid_to_muts_with_base, naive_threshold,
-                              min_agreement=0.15, min_fp_positions=0,
+                              min_agreement=MIN_FINGERPRINT_AGREEMENT,
                               min_weighted_score=MERGE_WEIGHTED_SCORE_CUTOFF,
                               skip_singleton_merge=False, uid_rearr_features=None,
                               junction_guard=True, vdj_override_min=VDJ_OVERRIDE_MIN_FRAG,
@@ -730,10 +728,11 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     n_skipped_difflen = 0
 
     uid_freq_cache = {}
+    param_dir_counts = {}
 
     def get_uid_freqs(uid):
         if uid not in uid_freq_cache:
-            freqs, _obs = uid_param_dir_freqs(uid, uid_to_muts_with_base.get(uid, {}), uid_part_antns, glfo, mute_freq_dir)
+            freqs, _obs = uid_param_dir_freqs(uid, uid_to_muts_with_base.get(uid, {}), uid_part_antns, glfo, mute_freq_dir, counts=param_dir_counts)
             uid_freq_cache[uid] = freqs
         return uid_freq_cache[uid]
 
@@ -807,7 +806,7 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
             fp_i, n_i = frag_fps[i]
             fp_j, n_j = frag_fps[j]
             agreement, _ = fingerprint_agreement(
-                fp_i, n_i, fp_j, n_j, min_fp_positions)
+                fp_i, n_i, fp_j, n_j)
             if agreement < 0:
                 n_rejected_insufficient += 1
             elif agreement < min_agreement:
@@ -916,9 +915,17 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     skip_label += ', %d skipped (naive length mismatch)' % n_skipped_difflen if n_skipped_difflen > 0 else ''
     junc_label = ', %d rejected (junction)' % n_rejected_junction if n_rejected_junction > 0 else ''
     junc_label += ', %d rescued (vdj)' % n_vdj_override if n_vdj_override > 0 else ''
-    print('  naive-similarity merge: %d naive candidates, %d accepted, %d rejected (fingerprint)%s%s' % (
-        n_naive_candidates, n_accepted, n_rejected_fingerprint, junc_label, skip_label))
+    print('  naive-similarity merge: %d naive candidates, %d accepted, %d rejected (fingerprint), %d rejected (insufficient signal)%s%s' % (
+        n_naive_candidates, n_accepted, n_rejected_fingerprint, n_rejected_insufficient, junc_label, skip_label))
     print('  %d merges, %d -> %d clusters' % (n_merges, len(split_partition), len(merged_partition)))
+    n_gene_missing = param_dir_counts.get('gene_missing_from_glfo', 0)
+    n_no_antn = param_dir_counts.get('no_antn', 0)
+    if n_gene_missing > 0 or n_no_antn > 0:
+        from partis import utils
+        print('  %s per-gene mute-freqs: %d uid-lookups had a v/d/j gene call missing from glfo '
+              '(no region bounds, every position fell back to NO_GERMLINE_FREQ, not the smoothing floor, '
+              'since there was no per-gene mute-freqs signal), %d uids had no partition-frame annotation' % (
+                  utils.wrnstr(), n_gene_missing, n_no_antn), flush=True)
     return merged_partition
 
 
@@ -1567,12 +1574,12 @@ def calc_metrics(true_partition, inf_partition):
 
 def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None,
                      naive_threshold=None,
-                     min_agreement=0.15, min_fp_positions=0,
+                     min_agreement=MIN_FINGERPRINT_AGREEMENT,
                      min_weighted_score=MERGE_WEIGHTED_SCORE_CUTOFF,
                      skip_singleton_merge=True,
                      min_cluster_size=2, light_chain=None, alpha=None,
                      parameter_dir=None, length_veto_min_shared=LENGTH_VETO_MIN_SHARED,
-                     verbose=True, random_seed=None,
+                     verbose=True,
                      mute_freq_dir=None, uid_part_antns=None, glfo=None):
     """Run refinement and return the refined partition.
 
@@ -1598,11 +1605,7 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     per-position mutation frequency table, plus the annotations needed to look each uid
     up in it.
 
-    random_seed: seeds the global RNG. Refinement reads no RNG, so this changes nothing.
     """
-    if random_seed is not None:
-        import random
-        random.seed(random_seed)
     partition = [list(c) for c in partition]
     all_uids = set(uid for c in partition for uid in c)
     # sw naives have to already be in the partition frame (read_refine_inputs does this), since a
@@ -1671,7 +1674,7 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
             naive_thresh, min_agreement), flush=True)
     out = merge_on_naive_similarity(
         split_partition, uid_info, uid_sw_naives, uid_to_muts_with_base, naive_thresh,
-        min_agreement=min_agreement, min_fp_positions=min_fp_positions, min_weighted_score=min_weighted_score,
+        min_agreement=min_agreement, min_weighted_score=min_weighted_score,
         skip_singleton_merge=skip_singleton_merge, uid_rearr_features=uid_rearr_features,
         mute_freq_dir=mute_freq_dir, uid_part_antns=uid_part_antns, glfo=glfo)
     print('  timing: naive-similarity merge %.2f s' % (time.time() - tsplit), flush=True)
@@ -2033,7 +2036,7 @@ def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter
             uid_rearr_features=inp['uid_rearr_features'],
             naive_threshold=naive_threshold, light_chain=light_chain,
             parameter_dir=parameter_dir, length_veto_min_shared=length_veto_min_shared,
-            skip_singleton_merge=True, min_agreement=0.15, verbose=False,
+            skip_singleton_merge=True, min_agreement=MIN_FINGERPRINT_AGREEMENT, verbose=False,
             mute_freq_dir=mute_freq_dir, uid_part_antns=inp['uid_part_antns'],
             # gene calls on uid_part_antns are partition-frame (from spec['input']), so the glfo
             # that resolves them has to be part_glfo, not the sw glfo inp['glfo'] (sw_cache_fname)

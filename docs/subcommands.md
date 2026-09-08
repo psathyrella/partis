@@ -109,7 +109,8 @@ Since no clonal family can span two CDR3 lengths, the groups are guaranteed disj
 This can substantially speed up partitioning on large samples, since partitioning many smaller groups is much faster than one large partition.
 The number of concurrent per-group jobs is set with `--n-max-procs <n>` (default 2), and those jobs split `--n-procs` among themselves (so the total stays within it) unless the per-job count is overridden with `--n-sub-procs <n>`.
 It can also be combined with `subset-partition` (i.e. `partis subset-partition --disjoint-groups`), in which case it speeds up the single-chain partition step within each subset.
-Adding `--hfrac` further splits CDR3 groups by naive hamming fraction into smaller sub-groups, controlled by `--hfrac-max-bin-size` (default 100000).
+Adding `--hfrac` further splits CDR3 groups by naive hamming fraction into smaller sub-groups, controlled by `--hfrac-max-bin-size` (target sequences per sub-group) and `--hfrac-min-seqs` (CDR3 groups smaller than this skip hfrac entirely).
+Both defaults come from optimization runs at full scale, so the only reason to change them is to make hfrac fire on a smaller sample.
 Each sub-group is partitioned independently with vsearch clustering (`--naive-vsearch`/`--fast`), always, regardless of group size; `--no-naive-vsearch` overrides this if full likelihood clustering is genuinely wanted for a group.
 For running the individual steps separately (e.g. as independent batch jobs), see [`create-disjoint-groups`](#create-disjoint-groups) and [`assemble-groups`](#assemble-groups) below.
 
@@ -129,7 +130,7 @@ The steps are always applied in the order vsearch, then `--ha-repartition`, then
 Both flags require `--disjoint-groups`.
 Their output is single-chain only: when either is set on paired data, partis does not run the final paired combine, and [`merge-paired-partitions`](#merge-paired-partitions) refuses refined input.
 To get paired clusters, re-run `partition` without these flags.
-The per-cluster HA and per-group refine runs are single-proc and are bundled into processes scaled to the job's cpu allocation (each loading germline info once, then looping over its work), independent of `--n-max-subprocs` (which governs the per-group partition jobs).
+The per-cluster HA and per-group refine runs are single-proc and are bundled into processes scaled to the job's cpu allocation (each loading germline info once, then looping over its work), independent of `--n-max-procs` (which governs the per-group partition jobs).
 For running these steps as independent batch jobs, see [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), [`run-ha-repartition-jobs`](#run-ha-repartition-jobs), [`assemble-ha-repartition`](#assemble-ha-repartition), and [`run-partition-refine-jobs`](#run-partition-refine-jobs) below.
 
 ##### limit maximum cluster size
@@ -217,7 +218,9 @@ partis assemble-groups --locus igh --paired-outdir out/ --outfname out/partition
 #### multifile output
 
 Partition output for one locus spread over several files instead of one, for loci too large for a single file.
-Only [disjoint grouping](#disjoint-groups) writes it, i.e. `partition --disjoint-groups` or `assemble-groups`, and only past two million sequences in the locus, so a normal partition run always writes the single `--outfname`.
+Only [disjoint grouping](#disjoint-groups) writes it, i.e. `partition --disjoint-groups` or `assemble-groups`, and only past `--multifile-min-seqs` sequences in the locus (default two million), so a normal partition run always writes the single `--outfname`.
+Each file holds up to `--multifile-max-seqs-per-file` sequences (default one million), except that one CDR3 group is never spread over two files, so an indivisible group larger than the cap is written whole with a warning.
+Both defaults come from the memory a single merged file costs to write and read, so the only reason to change them is to make the multifile path fire on a smaller sample.
 
 The directory and its files are named after `--outfname`, with the CDR3 length and file number added:
 
@@ -278,6 +281,7 @@ The counts are checked when the index is written and again when it's read, so yo
 To read one back, pass the directory, its `index.yaml`, or the `--outfname` path, to anything that takes a partis output file, e.g. `bin/parse-output.py`.
 This concatenates all the files, so it uses as much memory as a merged output would; read the files listed in the index one at a time to avoid that.
 You can't rewrite one in place, so actions that update an existing output file, e.g. `get-selection-metrics --add-selection-metrics-to-outfname`, refuse a multifile input.
+For the same reason `--overwrite` does not overwrite one: a re-run whose output went multifile tells you to remove the directory by hand.
 
 ### create-ha-repartition-jobs
 
