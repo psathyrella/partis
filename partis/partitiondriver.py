@@ -7,6 +7,7 @@ import sys
 import itertools
 import math
 import os
+import shutil
 import glob
 import csv
 from io import open
@@ -604,7 +605,10 @@ class PartitionDriver(object):
         annotation_list = []
         cpath = None
         tmpact = self.current_action  # just a shorthand for brevity
-        if utils.getsuffix(outfname) == '.csv':  # old way
+        if utils.multifile_output_exists(outfname):  # <outfname> was never written for a multifile locus, its dir sits beside it
+            assert self.glfo is None
+            self.glfo, annotation_list, cpath = utils.read_output(outfname, n_max_queries=self.args.n_max_queries, dont_add_implicit_info=True, seed_unique_id=self.args.seed_unique_id)
+        elif utils.getsuffix(outfname) == '.csv':  # old way
             if tmpact == 'view-partitions' or tmpact == 'plot-partitions' or tmpact == 'view-output' or tmpact == 'get-selection-metrics' or read_partitions:
                 cpath = ClusterPath(seed_unique_id=self.args.seed_unique_id, fname=outfname)
             if tmpact == 'view-annotations' or tmpact == 'plot-partitions' or tmpact == 'view-output' or tmpact == 'get-selection-metrics' or read_annotations:
@@ -651,6 +655,8 @@ class PartitionDriver(object):
             # may want to add this? not sure: overwrite_all=True
             seqfileopener.add_input_metafo(self.input_info, annotation_list, keys_not_to_overwrite=['multiplicities', 'paired-uids'])  # these keys are modified by sw (multiplicities) or paired clustering (paired-uids), so if you want to update them with this action here you're out of luck
         if tmpact == 'update-meta-info' or (tmpact == 'get-selection-metrics' and self.args.add_selection_metrics_to_outfname):
+            if utils.multifile_output_exists(outfname):  # refuse rather than write one file that contradicts the multifile index
+                raise Exception('can\'t rewrite a multifile output (%s), so run without --add-selection-metrics-to-outfname (the metrics still get written to the selection metric file)' % utils.multifile_dir(outfname))
             print('  rewriting output file with %s: %s' % ('newly-calculated selection metrics' if tmpact=='get-selection-metrics' else 'updated input meta info', outfname))
             if self.args.add_selection_metrics_to_outfname and 'gctree' in self.args.tree_inference_method:
                 print('  %s writing gctree annotations (with inferred ancestral sequences added) to original output file, which means that if you rerun gctree things may crash/be messed up since the inferred ancestral sequences are already in the annotation' % utils.wrnstr())
@@ -2006,7 +2012,7 @@ class PartitionDriver(object):
                 os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
                 if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
                     os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
-                os.rmdir(subworkdir)
+                shutil.rmtree(subworkdir, ignore_errors=True)  # os.rmdir can fail on stray nfs leftovers
 
         return cpath
 

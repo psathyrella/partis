@@ -1,0 +1,22 @@
+[91mrun[0m /partis-dev/bin/partis partition --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 4 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-75/igh.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-75/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-75/sw-cache-igh.yaml --naive-vsearch
+  --input-metafnames: added meta info for 1 sequences from test/paired/new-results-slow/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
+  note: reducing N procs to the number of seqs 4 --> 1
+partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igh/hmm)
+smith-waterman
+  vsearch: 1 / 1 v annotations (0 failed) with 1 v gene in 0.1 sec
+        reading sw results from test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igh/groups/cdr3-75/sw-cache-igh.yaml
+      info for 1 / 1 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 1 (1.000) unproductive
+        water time: 0.0
+hmm
+  caching all 1 naive sequences (0.1s)
+         collapsed 1 sequences (1 initial naive seqs/clusters) into 1 unique naive sequences over 1 cdr3 lengths (0.0 sec)
+    using hfrac bound for vsearch 0.014
+    running vsearch 1 times (once for each cdr3 length class): . 
+      vsearch time: 0.0
+getting annotations for final partition
+      calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
+    reading output
+        read 1 hmm output lines with 1 sequences in 1 events  (0 failures)
+      hmm step time: 0.1
+      total time: 0.4

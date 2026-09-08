@@ -45,7 +45,7 @@ def paired_fn(bdir, locus, lpair=None, suffix='.fa', ig_or_tr='ig', actstr=None,
     if actstr == 'auto':  # return the first one that exists
         for astr in [None, 'partition']:  # i think these are the only ones i use atm
             fn = paired_fn(bdir, locus, lpair=lpair, suffix=suffix, ig_or_tr=ig_or_tr, actstr=astr, seed_unique_id=seed_unique_id, single_chain=single_chain)
-            if os.path.exists(fn):
+            if utils.output_or_multifile_exists(fn):  # a multifile locus never wrote <fn> itself
                 return fn
         raise Exception('couldn\'t find paired fn with auto actstr in %s' % bdir)
     return '%s/%s%s%s' % (bdir, '' if actstr is None else actstr+'-', locus, suffix)
@@ -148,7 +148,7 @@ def read_locus_output_files(tmploci, ofn_fcn, lpair=None, read_selection_metrics
     lpfos = {k : {} for k in ['glfos', 'antn_lists', 'cpaths']}
     for ltmp in tmploci:  # read single-locus output files
         ofn = ofn_fcn(ltmp, lpair=lpair)
-        if not os.path.exists(ofn):
+        if not os.path.exists(ofn) and not utils.multifile_output_exists(ofn):  # a multifile locus has no <ofn>, but read_output() finds its dir
             for k in lpfos:
                 lpfos[k][ltmp] = copy.deepcopy(nulldict[k])
             if debug:

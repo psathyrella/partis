@@ -10,6 +10,7 @@ import time
 import sys
 import os
 import random
+import uuid
 import itertools
 import ast
 import math
@@ -74,9 +75,7 @@ def fsdir():
 
 # ----------------------------------------------------------------------------------------
 def choose_random_subdir(dirname, make_dir=False):
-    subname = str(random.randint(0, 999999))
-    while os.path.exists(dirname + '/' + subname):
-        subname = str(random.randint(0, 999999))
+    subname = uuid.uuid4().hex  # uuid4 draws from os.urandom, *not* the seeded global random module, so this unique workdir name doesn't consume the seeded stream (which must stay in sync for reproducible downstream shuffles). also unique enough that we don't need a collision-retry loop
     if make_dir:
         prep_dir(dirname + '/' + subname)
     return dirname + '/' + subname
@@ -4778,10 +4777,10 @@ def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, debug=False):  # NOTE 
         if debug:
             print_aligned_seqs(iatn)
         sw_ldists, sw_rdists = zip(*[get_pad_parameters(sw_info[iatn['unique_ids'][i]], input_glfo) for i, u in enumerate(iatn['unique_ids'])])
-        sw_ldist, sw_rdist = [get_single_entry(list(set(l))) for l in [sw_ldists, sw_rdists]]
+        sw_ldist, sw_rdist = [max(l) for l in [sw_ldists, sw_rdists]]
         ia_ldist, ia_rdist = get_pad_parameters(iatn, input_glfo)  # they should all be the same, so can use 0 (?)
         leftpad, rightpad = sw_ldist - ia_ldist, sw_rdist - ia_rdist
-        if leftpad == 0 and rpad == 0:
+        if leftpad == 0 and rightpad == 0:
             print('    %s lengths don\'t match when re-padding hmm seqs, but padding parameters are the same (will probably crash just below)' % wrnstr())
         else:
             re_pad_atn(leftpad, rightpad, iatn, input_glfo, debug=debug)
@@ -5169,13 +5168,27 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
 # ----------------------------------------------------------------------------------------
 # merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub> (only works with paired dir structure)
 # some things are handled nicelycorrectly, others more hackily
+# NOTE only merges the 'hmm' parameter type, not 'sw'
 def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig'):
-    from . import glutils, paircluster
+    from . import glutils, paircluster, fraction_uncertainty
+    gene_index_cols = set(r + '_gene' for r in regions)  # index columns that hold a gene name, so need remapping
+    simple_count_columns = ['seq_content', 'cluster_size'] + [b + '_insertion_content' for b in boundaries]  # single-key count tables, no gene name involved
+    # ----------------------------------------------------------------------------------------
+    def remap_index_values(cols_in_order, raw_values, name_mapping):
+        if name_mapping is None:
+            return tuple(raw_values)
+        remapped = []
+        for col, val in zip(cols_in_order, raw_values):
+            region = col.split('_')[0] if col in gene_index_cols else None
+            if region is not None and val in name_mapping[region]:
+                val = name_mapping[region][val]
+            remapped.append(val)
+        return tuple(remapped)
     # ----------------------------------------------------------------------------------------
     print('    merging parameters from %d subdirs (e.g. %s) to %s' % (n_subsets, subdfn(0), merged_odir))
     for ltmp in sub_loci(ig_or_tr):
         if os.path.exists('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp)):  # just looks for one of the last thing we would've written
-            print('       %s: subset-merged input exists, not rewriting' % locstr(ltmp))
+            print('       %s %s: subset-merged input exists, not rewriting' % (color('yellow', 'warning'), locstr(ltmp)))
             continue
         mkdir('%s/parameters/%s' % (merged_odir, ltmp))
         def swfn(dname): return '%s/parameters/%s/sw-cache.yaml'%(dname, ltmp)
@@ -5184,11 +5197,20 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
             continue
         merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
-        mean_mut_fns = ['%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
-        mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
-        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
+        # these overall mean-freq/n-muted histograms aren't summed, just linked from one subset, which should be fine
+        sentinel_hist_fnames = ['all-mean-mute-freqs.csv', 'all-mean-n-muted.csv'] + ['%s-mean-%s.csv' % (r, mstr) for r in regions for mstr in ('mute-freqs', 'n-muted')]
+        for hfname in sentinel_hist_fnames:
+            sub_hfns = [f for f in ('%s/parameters/%s/hmm/%s' % (subdfn(i), ltmp, hfname) for i in range(n_subsets)) if os.path.exists(f)]
+            if len(sub_hfns) == 0:
+                continue
+            makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(sub_hfns[0]), hfname)
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
+        merged_mfreq_counts = {}  # summed counts, keyed by gene then position, same per-position dict shape mutefreqer uses
+        merged_length_counts = {}  # summed counts for the deletion/insertion tables, keyed by column then remapped index tuple
+        merged_all_counts = defaultdict(int)  # summed counts for all-probs.csv, keyed by remapped index tuple
+        merged_simple_counts = {c : defaultdict(int) for c in simple_count_columns}
         def gpfn(dname, l, r): return '%s/parameters/%s/hmm/%s_gene-probs.csv' % (dname, l, r)
+        def mffn(dname, l): return '%s/parameters/%s/hmm/mute-freqs' % (dname, l)
         for isub in range(n_subsets):
             for hfn in glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
                 makelink('%s/parameters/%s/hmm/hmms' % (fpath(merged_odir), ltmp), fpath(hfn), os.path.basename(hfn))
@@ -5207,6 +5229,64 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                     if name_mapping is not None and gene_name in name_mapping[treg]:
                         gene_name = name_mapping[treg][gene_name]
                     merged_gene_counts[treg][gene_name] += int(tline['count'])
+            # sum the deletion/insertion-length count tables the same way as gene-probs, remapping gene columns in the index and accumulating here since name_mapping is rebound per subset
+            for coltup in column_dependency_tuples:
+                col = coltup[0]
+                if col in gene_index_cols:  # v/d/j gene counts already summed just above
+                    continue
+                cols_in_order = list(coltup)
+                lfn = '%s/parameters/%s/hmm/%s' % (subdfn(isub), ltmp, get_parameter_fname(column_and_deps=cols_in_order))
+                if not os.path.exists(lfn):
+                    continue
+                table_counts = merged_length_counts.setdefault(col, defaultdict(int))
+                for tline in csvlines(lfn):
+                    key = remap_index_values(cols_in_order, [tline[c] for c in cols_in_order], name_mapping)
+                    table_counts[key] += int(tline['count'])
+            # same sum, for the one table keyed on the full rearrangement (all genes plus every deletion and insertion length)
+            all_cols = list(index_columns) + ['cdr3_length']
+            afn = '%s/parameters/%s/hmm/%s' % (subdfn(isub), ltmp, get_parameter_fname(column='all'))
+            if os.path.exists(afn):
+                for tline in csvlines(afn):
+                    key = remap_index_values(all_cols, [tline[c] for c in all_cols], name_mapping)
+                    merged_all_counts[key] += int(tline['count'])
+            # sum the single-key count tables (base content, cluster size), no gene identity so no remapping needed
+            for scol in simple_count_columns:
+                sfn = '%s/parameters/%s/hmm/%s.csv' % (subdfn(isub), ltmp, scol)
+                if not os.path.exists(sfn):
+                    continue
+                for tline in csvlines(sfn):
+                    merged_simple_counts[scol][tline[scol]] += int(tline['count'])
+            # sum per-base obs counts, remapping names as for gene-probs above; accumulate here rather than after the loop, since name_mapping is rebound per subset
+            if sub_glfo is not None and os.path.isdir(mffn(subdfn(isub), ltmp)):
+                for mfgfn in glob.glob('%s/*.csv' % mffn(subdfn(isub), ltmp)):
+                    gene = unsanitize_name(os.path.basename(mfgfn)[:-len('.csv')])
+                    region = get_region(gene)
+                    gene_name = gene
+                    if name_mapping is not None and gene in name_mapping[region]:
+                        gene_name = name_mapping[region][gene]
+                    gl_seq = sub_glfo['seqs'][region].get(gene)  # this subset's glfo is keyed on its own pre-remapping name
+                    gcounts = merged_mfreq_counts.setdefault(gene_name, {})
+                    for tline in csvlines(mfgfn):
+                        position = int(tline['position'])
+                        gl_nuke = gl_seq[position] if gl_seq is not None and position < len(gl_seq) else None
+                        pcounts = gcounts.get(position)
+                        if pcounts is None:
+                            pcounts = {n : 0 for n in nukes}
+                            pcounts['total'] = 0
+                            pcounts['gl_nuke'] = gl_nuke
+                            gcounts[position] = pcounts
+                        elif pcounts['gl_nuke'] is None and gl_nuke is not None:  # first subset whose glfo covers this position sets the germline base
+                            pcounts['gl_nuke'] = gl_nuke
+                        elif gl_nuke is not None and pcounts['gl_nuke'] is not None and gl_nuke != pcounts['gl_nuke']:
+                            # counts taken against a different germline are in a different frame, so drop rather than sum them
+                            print('        %s germline base disagreement for %s at position %d (%s vs %s), not summing this subset\'s counts there' % (color('red', 'warning'), color_gene(gene_name), position, pcounts['gl_nuke'], gl_nuke))
+                            continue
+                        obs_sum = 0
+                        for nuke in nukes:
+                            nobs = int(tline[nuke + '_obs'])
+                            pcounts[nuke] += nobs
+                            obs_sum += nobs
+                        pcounts['total'] += obs_sum
         if merged_glfo is None:  # none of them exists
             continue
         glutils.write_glfo('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp), merged_glfo)
@@ -5216,6 +5296,58 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                 writer.writeheader()
                 for gene, count in merged_gene_counts[treg].items():
                     writer.writerow({'%s_gene'%treg : gene, 'count' : count})
+        if len(merged_mfreq_counts) > 0:  # freqs and errors are recomputed from the summed counts, never averaged across subsets
+            mfreq_odir = mffn(merged_odir, ltmp)
+            mkdir(mfreq_odir)
+            nuke_header = [n + xtra for n in nukes for xtra in ('', '_obs', '_lo_err', '_hi_err')]
+            for gene, gcounts in merged_mfreq_counts.items():
+                with open('%s/%s.csv' % (mfreq_odir, sanitize_name(gene)), csv_wmode()) as gfile:
+                    writer = csv.DictWriter(gfile, ('position', 'mute_freq', 'lo_err', 'hi_err') + tuple(nuke_header))
+                    writer.writeheader()
+                    for position in sorted(gcounts.keys()):
+                        pcounts = gcounts[position]
+                        if pcounts['gl_nuke'] is None:  # with no germline base there is no way to say which of the four counts is unmutated
+                            print('        %s no germline base found for %s position %d, dropping it from the merged mute-freqs' % (color('yellow', 'warning'), color_gene(gene), position))
+                            continue
+                        total = pcounts['total']
+                        n_mutated = total - pcounts[pcounts['gl_nuke']]
+                        mlo, mhi = fraction_uncertainty.err(n_mutated, total)
+                        row = {'position' : position, 'mute_freq' : (float(n_mutated) / total if total > 0 else 0.), 'lo_err' : mlo, 'hi_err' : mhi}
+                        for nuke in nukes:
+                            nlo, nhi = fraction_uncertainty.err(pcounts[nuke], total)
+                            row[nuke] = float(pcounts[nuke]) / total if total > 0 else 0.
+                            row[nuke + '_obs'] = pcounts[nuke]
+                            row[nuke + '_lo_err'], row[nuke + '_hi_err'] = nlo, nhi
+                        writer.writerow(row)
+        for col, table_counts in merged_length_counts.items():  # write the summed deletion/insertion-length tables, same recompute-not-average approach as the mute-freqs table above
+            cols_in_order = [col] + column_dependencies[col]
+            lfn = '%s/parameters/%s/hmm/%s' % (merged_odir, ltmp, get_parameter_fname(column_and_deps=cols_in_order))
+            with open(lfn, csv_wmode()) as lfile:
+                writer = csv.DictWriter(lfile, cols_in_order + ['count'])
+                writer.writeheader()
+                for key, count in table_counts.items():
+                    row = dict(zip(cols_in_order, key))
+                    row['count'] = count
+                    writer.writerow(row)
+        if len(merged_all_counts) > 0:  # write the summed full-rearrangement table
+            all_cols = list(index_columns) + ['cdr3_length']
+            afn = '%s/parameters/%s/hmm/%s' % (merged_odir, ltmp, get_parameter_fname(column='all'))
+            with open(afn, csv_wmode()) as afile:
+                writer = csv.DictWriter(afile, all_cols + ['count'])
+                writer.writeheader()
+                for key, count in merged_all_counts.items():
+                    row = dict(zip(all_cols, key))
+                    row['count'] = count
+                    writer.writerow(row)
+        for scol, counts in merged_simple_counts.items():  # write the summed single-key count tables
+            if len(counts) == 0:
+                continue
+            sfn = '%s/parameters/%s/hmm/%s.csv' % (merged_odir, ltmp, scol)
+            with open(sfn, csv_wmode()) as sfile:
+                writer = csv.DictWriter(sfile, [scol, 'count'])
+                writer.writeheader()
+                for val, count in counts.items():
+                    writer.writerow({scol : val, 'count' : count})
         if include_hmm_cache_files:  # these aren't parameters, but don't want to change the name, either, oh well
             subfns = ['%s/single-chain/persistent-cache-%s.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
             merge_csvs('%s/single-chain/persistent-cache-%s.csv'% (merged_odir, ltmp), subfns)
@@ -7313,6 +7445,12 @@ def output_exists(args, outfname, outlabel=None, leave_zero_len=False, offset=No
     if offset is None: offset = 22  # weird default setting method so we can call it also with the fcn below (without setting default value in two places)
 
     if not os.path.exists(outfname):
+        if multifile_output_exists(outfname):  # the locus went multifile, so <outfname> was never written but the locus is finished
+            if args.overwrite:
+                raise Exception('output %s is a multifile dir, rm it by hand' % multifile_dir(outfname))
+            if debug:
+                print('%s%smultifile output exists, %s (%s)' % (offset * ' ', outlabel, 'skipping' if todostr is None else todostr, multifile_dir(outfname)))
+            return True
         return False
 
     if not leave_zero_len and os.stat(outfname).st_size == 0:
@@ -7920,12 +8058,72 @@ def read_cpath(fname, n_max_queries=-1, seed_unique_id=None, skip_annotations=Fa
     return cpath
 
 # ----------------------------------------------------------------------------------------
+# a locus too big for one file gets a <outfname>-multifile/ dir beside the path that would have
+# held it, so anything resolving an output path has to look for both (format: docs/subcommands.md)
+def multifile_dir(fname):
+    return '%s-multifile' % getprefix(os.path.abspath(fname))
+
+# ----------------------------------------------------------------------------------------
+# index for <fname>, whether that's the dir, the index itself, or the single-file path it replaced
+def multifile_index_path(fname):
+    from . import disjointgrouper
+    if os.path.basename(fname) == disjointgrouper.MULTIFILE_INDEX_FNAME:
+        return fname
+    if os.path.isdir(fname):
+        return '%s/%s' % (fname, disjointgrouper.MULTIFILE_INDEX_FNAME)
+    if os.path.exists(fname):  # a real file isn't multifile, even with a stale dir beside it
+        return None
+    return '%s/%s' % (multifile_dir(fname), disjointgrouper.MULTIFILE_INDEX_FNAME)
+
+# ----------------------------------------------------------------------------------------
+def multifile_output_exists(fname):
+    return os.path.exists(multifile_index_path(fname) or '')
+
+# ----------------------------------------------------------------------------------------
+def output_or_multifile_exists(fname):  # <fname> itself, or the multifile dir that replaced it
+    return os.path.exists(fname) or multifile_output_exists(fname)
+
+# ----------------------------------------------------------------------------------------
+# concatenate every file in a multifile dir into the glfo, annotation list and partition a merged
+# output would have given, so this costs the memory the writer avoids
+def read_multifile_output(index_path, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, skip_annotations=False, debug=False):
+    from . import clusterpath
+    from . import disjointgrouper
+    index = disjointgrouper.read_multifile_index(index_path)
+    mfdir = os.path.dirname(os.path.abspath(index_path))
+    ainfo = index['assembly']
+    print('    reading %d multifile output files (%d seqs in %d clusters) from %s' % (ainfo['n_files'], ainfo['n_sequences_in_output'], ainfo['n_clusters_in_output'], mfdir))
+    glfo, partition = None, []
+    annotation_list = None if skip_annotations else []
+    for ifo in index['files']:
+        if n_max_queries > 0 and annotation_list is not None and len(annotation_list) >= n_max_queries:
+            break
+        n_left = -1 if n_max_queries < 0 or annotation_list is None else n_max_queries - len(annotation_list)
+        tglfo, tantns, tcpath = read_yaml_output('%s/%s' % (mfdir, ifo['path']), n_max_queries=n_left, synth_single_seqs=synth_single_seqs,
+                                                 dont_add_implicit_info=dont_add_implicit_info, seed_unique_id=seed_unique_id, skip_annotations=skip_annotations, debug=debug)
+        if glfo is None:
+            glfo = tglfo  # every file was written against the same germline set, so the first stands for all
+        if tantns is not None:
+            annotation_list += tantns
+        if len(tcpath.partitions) > 0:
+            partition += tcpath.partitions[tcpath.i_best]  # each file is best-partition-only, and no cluster can span two files
+    n_seqs = sum(len(c) for c in partition)
+    if n_max_queries < 0 and n_seqs != ainfo['n_sequences_in_output']:
+        raise Exception('read %d sequences from the %d files in %s, but its index says %d' % (n_seqs, ainfo['n_files'], mfdir, ainfo['n_sequences_in_output']))
+    return glfo, annotation_list, clusterpath.ClusterPath(partition=partition, seed_unique_id=seed_unique_id)
+
+# ----------------------------------------------------------------------------------------
 def read_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, glfo=None, glfo_dir=None, locus=None, skip_failed_queries=False, is_partition_file=False, debug=False):
     from . import clusterpath
     from . import glutils
     annotation_list = None
 
-    if getsuffix(fname) == '.csv':
+    if multifile_output_exists(fname):  # <fname> is a multifile dir, its index, or the single-file path that a multifile locus replaced
+        assert cpath is None  # see note in read_yaml_output()
+        glfo, annotation_list, cpath = read_multifile_output(multifile_index_path(fname), n_max_queries=n_max_queries, synth_single_seqs=synth_single_seqs,
+                                                             dont_add_implicit_info=dont_add_implicit_info, seed_unique_id=seed_unique_id, skip_annotations=skip_annotations, debug=debug)
+
+    elif getsuffix(fname) == '.csv':
         cluster_annotation_fname = fname.replace('.csv', '-cluster-annotations.csv')
         if os.path.exists(cluster_annotation_fname) or is_partition_file:  # i.e. if <fname> is a partition file
             assert cpath is None   # see note in read_yaml_output()

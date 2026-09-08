@@ -1,0 +1,20 @@
+[91mrun[0m /partis-dev/bin/partis partition --locus igl --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 4 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-0/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igl/groups/cdr3-33/igl.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igl/groups/cdr3-33/partition-igl.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igl --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igl/groups/cdr3-33/sw-cache-igl.yaml --naive-vsearch
+  --input-metafnames: added meta info for 46 sequences from test/paired/new-results-slow/subset-partition-new-simu/isub-0/meta.yaml: loci paired-uids
+partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igl/hmm)
+smith-waterman
+  vsearch: 46 / 46 v annotations (0 failed) with 6 v genes in 0.1 sec
+        reading sw results from test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igl/groups/cdr3-33/sw-cache-igl.yaml
+      info for 46 / 46 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 12 (0.261) unproductive
+        water time: 0.0
+hmm
+  caching all 46 naive sequences (0.3s)
+         collapsed 46 sequences (46 initial naive seqs/clusters) into 12 unique naive sequences over 1 cdr3 lengths (0.0 sec)
+    using hfrac bound for vsearch 0.013
+    running vsearch 1 times (once for each cdr3 length class): . 
+      vsearch time: 0.1
+getting annotations for final partition
+      calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
+  subcluster annotating 6 clusters with steps:  (0.3s) (0.3s) (0.2s) 
+    subcluster annotation time 0.8
+      total time: 1.3

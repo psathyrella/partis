@@ -1,23 +1,23 @@
-[91mrun[0m /home/dralph/work/partis/bin/FastTree -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/input-seqs.fa
+[91mrun[0m /partis-dev/bin/FastTree-linux -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/input-seqs.fa
 FastTree Version 2.1.10 SSE3
 Alignment: test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/input-seqs.fa
 Nucleotide distances: Jukes-Cantor Joins: balanced Support: SH-like 1000
 Search: Normal +NNI +SPR (2 rounds range 10) +ML-NNI opt-each=1
 TopHits: 1.00*sqrtN close=default refresh=0.80
 ML Model: Generalized Time-Reversible, CAT approximation with 20 rate categories
-Ignored unknown character X (seen 168 times)
+Ignored unknown character X (seen 32 times)
 Initial topology in 0.00 seconds
-Refining topology: 10 rounds ME-NNIs, 2 rounds ME-SPRs, 5 rounds ML-NNIs
-Total branch-length 0.007 after 0.01 sec
-ML-NNI round 1: LogLk = -1008.198 NNIs 1 max delta 0.00 Time 0.02
-GTR Frequencies: 0.2360 0.2652 0.2774 0.2214
-GTR rates(ac ag at cg ct gt) 1.0004 63.8870 0.9994 58.6288 36.7447 1.0000
+Refining topology: 4 rounds ME-NNIs, 2 rounds ME-SPRs, 2 rounds ML-NNIs
+Total branch-length 0.012 after 0.00 sec
+ML-NNI round 1: LogLk = -1015.933 NNIs 0 max delta 0.00 Time 0.01
+Turning off heuristics for final round of ML NNIs
+GTR Frequencies: 0.2231 0.2740 0.2848 0.2181
+GTR rates(ac ag at cg ct gt) 86.1519 82.8168 1.0000 22.2625 29.3817 1.0000
 Switched to using 20 rate categories (CAT approximation)
-Rate categories were divided by 0.625 so that average rate = 1.0
+Rate categories were divided by 0.626 so that average rate = 1.0
 CAT-based log-likelihoods may not be comparable across runs
 Use -gamma for approximate but comparable Gamma(20) log-likelihoods
-ML-NNI round 2: LogLk = -1000.335 NNIs 0 max delta 0.00 Time 0.06
+ML-NNI round 2: LogLk = -1004.351 NNIs 0 max delta 0.00 Time 0.02
 Turning off heuristics for final round of ML NNIs (converged)
-ML-NNI round 3: LogLk = -1000.335 NNIs 0 max delta 0.00 Time 0.06 (final)
-Optimize all lengths: LogLk = -1000.335 Time 0.06
-Total time: 0.07 seconds Unique: 6/12 Bad splits: 0/3
+Optimize all lengths: LogLk = -1004.351 Time 0.02
+Total time: 0.02 seconds Unique: 2/12 Bad splits: 0/0

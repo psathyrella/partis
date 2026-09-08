@@ -137,29 +137,32 @@ def sw_cache_path(locus_pdir):
     return '%s/sw-cache.yaml' % locus_pdir
 
 # ----------------------------------------------------------------------------------------
+def disjoint_dir_for(outdir, locus):
+    # single source of truth for the disjoint-groups dir; <outdir> is the un-suffixed base (no single-chain/)
+    return '%s/single-chain/disjoint-groups/%s' % (outdir, locus)
+
+# ----------------------------------------------------------------------------------------
 def disjoint_group_action(args):
     # standalone entry point for disjoint-group action (for running steps on separate batch systems)
-    # --sw-cachefname: single file, colon-separated paths, or a directory containing chunk sw caches
+    # --sw-cachefname: single file, colon-separated paths, or a parent dir of chunk<i>-out dirs
     if args.sw_cachefname is not None:
         sw_cache_paths = args.sw_cachefname.split(':') if ':' in args.sw_cachefname else args.sw_cachefname
     else:
         sw_cache_paths = sw_cache_path('%s/%s' % (args.parameter_dir, args.locus))
-    outdir = utils.non_none([args.paired_outdir, args.workdir])
-    if outdir is None:
-        raise Exception('--paired-outdir or --workdir must be set')
-    disjoint_dir = '%s/disjoint-groups/%s' % (outdir, args.locus)
+    if args.paired_outdir is None:
+        raise Exception('--paired-outdir must be set')
+    disjoint_dir = disjoint_dir_for(args.paired_outdir, args.locus)
     disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir, hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size, min_group_size=args.hfrac_min_seqs, n_procs=proc_budget(args))
 
 # ----------------------------------------------------------------------------------------
 def assemble_groups_action(args):
     # standalone entry point for assemble-groups action
-    outdir = utils.non_none([args.paired_outdir, args.workdir])
-    if outdir is None:
-        raise Exception('--paired-outdir or --workdir must be set')
+    if args.paired_outdir is None:
+        raise Exception('--paired-outdir must be set')
     if args.outfname is None:
         raise Exception('--outfname must be set for assemble-groups')
-    disjoint_dir = '%s/disjoint-groups/%s' % (outdir, args.locus)
-    disjointgrouper.assemble_groups(args.locus, disjoint_dir, args.outfname)
+    disjoint_dir = disjoint_dir_for(args.paired_outdir, args.locus)
+    disjointgrouper.assemble_groups(args.locus, disjoint_dir, args.outfname, multifile_min_seqs=args.multifile_min_seqs, multifile_max_seqs_per_file=args.multifile_max_seqs_per_file)
 
 # ----------------------------------------------------------------------------------------
 def refined_single_chain_loci(getofn, loci):
@@ -172,17 +175,16 @@ def refined_single_chain_loci(getofn, loci):
         if not os.path.exists(mfn):
             continue
         for ginfo in disjointgrouper.read_manifest(mfn)['groups']:
-            if disjointgrouper.resolve_partition_path(ginfo, ddir)[1] == disjointgrouper.STAGE_REFINE:  # resolve, since the manifest's name is stale whenever the standalone actions wrote the refined output
+            if disjointgrouper.resolve_partition_path(ginfo, ddir)[1] in [disjointgrouper.STAGE_REFINE, disjointgrouper.STAGE_HAREP]:  # resolve, since the manifest's name is stale whenever the standalone actions wrote the refined output
                 rfloci.append(ltmp)
                 break
     return rfloci
 
 # ----------------------------------------------------------------------------------------
 def _disjoint_locus_dir(args):
-    outdir = utils.non_none([args.paired_outdir, args.workdir])
-    if outdir is None:
-        raise Exception('--paired-outdir or --workdir must be set')
-    return '%s/disjoint-groups/%s' % (outdir, args.locus)
+    if args.paired_outdir is None:
+        raise Exception('--paired-outdir must be set')
+    return disjoint_dir_for(args.paired_outdir, args.locus)
 
 # ----------------------------------------------------------------------------------------
 def create_ha_repartition_jobs_action(args):
@@ -198,7 +200,7 @@ def run_ha_repartition_jobs_action(args):
     # standalone entry point: run HA re-partition on a slice [--job-start, +--job-count) of the
     # task list (one SLURM array task, or one internal bundle), in-process with glfo loaded
     # once for the whole slice. Appends per-cluster timing to ha-repartition-timing-<locus>.csv.
-    disjoint_dir = args.disjoint_dir if args.disjoint_dir is not None else _disjoint_locus_dir(args)
+    disjoint_dir = _disjoint_locus_dir(args)
     jobs = ha_repartition.read_task_list(ha_repartition.task_list_fname(disjoint_dir, args.locus))
     stop = len(jobs) if args.job_count is None else args.job_start + args.job_count
     jobs = jobs[args.job_start : stop]
@@ -231,17 +233,19 @@ def run_partition_refine_jobs_action(args):
     # group's HA re-partition (or vsearch) partition + sw-cache and writes a refined partition;
     # reassemble later with assemble-groups. --parameter-dir is the locus-level dir.
     import partis.partition_refinement as partition_refinement
-    disjoint_dir = args.disjoint_dir if args.disjoint_dir is not None else _disjoint_locus_dir(args)
+    disjoint_dir = _disjoint_locus_dir(args)
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     specs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], args.locus)
     # locus-wide threshold: estimate over all groups (before slicing) so a sliced task uses
     # the same value as a whole-locus run.
-    # only the heavy merge reads the threshold, and estimating it reads every group's input
-    naive_thr = partition_refinement.estimate_locuswide_threshold(specs) if len(specs) > 0 and utils.has_d_gene(args.locus) else None
+    # only the heavy merge reads it, and estimating it reads every group's input, so it is cached
+    naive_thr = partition_refinement.locuswide_threshold(disjoint_dir, specs, args.locus)
     stop = len(specs) if args.job_count is None else args.job_start + args.job_count
     specs = specs[args.job_start : stop]
+    mute_freq_dir = os.path.join(args.parameter_dir, 'hmm', 'mute-freqs')
+    partition_refinement.validate_mute_freq_tables(mute_freq_dir)
     partition_refinement.run_jobs(specs, naive_threshold=naive_thr, overwrite=args.overwrite, locus=args.locus,
-                                  parameter_dir=args.parameter_dir)
+                                  parameter_dir=args.parameter_dir, mute_freq_dir=mute_freq_dir)
     if len(specs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
         open(partition_refinement.bundle_marker_fname(disjoint_dir, args.job_start), 'w').close()
     print('  refined %d groups' % len(specs))
@@ -761,7 +765,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             elif persistent_cache:
                 bstr = 'persistent-cache'
                 sfx = 'csv'
-            elif args.action in ['view-output', 'get-selection-metrics'] and not recursed and not os.path.exists(getofn(ltmp, joint=joint, partition_only=partition_only, trees=trees, lpair=lpair, recursed=True)):  # ok this is ugly, but it's nice to have 'view-output' automatically figure out if it's simulation or inference output (and yes it's also nice to have different file names for them (partition-igh.yaml vs igh.yaml))
+            elif args.action in ['view-output', 'get-selection-metrics'] and not recursed and not utils.output_or_multifile_exists(getofn(ltmp, joint=joint, partition_only=partition_only, trees=trees, lpair=lpair, recursed=True)):  # ok this is ugly, but it's nice to have 'view-output' automatically figure out if it's simulation or inference output (and yes it's also nice to have different file names for them (partition-igh.yaml vs igh.yaml))
                 bstr = ''
             else:
                 bstr ='partition'
@@ -1426,7 +1430,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             return None
         rfloci = refined_single_chain_loci(getofn, sloci())  # also catches merge-paired-partitions, which has no such args
         if len(rfloci) > 0:
-            raise Exception('single chain input for %s came from partition-refine, whose output is single-chain only: refining before pairing degrades the heavy chain, so the paired clusters would be worse than without it. Re-run partition without --partition-refine/--ha-repartition to get paired clusters.' % ' '.join(rfloci))
+            raise Exception('single chain input for %s came from partition-refine or ha-repartition, whose output is single-chain only: refining before pairing degrades the heavy chain, so the paired clusters would be worse than without it. Re-run partition without --partition-refine/--ha-repartition to get paired clusters.' % ' '.join(rfloci))
         true_outfos = None if args.is_data else {k : read_true_files(merged=mgd, no_plot=True) for k, mgd in [('merged', True), ('lpairs', False)]}
         paircluster.clean_pair_info(args, single_outfos['cpaths'], single_outfos['antn_lists'], plotdir=getplotdir(None) if args.plotdir is not None else None, performance_outdir=None if args.is_data else getodir(), true_outfos=true_outfos, debug=args.debug_paired_clustering)
         lp_infos = {}
@@ -1450,7 +1454,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if getattr(args, 'disjoint_groups', False):
                 dg_uid_groups = {}
                 for ltmp in lpair:
-                    dg_dir = '%s/disjoint-groups/%s' % (getodir(single_chain=True), ltmp)
+                    dg_dir = disjoint_dir_for(getodir(), ltmp)
                     mfpath = '%s/%s' % (dg_dir, disjointgrouper.MANIFEST_FNAME)
                     if os.path.exists(mfpath):
                         dg_uid_groups[ltmp] = disjointgrouper.build_uid_group_mapping(disjointgrouper.read_manifest(mfpath), dg_dir)
@@ -1575,7 +1579,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         if not os.path.isdir(getpdir(ltmp)):
             print('  %s: parameter dir missing, skipping disjoint partition (%s)' % (ltmp, getpdir(ltmp)))
             return
-        disjoint_dir = '%s/disjoint-groups/%s' % (getodir(single_chain=True), ltmp)
+        disjoint_dir = disjoint_dir_for(getodir(), ltmp)
         print('%s %s with disjoint groups:' % (utils.color('blue_bkg', 'partition'), utils.color('blue', ltmp)))
         if args.partition_refine and utils.has_d_gene(ltmp):  # check up front for an incomplete parameter dir
             import partis.partition_refinement as partition_refinement
@@ -1607,9 +1611,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 continue
             fasta_path = '%s/%s' % (disjoint_dir, fasta_rel)
             sw_cache_path_full = '%s/%s' % (disjoint_dir, sw_cache_rel)
-            extra_args = ['--sw-cachefname', sw_cache_path_full]
-            if args.ha_repartition and '--naive-vsearch' not in extra_args:  # ha-repartition base is always vsearch
-                extra_args += ['--naive-vsearch']
+            extra_args = ['--sw-cachefname', sw_cache_path_full, '--naive-vsearch']  # each group's base partition always uses fast vsearch clustering
             cmd = build_single_locus_cmd('partition', ltmp, args,
                                          infname=fasta_path, outfname=partition_path, parameter_dir=getpdir(ltmp),
                                          n_procs=n_group_procs, extra_args=extra_args)
@@ -1640,7 +1642,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if os.path.exists(done_marker):
                     continue
                 cmd = build_single_locus_cmd('run-ha-repartition-jobs', ltmp, args, parameter_dir=getpdir(ltmp),
-                                             extra_args=['--disjoint-dir', disjoint_dir,
+                                             extra_args=['--paired-outdir', getodir(),
                                                          '--job-start', str(start), '--job-count', str(bundle_size)])
                 ha_cmdfos.append({'cmd_str' : cmd, 'outfname' : done_marker, 'workdir' : '%s/ha-repartition-bundle-work-%d' % (disjoint_dir, start)})
             if len(ha_cmdfos) > 0:
@@ -1656,12 +1658,16 @@ def run_all_loci(args, ig_or_tr='ig'):
         # step 2.5: partition-refine each group (optional). Reads each group's partition +
         # sw-cache (already generated above) and writes a refined partition; assemble then
         # uses it. Bundled like the HA step: groups sliced across run-partition-refine-jobs
-        # bundles, each estimating locus-wide thresholds over all groups before its slice.
+        # bundles, all reading one cached locus-wide threshold primed here.
         if args.partition_refine:
             import partis.partition_refinement as partition_refinement
+            # check here as well as in each bundle, so a missing table fails before any group runs
+            partition_refinement.validate_mute_freq_tables(os.path.join(getpdir(ltmp), 'hmm', 'mute-freqs'))
             refine_bundles_per_proc = 8  # bundles per concurrency slot
             ha_concurrency = single_proc_concurrency(args)
             rspecs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], ltmp)
+            if not args.dry_run:
+                partition_refinement.locuswide_threshold(disjoint_dir, rspecs, ltmp, overwrite=args.overwrite)
             n_todo = len(rspecs) if args.overwrite else sum(1 for spec in rspecs if not os.path.exists(spec['refined_out']))  # existence is each group's refine completion signal
             total = len(rspecs)
             n_bundles = min(total, ha_concurrency * refine_bundles_per_proc) if total > 0 else 0
@@ -1672,7 +1678,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if os.path.exists(done_marker) and not args.overwrite:  # otherwise --overwrite could not reach the groups in a finished bundle
                     continue
                 cmd = build_single_locus_cmd('run-partition-refine-jobs', ltmp, args, parameter_dir=getpdir(ltmp),
-                                             extra_args=['--disjoint-dir', disjoint_dir,
+                                             extra_args=['--paired-outdir', getodir(),
                                                          '--job-start', str(start), '--job-count', str(bundle_size)]
                                                         + (['--overwrite'] if args.overwrite else []))
                 refine_cmdfos.append({'cmd_str' : cmd, 'outfname' : done_marker, 'workdir' : '%s/refine-bundle-work-%d' % (disjoint_dir, start)})
@@ -1693,7 +1699,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 yaml.dump(manifest, mfile, width=400, default_flow_style=False)
 
         # step 3: concatenate per-group partition results
-        disjointgrouper.assemble_groups(ltmp, disjoint_dir, getofn(ltmp))
+        disjointgrouper.assemble_groups(ltmp, disjoint_dir, getofn(ltmp), multifile_min_seqs=args.multifile_min_seqs, multifile_max_seqs_per_file=args.multifile_max_seqs_per_file)
 
     # ----------------------------------------------------------------------------------------
     if args.action == 'simulate':
@@ -1897,7 +1903,7 @@ parent_args.append({'name' : '--parameter-type', 'kwargs' : {'default' : None, '
 parent_args.append({'name' : '--parameter-out-dir', 'kwargs' : {'help' : 'Special parameter dir for writing multi-hmm parameters, i.e. when running annotate or partition with --count-parameters set (if not set, defaults to <--parameter-dir>/multi-hmm).'}})
 parent_args.append({'name' : '--refuse-to-cache-parameters', 'kwargs' : {'action' : 'store_true', 'help' : 'Disables auto parameter caching, i.e. if --parameter-dir doesn\'t exist, instead of inferring parameters, raise an exception. Useful for batch/production use where you want to make sure you\'re caching parameters in a separate step.'}})
 parent_args.append({'name' : '--persistent-cachefname', 'kwargs' : {'help' : 'Name of file which will be used as an initial cache file (if it exists), and to which all cached info will be written out before exiting. Must be set to \'paired-outdir\' if --paired-loci is set.'}})
-parent_args.append({'name' : '--sw-cachefname', 'kwargs' : {'help' : 'Smith-Waterman cache file name. Default is set using a hash of all the input sequence ids (in partitiondriver, since we have to read the input file first).'}})
+parent_args.append({'name' : '--sw-cachefname', 'kwargs' : {'help' : 'Smith-Waterman cache file name. Default is set using a hash of all the input sequence ids (in partitiondriver, since we have to read the input file first). For create-disjoint-groups this can also be a colon-separated list of per-chunk caches, or a parent dir holding chunk<i>-out/parameters/<locus>/sw-cache.yaml.'}})
 parent_args.append({'name' : '--write-sw-cachefile', 'kwargs' : {'action' : 'store_true', 'help' : 'Write sw results to the sw cache file during actions for which we\'d normally only look for an existing one (i.e annotate and partition).'}})
 parent_args.append({'name' : '--workdir', 'kwargs' : {'help' : 'Temporary working directory (default is set below)'}})
 
@@ -2009,12 +2015,12 @@ subconfig = collections.OrderedDict((
     ('get-linearham-info', {'func' : run_partitiondriver, 'help' : 'Write input file for linearham (to --linearham-info-fname), using a previous partis output (--outfname) file as input.'}),
     ('update-meta-info',   {'func' : run_partitiondriver, 'help' : 'Read existing output files and update their info from --input-metafnames, i.e. if your input meta info changed but you don\'t want to rerun everything. Also updates --queries-to-include info.'}),
     ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
-    ('create-disjoint-groups',    {'func' : disjoint_group_action, 'help' : 'Split sequences into disjoint groups by cdr3 length for a single locus, writing per-group fastas, sw-cache subsets, and a manifest yaml. Requires --parameter-dir and --locus.'}),
-    ('assemble-groups',   {'func' : assemble_groups_action, 'help' : 'Validate and concatenate per-group partition outputs from disjoint grouping for a single locus. Requires --locus and --paired-outdir (or --outfname).'}),
-    ('create-ha-repartition-jobs', {'func' : create_ha_repartition_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), write per-cluster HA inputs and a task list for external HA-re-partition array orchestration. Requires --locus and --paired-outdir (or --workdir).'}),
-    ('run-ha-repartition-jobs',   {'func' : run_ha_repartition_jobs_action, 'help' : 'Run HA re-partition on a slice of the task list (one array task), controlled by --job-start and --job-count. Requires --locus, --parameter-dir, and --paired-outdir (or --workdir).'}),
-    ('assemble-ha-repartition',   {'func' : assemble_ha_repartition_action, 'help' : 'Merge per-cluster HA results into per-group re-partitioned partitions for a single locus. Requires --locus and --paired-outdir (or --workdir).'}),
-    ('run-partition-refine-jobs',   {'func' : run_partition_refine_jobs_action, 'help' : 'Run post-partition refinement on a slice of the disjoint groups (single locus), controlled by --job-start and --job-count; reassemble with assemble-groups. Requires --locus, --parameter-dir (locus-level), and --paired-outdir (or --workdir).'}),
+    ('create-disjoint-groups',    {'func' : disjoint_group_action, 'help' : 'Split sequences into disjoint groups by cdr3 length for a single locus, writing per-group fastas, sw-cache subsets, and a manifest yaml. Requires --parameter-dir, --locus, and --paired-outdir.'}),
+    ('assemble-groups',   {'func' : assemble_groups_action, 'help' : 'Validate and concatenate per-group partition outputs from disjoint grouping for a single locus. Requires --locus, --outfname, and --paired-outdir.'}),
+    ('create-ha-repartition-jobs', {'func' : create_ha_repartition_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), write per-cluster HA inputs and a task list for external HA-re-partition array orchestration. Requires --locus and --paired-outdir.'}),
+    ('run-ha-repartition-jobs',   {'func' : run_ha_repartition_jobs_action, 'help' : 'Run HA re-partition on a slice of the task list (one array task), controlled by --job-start and --job-count. Requires --locus, --parameter-dir, and --paired-outdir.'}),
+    ('assemble-ha-repartition',   {'func' : assemble_ha_repartition_action, 'help' : 'Merge per-cluster HA results into per-group re-partitioned partitions for a single locus. Requires --locus and --paired-outdir.'}),
+    ('run-partition-refine-jobs',   {'func' : run_partition_refine_jobs_action, 'help' : 'Run post-partition refinement on a slice of the disjoint groups (single locus), controlled by --job-start and --job-count; reassemble with assemble-groups. Requires --locus, --parameter-dir (locus-level), and --paired-outdir.'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -2082,6 +2088,8 @@ subargs['partition'].append({'name' : '--ha-repartition', 'kwargs' : {'action' :
 subargs['partition'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['partition'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Target maximum sequences per hfrac sub-group. A soft target: bin-packing only fires past %.1fx this value, and a single indivisible component larger than that is emitted whole with a warning. Set to 0 to disable.' % disjointgrouper.BIN_PACK_TOLERANCE}})
 subargs['partition'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
+subargs['partition'].append({'name' : '--multifile-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MIN_SEQS_DEFAULT, 'help' : 'With --disjoint-groups, loci with more sequences than this assemble into a directory of partition files plus an index, rather than one merged file (one merged file does not fit in memory past this size). Lower it to exercise the multifile path on a small sample.'}})
+subargs['partition'].append({'name' : '--multifile-max-seqs-per-file', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT, 'help' : 'Sequences per file in a multifile assembly. A soft cap: one CDR3 group is never spread over two files, so an indivisible group larger than this is written whole with a warning.'}})
 subargs['partition'].append({'name' : '--n-max-procs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Disjoint group jobs split --n-procs among themselves so the total stays within it (override the per-job count with --n-sub-procs); subset-partition subsets each get the full --n-procs. The HA re-partition and partition-refine stages are single-proc and scale to the job cpu allocation instead (capped at --n-procs).'}})
 subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'dest' : 'n_max_procs', 'default' : argparse.SUPPRESS, 'help' : argparse.SUPPRESS}})  # old name for --n-max-procs
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job, overriding the default split of --n-procs among --n-max-procs concurrent jobs. Setting this above the split can oversubscribe the available cpus (you get a warning, not an error).'}})
@@ -2092,17 +2100,19 @@ subargs['create-disjoint-groups'].append({'name' : '--hfrac-merge-factor', 'kwar
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
 
+subargs['assemble-groups'] = []
+subargs['assemble-groups'].append({'name' : '--multifile-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MIN_SEQS_DEFAULT, 'help' : 'Loci with more sequences than this assemble into a directory of partition files plus an index, rather than one merged file. Lower it to exercise the multifile path on a small sample.'}})
+subargs['assemble-groups'].append({'name' : '--multifile-max-seqs-per-file', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT, 'help' : 'Sequences per file in a multifile assembly. A soft cap: one CDR3 group is never spread over two files, so an indivisible group larger than this is written whole with a warning.'}})
+
 subargs['create-ha-repartition-jobs'] = []
 subargs['assemble-ha-repartition'] = []
 subargs['run-ha-repartition-jobs'] = []
 subargs['run-ha-repartition-jobs'].append({'name' : '--job-start', 'kwargs' : {'type' : int, 'default' : 0, 'help' : 'Index of the first task-list entry to run (for external array orchestration).'}})
 subargs['run-ha-repartition-jobs'].append({'name' : '--job-count', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'Number of task-list entries to run starting at --job-start (per-cluster HA jobs bundled into one array task). Default runs to the end of the list.'}})
-subargs['run-ha-repartition-jobs'].append({'name' : '--disjoint-dir', 'kwargs' : {'default' : None, 'help' : 'Explicit path to the disjoint-groups/<locus> dir (overrides the default derived from --paired-outdir/--workdir; used by the integrated pipeline whose dir is under single-chain/).'}})
 
 subargs['run-partition-refine-jobs'] = []
 subargs['run-partition-refine-jobs'].append({'name' : '--job-start', 'kwargs' : {'type' : int, 'default' : 0, 'help' : 'Index of the first group to refine (for external array orchestration).'}})
 subargs['run-partition-refine-jobs'].append({'name' : '--job-count', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'Number of groups to refine starting at --job-start (bundled into one array task). Default runs to the end.'}})
-subargs['run-partition-refine-jobs'].append({'name' : '--disjoint-dir', 'kwargs' : {'default' : None, 'help' : 'Explicit path to the disjoint-groups/<locus> dir (overrides the default derived from --paired-outdir/--workdir).'}})
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})

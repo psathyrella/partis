@@ -24,6 +24,9 @@ import csv
 import json
 import math
 import os
+import random
+import struct
+import tempfile
 import time
 from collections import defaultdict
 import numpy as np
@@ -110,6 +113,9 @@ def get_mutations_with_base(seq, naive):
     return muts
 
 
+NAIVE_THRESHOLD_FALLBACK = 0.01  # used only when no cluster is big enough to fit a threshold on
+
+
 def estimate_naive_threshold(partition, uid_sw_naives):
     within_hammings = []
     for cluster in partition:
@@ -129,8 +135,9 @@ def estimate_naive_threshold(partition, uid_sw_naives):
                 h = hamming_frac(unique_naives[i], unique_naives[j])
                 within_hammings.append(h)
     if len(within_hammings) == 0:
-        print('  no within-cluster naive pairs, using default 0.01')
-        return 0.01
+        from partis import utils
+        print('  %s no within-cluster naive pairs, so the merge threshold falls back to %.3f rather than being fitted' % (utils.wrnstr(), NAIVE_THRESHOLD_FALLBACK), flush=True)
+        return NAIVE_THRESHOLD_FALLBACK
     within_hammings.sort()
     n = len(within_hammings)
     p90 = within_hammings[min(int(n * 0.90), n - 1)]
@@ -199,7 +206,23 @@ def get_cluster_fingerprint(uids, uid_to_muts_with_base):
     return fingerprint, n_with_muts
 
 
-def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
+# floor on the strong-position vote count, so a small fragment can't trivially dominate its own fingerprint
+FINGERPRINT_MIN_COUNT_FLOOR = 2
+
+
+def fingerprint_strong_positions(fp, n):
+    """(pos, dominant_base) pairs in <fp> where the dominant base clears the strong-position
+    vote floor (mutated by at least half of <n> members, or FINGERPRINT_MIN_COUNT_FLOOR)."""
+    min_count = max(FINGERPRINT_MIN_COUNT_FLOOR, n // 2)
+    out = []
+    for pos, bases in fp.items():
+        dominant_base = max(bases, key=bases.get)
+        if bases[dominant_base] >= min_count:
+            out.append((pos, dominant_base))
+    return out
+
+
+def fingerprint_agreement(fp1, n1, fp2, n2):
     """Measure agreement between two cluster fingerprints.
 
     For each mutation position in fp1, check if fp2 has the same position
@@ -208,64 +231,82 @@ def fingerprint_agreement(fp1, n1, fp2, n2, min_fp_positions=0):
     asymmetric pair passes when the small fragment's positions appear in the
     large one.
 
-    Returns (score, n_strong_max) where score is in [0, 1] and n_strong_max
-    is the number of strong positions in the larger fingerprint.
+    Returns (score, winning_strong_count) where score is in [0, 1] and
+    winning_strong_count is the number of strong positions on the side that
+    sourced the winning direction (fwd or rev, whichever scored higher).
     High score = strong agreement (likely same family).
     Low score = independent mutations (likely different families).
 
     Returns score=-1 for insufficient signal: when either cluster has no member
-    carrying mutations, or, if min_fp_positions > 0, when both have fewer strong
-    positions than the threshold.
+    carrying mutations.
     """
     if n1 == 0 or n2 == 0:
         return -1.0, 0
 
-    def count_strong(fp, n):
-        min_count = max(1, n // 2)
-        count = 0
-        for pos, bases in fp.items():
-            dominant_base = max(bases, key=bases.get)
-            if bases[dominant_base] >= min_count:
-                count += 1
-        return count
-
-    def directional_agreement(source_fp, source_n, target_fp, target_n):
+    def directional_agreement(source_fp, source_n, target_fp):
         """Fraction of source's strong positions that appear in target."""
-        if source_n == 0:
+        strong = fingerprint_strong_positions(source_fp, source_n)
+        if len(strong) == 0:
             return 0.0, 0
-        # "strong" positions: mutated by at least half the source members
-        # for singletons: all positions are strong (count=1, n=1, 1/1 >= 0.5)
-        min_count = max(1, source_n // 2)
-        strong_positions = []
-        for pos, bases in source_fp.items():
-            dominant_base = max(bases, key=bases.get)
-            if bases[dominant_base] >= min_count:
-                strong_positions.append((pos, dominant_base))
+        n_agree = sum(1 for pos, base in strong if pos in target_fp and base in target_fp[pos])
+        return n_agree / len(strong), len(strong)
 
-        if len(strong_positions) == 0:
-            return 0.0, 0
-
-        n_agree = 0
-        for pos, base in strong_positions:
-            if pos in target_fp and base in target_fp[pos]:
-                n_agree += 1
-
-        return n_agree / len(strong_positions), len(strong_positions)
-
-    n_strong_1 = count_strong(fp1, n1)
-    n_strong_2 = count_strong(fp2, n2)
-    n_strong_max = max(n_strong_1, n_strong_2)
-
-    # if both clusters have too few strong positions, signal is insufficient
-    if min_fp_positions > 0 and n_strong_max < min_fp_positions:
-        return -1.0, n_strong_max
-
-    fwd, _ = directional_agreement(fp1, n1, fp2, n2)
-    rev, _ = directional_agreement(fp2, n2, fp1, n1)
+    fwd, n_strong_fwd = directional_agreement(fp1, n1, fp2)
+    rev, n_strong_rev = directional_agreement(fp2, n2, fp1)
 
     # asymmetric clusters (one large, one small): take the max, since the small
     # cluster's positions should appear in the large one if they are the same family
-    return max(fwd, rev), n_strong_max
+    if fwd >= rev:
+        return fwd, n_strong_fwd
+    return rev, n_strong_rev
+
+
+def fingerprint_winning_agreement(fp1, n1, fp2, n2):
+    """('fwd' or 'rev', agreeing (pos, base) pairs) for whichever direction
+    fingerprint_agreement's own comparison would pick as the winner."""
+    def directional(source_fp, source_n, target_fp):
+        strong = fingerprint_strong_positions(source_fp, source_n)
+        if len(strong) == 0:
+            return 0.0, []
+        agree = [(pos, base) for pos, base in strong if pos in target_fp and base in target_fp[pos]]
+        return len(agree) / len(strong), agree
+
+    fwd_score, fwd_agree = directional(fp1, n1, fp2)
+    rev_score, rev_agree = directional(fp2, n2, fp1)
+    if fwd_score >= rev_score:
+        return 'fwd', fwd_agree
+    return 'rev', rev_agree
+
+
+def mutation_carrier(frag_uids, pos, base, uid_to_muts_with_base):
+    """uid in <frag_uids> that carries (pos, base), or None."""
+    for uid in frag_uids:
+        muts = uid_to_muts_with_base.get(uid)
+        if muts is not None and muts.get(pos) == base:
+            return uid
+    return None
+
+
+MERGE_WEIGHTED_FREQ_FLOOR = 1e-4  # clamp before log10, well below NO_GERMLINE_FREQ
+MERGE_WEIGHTED_SCORE_CUTOFF = 2.0  # evidence a merge must clear to be accepted, raised to cut the false-merge rate
+MIN_FINGERPRINT_AGREEMENT = 0.15  # least fingerprint agreement a merge candidate can have
+
+
+def mute_freq_weighted_score(frag1, fp1, n1, frag2, fp2, n2, uid_to_muts_with_base, get_uid_freqs):
+    """Sum of -log10(population mutation frequency) over the winning direction's agreeing
+    strong positions: agreement at a rare position counts for more than at a common hotspot.
+    get_uid_freqs(uid) -> {(pos, base): freq}, each uid's own per-position mutation
+    frequencies from the parameter directory."""
+    win_side, agree = fingerprint_winning_agreement(fp1, n1, fp2, n2)
+    if len(agree) == 0:
+        return 0.0
+    source_frag = frag1 if win_side == 'fwd' else frag2
+    total = 0.0
+    for pos, base in agree:
+        carrier = mutation_carrier(source_frag, pos, base, uid_to_muts_with_base)
+        freq = get_uid_freqs(carrier).get((pos, base), NO_GERMLINE_FREQ) if carrier else NO_GERMLINE_FREQ
+        total += -math.log10(max(freq, MERGE_WEIGHTED_FREQ_FLOOR))
+    return total
 
 
 # shared-mutation fraction at which a cross-fragment pair certifies common descent
@@ -583,8 +624,8 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
 
     # held counts clusters the veto touched, not ones whose outcome it changed
     length_label = ', %d held (length veto)' % ctr['length_veto'] if ctr['length_veto'] > 0 else ''
-    print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d skipped (no proposal), %d rejected (missing naive)%s' % (
-        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['no_proposal'], ctr['missing_naive'], length_label), flush=True)
+    print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d skipped (no proposal), %d rejected (missing naive), %d skipped (below min cluster size)%s' % (
+        ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['no_proposal'], ctr['missing_naive'], ctr['below_min_size'], length_label), flush=True)
     print('  %d members snapped, %d pairs certified, %d -> %d clusters' % (
         ctr['snapped'], ctr['certified_pairs'], len(partition), len(result)), flush=True)
     return result
@@ -594,16 +635,57 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
 VDJ_OVERRIDE_MIN_FRAG = 20
 
 
+def onehot_naives(arr, n_byte):
+    """(n, len) uint8 naives -> (one-hot over the non-N symbols present, non-N mask), both float32.
+
+    One-hot inner product counts matching non-N positions, mask inner product counts compared
+    positions, so N-aware hamming is a matrix product. Counts are integral in float32.
+    """
+    symbols = [s for s in np.unique(arr) if s != n_byte]
+    n_seqs, seq_len = arr.shape
+    oh = np.zeros((n_seqs, seq_len * len(symbols)), dtype=np.float32)
+    for si, sym in enumerate(symbols):
+        oh[:, si * seq_len:(si + 1) * seq_len] = (arr == sym)
+    return oh, (arr != n_byte).astype(np.float32)
+
+
+def naive_pairs_below(oh, mask, idx_a, idx_b, threshold, symmetric, chunk_size=2000):
+    """Yield index pairs whose N-aware naive hamming frac is at or below <threshold>, blocked to
+    bound memory. symmetric means idx_a and idx_b are the same set, so only one triangle is walked
+    and each pair comes out once; otherwise the two sets must be disjoint."""
+    for ca in range(0, len(idx_a), chunk_size):
+        ra = idx_a[ca:ca + chunk_size]
+        oh_a, mask_a = oh[ra], mask[ra]
+        cb_start = ca if symmetric else 0
+        for cb in range(cb_start, len(idx_b), chunk_size):
+            rb = idx_b[cb:cb + chunk_size]
+            compared = (mask_a @ mask[rb].T).astype(np.int32)
+            matches = (oh_a @ oh[rb].T).astype(np.int32)
+            mism = compared - matches
+            dists = np.where(compared > 0, mism / np.maximum(compared, 1), 1.0)
+            for pa, pb in np.argwhere(dists <= threshold):
+                ia, ib = ra[pa], rb[pb]
+                if symmetric and ia >= ib:
+                    continue
+                yield (ia, ib) if ia < ib else (ib, ia)
+
+
 def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                               uid_to_muts_with_base, naive_threshold,
-                              min_agreement=0.15, min_fp_positions=0,
+                              min_agreement=MIN_FINGERPRINT_AGREEMENT,
+                              min_weighted_score=MERGE_WEIGHTED_SCORE_CUTOFF,
                               skip_singleton_merge=False, uid_rearr_features=None,
-                              junction_guard=True, vdj_override_min=VDJ_OVERRIDE_MIN_FRAG):
+                              junction_guard=True, vdj_override_min=VDJ_OVERRIDE_MIN_FRAG,
+                              mute_freq_dir=None, uid_part_antns=None, glfo=None):
     """Heavy merge: incremental naive merge with fingerprint validation.
 
     For each CDR3 group, find clusters with similar naives (candidates),
     then only merge if their mutation fingerprints agree. This prevents
     false merges of unrelated sequences with similar naives.
+
+    Naive distances are computed only within groups that could survive the junction guard, and as a
+    matrix product rather than elementwise. Both leave the partition unchanged; the candidate and
+    junction-rejection counters drop, since blocked pairs are no longer examined.
 
     If skip_singleton_merge=True, skip merge attempts where BOTH clusters
     are singletons. True singletons (survived vsearch + HA) should stay
@@ -617,7 +699,15 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     vdj_override_min: rescue a junction-rejected union when both fragments share
     a v/d/j triple and the larger one has at least this many members, i.e. only
     where the modal annotation is trustworthy. 0 disables the override.
+
+    mute_freq_dir, uid_part_antns, glfo: population-level per-position mutation frequency
+    table, plus the annotations needed to look each uid up in it. Used to weight agreeing
+    positions by rarity when deciding whether to accept a merge.
     """
+    missing = [n for n, v in (('mute_freq_dir', mute_freq_dir), ('uid_part_antns', uid_part_antns), ('glfo', glfo)) if v is None]
+    if missing:
+        raise Exception('merge_on_naive_similarity missing %s' % ', '.join(missing))
+
     cdr3_frags = defaultdict(list)
     for cluster in split_partition:
         cdr3_len = None
@@ -636,6 +726,15 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     n_vdj_override = 0
     n_skipped_singleton = 0
     n_skipped_difflen = 0
+
+    uid_freq_cache = {}
+    param_dir_counts = {}
+
+    def get_uid_freqs(uid):
+        if uid not in uid_freq_cache:
+            freqs, _obs = uid_param_dir_freqs(uid, uid_to_muts_with_base.get(uid, {}), uid_part_antns, glfo, mute_freq_dir, counts=param_dir_counts)
+            uid_freq_cache[uid] = freqs
+        return uid_freq_cache[uid]
 
     for cdr3_len, frags in cdr3_frags.items():
         if len(frags) < 2:
@@ -686,36 +785,46 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                 return 'rescue'
             return 'block'
 
+        def examine(i, j):
+            # one naive-similar fragment pair through the junction guard and the fingerprint validator
+            nonlocal n_naive_candidates, n_accepted, n_rejected_fingerprint
+            nonlocal n_rejected_insufficient, n_rejected_junction, n_vdj_override, n_skipped_singleton
+            if find(i) == find(j):
+                return
+            # skip singleton-singleton merges: both survived vsearch+HA
+            # as singletons, likely true singletons not fragments
+            if skip_singleton_merge and frag_sizes[i] == 1 and frag_sizes[j] == 1:
+                n_skipped_singleton += 1
+                return
+            n_naive_candidates += 1
+            verdict = junction_verdict(i, j)
+            if verdict == 'block':
+                n_rejected_junction += 1
+                return
+            if verdict == 'rescue':
+                n_vdj_override += 1
+            fp_i, n_i = frag_fps[i]
+            fp_j, n_j = frag_fps[j]
+            agreement, _ = fingerprint_agreement(
+                fp_i, n_i, fp_j, n_j)
+            if agreement < 0:
+                n_rejected_insufficient += 1
+            elif agreement < min_agreement:
+                n_rejected_fingerprint += 1
+            else:
+                weighted = mute_freq_weighted_score(
+                    frags[i], fp_i, n_i, frags[j], fp_j, n_j, uid_to_muts_with_base, get_uid_freqs)
+                if weighted >= min_weighted_score:
+                    union(i, j)
+                    n_accepted += 1
+                else:
+                    n_rejected_fingerprint += 1
+
         # within same-naive bucket: always naive-similar, just check fingerprint
         for naive_seq, indices in naive_to_frags.items():
             for ii in range(len(indices)):
                 for jj in range(ii + 1, len(indices)):
-                    i, j = indices[ii], indices[jj]
-                    if find(i) == find(j):
-                        continue
-                    # skip singleton-singleton merges: both survived vsearch+HA
-                    # as singletons, likely true singletons not fragments
-                    if skip_singleton_merge and frag_sizes[i] == 1 and frag_sizes[j] == 1:
-                        n_skipped_singleton += 1
-                        continue
-                    n_naive_candidates += 1
-                    verdict = junction_verdict(i, j)
-                    if verdict == 'block':
-                        n_rejected_junction += 1
-                        continue
-                    if verdict == 'rescue':
-                        n_vdj_override += 1
-                    fp_i, n_i = frag_fps[i]
-                    fp_j, n_j = frag_fps[j]
-                    agreement, n_strong = fingerprint_agreement(
-                        fp_i, n_i, fp_j, n_j, min_fp_positions)
-                    if agreement < 0:
-                        n_rejected_insufficient += 1
-                    elif agreement >= min_agreement:
-                        union(i, j)
-                        n_accepted += 1
-                    else:
-                        n_rejected_fingerprint += 1
+                    examine(indices[ii], indices[jj])
 
         # cross-bucket: vectorized pairwise hamming to find near-match naives
         unique_naives = list(naive_to_frags.keys())
@@ -726,51 +835,59 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
 
             if len(same_len) >= 2:
                 arr = np.frombuffer(''.join(same_len).encode(), dtype=np.uint8).reshape(len(same_len), seq_len)
-                n_byte = ord('N')
-                # chunked pairwise to bound memory when there are many unique naives
-                chunk_size = 2000
-                for ci in range(0, len(same_len), chunk_size):
-                    ci_end = min(ci + chunk_size, len(same_len))
-                    chunk_i = arr[ci:ci_end]
-                    for cj in range(ci, len(same_len), chunk_size):
-                        cj_end = min(cj + chunk_size, len(same_len))
-                        chunk_j = arr[cj:cj_end]
-                        # N-aware hamming (matches hamming_frac): drop positions where either naive is N
-                        valid = (chunk_i[:, None, :] != n_byte) & (chunk_j[None, :, :] != n_byte)
-                        mism = ((chunk_i[:, None, :] != chunk_j[None, :, :]) & valid).sum(axis=2)
-                        compared = valid.sum(axis=2)
-                        dists = np.where(compared > 0, mism / np.maximum(compared, 1), 1.0)
-                        pairs = np.argwhere(dists <= naive_threshold)
-                        for pi, pj in pairs:
-                            ni_idx = ci + pi
-                            nj_idx = cj + pj
-                            if ni_idx >= nj_idx:
+                oh, mask = onehot_naives(arr, ord('N'))
+
+                def examine_naive_pair(ni_idx, nj_idx):
+                    for i in naive_to_frags[same_len[ni_idx]]:
+                        for j in naive_to_frags[same_len[nj_idx]]:
+                            examine(i, j)
+
+                # only pairs that could survive the junction guard get a distance: same key, either
+                # side missing a key, or a shared vdj triple where the rescue is live
+                naive_keys, wildcard = [], []
+                key_groups, vdj_groups = defaultdict(list), defaultdict(list)
+                vdj_live = set()
+                if vdj_override_min > 0:
+                    for vdj, size in zip(frag_vdjs, frag_sizes):
+                        if vdj is not None and size >= vdj_override_min:
+                            vdj_live.add(vdj)
+                for idx, naive_seq in enumerate(same_len):
+                    keys, vdjs = set(), set()
+                    for i in naive_to_frags[naive_seq]:
+                        if frag_juncs[i] is None:
+                            keys = None
+                            break
+                        keys.add(frag_juncs[i])
+                        if frag_vdjs[i] in vdj_live:
+                            vdjs.add(frag_vdjs[i])
+                    naive_keys.append(keys)
+                    if keys is None:
+                        wildcard.append(idx)
+                    else:
+                        for key in keys:
+                            key_groups[key].append(idx)
+                        for vdj in vdjs:
+                            vdj_groups[vdj].append(idx)
+
+                for group in key_groups.values():
+                    if len(group) >= 2:
+                        for ni_idx, nj_idx in naive_pairs_below(oh, mask, group, group, naive_threshold, True):
+                            examine_naive_pair(ni_idx, nj_idx)
+                # a keyless naive passes the guard against anything, so it needs all of same_len
+                if len(wildcard) > 0:
+                    keyed = [idx for idx in range(len(same_len)) if naive_keys[idx] is not None]
+                    for ni_idx, nj_idx in naive_pairs_below(oh, mask, wildcard, wildcard, naive_threshold, True):
+                        examine_naive_pair(ni_idx, nj_idx)
+                    if len(keyed) > 0:
+                        for ni_idx, nj_idx in naive_pairs_below(oh, mask, wildcard, keyed, naive_threshold, False):
+                            examine_naive_pair(ni_idx, nj_idx)
+                # rescue-eligible pairs, minus the same-key ones already done above
+                for group in vdj_groups.values():
+                    if len(group) >= 2:
+                        for ni_idx, nj_idx in naive_pairs_below(oh, mask, group, group, naive_threshold, True):
+                            if len(naive_keys[ni_idx] & naive_keys[nj_idx]) > 0:
                                 continue
-                            for i in naive_to_frags[same_len[ni_idx]]:
-                                for j in naive_to_frags[same_len[nj_idx]]:
-                                    if find(i) == find(j):
-                                        continue
-                                    if skip_singleton_merge and frag_sizes[i] == 1 and frag_sizes[j] == 1:
-                                        n_skipped_singleton += 1
-                                        continue
-                                    n_naive_candidates += 1
-                                    verdict = junction_verdict(i, j)
-                                    if verdict == 'block':
-                                        n_rejected_junction += 1
-                                        continue
-                                    if verdict == 'rescue':
-                                        n_vdj_override += 1
-                                    fp_i, n_i = frag_fps[i]
-                                    fp_j, n_j = frag_fps[j]
-                                    agreement, n_strong = fingerprint_agreement(
-                                        fp_i, n_i, fp_j, n_j, min_fp_positions)
-                                    if agreement < 0:
-                                        n_rejected_insufficient += 1
-                                    elif agreement >= min_agreement:
-                                        union(i, j)
-                                        n_accepted += 1
-                                    else:
-                                        n_rejected_fingerprint += 1
+                            examine_naive_pair(ni_idx, nj_idx)
 
             # handle different-length naives with Python fallback (rare)
             for n1 in diff_len:
@@ -784,29 +901,7 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                         continue
                     for i in naive_to_frags[n1]:
                         for j in naive_to_frags[n2_seq]:
-                            if find(i) == find(j):
-                                continue
-                            if skip_singleton_merge and frag_sizes[i] == 1 and frag_sizes[j] == 1:
-                                n_skipped_singleton += 1
-                                continue
-                            n_naive_candidates += 1
-                            verdict = junction_verdict(i, j)
-                            if verdict == 'block':
-                                n_rejected_junction += 1
-                                continue
-                            if verdict == 'rescue':
-                                n_vdj_override += 1
-                            fp_i, n_i = frag_fps[i]
-                            fp_j, n_j = frag_fps[j]
-                            agreement, n_strong = fingerprint_agreement(
-                                fp_i, n_i, fp_j, n_j, min_fp_positions)
-                            if agreement < 0:
-                                n_rejected_insufficient += 1
-                            elif agreement >= min_agreement:
-                                union(i, j)
-                                n_accepted += 1
-                            else:
-                                n_rejected_fingerprint += 1
+                            examine(i, j)
 
         components = defaultdict(list)
         for i in range(n):
@@ -820,9 +915,17 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     skip_label += ', %d skipped (naive length mismatch)' % n_skipped_difflen if n_skipped_difflen > 0 else ''
     junc_label = ', %d rejected (junction)' % n_rejected_junction if n_rejected_junction > 0 else ''
     junc_label += ', %d rescued (vdj)' % n_vdj_override if n_vdj_override > 0 else ''
-    print('  naive-similarity merge: %d naive candidates, %d accepted, %d rejected (fingerprint)%s%s' % (
-        n_naive_candidates, n_accepted, n_rejected_fingerprint, junc_label, skip_label))
+    print('  naive-similarity merge: %d naive candidates, %d accepted, %d rejected (fingerprint), %d rejected (insufficient signal)%s%s' % (
+        n_naive_candidates, n_accepted, n_rejected_fingerprint, n_rejected_insufficient, junc_label, skip_label))
     print('  %d merges, %d -> %d clusters' % (n_merges, len(split_partition), len(merged_partition)))
+    n_gene_missing = param_dir_counts.get('gene_missing_from_glfo', 0)
+    n_no_antn = param_dir_counts.get('no_antn', 0)
+    if n_gene_missing > 0 or n_no_antn > 0:
+        from partis import utils
+        print('  %s per-gene mute-freqs: %d uid-lookups had a v/d/j gene call missing from glfo '
+              '(no region bounds, every position fell back to NO_GERMLINE_FREQ, not the smoothing floor, '
+              'since there was no per-gene mute-freqs signal), %d uids had no partition-frame annotation' % (
+                  utils.wrnstr(), n_gene_missing, n_no_antn), flush=True)
     return merged_partition
 
 
@@ -832,36 +935,167 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
 # member's mutation set, so it stays defined for a cluster of any size.
 # ----------------------------------------------------------------------------
 
-WEIGHTED_DESCENT_ALPHA = 0.005  # link threshold (weighted-surprisal tail cutoff)
 WEIGHT_GRID_NATS = 0.25  # bin width for the exact tail dp
 FREQ_SMOOTH_COUNT = 0.5  # count floor for an unobserved (position, base)
 _TINY = 1e-300
 
-
-def repertoire_mutation_freqs(uid_muts, n_seqs=None):
-    """Per-(position, base) mutation frequency over every sequence in <uid_muts>, and the
-    denominator used. Pass a whole refine input rather than one cluster: the null must not be
-    estimated from the sequences being compared."""
-    counts = defaultdict(int)
-    for muts in uid_muts.values():
-        for pos, base in muts.items():
-            counts[(pos, base)] += 1
-    n = len(uid_muts) if n_seqs is None else n_seqs
-    n = max(int(n), 1)
-    return {pb: c / n for pb, c in counts.items()}, n
+# derive_bin_alpha's fdr targets and null-tail fit constants
+WEIGHTED_DESCENT_FDR_PRIMARY = 0.05
+WEIGHTED_DESCENT_FDR_RETRY = 0.25
+WEIGHTED_DESCENT_FIT_FLOOR = 1e-3  # p above this is signal-free bulk, fitted then extrapolated inwards
+WEIGHTED_DESCENT_MIN_TAIL_N = 10  # degenerate-fit floor, not a trust threshold
+WEIGHTED_DESCENT_SE_Z = 1.0  # rate_hat - z*SE, SE = rate_hat/sqrt(n)
+WEIGHTED_DESCENT_RATE_FLOOR = 1e-6
+WEIGHTED_DESCENT_CAND = [10 ** (-e / 2.0) for e in range(40, 1, -1)]  # log-spaced candidates, tightest first
 
 
-def _weight_bins(muts, freqs, n_seqs, grid):
+def _fit_null_tail_se(sample, z=WEIGHTED_DESCENT_SE_Z, min_n=WEIGHTED_DESCENT_MIN_TAIL_N):
+    """Exponential fit to u = -log10(p) over the signal-free bulk, rate pulled down by z*SE.
+    Returns (rate, u0, frac), or None below <min_n> tail points or on a degenerate fit."""
+    u0 = -math.log10(WEIGHTED_DESCENT_FIT_FLOOR)
+    tail = [-math.log10(p) for p in sample if 0 < p < WEIGHTED_DESCENT_FIT_FLOOR]
+    n = len(tail)
+    if n < min_n:
+        return None
+    frac = n / float(len(sample))
+    mean_excess = sum(u - u0 for u in tail) / n
+    if mean_excess <= 0:
+        return None
+    rate_hat = 1.0 / mean_excess
+    se = rate_hat / math.sqrt(n)
+    rate = max(rate_hat - z * se, WEIGHTED_DESCENT_RATE_FLOOR)
+    return rate, u0, frac
+
+
+def _expected_null_below(cut, fit, n_total):
+    rate, u0, frac = fit
+    u = -math.log10(cut)
+    if u <= u0:
+        return None  # inside the fitted region, so the fit says nothing useful
+    return n_total * frac * math.exp(-rate * (u - u0))
+
+
+def _fdr_cutoff(target, fit, counts, n_total):
+    """Loosest candidate in WEIGHTED_DESCENT_CAND whose extrapolated null share stays under <target>."""
+    best = None
+    for cut, cnt in zip(WEIGHTED_DESCENT_CAND, counts):
+        exp_null = _expected_null_below(cut, fit, n_total)
+        if exp_null is None or cnt == 0:
+            continue
+        if min(1.0, exp_null / float(cnt)) <= target:  # keep scanning: loosest passing cutoff wins
+            best = cut
+    return best
+
+
+def derive_bin_alpha(sample, counts, n_total):
+    """Fit the null tail, then WEIGHTED_DESCENT_FDR_PRIMARY with one retry at WEIGHTED_DESCENT_FDR_RETRY. Returns
+    (alpha, diag), alpha None if the fit fails or neither target is reachable."""
+    fit = _fit_null_tail_se(sample)
+    if fit is None:
+        return None, {'fit_rate': None, 'fit_frac': None, 'rule': None}
+    diag = {'fit_rate': fit[0], 'fit_frac': fit[2]}
+    for target in (WEIGHTED_DESCENT_FDR_PRIMARY, WEIGHTED_DESCENT_FDR_RETRY):
+        cutoff = _fdr_cutoff(target, fit, counts, n_total)
+        if cutoff is not None:
+            return cutoff, dict(diag, rule='fdr:%.3g' % target)
+    return None, dict(diag, rule=None)
+
+
+_PAIR_BLOCK_HEADER = '<I'  # n_pairs in this cluster's block
+_PAIR_RECORD = '<iif'  # (i, o): positions in that cluster's own member list; p: float32
+_PAIR_RECORD_SIZE = struct.calcsize(_PAIR_RECORD)
+
+
+def _write_pair_block(spill_f, pairs_here):
+    """Append one cluster's block (count header, then that many (i, o, p) records) to the
+    bin's spill file. Always writes a block, even count 0, to stay in lockstep with
+    clusters_uid_muts for the sequential re-read."""
+    spill_f.write(struct.pack(_PAIR_BLOCK_HEADER, len(pairs_here)))
+    for i, o, p in pairs_here:
+        spill_f.write(struct.pack(_PAIR_RECORD, i, o, p))
+
+
+def _read_pair_block(spill_f):
+    """Read back one written block. Returns {(i, o): p}, or None for an empty
+    block (caller falls back to split_by_weighted_descent's own recompute)."""
+    n_pairs, = struct.unpack(_PAIR_BLOCK_HEADER, spill_f.read(struct.calcsize(_PAIR_BLOCK_HEADER)))
+    if n_pairs == 0:
+        return None
+    buf = spill_f.read(_PAIR_RECORD_SIZE * n_pairs)
+    return {(i, o): p for i, o, p in struct.iter_unpack(_PAIR_RECORD, buf)}
+
+
+def _scan_bin_full_pairs(clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, spill_f,
+                          counts=None, sample_cap=2000000, seed=1):
+    """Full within-cluster pairwise scan across every cluster in one bin, one shared
+    _PerUidPvalCache. Every p < 1.0 pair is appended to <spill_f> one cluster-block at a
+    time, never held past its own cluster. Returns (sample, cand_counts,
+    n_total): sample is a reservoir sample of p for the null-tail fit; cand_counts is the exact
+    (unsampled) count of p below each WEIGHTED_DESCENT_CAND candidate."""
+    rng = random.Random(seed)
+    cache = _PerUidPvalCache(n_seqs, WEIGHT_GRID_NATS)
+    freq_cache, obs_cache = {}, {}
+    sample, n_seen, n_total = [], 0, 0
+    cand_counts = [0] * len(WEIGHTED_DESCENT_CAND)
+    for cluster, uid_muts in clusters_uid_muts:
+        members = list(cluster)
+        n = len(members)
+        if n < 2:
+            _write_pair_block(spill_f, [])
+            continue
+        order = sorted(range(n), key=lambda i: -len(uid_muts.get(members[i], {}) or {}))
+        for u in members:
+            if u not in freq_cache:
+                freq_cache[u], obs_cache[u] = uid_param_dir_freqs(
+                    u, uid_muts.get(u, {}), uid_part_antns, glfo, mute_freq_dir, counts=counts)
+        pairs_here = []
+        for idx, i in enumerate(order):
+            mi = uid_muts.get(members[i])
+            if not mi:
+                continue
+            ui = members[i]
+            for o in order[idx + 1:]:
+                mo = uid_muts.get(members[o])
+                if not mo:
+                    continue
+                uo = members[o]
+                p = weighted_shared_descent_pvalue(
+                    mi, mo, freq_cache[ui], freq_cache[uo], n_seqs,
+                    n_obs_a=obs_cache[ui], n_obs_b=obs_cache[uo],
+                    cache=cache, uid_a=ui, uid_b=uo)
+                if p >= 1.0:
+                    continue
+                pairs_here.append((i, o, p))
+                n_total += 1
+                for k, cut in enumerate(WEIGHTED_DESCENT_CAND):
+                    if p < cut:
+                        cand_counts[k] += 1
+                if len(sample) < sample_cap:
+                    sample.append(p)
+                else:
+                    j = rng.randint(0, n_seen)
+                    if j < sample_cap:
+                        sample[j] = p
+                n_seen += 1
+        _write_pair_block(spill_f, pairs_here)
+    return sample, cand_counts, n_total
+
+
+def _weight_bins(muts, freqs, n_seqs, grid, n_obs):
     """{(pos, base): (frequency, surprisal in whole grid bins)} for one sequence's mutations.
     Each weight is binned rather than the sums, which is not a bound in either direction: the
     dp returns the exact tail of the rounded statistic, which can sit above or below the tail
-    of the unrounded one."""
-    floor = FREQ_SMOOTH_COUNT / n_seqs
+    of the unrounded one.
+
+    n_obs: per-(pos, base) observation count from the per-gene mute-freqs table, sets that
+    key's floor. A no-signal position is absent from n_obs, but its freq is already
+    NO_GERMLINE_FREQ there, well above any floor n_seqs could produce as the .get() default."""
     out = {}
     for pos, base in muts.items():
         p = freqs.get((pos, base), 0.0)
-        if p < floor:
-            p = floor
+        pfloor = FREQ_SMOOTH_COUNT / max(n_obs.get((pos, base), n_seqs), 1)
+        if p < pfloor:
+            p = pfloor
         elif p > 1.0:
             p = 1.0
         nbin = int(round(-math.log(p) / grid))
@@ -869,11 +1103,8 @@ def _weight_bins(muts, freqs, n_seqs, grid):
     return out
 
 
-def _conditional_pvalue(muts_cond, shared, freqs, n_seqs, grid):
-    """P(T >= T_obs), where T sums the surprisals of whichever of <muts_cond> another sequence
-    carries independently. Exact by dp over binned surprisal, with everything at or above the
-    observed value collected into a tail bucket."""
-    wb = _weight_bins(muts_cond, freqs, n_seqs, grid)
+def _conditional_pvalue_from_wb(wb, shared):
+    """Same dp as _conditional_pvalue, given an already-built <wb> instead of rebuilding it."""
     t_obs = sum(wb[pb][1] for pb in shared if pb in wb)
     if t_obs <= 0:
         return 1.0
@@ -897,27 +1128,273 @@ def _conditional_pvalue(muts_cond, shared, freqs, n_seqs, grid):
     return min(max(tail, 0.0), 1.0)
 
 
-def weighted_shared_descent_pvalue(muts_a, muts_b, freqs, n_seqs, grid=WEIGHT_GRID_NATS):
-    """Probability that two unrelated sequences would share mutations this improbable. Both
-    mutation dicts are against each sequence's own sw naive. Returns 1.0 when nothing is shared.
-    Symmetric: each direction conditions on one of the two mutation sets and the pair of
-    p-values is combined as a geometric mean."""
+def _conditional_pvalue(muts_cond, shared, freqs, n_seqs, grid, n_obs):
+    """P(T >= T_obs), where T sums the surprisals of whichever of <muts_cond> another sequence
+    carries independently. Exact by dp over binned surprisal, with everything at or above the
+    observed value collected into a tail bucket."""
+    wb = _weight_bins(muts_cond, freqs, n_seqs, grid, n_obs=n_obs)
+    return _conditional_pvalue_from_wb(wb, shared)
+
+
+def _build_survival_curve(wb):
+    """Untruncated dp over <wb>, reduced to the survival function S(t) = P(T >= t)."""
+    dist = [1.0]
+    for p, nbin in wb.values():
+        if nbin == 0:
+            continue
+        nxt = [0.0] * (len(dist) + nbin)
+        for b, mass in enumerate(dist):
+            if mass == 0.0:
+                continue
+            nxt[b] += mass * (1.0 - p)
+            nxt[b + nbin] += mass * p
+        dist = nxt
+    max_t = len(dist) - 1
+    survival = [0.0] * (max_t + 1)
+    running = 0.0
+    for t in range(max_t, -1, -1):
+        running += dist[t]
+        survival[t] = running
+    return survival, max_t
+
+
+def _survival_lookup(survival, max_t, t_obs):
+    if t_obs <= 0:
+        return 1.0
+    if t_obs > max_t:
+        return 0.0
+    return min(max(survival[t_obs], 0.0), 1.0)
+
+
+class _PerUidPvalCache(object):
+    """Per-uid weight-bins cache, switching a uid to a full survival curve once its own
+    pair count passes break-even."""
+
+    def __init__(self, n_seqs, grid):
+        self.n_seqs = n_seqs
+        self.grid = grid
+        self.wb = {}
+        self.curve = {}
+        self.use_curve = {}
+        self.trunc_cost = {}
+
+    def _get_wb(self, uid, muts, freqs, n_obs):
+        wb = self.wb.get(uid)
+        if wb is None:
+            wb = _weight_bins(muts, freqs, self.n_seqs, self.grid, n_obs=n_obs)
+            self.wb[uid] = wb
+        return wb
+
+    def conditional_pvalue(self, uid, muts, freqs, n_obs, shared):
+        wb = self._get_wb(uid, muts, freqs, n_obs)
+        if not wb:
+            return 1.0
+        if self.use_curve.get(uid):
+            survival, max_t = self.curve[uid]
+            t_obs = sum(wb[pb][1] for pb in shared if pb in wb)
+            return _survival_lookup(survival, max_t, t_obs)
+        p = _conditional_pvalue_from_wb(wb, shared)
+        t_obs = sum(wb[pb][1] for pb in shared if pb in wb)
+        cost = self.trunc_cost.get(uid, 0) + t_obs
+        self.trunc_cost[uid] = cost
+        max_t = sum(nbin for _, nbin in wb.values() if nbin > 0)
+        if cost > max_t:
+            self.curve[uid] = _build_survival_curve(wb)
+            self.use_curve[uid] = True
+        return p
+
+
+# ----------------------------------------------------------------------------
+# Germline mute-freq lookups from the parameter directory: each uid is scored against
+# its own V/J gene's per-position table, not one locus-wide statistic.
+# ----------------------------------------------------------------------------
+
+_PARAM_MUTE_FREQ_CACHE = {}  # (mute_freq_dir, gene) -> {pos: {base: freq, _N_OBS_KEY: n}} or None
+_N_OBS_KEY = 'n_obs'  # not a base, so no collision with the A/C/G/T keys beside it
+NO_GERMLINE_FREQ = 0.25  # uniform over the four bases where there is no germline source
+
+
+def load_param_mute_freq_csv(mute_freq_dir, gene):
+    """Per-position mutation frequencies for one germline gene, from
+    <mute_freq_dir>/<gene, '*' -> '_star_'>.csv.
+    None if the file does not exist or carries no rows (e.g. a light-locus D
+    placeholder, header-only). Each row also carries _N_OBS_KEY, the summed *_obs counts
+    at that position."""
+    key = (mute_freq_dir, gene)
+    if key in _PARAM_MUTE_FREQ_CACHE:
+        return _PARAM_MUTE_FREQ_CACHE[key]
+    import csv
+    fname = os.path.join(mute_freq_dir, gene.replace('*', '_star_') + '.csv')
+    rows = None
+    if os.path.exists(fname):
+        rows = {}
+        with open(fname) as ffile:
+            for row in csv.DictReader(ffile):
+                frow = {b: float(row[b]) for b in ('A', 'C', 'G', 'T')}
+                frow[_N_OBS_KEY] = sum(float(row.get(b + '_obs') or 0) for b in ('A', 'C', 'G', 'T'))
+                rows[int(row['position'])] = frow
+        if not rows:
+            rows = None
+    _PARAM_MUTE_FREQ_CACHE[key] = rows
+    return rows
+
+
+def param_dir_region_bounds(antn, glfo):
+    """[start, end) bounds for v/d/j in the partition-frame coordinate <antn> is already
+    in, rebuilt from glfo germline lengths since v_gl_seq/d_gl_seq/j_gl_seq are
+    add_implicit_info()-only and absent from these no-recompute annotations."""
+    def gl_len(region, gene, del_5p, del_3p):
+        uneroded = glfo['seqs'].get(region, {}).get(gene)
+        if uneroded is None:
+            return None
+        length = len(uneroded) - del_5p - del_3p
+        return length if length >= 0 else None
+    try:
+        len_v = gl_len('v', antn['v_gene'], antn['v_5p_del'], antn['v_3p_del'])
+        len_d = gl_len('d', antn['d_gene'], antn['d_5p_del'], antn['d_3p_del'])
+        len_j = gl_len('j', antn['j_gene'], antn['j_5p_del'], antn['j_3p_del'])
+    except (KeyError, TypeError):
+        return None
+    if len_v is None or len_d is None or len_j is None:
+        return None
+    start_v = len(antn['fv_insertion'])
+    end_v = start_v + len_v
+    start_d = end_v + len(antn['vd_insertion'])
+    end_d = start_d + len_d
+    start_j = end_d + len(antn['dj_insertion'])
+    end_j = start_j + len_j
+    end_jf = end_j + len(antn['jf_insertion'])
+    return {'start_v': start_v, 'end_v': end_v, 'start_d': start_d, 'end_d': end_d,
+            'start_j': start_j, 'end_j': end_j, 'end_jf': end_jf}
+
+
+def param_dir_classify_pos(pos, bounds):
+    """Region label ('v'/'d'/'j'/'insertion'/'other') for one partition-frame position."""
+    if bounds is None:
+        return 'other'
+    if pos < bounds['start_v']:
+        return 'insertion'  # fv_insertion
+    if pos < bounds['end_v']:
+        return 'v'
+    if pos < bounds['start_d']:
+        return 'insertion'  # vd_insertion
+    if pos < bounds['end_d']:
+        return 'd'
+    if pos < bounds['start_j']:
+        return 'insertion'  # dj_insertion
+    if pos < bounds['end_j']:
+        return 'j'
+    if pos < bounds['end_jf']:
+        return 'insertion'  # jf_insertion
+    return 'other'
+
+
+def param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir):
+    """(frequency, n_obs) for one (partition-frame position, base) in the frame of <antn>
+    (a partition-frame annotation, matching the frame <pos> is already in). n_obs is the
+    observation count behind that germline position.
+
+    (None, None) where there is no germline source: D-region (light loci have no real D)
+    and every insertion (fv/vd/dj/jf) have no germline base by definition."""
+    bounds = param_dir_region_bounds(antn, glfo)
+    region = param_dir_classify_pos(pos, bounds)
+    if region == 'v':
+        offset = max(0, len(antn['fv_insertion']) - antn['v_5p_del'])
+        gl_pos, gene = pos - offset, antn['v_gene']
+    elif region == 'j':
+        gl_pos, gene = pos - bounds['start_j'] + antn['j_5p_del'], antn['j_gene']
+    elif region == 'd':
+        gl_pos, gene = pos - bounds['start_d'] + antn['d_5p_del'], antn['d_gene']
+    else:
+        return None, None
+    rows = load_param_mute_freq_csv(mute_freq_dir, gene)
+    if rows is None or gl_pos not in rows:
+        return None, None
+    n_obs = rows[gl_pos].get(_N_OBS_KEY)
+    return rows[gl_pos].get(base), (n_obs if n_obs else None)
+
+
+def param_dir_mutation_freq(pos, base, antn, glfo, mute_freq_dir):
+    """Germline mutation frequency for one (partition-frame position, base)."""
+    return param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir)[0]
+
+
+def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=None):
+    """({(pos, base): freq}, {(pos, base): n_obs}) for one uid's own mutations, sourced
+    from the parameter directory. NO_GERMLINE_FREQ wherever there is no germline source or
+    no partition-frame annotation; those (pos, base) are absent from the n_obs map.
+
+    counts, if passed, is incremented in place so the caller can report how often the
+    fallback fires and why: 'no_antn' (uid has no partition-frame annotation) and
+    'gene_missing_from_glfo' (the uid's v/d/j gene call is not in <glfo>, so
+    param_dir_region_bounds can't be built and every one of the uid's positions falls
+    back to NO_GERMLINE_FREQ, not the smoothing floor, since there is no per-gene
+    mute-freqs signal at all)."""
+    antn = uid_part_antns.get(uid)
+    if antn is None:
+        if counts is not None:
+            counts['no_antn'] = counts.get('no_antn', 0) + 1
+        return {(pos, base): NO_GERMLINE_FREQ for pos, base in muts.items()}, {}
+    if counts is not None and param_dir_region_bounds(antn, glfo) is None:
+        counts['gene_missing_from_glfo'] = counts.get('gene_missing_from_glfo', 0) + 1
+    out, obs = {}, {}
+    for pos, base in muts.items():
+        f, n_obs = param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir)
+        out[(pos, base)] = f if f is not None else NO_GERMLINE_FREQ
+        if n_obs is not None:
+            obs[(pos, base)] = n_obs
+    return out, obs
+
+
+def weighted_shared_descent_pvalue(muts_a, muts_b, freqs_a, freqs_b, n_seqs, n_obs_a, n_obs_b,
+                                    grid=WEIGHT_GRID_NATS, cache=None, uid_a=None, uid_b=None):
+    """Probability that two unrelated sequences would share mutations this improbable, with
+    each sequence scored against its own per-gene mute-freqs table (freqs_a, freqs_b) rather
+    than one shared locus-wide table, since the germline frequency of a position depends on which
+    V/J gene that sequence used. Returns 1.0 when nothing is shared. Pass <cache>/<uid_a>/
+    <uid_b> to route through a _PerUidPvalCache instead of recomputing from scratch."""
     shared = [(pos, base) for pos, base in muts_a.items() if muts_b.get(pos) == base]
     if not shared:
         return 1.0
-    pa = _conditional_pvalue(muts_a, shared, freqs, n_seqs, grid)
-    pb = _conditional_pvalue(muts_b, shared, freqs, n_seqs, grid)
+    if cache is not None:
+        pa = cache.conditional_pvalue(uid_a, muts_a, freqs_a, n_obs_a, shared)
+        pb = cache.conditional_pvalue(uid_b, muts_b, freqs_b, n_obs_b, shared)
+    else:
+        pa = _conditional_pvalue(muts_a, shared, freqs_a, n_seqs, grid, n_obs=n_obs_a)
+        pb = _conditional_pvalue(muts_b, shared, freqs_b, n_seqs, grid, n_obs=n_obs_b)
     return math.exp(0.5 * (math.log(max(pa, _TINY)) + math.log(max(pb, _TINY))))
 
 
-def split_by_weighted_descent(cluster, uid_muts, freqs, n_seqs, alpha=WEIGHTED_DESCENT_ALPHA):
-    """Split one cluster by weighted shared descent, assigning members to non-transitive greedy
-    centroids. Returns a list of sub-clusters (lists of uids)."""
+def split_by_weighted_descent(cluster, uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs,
+                               alpha, counts=None, pair_pvals=None):
+    """Split one cluster by weighted shared descent, assigning members to non-transitive
+    greedy centroids, scoring each pair against the two sequences' own per-gene mute-freqs
+    frequencies rather than a single locus-wide table. Returns a list of sub-clusters
+    (lists of uids). counts: optional dict, incremented in place per fallback reason when
+    a uid's own mutation frequency can't be sourced from the parameter directory.
+
+    pair_pvals: optional {(i, o): p}, precomputed p-values keyed by this same <cluster>'s
+    member-list positions. When given, this is a pure dict-lookup pass with no further
+    p-value computation."""
     members = list(cluster)
     n = len(members)
     if n <= 1:
         return [list(members)]
     order = sorted(range(n), key=lambda i: -len(uid_muts.get(members[i], {}) or {}))
+    if pair_pvals is None:
+        cache = {u: uid_param_dir_freqs(u, uid_muts.get(u, {}), uid_part_antns, glfo, mute_freq_dir, counts=counts) for u in members}
+        freq_cache = {u: fo[0] for u, fo in cache.items()}
+        obs_cache = {u: fo[1] for u, fo in cache.items()}
+        pval_cache = _PerUidPvalCache(n_seqs, WEIGHT_GRID_NATS)
+
+    def pval(i, mi, o, mo, ui, uo):
+        if pair_pvals is not None:
+            return pair_pvals.get((i, o), pair_pvals.get((o, i), 1.0))
+        return weighted_shared_descent_pvalue(
+            mi, mo, freq_cache[ui], freq_cache[uo], n_seqs,
+            n_obs_a=obs_cache[ui], n_obs_b=obs_cache[uo],
+            cache=pval_cache, uid_a=ui, uid_b=uo)
+
     assigned = [False] * n
     clusters = []
     for i in order:
@@ -926,13 +1403,15 @@ def split_by_weighted_descent(cluster, uid_muts, freqs, n_seqs, alpha=WEIGHTED_D
         assigned[i] = True
         sub = [members[i]]
         mi = uid_muts.get(members[i])
+        ui = members[i]
         for o in order:
             if assigned[o]:
                 continue
             mo = uid_muts.get(members[o])
             if not mi or not mo:  # no mutations is no evidence either way
                 continue
-            if weighted_shared_descent_pvalue(mi, mo, freqs, n_seqs) < alpha:
+            uo = members[o]
+            if pval(i, mi, o, mo, ui, uo) < alpha:
                 sub.append(members[o])
                 assigned[o] = True
         clusters.append(sub)
@@ -955,41 +1434,92 @@ def _partition_has_real_d(uid_rearr_features):
     return False
 
 
-def split_on_shared_descent(partition, uid_info, uid_sw_naives, freqs, n_seqs,
-                            alpha=WEIGHTED_DESCENT_ALPHA):
-    """Light split: split over-merged clusters by weighted shared descent
-    (split_by_weighted_descent). Every cluster of size >= 2 is passed to the
-    proposer. Light chain only.
+def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, glfo, mute_freq_dir,
+                            n_seqs, alpha=None):
+    """Light split: split over-merged clusters by weighted shared descent. Every
+    cluster of size >= 2 is passed to the proposer. Light chain only.
 
-    freqs, n_seqs: from repertoire_mutation_freqs over the whole refine input.
-    alpha: link threshold for the weighted shared-descent test
-    (default WEIGHTED_DESCENT_ALPHA).
-    """
+    uid_part_antns, glfo, mute_freq_dir: source each uid's own V/J germline mute-freqs
+    table. Positions the table cannot cover (insertions, D) fall back to
+    NO_GERMLINE_FREQ, not a smoothing floor.
+
+    alpha: link threshold. None (default): fit one per-bin threshold from the pair
+    p-value null tail, no split at all for this bin if that fails. Pass an explicit
+    float to use one fixed threshold for every cluster instead."""
     result = []
     n_resplit = n_skipped = n_input_seqs = 0
+    param_dir_counts = {}
 
+    clusters_uid_muts = []
     for cluster in partition:
         if len(cluster) < 2:
             result.append(cluster)
             n_skipped += 1
             continue
-
         # per-cell mutations vs the SW naive, for the proposer
         uid_muts = {}
         for uid in cluster:
             if uid in uid_sw_naives and uid in uid_info:
                 uid_muts[uid] = get_mutations_with_base(uid_info[uid]['seq'], uid_sw_naives[uid])
-
         n_input_seqs += len(cluster)
-        pieces = split_by_weighted_descent(list(cluster), uid_muts, freqs, n_seqs, alpha)
-        result.extend(pieces)
-        if len(pieces) > 1:
-            n_resplit += 1
+        clusters_uid_muts.append((cluster, uid_muts))
+
+    bin_alpha, spill_path = alpha, None
+    if alpha is None:
+        scratch_dir = os.environ.get('SLURM_TMPDIR') or os.environ.get('TMPDIR') or '/tmp'
+        spill_fd, spill_path = tempfile.mkstemp(prefix='refine-pairpvals-', dir=scratch_dir)
+        with os.fdopen(spill_fd, 'wb') as spill_f:
+            sample, cand_counts, n_scanned = _scan_bin_full_pairs(
+                clusters_uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, spill_f,
+                counts=param_dir_counts)
+        bin_alpha, fit_diag = derive_bin_alpha(sample, cand_counts, n_scanned)
+        if fit_diag['fit_rate'] is None:
+            print('  shared-descent null fit: FAILED (fewer than %d tail p-values in %d pairs scanned)' % (
+                WEIGHTED_DESCENT_MIN_TAIL_N, n_scanned), flush=True)
+        else:
+            print('  shared-descent null fit: rate=%.4g frac=%.4g (%d pairs scanned)' % (
+                fit_diag['fit_rate'], fit_diag['fit_frac'], n_scanned), flush=True)
+        if bin_alpha is None:
+            print('  shared-descent: no cutoff met fdr:%.3g or the fdr:%.3g retry -- NO ACTION, '
+                  'all %d clusters in this bin left unchanged' % (
+                      WEIGHTED_DESCENT_FDR_PRIMARY, WEIGHTED_DESCENT_FDR_RETRY, len(clusters_uid_muts)), flush=True)
+        else:
+            print('  shared-descent: cutoff %.4g derived via %s' % (bin_alpha, fit_diag['rule']), flush=True)
+
+    try:
+        spill_r = open(spill_path, 'rb') if bin_alpha is not None and spill_path is not None else None
+        try:
+            for cluster, uid_muts in clusters_uid_muts:
+                if bin_alpha is None:
+                    result.append(cluster)  # no defensible cutoff for this bin: leave every cluster as-is
+                    continue
+                pair_pvals = _read_pair_block(spill_r) if spill_r is not None else None
+                pieces = split_by_weighted_descent(
+                    list(cluster), uid_muts, uid_part_antns, glfo, mute_freq_dir, n_seqs, bin_alpha,
+                    counts=param_dir_counts, pair_pvals=pair_pvals)
+                result.extend(pieces)
+                if len(pieces) > 1:
+                    n_resplit += 1
+        finally:
+            if spill_r is not None:
+                spill_r.close()
+    finally:
+        if spill_path is not None:
+            os.remove(spill_path)
 
     n_result_singletons = sum(1 for c in result if len(c) == 1)
-    print('  shared-descent split [alpha=%.3g]: %d re-split (%d seqs processed), %d skipped, %d -> %d clusters (%d singletons)' % (
-        alpha, n_resplit, n_input_seqs, n_skipped,
+    alpha_label = '%.3g' % bin_alpha if bin_alpha is not None else 'none (no split)'
+    print('  shared-descent split [alpha=%s]: %d re-split (%d seqs processed), %d skipped, %d -> %d clusters (%d singletons)' % (
+        alpha_label, n_resplit, n_input_seqs, n_skipped,
         len(partition), len(result), n_result_singletons), flush=True)
+    n_gene_missing = param_dir_counts.get('gene_missing_from_glfo', 0)
+    n_no_antn = param_dir_counts.get('no_antn', 0)
+    if n_gene_missing > 0 or n_no_antn > 0:
+        from partis import utils
+        print('  %s per-gene mute-freqs: %d uid-lookups had a v/d/j gene call missing from glfo '
+              '(no region bounds, every position fell back to NO_GERMLINE_FREQ, not the smoothing floor, '
+              'since there was no per-gene mute-freqs signal), %d uids had no partition-frame annotation' % (
+                  utils.wrnstr(), n_gene_missing, n_no_antn), flush=True)
     return result
 
 
@@ -1044,10 +1574,13 @@ def calc_metrics(true_partition, inf_partition):
 
 def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None,
                      naive_threshold=None,
-                     min_agreement=0.15, min_fp_positions=0, skip_singleton_merge=True,
-                     min_cluster_size=2, light_chain=None, alpha=WEIGHTED_DESCENT_ALPHA,
+                     min_agreement=MIN_FINGERPRINT_AGREEMENT,
+                     min_weighted_score=MERGE_WEIGHTED_SCORE_CUTOFF,
+                     skip_singleton_merge=True,
+                     min_cluster_size=2, light_chain=None, alpha=None,
                      parameter_dir=None, length_veto_min_shared=LENGTH_VETO_MIN_SHARED,
-                     verbose=True, random_seed=None):
+                     verbose=True,
+                     mute_freq_dir=None, uid_part_antns=None, glfo=None):
     """Run refinement and return the refined partition.
 
     partition: list of clusters, each a list of uids.
@@ -1056,22 +1589,23 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     uid_rearr_features: uid -> {'vdj': (v, d, j), 'v_3p_del', 'j_5p_del', 'd_5p_del',
     'd_3p_del', 'len_vd', 'len_dj'}.
 
-    Which operators run depends on chain, since each is built on the signal its locus
-    provides: the heavy locus splits on naive identity then merges on naive similarity,
-    light loci split on shared descent and nothing else. light_chain: if None, inferred
-    from D-gene presence in uid_rearr_features.
-    alpha: link threshold for the light shared-descent test.
+    Which operators run forks on chain, since each is built on the signal its locus
+    provides: heavy splits on naive identity then merges on naive similarity, light
+    splits on shared descent and nothing else. light_chain: if None, inferred from
+    D-gene presence in uid_rearr_features.
+    alpha: light shared-descent link threshold. None (default): derive per-bin, see
+    split_on_shared_descent.
 
     parameter_dir: the locus-level parameter dir, and the only input the heavy locus's
     length veto takes: its length cutoff is derived from it here, so any caller passing the
     same dir refines the same way. Absent, the veto warns and stays off; present but
     incomplete, it raises instead. It reaches only the heavy locus.
 
-    random_seed: seeds the global RNG. Refinement reads no RNG, so this changes nothing.
+    mute_freq_dir, uid_part_antns, glfo: required for both chains. Population-level
+    per-position mutation frequency table, plus the annotations needed to look each uid
+    up in it.
+
     """
-    if random_seed is not None:
-        import random
-        random.seed(random_seed)
     partition = [list(c) for c in partition]
     all_uids = set(uid for c in partition for uid in c)
     # sw naives have to already be in the partition frame (read_refine_inputs does this), since a
@@ -1101,14 +1635,21 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
               % (utils.wrnstr(), 'light' if light_chain else 'heavy', 'heavy' if has_d else 'light'), flush=True)
 
     if light_chain:
+        missing = [n for n, v in (('mute_freq_dir', mute_freq_dir), ('uid_part_antns', uid_part_antns), ('glfo', glfo)) if v is None]
+        if missing:
+            raise Exception('light-chain refine missing %s' % ', '.join(missing))
         if verbose:
-            print('\n=== light: shared-descent split (alpha=%.3g) ===' % alpha, flush=True)
+            alpha_label = '%.3g' % alpha if alpha is not None else 'auto'
+            print('\n=== light: shared-descent split (alpha=%s) ===' % alpha_label, flush=True)
         tstart = time.time()
-        wd_freqs, wd_n_seqs = repertoire_mutation_freqs(uid_to_muts_sw)
-        out = split_on_shared_descent(partition, uid_info, uid_sw_naives, wd_freqs, wd_n_seqs,
-                                      alpha=alpha)
+        out = split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, glfo,
+                                      mute_freq_dir, len(uid_to_muts_sw), alpha=alpha)
         print('  timing: shared-descent split %.2f s' % (time.time() - tstart), flush=True)
         return out
+
+    missing = [n for n, v in (('mute_freq_dir', mute_freq_dir), ('uid_part_antns', uid_part_antns), ('glfo', glfo)) if v is None]
+    if missing:
+        raise Exception('heavy-chain refine missing %s' % ', '.join(missing))
 
     naive_thresh = (naive_threshold if naive_threshold is not None
                     else estimate_naive_threshold(partition, uid_sw_naives))
@@ -1133,8 +1674,9 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
             naive_thresh, min_agreement), flush=True)
     out = merge_on_naive_similarity(
         split_partition, uid_info, uid_sw_naives, uid_to_muts_with_base, naive_thresh,
-        min_agreement, min_fp_positions, skip_singleton_merge=skip_singleton_merge,
-        uid_rearr_features=uid_rearr_features)
+        min_agreement=min_agreement, min_weighted_score=min_weighted_score,
+        skip_singleton_merge=skip_singleton_merge, uid_rearr_features=uid_rearr_features,
+        mute_freq_dir=mute_freq_dir, uid_part_antns=uid_part_antns, glfo=glfo)
     print('  timing: naive-similarity merge %.2f s' % (time.time() - tsplit), flush=True)
     return out
 
@@ -1197,7 +1739,8 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
     sw_info, uid_part_antns."""
     from partis import utils
     from partis import disjointgrouper
-    part_glfo, part_antns, cpath = utils.read_output(partition_fname)
+    # refine reads only stored keys
+    part_glfo, part_antns, cpath = utils.read_output(partition_fname, dont_add_implicit_info=True)
     disjointgrouper.check_stage_file_complete(partition_fname, part_antns, cpath)  # a truncated input silently shrinks the refined output
     partition = [list(c) for c in (cpath.best() if cpath is not None else [])]
     uid_info, uid_part_antns = {}, {}
@@ -1230,7 +1773,7 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
     if n_unannotated > 0:
         print('  %s dropped %d partitioned uids with no usable annotation before refining %s' % (utils.wrnstr(), n_unannotated, partition_fname), flush=True)
 
-    sw_glfo, sw_antns, _ = utils.read_output(sw_cache_fname)
+    sw_glfo, sw_antns, _ = utils.read_output(sw_cache_fname, dont_add_implicit_info=True)
     sw_info, uid_sw_naives, uid_rearr_features = {}, {}, {}
     n_unalignable = 0
     for antn in sw_antns:  # the sw cache has no failed queries in it (waterer.write_cachefile)
@@ -1279,11 +1822,24 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
     import os
     from partis import utils
     from partis import clusterpath
+    from partis import indelutils
 
     def _annotate(uids):
         antn = utils.synthesize_multi_seq_line_from_reco_info(uids, ant_info, warn=False)
         utils.remove_all_implicit_info(antn)
         utils.add_implicit_info(glfo, antn, reset_indel_genes=True)
+        return antn
+
+    def _fast_singleton(uid):
+        # slice the stored annotation instead of rebuilding its implicit info, same result for one uid
+        src = ant_info[uid]
+        iseq = src['unique_ids'].index(uid)
+        if indelutils.has_indels_line(src, iseq):  # these need _annotate's reset_indel_genes
+            return None
+        antn = utils.synthesize_single_seq_line(src, iseq)
+        antn['indelfos'] = [indelutils.get_empty_indel()]
+        for key in utils.special_indel_columns_for_output:  # writer takes key order from indelfos
+            antn.pop(key, None)
         return antn
 
     def _pad_to_uniform_length(antns):
@@ -1320,7 +1876,8 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
         if len(good) == 0:
             continue
         try:
-            annotation_list.append(_annotate(good))
+            antn = _fast_singleton(good[0]) if len(good) == 1 else None
+            annotation_list.append(antn if antn is not None else _annotate(good))
             out_partition.append(list(good))
         except Exception as e:  # fall back to singletons on synthesis failure
             first_err = first_err if first_err is not None else repr(e)
@@ -1406,17 +1963,59 @@ def estimate_locuswide_threshold(specs):
     return estimate_naive_threshold(partition, uid_sw_naives)
 
 
+def locuswide_threshold_fname(disjoint_dir, locus):
+    return '%s/naive-threshold-%s.json' % (disjoint_dir, locus)
+
+
+def locuswide_threshold(disjoint_dir, specs, locus, overwrite=False):
+    """Locus-wide naive threshold, cached beside the manifest, None where nothing reads it.
+
+    Invalidated by a change in the spec count or in any input's mtime.
+    """
+    from . import utils
+    if len(specs) == 0 or not utils.has_d_gene(locus):
+        return None
+    mtimes = [os.path.getmtime(spec['input']) for spec in specs]
+    signal = {'n_specs': len(specs), 'input_mtime_max': max(mtimes), 'input_mtime_sum': sum(mtimes)}
+    fname = locuswide_threshold_fname(disjoint_dir, locus)
+    if not overwrite and os.path.exists(fname):
+        with open(fname) as tfile:
+            cfo = json.load(tfile)
+        if all(cfo.get(key) == val for key, val in signal.items()):
+            return float(cfo['threshold'])
+        print('  locus-wide threshold cache is stale, re-estimating: %s' % fname, flush=True)
+    cfo = dict(signal, threshold=repr(estimate_locuswide_threshold(specs)))  # repr so the float round trips exactly
+    tmpfname = '%s.tmp.%d' % (fname, os.getpid())  # atomic, so concurrent slices race without corrupting
+    with open(tmpfname, 'w') as tfile:
+        json.dump(cfo, tfile)
+    os.replace(tmpfname, fname)
+    return float(cfo['threshold'])
+
+
+def validate_mute_freq_tables(mfdir):
+    """Check the per-gene mute-freqs tables in <mfdir> are there. Any locus can have them; the
+    shared-descent split is the only consumer today. Raises rather than falling back: without them
+    the split would silently revert to estimating frequencies over its own input, which is the
+    scope dependence reading them removes."""
+    import glob
+    if not os.path.isdir(mfdir) or len(glob.glob('%s/*.csv' % mfdir)) == 0:
+        raise Exception('no per-gene mutation frequency tables in %s. a parameter dir merged before '
+                        'mute-freqs merging existed will not have them, so re-merge into a fresh dir.' % mfdir)
+
+
 def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter_dir=None,
-             length_veto_min_shared=LENGTH_VETO_MIN_SHARED):
+             length_veto_min_shared=LENGTH_VETO_MIN_SHARED, mute_freq_dir=None):
     """Run refinement on a list of group specs (from group_specs), writing each group's
     refined partition, with the production defaults (singleton-skip, junction guard, vdj
     override) that the standalone CLI and integrated pipeline both use. Groups whose
     refined output already exists are skipped unless <overwrite>. The naive threshold
     defaults to a locus-wide estimate over <specs>; when running a slice, pass one
     estimated over the full group list. Passing <locus> skips that estimate on a locus with
-    no D gene, where no operator reads it, and pins the heavy/light choice for every group.
+    no D gene, where no operator reads it, and pins the heavy/light fork for every group.
     <parameter_dir> is the locus-level parameter dir, and is passed straight through: refine
-    derives the heavy split's length veto from it."""
+    derives the heavy split's length veto from it.
+
+    mute_freq_dir: required, both chains read it."""
     from argparse import Namespace
     from partis import utils
     oargs = Namespace(overwrite=overwrite)
@@ -1437,7 +2036,11 @@ def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter
             uid_rearr_features=inp['uid_rearr_features'],
             naive_threshold=naive_threshold, light_chain=light_chain,
             parameter_dir=parameter_dir, length_veto_min_shared=length_veto_min_shared,
-            skip_singleton_merge=True, min_agreement=0.15, verbose=False)
+            skip_singleton_merge=True, min_agreement=MIN_FINGERPRINT_AGREEMENT, verbose=False,
+            mute_freq_dir=mute_freq_dir, uid_part_antns=inp['uid_part_antns'],
+            # gene calls on uid_part_antns are partition-frame (from spec['input']), so the glfo
+            # that resolves them has to be part_glfo, not the sw glfo inp['glfo'] (sw_cache_fname)
+            glfo=inp['part_glfo'])
         cfo = write_full_output(spec['refined_out'], inp['part_glfo'], refined, inp['uid_part_antns'])
         print('  timing: group %s total %.2f s' % (os.path.dirname(spec['refined_rel']), time.time() - tgroup), flush=True)
         n_run += 1

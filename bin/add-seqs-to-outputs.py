@@ -39,6 +39,9 @@ if utils.getsuffix(args.partis_output_file) == '.csv':
     print('    reading deprecated csv format, so need to read germline info from somewhere else, using --glfo-dir %s, hopefully it works' % args.glfo_dir)
     glfo = glutils.read_glfo(args.glfo_dir, locus=args.locus)
 
+if utils.multifile_output_exists(args.partis_output_file):  # refuse rather than read a whole multifile locus into memory to modify one cluster
+    raise Exception('--partis-output-file is a multifile output (%s), which this script does not support' % utils.multifile_dir(args.partis_output_file))
+
 glfo, annotation_list, cpath = utils.read_output(args.partis_output_file, glfo=glfo, locus=args.locus)
 if args.partition_index is not None:
     print('  using non-best partition index %d (best is %d)' % (args.partition_index, cpath.i_best))
