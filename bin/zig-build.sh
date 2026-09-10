@@ -2,11 +2,21 @@
 # Build the in-tree Zig backend (drop-in replacements for bcrham and ig-sw).
 #
 # Usage:
-#   bin/zig-build.sh
+#   bin/zig-build.sh [zig-target] [search-prefix]
 #
 # After building, pass --zig to partis:
 #   partis --zig annotate ...
 set -euo pipefail
+
+# drop the active conda-family env's cc, on PATH or in CC, ahead of zig's own toolchain.
+unset -v CC CXX 2>/dev/null || true
+if [[ -n "${CONDA_PREFIX:-}" ]]; then
+    PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -Fv "$CONDA_PREFIX" | paste -sd: -)
+    export PATH
+fi
+
+ZIG_TARGET="${1:-}"
+ZIG_SEARCH_PREFIX="${2:-}"
 
 ZIG_VERSION="0.15.2"
 PARTIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -67,7 +77,15 @@ fi
 
 export PARTIS_DIR
 echo "==> Building partis-zig-core (this takes ~30s)..."
-(cd "$ZIG_CORE_DIR" && "$ZIG" build -Doptimize=ReleaseFast)
+BUILD_ARGS=(-Doptimize=ReleaseFast)
+if [[ -n "$ZIG_TARGET" ]]; then
+    echo "==> Targeting: $ZIG_TARGET"
+    BUILD_ARGS+=(-Dtarget="$ZIG_TARGET")
+fi
+if [[ -n "$ZIG_SEARCH_PREFIX" ]]; then
+    BUILD_ARGS+=(--search-prefix "$ZIG_SEARCH_PREFIX")
+fi
+(cd "$ZIG_CORE_DIR" && "$ZIG" build "${BUILD_ARGS[@]}")
 
 if [[ ! -x "$ZIG_EXE_FINAL" ]]; then
     echo "ERROR: build succeeded but executable not found at $ZIG_EXE_FINAL" >&2
