@@ -38,6 +38,17 @@ from .hist import Hist
 from . import seqfileopener
 
 # ----------------------------------------------------------------------------------------
+# Process-global accumulator for bcrham subprocess wall time, used to print a
+# "bcrham time: X (Y% of total)" summary alongside the final "total time:" line
+# in bin/partis. Phase 0 of issue #366 deferred pinning the bcrham fraction
+# pending partis-level timing instrumentation; this is that instrumentation.
+_cumul_bcrham_time = 0.0
+_cumul_bcrham_calls = 0
+
+def get_bcrham_summary():
+    return _cumul_bcrham_time, _cumul_bcrham_calls
+
+# ----------------------------------------------------------------------------------------
 class PartitionDriver(object):
     """ Class to parse input files, start bcrham jobs, and parse/interpret bcrham output for annotation and partitioning """
     def __init__(self, args, glfo, input_info, simglfo, reco_info):
@@ -773,7 +784,7 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def shall_we_reduce_n_procs(self, last_n_procs):
-        if self.timing_info[-1]['total'] < self.args.min_hmm_step_time:  # mostly for when you're running on really small samples
+        if not self.args.no_time_based_n_proc_reduction and self.timing_info[-1]['total'] < self.args.min_hmm_step_time:  # mostly for when you're running on really small samples (--no-time-based-n-proc-reduction skips only this time-based check, for C++/Zig reproducibility since Zig is faster)
             return True
         n_calcd_per_process = self.get_n_calculated_per_process()
         if n_calcd_per_process < self.args.n_max_to_calc_per_process and last_n_procs > 2:  # should be replaced by time requirement, since especially in later iterations, the larger clusters make this a crappy metric (2 is kind of a special case, becase, well, small integers and all)
@@ -1084,7 +1095,7 @@ class PartitionDriver(object):
             if len(additional_clusters) > 0 and any(list(c) not in clusters_to_annotate for c in additional_clusters):
                 cluster_set = set([tuple(c) for c in clusters_to_annotate]) | additional_clusters
                 clusters_to_annotate = [list(c) for c in cluster_set]
-                actual_new_clusters = [c for c in clusters_to_annotate if c not in cpath.best()]
+                actual_new_clusters = sorted([c for c in clusters_to_annotate if c not in cpath.best()], key=lambda c: (-len(c), c[0] if len(c) > 0 else ''))
                 self.added_extra_clusters_to_annotate = True
                 print('    added %d cluster%s with size%s %s (in addition to the %d from the best partition) before running cluster annotations' % (len(actual_new_clusters), utils.plural(len(actual_new_clusters)), utils.plural(len(actual_new_clusters)),
                                                                                                                                                     ' '.join(str(len(c)) for c in actual_new_clusters), len(cpath.best())))
@@ -1107,7 +1118,7 @@ class PartitionDriver(object):
             return
         action_cache = self.current_action  # hackey, but probably not worth trying (more) to improve
         self.current_action = 'annotate'
-        clusters_to_annotate = sorted(clusters_to_annotate, key=len, reverse=True)  # as opposed to in clusterpath, where we *don't* want to sort by size, it's nicer to have them sorted by size here, since then as you're scanning down a long list of cluster annotations you know once you get to the singletons you won't be missing something big
+        clusters_to_annotate = sorted(clusters_to_annotate, key=lambda c: (-len(c), c[0] if len(c) > 0 else ''))  # sort by size (descending), then by first uid for determinism among same-size clusters
         n_procs = min(self.args.n_procs, len(clusters_to_annotate))  # we want as many procs as possible, since the large clusters can take a long time (depending on if we're translating...), but in general we treat <self.args.n_procs> as the maximum allowable number of processes
         print('getting annotations for final partition%s%s' % (' (including additional clusters)' if len(clusters_to_annotate) > len(cpath.best()) else '', ' (with star tree annotation since --subcluster-annotation-size is None)' if self.args.subcluster_annotation_size is None else ''))
         all_annotations, hmm_failures = self.actually_get_annotations_for_clusters(clusters_to_annotate=clusters_to_annotate, n_procs=n_procs, dont_print_annotations=True)  # have to print annotations below so we can also print the cpath
@@ -1167,9 +1178,9 @@ class PartitionDriver(object):
             extra = set(cached_naive_seqs) - set(expected_queries)
             missing = set(expected_queries) - set(cached_naive_seqs)
             if len(extra) > 0:
-                print('    %s read %d extra queries from hmm cache file %s' % (utils.color('yellow', 'warning:'), len(extra), ' '.join(extra)))
+                print('    %s read %d extra queries from hmm cache file %s' % (utils.color('yellow', 'warning:'), len(extra), ' '.join(sorted(extra))))
             if len(missing) > 0:
-                print('    %s missing %d/%d queries from hmm cache file (using sw naive sequence instead): %s' % (utils.color('yellow', 'warning:'), len(missing), len(expected_queries), ' '.join(missing)))
+                print('    %s missing %d/%d queries from hmm cache file (using sw naive sequence instead): %s' % (utils.color('yellow', 'warning:'), len(missing), len(expected_queries), ' '.join(sorted(missing))))
                 for ustr in missing:
                     cached_naive_seqs[ustr] = self.sw_info[ustr.split(':')[0]]['naive_seq']
 
@@ -1219,7 +1230,7 @@ class PartitionDriver(object):
 
         partition = utils.split_clusters_by_cdr3(partition, self.sw_info, warn=True)  # if we didn't use sw cdr3 lengths to start with here, there can be clusters with multiple sw cdr3 lengths, which then break when we go to get annotations later (it'd be too hard to avoid using sw info when getting annotations). And we don't really care which is right -- in general if we can get different cdr3 lengths for a sequence, it's absolute garbage to begin with
         # should really also re-pad after this i think (at least i'm getting naive seq len errors when merging paired partitions cause some look un/wrongly padded)
-        # utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
+        # utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info, self.sw_glfo)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
 
         perf_metrics = None
         if not self.args.is_data:  # i'm no longer calculating ccfs here, so could remove/move some of this inside the pairwise clustering metric block
@@ -1269,7 +1280,7 @@ class PartitionDriver(object):
     # ----------------------------------------------------------------------------------------
     def get_hmm_cmd_str(self, algorithm, csv_infname, csv_outfname, parameter_dir, precache_all_naive_seqs, n_procs):
         """ Return the appropriate bcrham command string """
-        cmd_str = self.args.partis_dir + '/packages/ham/bcrham'
+        cmd_str = self.args.bcrham_binary
         cmd_str += ' --algorithm ' + algorithm
         if self.args.debug > 0:
             cmd_str += ' --debug ' + str(self.args.debug)
@@ -1392,7 +1403,11 @@ class PartitionDriver(object):
                    'outfname' : get_outfname(iproc),
                    'dbgfo' : self.bcrham_proc_info[iproc]}
                   for iproc in range(n_procs)]
+        run_start = time.time()
         utils.run_cmds(cmdfos, batch_system=self.args.batch_system, batch_options=self.args.batch_options, batch_config_fname=self.args.batch_config_fname, debug='print' if self.args.debug else None)
+        global _cumul_bcrham_time, _cumul_bcrham_calls
+        _cumul_bcrham_time += time.time() - run_start
+        _cumul_bcrham_calls += 1
         self.print_partition_dbgfo()
 
         self.check_wait_times(time.time()-start)
@@ -1421,7 +1436,7 @@ class PartitionDriver(object):
             # n_clusters = len(superclust) // self.args.subcluster_annotation_size  # old way: truncates the decimal (see note in subcl_split())
             n_clusters = int(math.ceil(len(superclust) / float(self.args.subcluster_annotation_size)))  # taking the ceiling keeps the max un-split cluster size equal to <self.args.subcluster_annotation_size> (rather than one less than twice that)
             if n_clusters < 2:  # initially we don't call this function unless superclust is big enough for two clusters of size self.args.subcluster_annotation_size, but on subsequent rounds the clusters fom naive_ancestor_hashes can be smaller than that
-                return [superclust]
+                return [superclust] if len(superclust) > 0 else []
 
             if False: # self.args.kmeans_subclusters:  # this gives you clusters that are "tighter" -- i.e. clusters similar sequences together
                 from . import mds  # this works fine, but it's not really different (on balance with kmeans is probably a bit worse) than the simple way. Which is weird, I would think it would help? but otoh it gives you non-equal-sized clusters, which sometimes i think is worse, although sometimes i also think is better
@@ -1473,7 +1488,8 @@ class PartitionDriver(object):
                 # raise Exception('hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (hashid, ':'.join(line['unique_ids'])))
                 if not self.added_extra_clusters_to_annotate:
                     print('  %s hashid %s already in sw info (i.e. the uids that made the hash were already read: %s)' % (utils.color('yellow', 'warning'), hashid, ':'.join(line['unique_ids'])))
-                return False
+                    return False
+                return True  # hashid seq already set up in sw_info from previous subcluster annotation pass; still need to add to naive_ancestor_hashes so subclustering continues
             self.sw_info[hashid] = swhfo
             if len(set(self.sw_info[u]['cdr3_length'] for u in naive_hash_ids)) > 1:  # the time this happened, it was because sw was still allowing conserved codon deletion, and now it (kind of) isn't so maybe it won't happen any more? ("kind of" because it does actually allow it, but it expands kbounds to let the hmm not delete the codon, and the hmm builder also by default doesn't allow them, so... it shouldn't happen)
                 existing_cdr3_lengths = list(set([self.sw_info[u]['cdr3_length'] for u in naive_hash_ids[:-1]]))
@@ -1520,6 +1536,8 @@ class PartitionDriver(object):
                     if skey(tclust) in subd_clusters:  # subsequent rounds: get subclusters from intermediate inferred naives (hashids) from the last round
                         subclusters = getsubclusters(naive_ancestor_hashes[skey(tclust)])
                         del naive_ancestor_hashes[skey(tclust)]
+                        if len(subclusters) == 0 and len(subd_clusters[skey(tclust)][-1]) > 0:  # converged: all naive seqs already in sw_info (add_hash_seq returned False for all subclusters); force finalization by re-running just the first subcluster from the last round
+                            subclusters = subd_clusters[skey(tclust)][-1][:1]
                     else:  # first time through: add <tclust> to subd_clusters and get initial subclusters
                         subd_clusters[skey(tclust)] = []
                         subclusters = getsubclusters(tclust, shuffle=self.reco_info is not None and istep==0)  # the order of uids in each cluster that comes out of simulation is the order of leaves in the tree (i.e. they're sorted by similarity), so it's *extremely* important to shuffle them to get a fair comparison
@@ -1528,7 +1546,8 @@ class PartitionDriver(object):
                     if debug:
                         n_prev = len(subd_clusters[skey(tclust)]) - 1
                         mphfracs = [utils.mean_pairwise_hfrac([self.sw_info[u]['seqs'][0] for u in c]) for c in subclusters]
-                        mean_weighted_pw_hfrac = numpy.average(mphfracs, weights=[len(c) / float(len(tclust)) for c in subclusters])
+                        weights = [len(c) / float(len(tclust)) for c in subclusters]
+                        mean_weighted_pw_hfrac = numpy.average(mphfracs, weights=weights) if sum(weights) > 0 else 0.
                         print('       %4d      %s      %s      %3d      %4.2f      %s' % (len(tclust), '   ' if n_prev==0 else '%3d'%n_prev, '   ' if n_prev==0 else '%3d'%sum(len(c) for c in subclusters), len(subclusters), mean_weighted_pw_hfrac, ' '.join(str(len(c)) for c in subclusters)))
             _, step_antns, step_failures = self.run_hmm('viterbi', parameter_in_dir, partition=clusters_to_run, is_subcluster_recursed=True)  # is_subcluster_recursed is really just a speed optimization so it doesn't have to check the length of every cluster
             if istep == 0 and self.args.calculate_alternative_annotations:  # could do this in one of the loops below, but it's nice to have it separate since it doesn't really have anything to do with subcluster annotation
@@ -1574,6 +1593,11 @@ class PartitionDriver(object):
             n_sub_finished = 0
             for uidstr, subcluster_lists in list(subd_clusters.items()):  # handle the ones that're done (at this point they should be an annotation of about length self.args.subcluster_annotation_size consisting of just inferred subcluster naives)
                 if len(subcluster_lists[-1]) > 1:  # not finished yet
+                    continue
+                if len(subcluster_lists[-1]) == 0:  # empty subcluster from degenerate input (e.g. empty naive_ancestor_hashes): clean up and skip
+                    all_hmm_failures |= set(skey_inverse(uidstr))
+                    clusters_still_to_do.remove(skey_inverse(uidstr))
+                    del subd_clusters[uidstr]
                     continue
                 sclust = skey_inverse(uidstr)
                 if debug:
@@ -2099,7 +2123,7 @@ class PartitionDriver(object):
             # OR this query's genes into the ones from previous queries
             combo['only_genes'] |= genes_to_use  # NOTE using the OR of all sets of genes (from all query seqs) like this *really* helps,
 
-        combo['only_genes'] = list(combo['only_genes'])  # maybe I don't need to convert it to a list, but it used to be a list, and I don't want to make sure there wasn't a reason for that
+        combo['only_genes'] = sorted(combo['only_genes'])  # sort for determinism: set iteration order varies across runs due to PYTHONHASHSEED
 
         # if we don't have at least one gene for each region, add all available genes from that regions
         if set(utils.regions) > set(utils.get_region(g) for g in combo['only_genes']):  # this is *very* rare
@@ -2133,7 +2157,7 @@ class PartitionDriver(object):
             # antn_dict, _ = self.convert_sw_annotations(partition=nsets)  # we *have* the annotations for the input partition, which would be better, but their seqs aren't correctly padded to the same length (since they were run in different subsets/procs), and propagating the new sw padding info (sw gets re-padded when we read the subset-merged sw info) to the input partition annotations would be hard, so we just use the sw annotations to get the naive seqs here
             # def naive_seq_fcn(query_name_list):
             #     return antn_dict.get(':'.join(query_name_list))['naive_seq']
-            utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
+            utils.re_pad_hmm_seqs(self.input_antn_list, self.input_glfo, self.sw_info, self.sw_glfo)  # can't do this in the self init fcn since at that point we haven't yet read the sw cache file
             self.input_antn_dict = utils.get_annotation_dict(self.input_antn_list)  # fcn in previous line only replaces elements in list (rather than modifying those elements) in very rare cases, but for cases when it does, whe have to replace the associated dict
             def naive_seq_fcn(query_name_list):
                 if ':'.join(query_name_list) not in self.input_antn_dict:
