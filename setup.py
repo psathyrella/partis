@@ -127,6 +127,7 @@ setup(
         'scipy',
         'seaborn',
         'six',
+        'xxhash>=3.6.0',
     ],
     
     # Optional dependencies

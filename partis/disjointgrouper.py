@@ -8,6 +8,7 @@ import shutil
 import collections
 import glob
 import re
+import xxhash
 
 from . import utils
 from . import glutils
@@ -829,6 +830,14 @@ def pack_multifile_output(gpaths, counts, max_seqs_per_file=MULTIFILE_MAX_SEQS_P
     return fspecs
 
 # ----------------------------------------------------------------------------------------
+def xxh3_file_hash(fname, chunk_size=8 * 1024 * 1024):
+    hasher = xxhash.xxh3_128()
+    with open(fname, 'rb') as ifile:
+        for chunk in iter(lambda: ifile.read(chunk_size), b''):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+# ----------------------------------------------------------------------------------------
 def write_multifile_output(locus, manifest, gpaths, counts, outfname, max_seqs_per_file=MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT):
     # one output file per cdr3 group, subdivided at the per-file cap, plus an index
     fspecs = pack_multifile_output(gpaths, counts, max_seqs_per_file=max_seqs_per_file)
@@ -843,7 +852,8 @@ def write_multifile_output(locus, manifest, gpaths, counts, outfname, max_seqs_p
         ifiles[c3len] += 1
         # merge even a one-group file, so every file is best-partition-only like the merged output
         # (the germline sets were already unioned at grouping time, so nothing to reconcile here)
-        utils.merge_yamls('%s/%s' % (mfiledir, fname), [p for _, p in glist], headers, best_partition_only=True, dont_write_git_info=True)
+        fpath = '%s/%s' % (mfiledir, fname)
+        utils.merge_yamls(fpath, [p for _, p in glist], headers, best_partition_only=True, dont_write_git_info=True)
         gcounts = [counts[g['group_id']] for g, _ in glist]
         nseq = sum(c['sequence_count'] for c in gcounts)
         if nseq > max_seqs_per_file:
@@ -858,6 +868,7 @@ def write_multifile_output(locus, manifest, gpaths, counts, outfname, max_seqs_p
             'sequence_count' : nseq,
             'cluster_count' : sum(c['cluster_count'] for c in gcounts),
             'largest_cluster_size' : max(c['largest_cluster_size'] for c in gcounts),
+            'xxh3' : xxh3_file_hash(fpath),
         })
     if n_oversize > 0:
         print('      %s %d files are over the per-file cap: their groups hold an indivisible unit larger than it' % (utils.wrnstr(), n_oversize))
@@ -906,6 +917,9 @@ def validate_multifile_index(index, fname=None):
         raise Exception('multifile index mismatch%s: grouped %d + no cdr3 %d does not equal the sw cache count %d' % (fstr, ainfo['n_sequences_grouped'], ainfo['n_sequences_no_cdr3'], ainfo['n_sequences_in_sw_cache']))
     if ainfo['n_files'] < ainfo['n_cdr3_groups']:
         raise Exception('multifile index mismatch%s: %d files is fewer than the %d cdr3 groups they cover' % (fstr, ainfo['n_files'], ainfo['n_cdr3_groups']))
+    n_with_xxh3 = sum('xxh3' in f for f in index['files'])
+    if n_with_xxh3 not in (0, len(index['files'])):
+        raise Exception('multifile index mismatch%s: %d of %d files have an xxh3 hash, expected all or none' % (fstr, n_with_xxh3, len(index['files'])))
 
 # ----------------------------------------------------------------------------------------
 def read_multifile_index(index_path):
