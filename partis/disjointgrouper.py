@@ -8,7 +8,6 @@ import shutil
 import collections
 import glob
 import re
-import xxhash
 
 from . import utils
 from . import glutils
@@ -831,6 +830,7 @@ def pack_multifile_output(gpaths, counts, max_seqs_per_file=MULTIFILE_MAX_SEQS_P
 
 # ----------------------------------------------------------------------------------------
 def xxh3_file_hash(fname, chunk_size=8 * 1024 * 1024):
+    import xxhash
     hasher = xxhash.xxh3_128()
     with open(fname, 'rb') as ifile:
         for chunk in iter(lambda: ifile.read(chunk_size), b''):
@@ -920,6 +920,9 @@ def validate_multifile_index(index, fname=None):
     n_with_xxh3 = sum('xxh3' in f for f in index['files'])
     if n_with_xxh3 not in (0, len(index['files'])):
         raise Exception('multifile index mismatch%s: %d of %d files have an xxh3 hash, expected all or none' % (fstr, n_with_xxh3, len(index['files'])))
+    for f in index['files']:
+        if 'xxh3' in f and not re.match('^[0-9a-f]{32}$', f['xxh3']):
+            raise Exception('multifile index mismatch%s: %s has a malformed xxh3 hash %s' % (fstr, f['path'], f['xxh3']))
 
 # ----------------------------------------------------------------------------------------
 def read_multifile_index(index_path):
