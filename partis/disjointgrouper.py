@@ -746,18 +746,20 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
             n_failed += chunk_failed
             n_seqs += sum(len(seqfos) for seqfos in chunk_groups.values()) + chunk_failed
 
+            # uid to annotation lookup, built once per chunk
+            uid_to_antn = {line['unique_ids'][0] : line for line in tantn_list if len(line['unique_ids']) == 1}
+
             # accumulate seqfos for FASTA writing, write sw-cache fragment per group
             for c3len, seqfos in chunk_groups.items():
                 all_groups.setdefault(c3len, []).extend(seqfos)
                 group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
                 frag_path = '%s/sw-cache-chunk%03d.yaml' % (group_dir, ichunk)
-                uid_set = set(sfo['name'] for sfo in seqfos)
-                chunk_antns = [line for line in tantn_list if len(line['unique_ids']) == 1 and line['unique_ids'][0] in uid_set]
+                chunk_antns = [uid_to_antn[sfo['name']] for sfo in seqfos if sfo['name'] in uid_to_antn]
                 utils.mkdir(frag_path, isfile=True)
                 utils.write_annotations(frag_path, glfo, chunk_antns, utils.sw_cache_headers)
                 chunk_fragments[c3len].append(frag_path)
 
-            del tantn_list  # free chunk annotations
+            del tantn_list, uid_to_antn  # chunk annotations
 
         # write per-group FASTAs
         groups = collections.OrderedDict(sorted(all_groups.items()))
