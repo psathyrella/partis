@@ -742,6 +742,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
             print('      chunk %d/%d: %s' % (ichunk + 1, len(sw_cache_paths), swpath))
             _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
             utils.update_gene_names_in_annotation_list(tantn_list, chunk_name_maps[ichunk])  # rename genes dropped by the union
+            utils.check_annotation_glfo_consistency(glfo, tantn_list)
             chunk_groups, chunk_failed = group_sequences_by_cdr3_length(tantn_list)
             n_failed += chunk_failed
             n_seqs += sum(len(seqfos) for seqfos in chunk_groups.values()) + chunk_failed
