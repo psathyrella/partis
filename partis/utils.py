@@ -4435,8 +4435,7 @@ def mkdir(path, isfile=False):  # adding this very late, so could use it in a lo
         path = os.path.dirname(path)
     if path == '':  # if it's a relative path we give up
         return
-    if not os.path.exists(path):
-        os.makedirs(path)
+    os.makedirs(path, exist_ok=True)
 
 # ----------------------------------------------------------------------------------------
 def makelink(odir, target, link_name, dryrun=False, extra_str='', debug=False):  # <odir> is generally os.path.dirname(link_name)   for search: def link def ln

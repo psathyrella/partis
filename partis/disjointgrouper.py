@@ -4,10 +4,12 @@ import os
 import sys
 import yaml
 import csv
+import json
 import shutil
 import collections
 import glob
 import re
+import multiprocessing
 
 from . import utils
 from . import glutils
@@ -28,6 +30,8 @@ HFRAC_MIN_SEQS_DEFAULT = 240000   # CDR3 groups smaller than this skip hfrac ent
 # hfrac internal tuning (named to avoid magic numbers)
 BIN_PACK_TOLERANCE = 1.2               # bin-packing only fires past this multiple of the cap
 MAX_TCM_THRESHOLD = 0.49               # safety clamp on round-2 threshold; vsearch --id requires <= 1.0 and high-SHM regimes can otherwise drive merge_factor*hi_bound past sensible bounds
+
+MULTI_CACHE_N_CHUNK_WORKERS_DEFAULT = 4   # concurrent chunk workers for multi-cache grouping
 
 # ----------------------------------------------------------------------------------------
 def group_sw_cache_fname(locus):
@@ -681,13 +685,34 @@ def resolve_sw_cache_paths(sw_cache_paths, locus):
     return [sw_cache_paths]
 
 # ----------------------------------------------------------------------------------------
+def _process_one_chunk(ichunk, swpath, name_map, outdir, glfo, summary_path):
+    # read one chunk's sw cache, group by cdr3 length, write its per-group sw-cache fragments,
+    # then write chunk_groups/chunk_failed to <summary_path> for the parent process to merge
+    _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
+    utils.update_gene_names_in_annotation_list(tantn_list, name_map)  # rename genes dropped by the union
+    utils.check_annotation_glfo_consistency(glfo, tantn_list)
+    chunk_groups, chunk_failed = group_sequences_by_cdr3_length(tantn_list)
+
+    # uid to annotation lookup, built once per chunk
+    uid_to_antn = {line['unique_ids'][0] : line for line in tantn_list if len(line['unique_ids']) == 1}
+    for c3len, seqfos in chunk_groups.items():
+        group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
+        frag_path = '%s/sw-cache-chunk%03d.yaml' % (group_dir, ichunk)
+        chunk_antns = [uid_to_antn[sfo['name']] for sfo in seqfos if sfo['name'] in uid_to_antn]
+        utils.mkdir(frag_path, isfile=True)
+        utils.write_annotations(frag_path, glfo, chunk_antns, utils.sw_cache_headers)
+
+    with open(summary_path, 'w') as sfile:
+        json.dump({'chunk_groups' : chunk_groups, 'chunk_failed' : chunk_failed}, sfile)
+
+# ----------------------------------------------------------------------------------------
 def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
     # <sw_cache_paths>: single path string or list of paths.
     # <n_procs>: concurrent single-threaded vsearch jobs; defaults to available cpus.
-    # For multiple caches, processes one chunk at a time to limit peak memory:
+    # For multiple caches, processes a bounded number of chunks concurrently:
     #   - per-group FASTAs are written after all chunks are grouped (seqfos are lightweight)
     #   - per-group sw-cache fragments are written per chunk, then merged and cleaned up
     sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
@@ -722,7 +747,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
             group_infos = write_group_fastas(groups, outdir, locus)
             write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
     else:
-        # multiple sw caches: process one chunk at a time
+        # multiple sw caches: process a bounded number of chunks concurrently
         print('      processing %d sw cache files for %s' % (len(sw_cache_paths), locus))
         # pre-pass: union the chunks' germline sets, so every fragment is written against one label set
         glfo, chunk_name_maps = None, []
@@ -738,29 +763,27 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         n_seqs = 0
         chunk_fragments = collections.defaultdict(list)  # cdr3_length -> list of fragment file paths
 
-        for ichunk, swpath in enumerate(sw_cache_paths):
-            print('      chunk %d/%d: %s' % (ichunk + 1, len(sw_cache_paths), swpath))
-            _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
-            utils.update_gene_names_in_annotation_list(tantn_list, chunk_name_maps[ichunk])  # rename genes dropped by the union
-            utils.check_annotation_glfo_consistency(glfo, tantn_list)
-            chunk_groups, chunk_failed = group_sequences_by_cdr3_length(tantn_list)
-            n_failed += chunk_failed
-            n_seqs += sum(len(seqfos) for seqfos in chunk_groups.values()) + chunk_failed
+        n_chunk_workers = min(n_procs, MULTI_CACHE_N_CHUNK_WORKERS_DEFAULT)
+        print('      running %d chunks with %d concurrent workers' % (len(sw_cache_paths), n_chunk_workers))
+        summary_dir = '%s/chunk-summaries' % outdir
+        utils.mkdir(summary_dir)
+        summary_paths = ['%s/chunk%03d.json' % (summary_dir, ichunk) for ichunk in range(len(sw_cache_paths))]
+        procs = [multiprocessing.Process(target=_process_one_chunk, args=(ichunk, swpath, chunk_name_maps[ichunk], outdir, glfo, summary_paths[ichunk]))
+                 for ichunk, swpath in enumerate(sw_cache_paths)]
+        utils.run_proc_functions(procs, n_procs=n_chunk_workers)
 
-            # uid to annotation lookup, built once per chunk
-            uid_to_antn = {line['unique_ids'][0] : line for line in tantn_list if len(line['unique_ids']) == 1}
-
-            # accumulate seqfos for FASTA writing, write sw-cache fragment per group
-            for c3len, seqfos in chunk_groups.items():
+        # combine each chunk's groups and failed count into the full-run totals
+        for ichunk, summary_path in enumerate(summary_paths):
+            with open(summary_path) as sfile:
+                summary = json.load(sfile)
+            n_failed += summary['chunk_failed']
+            for c3len_str, seqfos in summary['chunk_groups'].items():
+                c3len = int(c3len_str)
                 all_groups.setdefault(c3len, []).extend(seqfos)
-                group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
-                frag_path = '%s/sw-cache-chunk%03d.yaml' % (group_dir, ichunk)
-                chunk_antns = [uid_to_antn[sfo['name']] for sfo in seqfos if sfo['name'] in uid_to_antn]
-                utils.mkdir(frag_path, isfile=True)
-                utils.write_annotations(frag_path, glfo, chunk_antns, utils.sw_cache_headers)
-                chunk_fragments[c3len].append(frag_path)
-
-            del tantn_list, uid_to_antn  # chunk annotations
+                n_seqs += len(seqfos)
+                chunk_fragments[c3len].append('%s/groups/cdr3-%d/sw-cache-chunk%03d.yaml' % (outdir, c3len, ichunk))
+        n_seqs += n_failed
+        shutil.rmtree(summary_dir)
 
         # write per-group FASTAs
         groups = collections.OrderedDict(sorted(all_groups.items()))
