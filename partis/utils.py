@@ -5168,7 +5168,7 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
 # merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub> (only works with paired dir structure)
 # some things are handled nicelycorrectly, others more hackily
 # NOTE only merges the 'hmm' parameter type, not 'sw'
-def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig'):
+def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig', skip_sw_merge=False):
     from . import glutils, paircluster, fraction_uncertainty
     gene_index_cols = set(r + '_gene' for r in regions)  # index columns that hold a gene name, so need remapping
     simple_count_columns = ['seq_content', 'cluster_size'] + [b + '_insertion_content' for b in boundaries]  # single-key count tables, no gene name involved
@@ -5195,7 +5195,10 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         if len(sub_swfs) == 0:
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
             continue
-        merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
+        if skip_sw_merge:
+            print('       %s: skipping sw-cache merge' % locstr(ltmp))
+        else:
+            merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
         # these overall mean-freq/n-muted histograms aren't summed, just linked from one subset, which should be fine
         sentinel_hist_fnames = ['all-mean-mute-freqs.csv', 'all-mean-n-muted.csv'] + ['%s-mean-%s.csv' % (r, mstr) for r in regions for mstr in ('mute-freqs', 'n-muted')]
         for hfname in sentinel_hist_fnames:
