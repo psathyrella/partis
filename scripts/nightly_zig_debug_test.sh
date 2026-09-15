@@ -90,6 +90,21 @@ run() {
             --bcrham-binary "$CLONE/packages/zig-core/zig-out/bin/partis-zig-core" \
             --ig-sw-binary "$CLONE/packages/zig-core/zig-out/bin/partis-zig-igsw"
         status=$?
+
+        # partis-test.py redirects each subcommand's own stdout/stderr into
+        # test/new-results/test.log via `check_call(cmd_str + ' 1>>...
+        # 2>>...', shell=True)` (partis/scripts/partis_test.py) rather than
+        # letting it inherit partis-test.py's own stdout -- so a leak printed
+        # by the bcrham subprocess's GPA instance never reaches THIS
+        # function's own stdout at all. Verified experimentally (issue #405):
+        # a deliberate leak was invisible in this script's own captured
+        # output but present, in full, in test/new-results/test.log. Append
+        # it here so the leak-grep below (scanning $LOG) actually sees it.
+        if [[ -f test/new-results/test.log ]]; then
+            echo
+            echo "--- test/new-results/test.log (partis-test.py's own per-command log) ---"
+            cat test/new-results/test.log
+        fi
     fi
 
     end_ts="$(date +%s)"
