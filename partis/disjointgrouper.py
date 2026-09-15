@@ -16,6 +16,7 @@ from . import glutils
 
 MANIFEST_FNAME = 'manifest.yaml'
 MULTIFILE_INDEX_FNAME = 'index.yaml'
+SW_CACHE_INDEX_FNAME = 'sw-cache-index.yaml'  # written in place of sw-cache.yaml when the per-subset caches are not merged
 
 # multifile defaults (referenced from bin/partis argparse so all three places stay in sync), set
 # from the rss of reading and writing one merged file
@@ -31,7 +32,7 @@ HFRAC_MIN_SEQS_DEFAULT = 240000   # CDR3 groups smaller than this skip hfrac ent
 BIN_PACK_TOLERANCE = 1.2               # bin-packing only fires past this multiple of the cap
 MAX_TCM_THRESHOLD = 0.49               # safety clamp on round-2 threshold; vsearch --id requires <= 1.0 and high-SHM regimes can otherwise drive merge_factor*hi_bound past sensible bounds
 
-MULTI_CACHE_N_CHUNK_WORKERS_DEFAULT = 4   # concurrent chunk workers for multi-cache grouping
+MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT = 4   # concurrent subset workers for multi-cache grouping
 
 # ----------------------------------------------------------------------------------------
 def group_sw_cache_fname(locus):
@@ -378,8 +379,7 @@ def _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=None, me
         # (uid -> annotation, glfo) for one CDR3 group
         if in_memory_antns is not None:
             return in_memory_antns, glfo
-        # the multi-chunk path's merge_yamls reconciled glfos across chunks, so the outer glfo from
-        # the first chunk would lose novel alleles from later ones
+        # read the fragment's own glfo, which is the union across subsets
         swc_path = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_sw_cache_fname(locus))
         if not os.path.exists(swc_path):
             return {}, glfo
@@ -666,44 +666,44 @@ def validate_assembly(manifest, gpaths):
 
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths, locus):
-    # resolve <sw_cache_paths> to a list of files: a single path string, a list of paths, or a parent
-    # dir of chunk<i>-out dirs (chunks sorted numerically, since order sets the fragment indices).
+    # <sw_cache_paths> as a list of files in subset order: one path, a list, or a dir holding the index or a parameter-subsets/ tree
     if not isinstance(sw_cache_paths, str):
         return list(sw_cache_paths)
     if os.path.isdir(sw_cache_paths):
-        pattern = '%s/chunk*-out/parameters/%s/sw-cache.yaml' % (sw_cache_paths, locus)
+        if os.path.exists('%s/%s' % (sw_cache_paths, SW_CACHE_INDEX_FNAME)):
+            return sw_cache_index_paths('%s/%s' % (sw_cache_paths, SW_CACHE_INDEX_FNAME))
+        pattern = '%s/%s/subset-*/parameters/%s/sw-cache.yaml' % (sw_cache_paths, utils.PARAMETER_SUBSET_DIRNAME, locus)
         cpaths = glob.glob(pattern)
         if len(cpaths) == 0:
-            raise Exception('--sw-cachefname is a directory (%s) but no chunk sw caches matched %s; pass the file, or a colon-separated list of files'
-                            % (sw_cache_paths, pattern))
-        def ichunk(fn):
-            mtch = re.search(r'chunk([0-9]+)-out', fn)
+            raise Exception('--sw-cachefname is a directory (%s) but it holds neither %s nor any sw caches matching %s'
+                            % (sw_cache_paths, SW_CACHE_INDEX_FNAME, pattern))
+        def isubset(fn):
+            mtch = re.search(r'subset-([0-9]+)', fn)
             if mtch is None:
-                raise Exception('couldn\'t get chunk index from %s' % fn)
+                raise Exception('couldn\'t get subset index from %s' % fn)
             return int(mtch.group(1))
-        return sorted(cpaths, key=ichunk)
+        return sorted(cpaths, key=isubset)
     return [sw_cache_paths]
 
 # ----------------------------------------------------------------------------------------
-def _process_one_chunk(ichunk, swpath, name_map, outdir, glfo, summary_path):
-    # read one chunk's sw cache, group by cdr3 length, write its per-group sw-cache fragments,
-    # then write chunk_groups/chunk_failed to <summary_path> for the parent process to merge
+def _process_one_subset_cache(isubset, swpath, name_map, outdir, glfo, summary_path):
+    # group one subset's sw cache by cdr3 length, writing its per-group sw-cache fragments and its counts to <summary_path>
     _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
     utils.update_gene_names_in_annotation_list(tantn_list, name_map)  # rename genes dropped by the union
     utils.check_annotation_glfo_consistency(glfo, tantn_list)
-    chunk_groups, chunk_failed = group_sequences_by_cdr3_length(tantn_list)
+    subset_groups, subset_failed = group_sequences_by_cdr3_length(tantn_list)
 
-    # uid to annotation lookup, built once per chunk
+    # uid to annotation lookup, built once per subset
     uid_to_antn = {line['unique_ids'][0] : line for line in tantn_list if len(line['unique_ids']) == 1}
-    for c3len, seqfos in chunk_groups.items():
+    for c3len, seqfos in subset_groups.items():
         group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
-        frag_path = '%s/sw-cache-chunk%03d.yaml' % (group_dir, ichunk)
-        chunk_antns = [uid_to_antn[sfo['name']] for sfo in seqfos if sfo['name'] in uid_to_antn]
+        frag_path = '%s/sw-cache-subset%03d.yaml' % (group_dir, isubset)
+        subset_antns = [uid_to_antn[sfo['name']] for sfo in seqfos if sfo['name'] in uid_to_antn]
         utils.mkdir(frag_path, isfile=True)
-        utils.write_annotations(frag_path, glfo, chunk_antns, utils.sw_cache_headers)
+        utils.write_annotations(frag_path, glfo, subset_antns, utils.sw_cache_headers)
 
     with open(summary_path, 'w') as sfile:
-        json.dump({'chunk_groups' : chunk_groups, 'chunk_failed' : chunk_failed}, sfile)
+        json.dump({'subset_groups' : subset_groups, 'subset_failed' : subset_failed}, sfile)
 
 # ----------------------------------------------------------------------------------------
 def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None):
@@ -712,9 +712,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
     # <sw_cache_paths>: single path string or list of paths.
     # <n_procs>: concurrent single-threaded vsearch jobs; defaults to available cpus.
-    # For multiple caches, processes a bounded number of chunks concurrently:
-    #   - per-group FASTAs are written after all chunks are grouped (seqfos are lightweight)
-    #   - per-group sw-cache fragments are written per chunk, then merged and cleaned up
+    # multiple caches are grouped a bounded number of subsets at a time
     sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
     multi_cache = len(sw_cache_paths) > 1
     n_procs = utils.n_available_cpus() if n_procs is None else max(1, n_procs)
@@ -747,41 +745,41 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
             group_infos = write_group_fastas(groups, outdir, locus)
             write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
     else:
-        # multiple sw caches: process a bounded number of chunks concurrently
+        # multiple sw caches: process a bounded number of subsets concurrently
         print('      processing %d sw cache files for %s' % (len(sw_cache_paths), locus))
-        # pre-pass: union the chunks' germline sets, so every fragment is written against one label set
-        glfo, chunk_name_maps = None, []
+        # pre-pass: union the subsets' germline sets
+        glfo, subset_name_maps = None, []
         for swpath in sw_cache_paths:
             tglfo, _, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True, skip_annotations=True)
             if glfo is None:
                 glfo, tmap = tglfo, {r : {} for r in utils.regions}
             else:
-                glfo, tmap = glutils.get_merged_glfo(glfo, tglfo)  # union names are retained, so earlier chunks' maps stay valid
-            chunk_name_maps.append(tmap)
+                glfo, tmap = glutils.get_merged_glfo(glfo, tglfo)  # union retains existing names
+            subset_name_maps.append(tmap)
         all_groups = collections.OrderedDict()  # cdr3_length -> [seqfos] (lightweight: uid + seq only)
         n_failed = 0
         n_seqs = 0
-        chunk_fragments = collections.defaultdict(list)  # cdr3_length -> list of fragment file paths
+        subset_fragments = collections.defaultdict(list)  # cdr3_length to list of fragment file paths
 
-        n_chunk_workers = min(n_procs, MULTI_CACHE_N_CHUNK_WORKERS_DEFAULT)
-        print('      running %d chunks with %d concurrent workers' % (len(sw_cache_paths), n_chunk_workers))
-        summary_dir = '%s/chunk-summaries' % outdir
+        n_subset_workers = min(n_procs, MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT)
+        print('      running %d subsets with %d concurrent workers' % (len(sw_cache_paths), n_subset_workers))
+        summary_dir = '%s/subset-summaries' % outdir
         utils.mkdir(summary_dir)
-        summary_paths = ['%s/chunk%03d.json' % (summary_dir, ichunk) for ichunk in range(len(sw_cache_paths))]
-        procs = [multiprocessing.Process(target=_process_one_chunk, args=(ichunk, swpath, chunk_name_maps[ichunk], outdir, glfo, summary_paths[ichunk]))
-                 for ichunk, swpath in enumerate(sw_cache_paths)]
-        utils.run_proc_functions(procs, n_procs=n_chunk_workers)
+        summary_paths = ['%s/subset%03d.json' % (summary_dir, isubset) for isubset in range(len(sw_cache_paths))]
+        procs = [multiprocessing.Process(target=_process_one_subset_cache, args=(isubset, swpath, subset_name_maps[isubset], outdir, glfo, summary_paths[isubset]))
+                 for isubset, swpath in enumerate(sw_cache_paths)]
+        utils.run_proc_functions(procs, n_procs=n_subset_workers)
 
-        # combine each chunk's groups and failed count into the full-run totals
-        for ichunk, summary_path in enumerate(summary_paths):
+        # combine each subset's groups and failed count into the full-run totals
+        for isubset, summary_path in enumerate(summary_paths):
             with open(summary_path) as sfile:
                 summary = json.load(sfile)
-            n_failed += summary['chunk_failed']
-            for c3len_str, seqfos in summary['chunk_groups'].items():
+            n_failed += summary['subset_failed']
+            for c3len_str, seqfos in summary['subset_groups'].items():
                 c3len = int(c3len_str)
                 all_groups.setdefault(c3len, []).extend(seqfos)
                 n_seqs += len(seqfos)
-                chunk_fragments[c3len].append('%s/groups/cdr3-%d/sw-cache-chunk%03d.yaml' % (outdir, c3len, ichunk))
+                subset_fragments[c3len].append('%s/groups/cdr3-%d/sw-cache-subset%03d.yaml' % (outdir, c3len, isubset))
         n_seqs += n_failed
         shutil.rmtree(summary_dir)
 
@@ -789,18 +787,17 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         groups = collections.OrderedDict(sorted(all_groups.items()))
         group_infos = write_group_fastas(groups, outdir, locus)
 
-        # merge per-chunk sw-cache fragments into final per-group files, then clean up
+        # merge per-subset sw-cache fragments into final per-group files, then clean up
         for c3len in sorted(groups):
             final_swc = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_sw_cache_fname(locus))
-            frags = chunk_fragments.get(c3len, [])
+            frags = subset_fragments.get(c3len, [])
             if len(frags) == 1:
                 os.rename(frags[0], final_swc)
             elif len(frags) > 1:
                 utils.merge_yamls(final_swc, frags, utils.sw_cache_headers, dont_write_git_info=True)
                 for frag in frags:
                     os.remove(frag)
-        # NOTE every fragment is written against the union germline set, but gene calls are still whatever
-        # SW assigned per chunk against that chunk's own germline set; grouping does not re-derive them.
+        # NOTE fragments use the union germline set, gene calls are whatever SW assigned per subset
         # For gene calls made against a single germline set, merge parameter dirs before running SW.
 
         # apply hfrac after merging: two-pass approach for memory efficiency
@@ -855,13 +852,66 @@ def pack_multifile_output(gpaths, counts, max_seqs_per_file=MULTIFILE_MAX_SEQS_P
     return fspecs
 
 # ----------------------------------------------------------------------------------------
-def xxh3_file_hash(fname, chunk_size=8 * 1024 * 1024):
+def xxh3_file_hash(fname, block_size=8 * 1024 * 1024):
     import xxhash
     hasher = xxhash.xxh3_128()
     with open(fname, 'rb') as ifile:
-        for chunk in iter(lambda: ifile.read(chunk_size), b''):
-            hasher.update(chunk)
+        for block in iter(lambda: ifile.read(block_size), b''):
+            hasher.update(block)
     return hasher.hexdigest()
+
+# ----------------------------------------------------------------------------------------
+def hash_and_count_events(fname, block_size=8 * 1024 * 1024):
+    import xxhash
+    hasher = xxhash.xxh3_128()
+    markers = [b'"unique_ids"', b'unique_ids:']
+    overlap = max(len(m) for m in markers) - 1  # keep enough of each block to catch a marker split across two
+    n_events, tail = 0, b''
+    with open(fname, 'rb') as ifile:
+        for block in iter(lambda: ifile.read(block_size), b''):
+            hasher.update(block)
+            buf = tail + block
+            for mrk in markers:
+                n_events += buf.count(mrk, max(0, len(tail) - len(mrk) + 1))  # start past any match already counted within <tail>
+            tail = buf[-overlap:]
+    return hasher.hexdigest(), n_events
+
+# ----------------------------------------------------------------------------------------
+def write_sw_cache_index(locus, locus_pdir, sw_cache_paths):
+    # write the per-subset sw-cache index for <locus> into <locus_pdir>, in the order given
+    swcfos = []
+    for swpath in sw_cache_paths:
+        xxh3, n_seqs = hash_and_count_events(swpath)
+        swcfos.append({'path' : os.path.relpath(swpath, locus_pdir), 'n_sequences' : n_seqs, 'xxh3' : xxh3})
+    index = {'locus' : locus, 'n_subsets' : len(swcfos), 'sw_caches' : swcfos}
+    utils.mkdir(locus_pdir)
+    index_path = '%s/%s' % (locus_pdir, SW_CACHE_INDEX_FNAME)
+    with open(index_path, 'w') as ifile:
+        yaml.dump(index, ifile, width=400, default_flow_style=False, sort_keys=False)
+    print('       %s: wrote %s (%d caches, %d sequences)' % (utils.locstr(locus), index_path, len(swcfos), sum(f['n_sequences'] for f in swcfos)))
+    return index_path
+
+# ----------------------------------------------------------------------------------------
+def read_sw_cache_index(index_path):
+    if not os.path.exists(index_path):
+        raise Exception('sw cache index does not exist: %s' % index_path)
+    with open(index_path) as ifile:
+        index = yaml.safe_load(ifile)
+    for required_key in ['locus', 'n_subsets', 'sw_caches']:
+        if required_key not in index:
+            raise Exception('sw cache index %s is missing required key \'%s\'' % (index_path, required_key))
+    if len(index['sw_caches']) != index['n_subsets']:
+        raise Exception('sw cache index mismatch in %s: n_subsets %d does not equal the %d listed caches' % (index_path, index['n_subsets'], len(index['sw_caches'])))
+    for cfo in index['sw_caches']:
+        if not re.match('^[0-9a-f]{32}$', cfo.get('xxh3', '')):
+            raise Exception('sw cache index mismatch in %s: %s has a missing or malformed xxh3 hash' % (index_path, cfo['path']))
+    return index
+
+# ----------------------------------------------------------------------------------------
+def sw_cache_index_paths(index_path):
+    # the per-subset caches, in index order, as stored (relative, with '..' unresolved)
+    idir = os.path.dirname(os.path.abspath(index_path))
+    return ['%s/%s' % (idir, cfo['path']) for cfo in read_sw_cache_index(index_path)['sw_caches']]
 
 # ----------------------------------------------------------------------------------------
 def write_multifile_output(locus, manifest, gpaths, counts, outfname, max_seqs_per_file=MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT):

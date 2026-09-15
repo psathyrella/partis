@@ -85,16 +85,24 @@ def single_proc_concurrency(args):
     return max(1, min(utils.n_available_cpus() - 1, args.n_procs))
 
 # ----------------------------------------------------------------------------------------
-def disjoint_group_allocation(args):
-    # split the --n-procs ceiling into (jobs at once) x (procs per job), rather than multiplying by it
+SUBSET_TARGET_PROCS = 8  # procs per subset job
+
+# ----------------------------------------------------------------------------------------
+def job_proc_allocation(args, target_procs_per_job=None, dbgstr='group'):
+    # split the --n-procs ceiling into (jobs at once) x (procs per job), per-job count first
     n_cpus = utils.n_available_cpus()
     budget = proc_budget(args)
     if args.n_procs > n_cpus:
         print('    note: --n-procs %d exceeds the %d available cpus, so using %d' % (args.n_procs, n_cpus, budget))
-    n_jobs = max(1, min(args.n_max_procs, budget))
+    if target_procs_per_job is None:
+        n_jobs = max(1, min(args.n_max_procs, budget))
+    else:
+        n_jobs = max(1, budget // min(target_procs_per_job, budget))
+        if args.n_max_procs is not None:
+            n_jobs = max(1, min(n_jobs, args.n_max_procs))
     n_procs = args.n_sub_procs if args.n_sub_procs is not None else max(1, budget // n_jobs)
     if n_jobs * n_procs > n_cpus:
-        print('    %s group stage would use %d x %d = %d procs, but only %d cpus are available' % (utils.color('yellow', 'warning'), n_jobs, n_procs, n_jobs * n_procs, n_cpus))
+        print('    %s %s stage would use %d x %d = %d procs, but only %d cpus are available' % (utils.color('yellow', 'warning'), dbgstr, n_jobs, n_procs, n_jobs * n_procs, n_cpus))
     return n_jobs, n_procs
 
 # ----------------------------------------------------------------------------------------
@@ -138,6 +146,13 @@ def sw_cache_path(locus_pdir):
     return '%s/sw-cache.yaml' % locus_pdir
 
 # ----------------------------------------------------------------------------------------
+def sw_cache_input(locus_pdir):
+    # the sw-cache file, or the dir holding the index when there is no merged file
+    if not os.path.exists(sw_cache_path(locus_pdir)) and os.path.exists('%s/%s' % (locus_pdir, disjointgrouper.SW_CACHE_INDEX_FNAME)):
+        return locus_pdir
+    return sw_cache_path(locus_pdir)
+
+# ----------------------------------------------------------------------------------------
 def disjoint_dir_for(outdir, locus):
     # single source of truth for the disjoint-groups dir; <outdir> is the un-suffixed base (no single-chain/)
     return '%s/single-chain/disjoint-groups/%s' % (outdir, locus)
@@ -145,11 +160,11 @@ def disjoint_dir_for(outdir, locus):
 # ----------------------------------------------------------------------------------------
 def disjoint_group_action(args):
     # standalone entry point for disjoint-group action (for running steps on separate batch systems)
-    # --sw-cachefname: single file, colon-separated paths, or a parent dir of chunk<i>-out dirs
+    # --sw-cachefname: single file, colon-separated paths, or a dir holding per-subset caches
     if args.sw_cachefname is not None:
         sw_cache_paths = args.sw_cachefname.split(':') if ':' in args.sw_cachefname else args.sw_cachefname
     else:
-        sw_cache_paths = sw_cache_path('%s/%s' % (args.parameter_dir, args.locus))
+        sw_cache_paths = sw_cache_input('%s/%s' % (args.parameter_dir, args.locus))
     if args.paired_outdir is None:
         raise Exception('--paired-outdir must be set')
     disjoint_dir = disjoint_dir_for(args.paired_outdir, args.locus)
@@ -530,6 +545,157 @@ def is_subset_action(action):
     return action in ['subset-partition', 'subset-annotate']
 
 # ----------------------------------------------------------------------------------------
+def splits_input_into_subsets(args):
+    # actions that give each subset one all-loci input file
+    return is_subset_action(args.action) or (args.action == 'cache-parameters' and args.n_subsets is not None)
+
+# ----------------------------------------------------------------------------------------
+def subset_loci(args):
+    return utils.sub_loci(args.ig_or_tr) if args.paired_loci else [args.locus]
+
+# ----------------------------------------------------------------------------------------
+def subset_input_fname(args):
+    # the single all-loci input file that gets split into subsets
+    infname = args.infname
+    if infname is None and os.path.exists('%s/all-seqs.fa'%args.paired_indir):  # simulation has a single file
+        infname = '%s/all-seqs.fa'%args.paired_indir
+    if infname is None and any(os.path.exists('%s/%s.fa'%(args.paired_indir, l)) for l in utils.sub_loci(args.ig_or_tr)):  # UGH (data paired indir, need to cat together the per-locus .fa files into a file in the paired outdir)
+        infname = '%s/input-seqs.fa' % args.paired_outdir
+        if not os.path.exists(infname):
+            utils.prep_dir(args.paired_outdir, allow_other_files=True)
+            utils.simplerun('cat %s >%s/input-seqs.fa' % (' '.join('%s/%s.fa'%(args.paired_indir, l) for l in utils.sub_loci(args.ig_or_tr)), args.paired_outdir), shell=True, extra_str='    ')
+    if infname is None:
+        raise Exception('couldn\'t figure out an input file')
+    return infname
+
+# ----------------------------------------------------------------------------------------
+def parameter_subset_base(args):
+    # dir holding parameter-subsets/, and where the merged parameters are written
+    bdir = args.paired_outdir if args.paired_loci else args.parameter_dir
+    if bdir is None:
+        raise Exception('need --paired-outdir (or --parameter-dir, without --paired-loci) for %s' % args.action)
+    return bdir
+
+# ----------------------------------------------------------------------------------------
+def subset_pdir(args, isub):
+    # what holds subset <isub>'s parameters: the subset dir if paired, its parameters/ subdir if single locus
+    sdir = utils.parameter_subset_dir(parameter_subset_base(args), isub)
+    return sdir if args.paired_loci else '%s/parameters' % sdir
+
+# ----------------------------------------------------------------------------------------
+def param_locus_dir(args, bdir, ltmp):
+    # the <ltmp> parameter dir within <bdir>, which for a single locus is already it
+    return '%s/parameters/%s' % (bdir, ltmp) if args.paired_loci else bdir
+
+# ----------------------------------------------------------------------------------------
+def subset_cache_parameters(args):
+    # split the input into --n-subsets, cache parameters on each, then merge to the usual parameter dir
+    base = parameter_subset_base(args)
+    if args.paired_loci and args.input_metafnames is None and not args.no_pairing_info:
+        args.input_metafnames = ['%s/meta.yaml' % (args.paired_indir if args.paired_indir is not None else '%s/input'%args.paired_outdir)]
+        print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
+    # ----------------------------------------------------------------------------------------
+    def sdir(isub):
+        return utils.parameter_subset_dir(base, isub)
+    # ----------------------------------------------------------------------------------------
+    def input_fn(isub):
+        return '%s/input-seqs.fa' % sdir(isub)
+    # ----------------------------------------------------------------------------------------
+    def subset_is_cached(isub):
+        return any(os.path.exists('%s/hmm/germline-sets' % param_locus_dir(args, subset_pdir(args, isub), l)) for l in subset_loci(args))
+    # ----------------------------------------------------------------------------------------
+    def get_cmd(isub, n_procs):
+        clist = copy.deepcopy(sys.argv)
+        clist[0] = utils.find_cmd(clist[0])
+        utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
+        utils.remove_from_arglist(clist, '--write-subsets-only')
+        utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
+        utils.remove_from_arglist(clist, '--is-simu')  # subset fastas have no simulation info
+        for targ in ['--n-max-queries', '--n-random-queries']:  # already applied when reading the input here
+            utils.remove_from_arglist(clist, targ, has_arg=True)
+        utils.replace_in_arglist(clist, '--infname', input_fn(isub))
+        if args.paired_loci:
+            utils.replace_in_arglist(clist, '--paired-outdir', sdir(isub))
+        else:  # single locus: set the cache path
+            utils.replace_in_arglist(clist, '--parameter-dir', subset_pdir(args, isub))
+            utils.replace_in_arglist(clist, '--sw-cachefname', '%s/sw-cache.yaml' % subset_pdir(args, isub))
+        if args.input_metafnames is not None:
+            utils.replace_in_arglist(clist, '--input-metafnames', '%s/meta.yaml' % sdir(isub))
+        utils.replace_in_arglist(clist, '--n-procs', str(n_procs))
+        return ' '.join(clist)
+    # ----------------------------------------------------------------------------------------
+    def write_subsets(infname):
+        tmp_seed_id = args.seed_unique_id  # a list of two here
+        args.seed_unique_id = None
+        input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)
+        args.seed_unique_id = tmp_seed_id
+        print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'cache-parameters'), len(input_info), args.n_subsets, infname))
+        input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
+        sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
+                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=args.no_pairing_info or not args.paired_loci, debug=True)
+        meta_keys = set(utils.input_metafile_keys.values())  # strip input_info to what the per-subset meta.yaml needs
+        for uid, tline in input_info.items():
+            input_info[uid] = {k : v for k, v in tline.items() if k in meta_keys or k == 'unique_ids'}
+        subsets = []
+        for isub, sfos in enumerate(sfo_lists):
+            utils.write_fasta(input_fn(isub), sfos)
+            if args.input_metafnames is not None:
+                metafos = {}
+                for sfo in sfos:
+                    assert len(input_info[sfo['name']]['unique_ids']) == 1
+                    metafos[sfo['name']] = {mk : input_info[sfo['name']][lk][0] for mk, lk in utils.input_metafile_keys.items() if lk in input_info[sfo['name']]}
+                utils.jsdump('%s/meta.yaml'%sdir(isub), metafos)
+            subsets.append({'path' : os.path.relpath(sdir(isub), utils.parameter_subset_root(base)), 'input_fasta' : os.path.relpath(input_fn(isub), utils.parameter_subset_root(base)), 'n_input_sequences' : len(sfos)})
+        print('    wrote %d subset input files to %s (index: %s)' % (len(subsets), utils.parameter_subset_root(base), utils.write_subset_index(base, subsets)))
+    # ----------------------------------------------------------------------------------------
+    def subset_outfname(isub):  # the path a subset run writes for whichever of its loci had sequences
+        return '%s/parameters' % sdir(isub) if args.paired_loci else '%s/hmm/germline-sets' % subset_pdir(args, isub)
+    # ----------------------------------------------------------------------------------------
+    def run_subsets():
+        n_jobs, n_procs = job_proc_allocation(args, target_procs_per_job=SUBSET_TARGET_PROCS, dbgstr='subset')
+        cmdfos = [{'cmd_str' : get_cmd(i, n_procs), 'outfname' : subset_outfname(i), 'workdir' : sdir(i), 'logdir' : sdir(i)}
+                  for i in range(args.n_subsets) if not subset_is_cached(i)]
+        if len(cmdfos) == 0:
+            return
+        if args.dry_run:
+            print('    --dry-run: would run %d subset jobs (%d concurrent, %d procs each)' % (len(cmdfos), min(len(cmdfos), n_jobs), n_procs))
+            return
+        print('    running %d subset jobs (%d concurrent, %d procs each):' % (len(cmdfos), min(len(cmdfos), n_jobs), n_procs))
+        utils.run_cmds(cmdfos, n_max_procs=n_jobs, debug='write')
+    # ----------------------------------------------------------------------------------------
+    if os.path.exists(utils.subset_index_fname(base)):
+        print('  subset input files exist (%s)' % utils.subset_index_fname(base))
+    else:
+        write_subsets(subset_input_fname(args))
+    if args.write_subsets_only:
+        print('  --write-subsets-only: exiting without running the %d subset jobs' % args.n_subsets)
+        return
+    run_subsets()
+    merge_parameter_subsets(args)
+
+# ----------------------------------------------------------------------------------------
+def merge_parameter_subsets(args):
+    # sum the per-subset count tables and union their glfos into one parameter dir
+    base = parameter_subset_base(args)
+    n_subsets = utils.read_subset_index(base)['n_subsets']
+    def subdfn(isub): return subset_pdir(args, isub)
+    utils.merge_parameter_dirs(base, subdfn, n_subsets, ig_or_tr=args.ig_or_tr, skip_sw_merge=args.no_merged_sw_cache,
+                               locus=None if args.paired_loci else args.locus)
+    if not args.no_merged_sw_cache:
+        return
+    for ltmp in subset_loci(args):
+        swfns = [f for f in ('%s/sw-cache.yaml' % param_locus_dir(args, subdfn(i), ltmp) for i in range(n_subsets)) if os.path.exists(f)]
+        if len(swfns) == 0:
+            continue
+        disjointgrouper.write_sw_cache_index(ltmp, param_locus_dir(args, base, ltmp), swfns)
+    print('  --no-merged-sw-cache: wrote no merged sw-cache, %d per-subset caches in %s' % (n_subsets, utils.parameter_subset_root(base)))
+
+# ----------------------------------------------------------------------------------------
+def merge_parameter_subsets_action(args):
+    # standalone entry point for merge-parameter-subsets action
+    merge_parameter_subsets(args)
+
+# ----------------------------------------------------------------------------------------
 def subset_partition(args):
     if args.input_metafnames is None and not args.no_pairing_info:
         if args.paired_indir is None:
@@ -625,16 +791,7 @@ def subset_partition(args):
         #     for ltmp in utils.sub_loci(args.ig_or_tr):
         #         utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
     # ----------------------------------------------------------------------------------------
-    infname = args.infname
-    if infname is None and os.path.exists('%s/all-seqs.fa'%args.paired_indir):  # simulation has a single file
-        infname = '%s/all-seqs.fa'%args.paired_indir
-    if infname is None and any(os.path.exists('%s/%s.fa'%(args.paired_indir, l)) for l in utils.sub_loci(args.ig_or_tr)):  # UGH (data paired indir, need to cat together the per-locus .fa files into a file in the paired outdir)
-        infname = '%s/input-seqs.fa' % args.paired_outdir
-        if not os.path.exists(infname):
-            utils.prep_dir(args.paired_outdir, allow_other_files=True)
-            utils.simplerun('cat %s >%s/input-seqs.fa' % (' '.join('%s/%s.fa'%(args.paired_indir, l) for l in utils.sub_loci(args.ig_or_tr)), args.paired_outdir), shell=True, extra_str='    ')
-    if infname is None:
-        raise Exception('couldn\'t figure out an input file')
+    infname = subset_input_fname(args)
     if all(any(os.path.exists(ptnfn(subdir(i), 'ig'+l)) for l in 'hkl') for i in range(args.n_subsets)):  # if e.g. keeping all unpaired seqs, we may only have an output file for one locus, hence the any() (yes this means it won't rerun if it crashes partway through writing the three files)
         print('  all subset partitions exist (e.g. %s)' % ptnfn(subdir(0), 'igh'))
     else:
@@ -668,6 +825,10 @@ def run_partitiondriver(args):
     if args.parameter_dir is None:
         args.parameter_dir = default_parameter_dir(args)
         print('  note: --parameter-dir not set, so using default: %s' % args.parameter_dir)
+
+    if args.action == 'cache-parameters' and args.n_subsets is not None:
+        subset_cache_parameters(args)
+        return
 
     actions = [args.action]  # do *not* use <args.action> after this (well, for anything other than checking what was actually set on the command line)
     if args.action in ['annotate', 'partition'] and not os.path.exists(args.parameter_dir):
@@ -816,7 +977,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             if has_input_meta_pair_info:
                 print('  note: found \'paired-uids\' in --input-metafnames, so not extracting pairing info')
         mfname = getofn(None, joint=True, input_meta=True)
-        if is_subset_action(args.action):  # UGH
+        if splits_input_into_subsets(args):  # UGH
             mfname = '%s/input/%s' % (os.path.dirname(mfname), os.path.basename(mfname))
         if utils.getsuffix(args.infname) == '.yaml':  # convert .yaml to .fa for split-loci (needed regardless of pairing info)
             new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
@@ -840,7 +1001,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 elines = traceback.format_exception(*sys.exc_info())
                 print(utils.pad_lines(''.join(elines)))
                 print('  note: couldn\'t extract 10x-style droplet ids from sequence ids (see above), continuing without pairing info')
-        if is_subset_action(args.action):  # don't want loci to be split, since we pass all loci to each subset process in one file
+        if splits_input_into_subsets(args):  # don't want loci to be split, since we pass all loci to each subset process in one file
             return
         cmd = '%s%s %s --outdir %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', utils.find_cmd('split-loci.py'), args.infname, getodir())
         if args.reverse_negative_strands:
@@ -1565,6 +1726,9 @@ def run_all_loci(args, ig_or_tr='ig'):
     if is_subset_action(args.action):
         subset_partition(args)
         return
+    if args.action == 'cache-parameters' and args.n_subsets is not None:
+        subset_cache_parameters(args)
+        return
     args.tree_inference_outdir = getodir()
     if args.tree_inference_subdir is not None:
         args.tree_inference_outdir = '%s/%s' % (args.tree_inference_outdir, args.tree_inference_subdir)
@@ -1592,13 +1756,13 @@ def run_all_loci(args, ig_or_tr='ig'):
             print('%s %s: manifest exists, skipping grouping: %s' % (utils.color('blue_bkg', 'create-disjoint-groups'), ltmp, manifest_path))
             manifest = disjointgrouper.read_manifest(manifest_path)
         else:
-            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_path(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp), hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size, min_group_size=args.hfrac_min_seqs, n_procs=proc_budget(args))
+            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_input(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp), hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size, min_group_size=args.hfrac_min_seqs, n_procs=proc_budget(args))
 
         # step 2: partition each group (or sub-group if hfrac)
         if len(manifest['groups']) == 0:
             raise Exception('manifest contains no groups (all sequences may have failed CDR3 annotation): %s' % manifest_path)
         cmdfos = []
-        n_max_jobs, n_group_procs = disjoint_group_allocation(args)
+        n_max_jobs, n_group_procs = job_proc_allocation(args)
         for ginfo in manifest['groups']:
             # derive partition and sw-cache paths from the fasta_path in the manifest
             fasta_rel = ginfo['fasta_path']
@@ -1907,7 +2071,7 @@ parent_args.append({'name' : '--parameter-type', 'kwargs' : {'default' : None, '
 parent_args.append({'name' : '--parameter-out-dir', 'kwargs' : {'help' : 'Special parameter dir for writing multi-hmm parameters, i.e. when running annotate or partition with --count-parameters set (if not set, defaults to <--parameter-dir>/multi-hmm).'}})
 parent_args.append({'name' : '--refuse-to-cache-parameters', 'kwargs' : {'action' : 'store_true', 'help' : 'Disables auto parameter caching, i.e. if --parameter-dir doesn\'t exist, instead of inferring parameters, raise an exception. Useful for batch/production use where you want to make sure you\'re caching parameters in a separate step.'}})
 parent_args.append({'name' : '--persistent-cachefname', 'kwargs' : {'help' : 'Name of file which will be used as an initial cache file (if it exists), and to which all cached info will be written out before exiting. Must be set to \'paired-outdir\' if --paired-loci is set.'}})
-parent_args.append({'name' : '--sw-cachefname', 'kwargs' : {'help' : 'Smith-Waterman cache file name. Default is set using a hash of all the input sequence ids (in partitiondriver, since we have to read the input file first). For create-disjoint-groups this can also be a colon-separated list of per-chunk caches, or a parent dir holding chunk<i>-out/parameters/<locus>/sw-cache.yaml.'}})
+parent_args.append({'name' : '--sw-cachefname', 'kwargs' : {'help' : 'Smith-Waterman cache file name. Default is set using a hash of all the input sequence ids (in partitiondriver, since we have to read the input file first). For create-disjoint-groups this can also be a colon-separated list of per-subset caches, or a dir holding either %s or parameter-subsets/subset-<i>/parameters/<locus>/sw-cache.yaml.' % disjointgrouper.SW_CACHE_INDEX_FNAME}})
 parent_args.append({'name' : '--write-sw-cachefile', 'kwargs' : {'action' : 'store_true', 'help' : 'Write sw results to the sw cache file during actions for which we\'d normally only look for an existing one (i.e annotate and partition).'}})
 parent_args.append({'name' : '--workdir', 'kwargs' : {'help' : 'Temporary working directory (default is set below)'}})
 
@@ -2012,6 +2176,7 @@ subconfig = collections.OrderedDict((
     ('simulate'         , {'func' : run_simulation,      'help' : 'Generate simulated sequences based on information in pre-existing parameter directory.'}),
     ('view-output'      , {'func' : run_partitiondriver, 'help' : 'Print partitions and/or annotations from an existing output yaml file.'}),
     ('merge-paired-partitions', {'func' : run_partitiondriver, 'help' : 'Merge the heavy and light chain partition paths from two existing output files.'}),
+    ('merge-parameter-subsets', {'func' : merge_parameter_subsets_action, 'help' : 'Merge the per-subset parameter dirs written by \'cache-parameters --n-subsets --write-subsets-only\' into one parameter dir. Requires --paired-outdir (or --parameter-dir and --locus, without --paired-loci).'}),
     ('view-alternative-annotations' , {'func' : run_partitiondriver, 'help' : 'Print (to std out) a comparison of the naive sequences and v/d/j gene calls corresponding to sub- and super-clusters of the cluster specified with --queries. You must have specified --calculate-alternative-annotations in a previous partition step so that this information was saved.'}),
     ('plot-partitions'  , {'func' : run_partitiondriver, 'help' : 'Plot existing partitions and cluster annotations.'}),
     ('get-selection-metrics' , {'func' : run_partitiondriver, 'help' : 'Calculate selection metrics using existing output.'}),
@@ -2094,7 +2259,8 @@ subargs['partition'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type'
 subargs['partition'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
 subargs['partition'].append({'name' : '--multifile-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MIN_SEQS_DEFAULT, 'help' : 'With --disjoint-groups, loci with more sequences than this assemble into a directory of partition files plus an index, rather than one merged file (one merged file does not fit in memory past this size). Lower it to exercise the multifile path on a small sample.'}})
 subargs['partition'].append({'name' : '--multifile-max-seqs-per-file', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT, 'help' : 'Sequences per file in a multifile assembly. A soft cap: one CDR3 group is never spread over two files, so an indivisible group larger than this is written whole with a warning.'}})
-subargs['partition'].append({'name' : '--n-max-procs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs (disjoint CDR3 groups or subset-partition subsets). Disjoint group jobs split --n-procs among themselves so the total stays within it (override the per-job count with --n-sub-procs); subset-partition subsets each get the full --n-procs. The HA re-partition and partition-refine stages are single-proc and scale to the job cpu allocation instead (capped at --n-procs).'}})
+subargs['partition'].append({'name' : '--n-max-procs', 'kwargs' : {'type' : int, 'default' : 2, 'help' : 'Maximum number of concurrent subprocess jobs, for the disjoint CDR3 groups of \'partition --disjoint-groups\' and the subsets of \'partition --n-subsets\'. --n-procs is a total that the concurrent jobs split among themselves rather than each receiving, so the two flags do not multiply (override the per-job count with --n-sub-procs). The HA re-partition and partition-refine stages are single-proc and scale to the job cpu allocation instead (capped at --n-procs).'}})
+subargs['cache-parameters'].append({'name' : '--n-max-procs', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'Maximum number of concurrent subset jobs for \'cache-parameters --n-subsets\'. Unset by default: each subset job takes %d procs and as many run at once as --n-procs allows. --n-procs is a total that the concurrent jobs split among themselves rather than each receiving, so the two flags do not multiply (override the per-job count with --n-sub-procs). Set this to run fewer at once, e.g. to cut peak memory.' % SUBSET_TARGET_PROCS}})
 subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : int, 'dest' : 'n_max_procs', 'default' : argparse.SUPPRESS, 'help' : argparse.SUPPRESS}})  # old name for --n-max-procs
 subargs['partition'].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each disjoint group partition job, overriding the default split of --n-procs among --n-max-procs concurrent jobs. Setting this above the split can oversubscribe the available cpus (you get a warning, not an error).'}})
 
@@ -2120,6 +2286,11 @@ subargs['run-partition-refine-jobs'].append({'name' : '--job-count', 'kwargs' : 
 
 subargs['subset-partition'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-partition\''}})
 subargs['subset-partition'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'Write per-subset input files (FASTAs and meta.yaml) and exit without running subset jobs. For use with external job orchestration (e.g. submitting each subset as an independent batch job).'}})
+subargs['cache-parameters'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'If set, divide the input into this many subsets, cache parameters on each, then merge them into the usual parameter dir (the same one a run without --n-subsets writes). Bounds the memory of the caching stage on large samples. The subset jobs each take %d procs, with as many running at once as --n-procs allows (see --n-max-procs); to run them as separate batch jobs instead, see --write-subsets-only and \'merge-parameter-subsets\'.' % SUBSET_TARGET_PROCS}})
+subargs['cache-parameters'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'With --n-subsets: write the per-subset input files (FASTAs and meta.yaml) and exit without running the subset jobs or merging. For use with external job orchestration (e.g. one batch job per subset, then \'merge-parameter-subsets\').'}})
+
+subargs['merge-parameter-subsets'] = []
+subargs['merge-parameter-subsets'].append({'name' : '--no-merged-sw-cache', 'kwargs' : {'action' : 'store_true', 'help' : 'Do not merge the per-subset sw-caches into one sw-cache.yaml, and write %s in its place. \'create-disjoint-groups\' reads the per-subset caches through it, but any action that needs a single sw-cache will not find one.' % disjointgrouper.SW_CACHE_INDEX_FNAME}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
 
 # ----------------------------------------------------------------------------------------

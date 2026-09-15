@@ -5165,10 +5165,52 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
         return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
-# merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub> (only works with paired dir structure)
+# per-subset parameter dirs for 'cache-parameters --n-subsets'; <basedir> is --paired-outdir, or --parameter-dir for a single locus
+PARAMETER_SUBSET_DIRNAME = 'parameter-subsets'
+SUBSET_INDEX_FNAME = 'subset-index.yaml'
+
+# ----------------------------------------------------------------------------------------
+def parameter_subset_root(basedir):
+    return '%s/%s' % (basedir, PARAMETER_SUBSET_DIRNAME)
+
+# ----------------------------------------------------------------------------------------
+def parameter_subset_dir(basedir, isub):
+    return '%s/subset-%d' % (parameter_subset_root(basedir), isub)
+
+# ----------------------------------------------------------------------------------------
+def subset_index_fname(basedir):
+    return '%s/%s' % (parameter_subset_root(basedir), SUBSET_INDEX_FNAME)
+
+# ----------------------------------------------------------------------------------------
+# paths are relative to the index's own dir
+def write_subset_index(basedir, subsets):  # subsets: ordered list of {path, input_fasta, n_input_sequences}
+    index = {'n_subsets' : len(subsets), 'subsets' : subsets}
+    ifn = subset_index_fname(basedir)
+    mkdir(ifn, isfile=True)
+    with open(ifn, 'w') as ifile:
+        yaml.dump(index, ifile, width=400, default_flow_style=False, sort_keys=False)
+    return ifn
+
+# ----------------------------------------------------------------------------------------
+def read_subset_index(basedir):
+    ifn = subset_index_fname(basedir)
+    if not os.path.exists(ifn):
+        raise Exception('subset index does not exist: %s' % ifn)
+    with open(ifn) as ifile:
+        index = yaml.safe_load(ifile)
+    for required_key in ['n_subsets', 'subsets']:
+        if required_key not in index:
+            raise Exception('subset index %s is missing required key \'%s\'' % (ifn, required_key))
+    if len(index['subsets']) != index['n_subsets']:
+        raise Exception('subset index mismatch in %s: n_subsets %d does not equal the %d listed subsets' % (ifn, index['n_subsets'], len(index['subsets'])))
+    return index
+
+# ----------------------------------------------------------------------------------------
+# merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub>
+# (paired dir structure, unless <locus> is set, in which case the dirs are parameter dirs themselves)
 # some things are handled nicelycorrectly, others more hackily
 # NOTE only merges the 'hmm' parameter type, not 'sw'
-def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig', skip_sw_merge=False):
+def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig', skip_sw_merge=False, locus=None):
     from . import glutils, paircluster, fraction_uncertainty
     gene_index_cols = set(r + '_gene' for r in regions)  # index columns that hold a gene name, so need remapping
     simple_count_columns = ['seq_content', 'cluster_size'] + [b + '_insertion_content' for b in boundaries]  # single-key count tables, no gene name involved
@@ -5184,13 +5226,18 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
             remapped.append(val)
         return tuple(remapped)
     # ----------------------------------------------------------------------------------------
+    def pdir(dname, ltmp):  # the parameter dir for <ltmp> within <dname> (in single-locus mode <dname> is already it)
+        return dname if locus is not None else '%s/parameters/%s' % (dname, ltmp)
+    # ----------------------------------------------------------------------------------------
+    if locus is not None and include_hmm_cache_files:
+        raise Exception('include_hmm_cache_files only works with the paired dir structure')
     print('    merging parameters from %d subdirs (e.g. %s) to %s' % (n_subsets, subdfn(0), merged_odir))
-    for ltmp in sub_loci(ig_or_tr):
-        if os.path.exists('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp)):  # just looks for one of the last thing we would've written
+    for ltmp in ([locus] if locus is not None else sub_loci(ig_or_tr)):
+        if os.path.exists('%s/hmm/germline-sets' % pdir(merged_odir, ltmp)):  # just looks for one of the last thing we would've written
             print('       %s %s: subset-merged input exists, not rewriting' % (color('yellow', 'warning'), locstr(ltmp)))
             continue
-        mkdir('%s/parameters/%s' % (merged_odir, ltmp))
-        def swfn(dname): return '%s/parameters/%s/sw-cache.yaml'%(dname, ltmp)
+        mkdir(pdir(merged_odir, ltmp))
+        def swfn(dname): return '%s/sw-cache.yaml' % pdir(dname, ltmp)
         sub_swfs = [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
         if len(sub_swfs) == 0:
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
@@ -5202,21 +5249,21 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         # these overall mean-freq/n-muted histograms aren't summed, just linked from one subset, which should be fine
         sentinel_hist_fnames = ['all-mean-mute-freqs.csv', 'all-mean-n-muted.csv'] + ['%s-mean-%s.csv' % (r, mstr) for r in regions for mstr in ('mute-freqs', 'n-muted')]
         for hfname in sentinel_hist_fnames:
-            sub_hfns = [f for f in ('%s/parameters/%s/hmm/%s' % (subdfn(i), ltmp, hfname) for i in range(n_subsets)) if os.path.exists(f)]
+            sub_hfns = [f for f in ('%s/hmm/%s' % (pdir(subdfn(i), ltmp), hfname) for i in range(n_subsets)) if os.path.exists(f)]
             if len(sub_hfns) == 0:
                 continue
-            makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(sub_hfns[0]), hfname)
+            makelink('%s/hmm' % pdir(fpath(merged_odir), ltmp), fpath(sub_hfns[0]), hfname)
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         merged_mfreq_counts = {}  # summed counts, keyed by gene then position, same per-position dict shape mutefreqer uses
         merged_length_counts = {}  # summed counts for the deletion/insertion tables, keyed by column then remapped index tuple
         merged_all_counts = defaultdict(int)  # summed counts for all-probs.csv, keyed by remapped index tuple
         merged_simple_counts = {c : defaultdict(int) for c in simple_count_columns}
-        def gpfn(dname, l, r): return '%s/parameters/%s/hmm/%s_gene-probs.csv' % (dname, l, r)
-        def mffn(dname, l): return '%s/parameters/%s/hmm/mute-freqs' % (dname, l)
+        def gpfn(dname, l, r): return '%s/hmm/%s_gene-probs.csv' % (pdir(dname, l), r)
+        def mffn(dname, l): return '%s/hmm/mute-freqs' % pdir(dname, l)
         for isub in range(n_subsets):
-            for hfn in glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
-                makelink('%s/parameters/%s/hmm/hmms' % (fpath(merged_odir), ltmp), fpath(hfn), os.path.basename(hfn))
-            sub_glfo = glutils.read_glfo('%s/parameters/%s/hmm/germline-sets' % (subdfn(isub), ltmp), ltmp, dont_crash=True)
+            for hfn in glob.glob('%s/hmm/hmms/*.yaml' % pdir(subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
+                makelink('%s/hmm/hmms' % pdir(fpath(merged_odir), ltmp), fpath(hfn), os.path.basename(hfn))
+            sub_glfo = glutils.read_glfo('%s/hmm/germline-sets' % pdir(subdfn(isub), ltmp), ltmp, dont_crash=True)
             name_mapping = None
             if merged_glfo is None:
                 merged_glfo = sub_glfo
@@ -5237,7 +5284,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                 if col in gene_index_cols:  # v/d/j gene counts already summed just above
                     continue
                 cols_in_order = list(coltup)
-                lfn = '%s/parameters/%s/hmm/%s' % (subdfn(isub), ltmp, get_parameter_fname(column_and_deps=cols_in_order))
+                lfn = '%s/hmm/%s' % (pdir(subdfn(isub), ltmp), get_parameter_fname(column_and_deps=cols_in_order))
                 if not os.path.exists(lfn):
                     continue
                 table_counts = merged_length_counts.setdefault(col, defaultdict(int))
@@ -5246,14 +5293,14 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                     table_counts[key] += int(tline['count'])
             # same sum, for the one table keyed on the full rearrangement (all genes plus every deletion and insertion length)
             all_cols = list(index_columns) + ['cdr3_length']
-            afn = '%s/parameters/%s/hmm/%s' % (subdfn(isub), ltmp, get_parameter_fname(column='all'))
+            afn = '%s/hmm/%s' % (pdir(subdfn(isub), ltmp), get_parameter_fname(column='all'))
             if os.path.exists(afn):
                 for tline in csvlines(afn):
                     key = remap_index_values(all_cols, [tline[c] for c in all_cols], name_mapping)
                     merged_all_counts[key] += int(tline['count'])
             # sum the single-key count tables (base content, cluster size), no gene identity so no remapping needed
             for scol in simple_count_columns:
-                sfn = '%s/parameters/%s/hmm/%s.csv' % (subdfn(isub), ltmp, scol)
+                sfn = '%s/hmm/%s.csv' % (pdir(subdfn(isub), ltmp), scol)
                 if not os.path.exists(sfn):
                     continue
                 for tline in csvlines(sfn):
@@ -5291,7 +5338,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                         pcounts['total'] += obs_sum
         if merged_glfo is None:  # none of them exists
             continue
-        glutils.write_glfo('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp), merged_glfo)
+        glutils.write_glfo('%s/hmm/germline-sets' % pdir(merged_odir, ltmp), merged_glfo)
         for treg in regions:
             with open(gpfn(merged_odir, ltmp, treg), 'w') as gfile:
                 writer = csv.DictWriter(gfile, ['%s_gene'%treg, 'count'])
@@ -5323,7 +5370,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                         writer.writerow(row)
         for col, table_counts in merged_length_counts.items():  # write the summed deletion/insertion-length tables, same recompute-not-average approach as the mute-freqs table above
             cols_in_order = [col] + column_dependencies[col]
-            lfn = '%s/parameters/%s/hmm/%s' % (merged_odir, ltmp, get_parameter_fname(column_and_deps=cols_in_order))
+            lfn = '%s/hmm/%s' % (pdir(merged_odir, ltmp), get_parameter_fname(column_and_deps=cols_in_order))
             with open(lfn, csv_wmode()) as lfile:
                 writer = csv.DictWriter(lfile, cols_in_order + ['count'])
                 writer.writeheader()
@@ -5333,7 +5380,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                     writer.writerow(row)
         if len(merged_all_counts) > 0:  # write the summed full-rearrangement table
             all_cols = list(index_columns) + ['cdr3_length']
-            afn = '%s/parameters/%s/hmm/%s' % (merged_odir, ltmp, get_parameter_fname(column='all'))
+            afn = '%s/hmm/%s' % (pdir(merged_odir, ltmp), get_parameter_fname(column='all'))
             with open(afn, csv_wmode()) as afile:
                 writer = csv.DictWriter(afile, all_cols + ['count'])
                 writer.writeheader()
@@ -5344,7 +5391,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         for scol, counts in merged_simple_counts.items():  # write the summed single-key count tables
             if len(counts) == 0:
                 continue
-            sfn = '%s/parameters/%s/hmm/%s.csv' % (merged_odir, ltmp, scol)
+            sfn = '%s/hmm/%s.csv' % (pdir(merged_odir, ltmp), scol)
             with open(sfn, csv_wmode()) as sfile:
                 writer = csv.DictWriter(sfile, [scol, 'count'])
                 writer.writeheader()
