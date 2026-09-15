@@ -43,7 +43,8 @@ fi
 cd "$CLONE" || { echo "FATAL: cd $CLONE failed" >&2; exit 2; }
 git fetch origin --quiet || { echo "FATAL: git fetch failed" >&2; exit 2; }
 git reset --hard "$REF" --quiet || { echo "FATAL: git reset --hard $REF failed" >&2; exit 2; }
-git submodule update --init --quiet packages/zig-core || { echo "FATAL: submodule update failed" >&2; exit 2; }
+# packages/zig-core is plain tracked content (brought in-tree by fa6f199dc),
+# not a git submodule -- no `git submodule update` needed here.
 
 mkdir -p "$LOGDIR" || { echo "FATAL: could not create $LOGDIR" >&2; exit 2; }
 find "$LOGDIR" -maxdepth 1 -name '*.log' -type f -mtime +"$RETAIN_DAYS" -delete 2>/dev/null || true

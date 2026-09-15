@@ -9,10 +9,11 @@ Runs `zig build test` plus the full non-quick, non-paired `partis-test.py` tier 
 ### One-time setup
 
 ```bash
-# 1. Dedicated clone (kept separate from any interactive checkout)
+# 1. Dedicated clone (kept separate from any interactive checkout).
+#    packages/zig-core is plain tracked content, not a git submodule
+#    (brought in-tree by fa6f199dc) -- a normal clone is all that's needed.
 git clone git@github.com:psathyrella/partis.git ~/re/pz-zig-nightly-ci
 cd ~/re/pz-zig-nightly-ci
-git submodule update --init packages/zig-core
 
 # 2. Python venv the nightly script activates before calling partis-test.py.
 #    Backend choice doesn't matter here -- the nightly script always passes
