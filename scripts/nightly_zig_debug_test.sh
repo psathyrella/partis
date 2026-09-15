@@ -125,7 +125,16 @@ STATUS=$?
 LEAK_LINES="$(grep -ic 'leaked' "$LOG" || true)"
 
 if (( STATUS != 0 )) || (( LEAK_LINES > 0 )); then
-    msg="partis zig-core nightly FAILED on ${HOSTNAME:-$(hostname)} @ $SHA"$'\n'"exit:       $STATUS"$'\n'"leak lines: $LEAK_LINES"$'\n'"log:        $LOG"$'\n'$'\n'"$(tail -40 "$LOG")"
+    # If leaks were found, show the leak text itself rather than the log's
+    # tail -- the leak stack traces sit well before the final run-times
+    # summary in a full test-tier log, so `tail -40` alone would show a
+    # FAILED notification with no actual leak content in the body.
+    if (( LEAK_LINES > 0 )); then
+        excerpt="$(grep -i -B1 -A6 'leaked' "$LOG" | head -40)"
+    else
+        excerpt="$(tail -40 "$LOG")"
+    fi
+    msg="partis zig-core nightly FAILED on ${HOSTNAME:-$(hostname)} @ $SHA"$'\n'"exit:       $STATUS"$'\n'"leak lines: $LEAK_LINES"$'\n'"log:        $LOG"$'\n'$'\n'"$excerpt"
     curl --silent --show-error --max-time 20 \
         -H "Title: partis zig-core nightly FAILED @ $SHA" \
         -H "Priority: high" \
