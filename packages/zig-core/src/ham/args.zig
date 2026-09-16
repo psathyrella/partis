@@ -6,7 +6,6 @@
 ///
 /// C++ source: packages/ham/src/args.cc, packages/ham/include/args.h
 /// C++ author: psathyrella/ham
-
 const std = @import("std");
 const ham_text = @import("text.zig");
 
@@ -191,7 +190,7 @@ pub const Args = struct {
         // Parse header line
         const header_raw = (file_reader.interface.takeDelimiter('\n') catch |err| switch (err) {
             error.StreamTooLong => {
-                std.debug.print("error: header line in '{s}' exceeds maximum supported line length (2 MiB)\n", .{self.infile});
+                std.debug.print("error: header line in '{s}' exceeds maximum supported line length ({d} MiB)\n", .{ self.infile, read_buffer_size / (1024 * 1024) });
                 return err;
             },
             else => return err,
@@ -205,18 +204,48 @@ pub const Args = struct {
         {
             var tok = std.mem.splitScalar(u8, std.mem.trim(u8, header_raw, " \t\r"), ' ');
             while (tok.next()) |h| {
-                if (h.len > 0) try headers.append(allocator, try allocator.dupe(u8, h));
+                if (h.len > 0) {
+                    const owned = try allocator.dupe(u8, h);
+                    errdefer allocator.free(owned);
+                    try headers.append(allocator, owned);
+                }
             }
         }
+
+        errdefer {
+            for (self.queries.items) |*q| q.deinit(allocator);
+            self.queries.clearRetainingCapacity();
+        }
+
+        var total_bytes_read: usize = header_raw.len + 1;
 
         // Parse data rows
         while (file_reader.interface.takeDelimiter('\n') catch |err| switch (err) {
             error.StreamTooLong => {
-                std.debug.print("error: data row in '{s}' exceeds maximum supported line length (2 MiB)\n", .{self.infile});
+                std.debug.print("error: data row in '{s}' exceeds maximum supported line length ({d} MiB)\n", .{ self.infile, read_buffer_size / (1024 * 1024) });
                 return err;
             },
             else => return err,
         }) |raw_line| {
+            total_bytes_read += raw_line.len + 1;
+            if (total_bytes_read > self.max_infile_bytes) {
+                if (self.max_infile_bytes >= 1024 * 1024 * 1024) {
+                    std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
+                        self.infile,
+                        total_bytes_read,
+                        self.max_infile_bytes,
+                        self.max_infile_bytes / (1024 * 1024 * 1024),
+                    });
+                } else {
+                    std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes)\n", .{
+                        self.infile,
+                        total_bytes_read,
+                        self.max_infile_bytes,
+                    });
+                }
+                return error.FileTooBig;
+            }
+
             const line = std.mem.trim(u8, raw_line, " \t\r");
             if (line.len < 10) continue; // skip blank/short lines
 
@@ -237,30 +266,29 @@ pub const Args = struct {
             for (headers.items) |head| {
                 const field = tok.next() orelse break;
                 if (isStrListHeader(head)) {
-                    // Split on ':' — matches C++ SplitString(tmpstr, ":")
-                    var parts = try ham_text.splitString(allocator, field, ":");
-                    defer {
-                        for (parts.items) |p| allocator.free(p);
-                        parts.deinit(allocator);
-                    }
+                    var parts_iter = std.mem.splitScalar(u8, field, ':');
                     if (std.mem.eql(u8, head, "names")) {
-                        for (parts.items) |p| try q.names.append(allocator, try allocator.dupe(u8, p));
-                    } else if (std.mem.eql(u8, head, "seqs")) {
-                        for (parts.items) |p| {
-                            // Strip newlines from each sequence
+                        while (parts_iter.next()) |p| {
                             const owned = try allocator.dupe(u8, p);
+                            errdefer allocator.free(owned);
+                            try q.names.append(allocator, owned);
+                        }
+                    } else if (std.mem.eql(u8, head, "seqs")) {
+                        while (parts_iter.next()) |p| {
+                            const owned = try allocator.dupe(u8, p);
+                            errdefer allocator.free(owned);
                             try q.seqs.append(allocator, owned);
                         }
                     } else if (std.mem.eql(u8, head, "only_genes")) {
-                        for (parts.items) |p| try q.only_genes.append(allocator, try allocator.dupe(u8, p));
+                        while (parts_iter.next()) |p| {
+                            const owned = try allocator.dupe(u8, p);
+                            errdefer allocator.free(owned);
+                            try q.only_genes.append(allocator, owned);
+                        }
                     }
                 } else if (isIntHeader(head)) {
                     const val = try std.fmt.parseInt(i32, field, 10);
-                    if (std.mem.eql(u8, head, "k_v_min")) q.k_v_min = val
-                    else if (std.mem.eql(u8, head, "k_v_max")) q.k_v_max = val
-                    else if (std.mem.eql(u8, head, "k_d_min")) q.k_d_min = val
-                    else if (std.mem.eql(u8, head, "k_d_max")) q.k_d_max = val
-                    else if (std.mem.eql(u8, head, "cdr3_length")) q.cdr3_length = val;
+                    if (std.mem.eql(u8, head, "k_v_min")) q.k_v_min = val else if (std.mem.eql(u8, head, "k_v_max")) q.k_v_max = val else if (std.mem.eql(u8, head, "k_d_min")) q.k_d_min = val else if (std.mem.eql(u8, head, "k_d_max")) q.k_d_max = val else if (std.mem.eql(u8, head, "cdr3_length")) q.cdr3_length = val;
                 } else if (isFloatHeader(head)) {
                     const val = try std.fmt.parseFloat(f64, field);
                     if (std.mem.eql(u8, head, "mut_freq")) q.mut_freq = val;
@@ -362,4 +390,3 @@ test "Args: readInfile FileTooBig diagnostics" {
 
     try std.testing.expectError(error.FileTooBig, args.readInfile(allocator));
 }
-

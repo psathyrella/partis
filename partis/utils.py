@@ -5815,6 +5815,19 @@ def get_slurm_node(errfname):
     return nodelist
 
 # ----------------------------------------------------------------------------------------
+def extract_cli_arg(cmd_str, flag):
+    if not cmd_str:
+        return None
+    tokens = cmd_str.split()
+    try:
+        idx = tokens.index(flag)
+        if idx + 1 < len(tokens):
+            return tokens[idx + 1]
+    except (ValueError, IndexError):
+        pass
+    return None
+
+# ----------------------------------------------------------------------------------------
 # deal with a process once it's finished (i.e. check if it failed, and tell the calling fcn to restart it if so)
 def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_system=None, debug=None, ignore_stderr=False, clean_on_success=False, allow_failure=False):
     # ----------------------------------------------------------------------------------------
@@ -5883,8 +5896,8 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
     if os.path.exists(err_fname):
         try:
             with open(err_fname, 'r', errors='replace') as ef:
-                err_content = ef.read()
-        except Exception:
+                err_content = ef.read(1024 * 1024)
+        except (OSError, IOError):
             pass
     is_file_too_big = 'FileTooBig' in err_content
 
@@ -5893,18 +5906,20 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
         rtn_strs.append('      restarting proc %d' % iproc)
         return 'restart', '\n'.join(rtn_strs)
     else:
-        failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n        %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
+        if is_file_too_big:
+            failstr = 'fatal non-retryable error (FileTooBig) on try %d for subprocess with command:\n        %s\n' % (n_tried, cmdfo['cmd_str'])
+        else:
+            failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n        %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
         failstr += getlogstrs()  # used to try to only print err/out as needed, but it was too easy to miss useful info
         if is_file_too_big:
             hint_lines = [
                 '\n    error diagnosis: backend failed because an input file exceeded the maximum supported size.'
             ]
-            cmd_tokens = cmdfo['cmd_str'].split()
-            if '--infile' in cmd_tokens:
-                in_path = cmd_tokens[cmd_tokens.index('--infile') + 1]
-                if os.path.exists(in_path):
+            for flag, desc in [('--infile', 'per-proc input file'), ('--input-cachefname', 'input cache file')]:
+                in_path = extract_cli_arg(cmdfo.get('cmd_str'), flag)
+                if in_path and os.path.exists(in_path):
                     sz = os.path.getsize(in_path)
-                    hint_lines.append('      per-proc input file: %s (%d bytes, %.1f MB)' % (in_path, sz, sz / (1024.0 * 1024.0)))
+                    hint_lines.append('      %s (%s): %d bytes (%.1f MB)' % (desc, in_path, sz, sz / (1024.0 * 1024.0)))
             hint_lines.append('      suggestion: increase --n-procs to split queries into smaller per-proc files.\n')
             failstr = '\n'.join(hint_lines) + '\n' + failstr
         if allow_failure:
