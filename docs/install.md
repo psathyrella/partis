@@ -67,7 +67,15 @@ PARTIS_BACKEND=zig pip install -e .
 This builds the zig binaries (via `bin/zig-build.sh`) instead of the C++ backend.
 To use zig at run time, pass `--zig` to each partis command.
 
-Alternatively, on an existing C++ install, build zig alongside it with `bin/zig-build.sh` and likewise select it per command with `--zig`.
+Alternatively, on an existing C++ install, build zig alongside it with `bin/zig-build.sh` (or `make zig`) and likewise select it per command with `--zig`.
+
+To build with safety checks and memory leak detection enabled (e.g. for testing or debugging), build in `ReleaseSafe` mode:
+```bash
+make zig-safe
+# or:
+bin/zig-build.sh --release-safe
+```
+This retains compiler optimizations (`-O2`) while activating Zig runtime safety checks and GPA leak detection at process exit. To switch back to `ReleaseFast`, run `make zig` (or `bin/zig-build.sh`).
 
 #### Simulation
 
