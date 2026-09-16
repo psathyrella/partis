@@ -24,7 +24,9 @@ pub fn main() !void {
         // metadata adds overhead on large workloads.
         std.heap.c_allocator;
     defer if (is_safe) {
-        _ = gpa_instance.deinit();
+        if (gpa_instance.deinit() == .leak) {
+            std.process.exit(1);
+        }
     };
     try bcrham.run(allocator, std.os.argv[1..]);
 }

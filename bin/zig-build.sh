@@ -41,6 +41,15 @@ while [[ $# -gt 0 ]]; do
             OPTIMIZE="ReleaseSmall"
             shift
             ;;
+        -Doptimize)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: -Doptimize requires a value" >&2
+                exit 1
+            fi
+            shift
+            OPTIMIZE="$1"
+            shift
+            ;;
         -Doptimize=*)
             OPTIMIZE="${1#-Doptimize=}"
             shift
@@ -120,8 +129,8 @@ export PARTIS_DIR
 echo "==> Building partis-zig-core (mode: $OPTIMIZE)..."
 (cd "$ZIG_CORE_DIR" && "$ZIG" build -Doptimize="$OPTIMIZE" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}")
 
-if [[ ! -x "$ZIG_EXE_FINAL" ]]; then
-    echo "ERROR: build succeeded but executable not found at $ZIG_EXE_FINAL" >&2
+if [[ ! -x "$ZIG_EXE_FINAL" || ! -x "$ZIG_IGSW_EXE_FINAL" ]]; then
+    echo "ERROR: build succeeded but executable not found at $ZIG_EXE_FINAL or $ZIG_IGSW_EXE_FINAL" >&2
     exit 1
 fi
 

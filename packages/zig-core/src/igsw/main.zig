@@ -85,7 +85,9 @@ const Args = struct {
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    defer _ = gpa.deinit();
+    defer if (gpa.deinit() == .leak) {
+        std.process.exit(1);
+    };
     const allocator = gpa.allocator();
 
     const argv = std.os.argv;

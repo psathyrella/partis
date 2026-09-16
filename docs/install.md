@@ -75,7 +75,11 @@ make zig-safe
 # or:
 bin/zig-build.sh --release-safe
 ```
-This retains compiler optimizations (`-O2`) while activating Zig runtime safety checks and GPA leak detection at process exit. To switch back to `ReleaseFast`, run `make zig` (or `bin/zig-build.sh`).
+This retains compiler optimizations (`-O2`) while activating Zig runtime safety checks and GPA leak detection at process exit. To run quick tests against the ReleaseSafe build:
+```bash
+make test-safe
+```
+To switch back to `ReleaseFast`, run `make zig` (or `bin/zig-build.sh`).
 
 #### Simulation
 

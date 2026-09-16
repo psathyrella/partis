@@ -1,4 +1,6 @@
-.PHONY: all zig zig-fast zig-safe zig-debug test-safe test-quick-zig
+export PATH := $(if $(wildcard .venv/bin),$(CURDIR)/.venv/bin:$(PATH),$(PATH))
+
+.PHONY: all zig zig-fast zig-safe zig-debug test-safe test-fast test-quick-zig test-zig-safe test-zig-fast
 
 all: zig
 
@@ -17,5 +19,11 @@ zig-debug:
 test-safe: zig-safe
 	./bin/partis-test.py --quick --zig
 
-test-quick-zig: zig-fast
+test-fast: zig-fast
 	./bin/partis-test.py --quick --zig
+
+test-quick-zig: test-fast
+
+test-zig-safe: test-safe
+
+test-zig-fast: test-fast
