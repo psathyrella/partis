@@ -9,6 +9,7 @@ import string
 import time
 import sys
 import os
+import re
 import random
 import uuid
 import itertools
@@ -5918,15 +5919,14 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
             hint_lines = [
                 '\n    error diagnosis: backend failed because an input file or row exceeded the maximum supported size.'
             ]
-            has_oversized_infile = False
             for flag, desc in [('--infile', 'per-proc input file'), ('--input-cachefname', 'input cache file')]:
                 in_path = extract_cli_arg(cmdfo.get('cmd_str'), flag)
                 if in_path and os.path.exists(in_path):
                     sz = os.path.getsize(in_path)
                     hint_lines.append('      %s (%s): %d bytes (%.1f MB)' % (desc, in_path, sz, sz / (1024.0 * 1024.0)))
-                    if flag == '--infile':
-                        has_oversized_infile = True
-            if is_file_too_big and has_oversized_infile:
+            oversized_paths = re.findall(r"error: [a-z ]+ '([^']+)' .*exceeds maximum supported size", err_content)
+            infile_path = extract_cli_arg(cmdfo.get('cmd_str'), '--infile')
+            if is_file_too_big and infile_path is not None and infile_path in oversized_paths:
                 hint_lines.append('      suggestion: increase --n-procs to split queries into smaller per-proc files.\n')
             else:
                 hint_lines.append('')

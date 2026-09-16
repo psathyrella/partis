@@ -88,12 +88,14 @@ pub const Args = struct {
     write_logprob_for_each_partition: bool,
 
     max_infile_bytes: usize,
+    initial_read_buffer_size: usize,
 
     // ── CSV data ──────────────────────────────────────────────────────────────
     /// One entry per query row in the input CSV.
     queries: std.ArrayListUnmanaged(QueryRow),
 
     pub const default_max_infile_bytes: usize = 4 * 1024 * 1024 * 1024; // 4 GiB
+    pub const default_initial_read_buffer_size: usize = 2 * 1024 * 1024; // 2 MiB
 
     /// Create an empty Args with default values.
     pub fn initDefaults(allocator: std.mem.Allocator) !Args {
@@ -130,6 +132,7 @@ pub const Args = struct {
             .only_cache_new_vals = false,
             .write_logprob_for_each_partition = false,
             .max_infile_bytes = default_max_infile_bytes,
+            .initial_read_buffer_size = default_initial_read_buffer_size,
             .queries = .{},
         };
     }
@@ -150,8 +153,6 @@ pub const Args = struct {
         self.queries.deinit(allocator);
     }
 
-    pub var initial_read_buffer_size: usize = 2 * 1024 * 1024; // 2 MiB initial streaming buffer (dynamically grows on StreamTooLong)
-
     /// Read the next line from `file_reader`, dynamically growing `buffer` if the line exceeds
     /// the current buffer capacity, up to `max_line_bytes`.
     fn readNextLine(file_reader: *std.fs.File.Reader, buffer: *[]u8, allocator: std.mem.Allocator, max_line_bytes: usize, filename: []const u8) !?[]const u8 {
@@ -161,9 +162,8 @@ pub const Args = struct {
             } else |err| switch (err) {
                 error.StreamTooLong => {
                     if (buffer.*.len >= max_line_bytes) {
-                        std.debug.print("error: line in '{s}' ({d} bytes) exceeds maximum supported line length ({d} bytes)\n", .{
+                        std.debug.print("error: line in '{s}' exceeds maximum supported line length ({d} bytes)\n", .{
                             filename,
-                            buffer.*.len,
                             max_line_bytes,
                         });
                         return error.StreamTooLong;
@@ -205,13 +205,15 @@ pub const Args = struct {
             return error.FileTooBig;
         }
 
-        var read_buf = try allocator.alloc(u8, initial_read_buffer_size);
+        const max_line_bytes = @min(self.max_infile_bytes, file_stat.size + 1);
+
+        var read_buf = try allocator.alloc(u8, self.initial_read_buffer_size);
         defer allocator.free(read_buf);
 
         var file_reader = file.readerStreaming(read_buf);
 
         // Parse header line
-        const header_raw = (try readNextLine(&file_reader, &read_buf, allocator, self.max_infile_bytes, self.infile)) orelse return error.EmptyInputFile;
+        const header_raw = (try readNextLine(&file_reader, &read_buf, allocator, max_line_bytes, self.infile)) orelse return error.EmptyInputFile;
 
         var headers: std.ArrayListUnmanaged([]const u8) = .{};
         defer {
@@ -235,7 +237,7 @@ pub const Args = struct {
         }
 
         // Parse data rows
-        while (try readNextLine(&file_reader, &read_buf, allocator, self.max_infile_bytes, self.infile)) |raw_line| {
+        while (try readNextLine(&file_reader, &read_buf, allocator, max_line_bytes, self.infile)) |raw_line| {
             const line = std.mem.trim(u8, raw_line, " \t\r");
             if (line.len < 10) continue; // skip blank/short lines
 
@@ -405,14 +407,11 @@ test "Args: readInfile line longer than initial buffer (dynamic buffer growth)" 
         "gene1:gene2 1 10 1 5 30 0.05\n";
     try tmp_dir.dir.writeFile(.{ .sub_path = "test_args_long_line.csv", .data = csv });
 
-    const orig_buf_size = Args.initial_read_buffer_size;
-    Args.initial_read_buffer_size = 64; // Force small 64-byte initial buffer
-    defer Args.initial_read_buffer_size = orig_buf_size;
-
     var args = try Args.initDefaults(allocator);
     defer args.deinit(allocator);
     allocator.free(args.infile);
     args.infile = try allocator.dupe(u8, full_path);
+    args.initial_read_buffer_size = 64; // Force small 64-byte initial buffer
 
     try args.readInfile(allocator);
 
@@ -474,14 +473,11 @@ test "Args: readInfile row spanning buffer refill boundary" {
         "seq3 GGGG gene3 3 15 3 7 35 0.10\n";
     try tmp_dir.dir.writeFile(.{ .sub_path = "test_args_refill.csv", .data = csv });
 
-    const orig_buf_size = Args.initial_read_buffer_size;
-    Args.initial_read_buffer_size = 64;
-    defer Args.initial_read_buffer_size = orig_buf_size;
-
     var args = try Args.initDefaults(allocator);
     defer args.deinit(allocator);
     allocator.free(args.infile);
     args.infile = try allocator.dupe(u8, full_path);
+    args.initial_read_buffer_size = 64;
 
     try args.readInfile(allocator);
 
@@ -490,3 +486,22 @@ test "Args: readInfile row spanning buffer refill boundary" {
     try std.testing.expectEqualStrings("seq2", args.queries.items[1].names.items[0]);
     try std.testing.expectEqualStrings("seq3", args.queries.items[2].names.items[0]);
 }
+
+test "Args: readNextLine StreamTooLong when line exceeds max_line_bytes" {
+    const allocator = std.testing.allocator;
+
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    try tmp_dir.dir.writeFile(.{ .sub_path = "test_stream_too_long.txt", .data = "12345678901234567890\n" });
+    const file = try tmp_dir.dir.openFile("test_stream_too_long.txt", .{});
+    defer file.close();
+
+    var buf = try allocator.alloc(u8, 8);
+    defer allocator.free(buf);
+
+    var file_reader = file.readerStreaming(buf);
+    const result = Args.readNextLine(&file_reader, &buf, allocator, 16, "test_stream_too_long.txt");
+    try std.testing.expectError(error.StreamTooLong, result);
+}
+
