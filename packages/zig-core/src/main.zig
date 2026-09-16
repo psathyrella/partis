@@ -9,7 +9,6 @@
 ///                   --locus <igh|igk|igl|tra|trb|trg|trd> [optional-args...]
 ///
 /// Unknown arguments are silently ignored (bcrham compat).
-
 const std = @import("std");
 const builtin = @import("builtin");
 const bcrham = @import("ham/bcrham.zig");

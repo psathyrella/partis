@@ -6,7 +6,6 @@
 /// Zig ig_align wrapper.
 ///
 /// C++ source: packages/ig-sw/src/ig_align/ig_align_main.cpp
-
 const std = @import("std");
 const ig_align = @import("ig_align.zig");
 
@@ -22,7 +21,7 @@ fn parseLocus(s: []const u8) ?Locus {
     if (std.mem.eql(u8, s, "TRB")) return .TRB;
     if (std.mem.eql(u8, s, "TRG")) return .TRG;
     if (std.mem.eql(u8, s, "TRD")) return .TRD;
-    if (std.mem.eql(u8, s, "DJ"))  return .DJ;
+    if (std.mem.eql(u8, s, "DJ")) return .DJ;
     return null;
 }
 
