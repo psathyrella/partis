@@ -5877,13 +5877,36 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
     if os.path.exists(outfname + '.progress'):  # glomerator.cc is the only one that uses this at the moment
         rtn_strs.append('        progress file (%s):' % (outfname + '.progress'))
         rtn_strs.append(pad_lines(subprocess.check_output(['cat', outfname + '.progress'], universal_newlines=True), padwidth=12))
-    if n_tried < n_max_tries:
+
+    err_fname = logfname('err')
+    err_content = ''
+    if os.path.exists(err_fname):
+        try:
+            with open(err_fname, 'r', errors='replace') as ef:
+                err_content = ef.read()
+        except Exception:
+            pass
+    is_file_too_big = 'FileTooBig' in err_content
+
+    if n_tried < n_max_tries and not is_file_too_big:
         rtn_strs.append(getlogstrs(['err']))
         rtn_strs.append('      restarting proc %d' % iproc)
         return 'restart', '\n'.join(rtn_strs)
     else:
         failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n        %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
         failstr += getlogstrs()  # used to try to only print err/out as needed, but it was too easy to miss useful info
+        if is_file_too_big:
+            hint_lines = [
+                '\n    error diagnosis: backend failed because an input file exceeded the maximum supported size.'
+            ]
+            cmd_tokens = cmdfo['cmd_str'].split()
+            if '--infile' in cmd_tokens:
+                in_path = cmd_tokens[cmd_tokens.index('--infile') + 1]
+                if os.path.exists(in_path):
+                    sz = os.path.getsize(in_path)
+                    hint_lines.append('      per-proc input file: %s (%d bytes, %.1f MB)' % (in_path, sz, sz / (1024.0 * 1024.0)))
+            hint_lines.append('      suggestion: increase --n-procs to split queries into smaller per-proc files.\n')
+            failstr = '\n'.join(hint_lines) + '\n' + failstr
         if allow_failure:
             rtn_strs.append('      %s\n      not raising exception for failed process' % failstr)
             procs[iproc] = None  # let it keep running any other processes

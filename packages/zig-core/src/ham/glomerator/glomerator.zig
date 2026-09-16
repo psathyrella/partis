@@ -508,7 +508,31 @@ pub const Glomerator = struct {
         // 4 GiB cap accommodates collision-heavy paired runs (e.g. 50k all-singleton
         // events) where the partition cache grows past 256 MiB. Not a memory guard —
         // if RSS is genuinely tight the program will OOM regardless.
-        const content = try std.fs.cwd().readFileAlloc(allocator, self.args.input_cachefname, 4 * 1024 * 1024 * 1024);
+        const max_cache_bytes: usize = 4 * 1024 * 1024 * 1024;
+        const content = std.fs.cwd().readFileAlloc(allocator, self.args.input_cachefname, max_cache_bytes) catch |err| switch (err) {
+            error.FileTooBig => {
+                var actual_size: ?u64 = null;
+                if (std.fs.cwd().statFile(self.args.input_cachefname)) |st| {
+                    actual_size = st.size;
+                } else |_| {}
+                if (actual_size) |sz| {
+                    std.debug.print("error: cache file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
+                        self.args.input_cachefname,
+                        sz,
+                        max_cache_bytes,
+                        max_cache_bytes / (1024 * 1024 * 1024),
+                    });
+                } else {
+                    std.debug.print("error: cache file '{s}' exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
+                        self.args.input_cachefname,
+                        max_cache_bytes,
+                        max_cache_bytes / (1024 * 1024 * 1024),
+                    });
+                }
+                return err;
+            },
+            else => return err,
+        };
         defer allocator.free(content);
 
         var line_iter = std.mem.splitScalar(u8, content, '\n');

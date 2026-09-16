@@ -88,9 +88,13 @@ pub const Args = struct {
     only_cache_new_vals: bool,
     write_logprob_for_each_partition: bool,
 
+    max_infile_bytes: usize,
+
     // ── CSV data ──────────────────────────────────────────────────────────────
     /// One entry per query row in the input CSV.
     queries: std.ArrayListUnmanaged(QueryRow),
+
+    pub const default_max_infile_bytes: usize = 4 * 1024 * 1024 * 1024; // 4 GiB
 
     /// Create an empty Args with default values.
     pub fn initDefaults(allocator: std.mem.Allocator) !Args {
@@ -126,6 +130,7 @@ pub const Args = struct {
             .cache_naive_hfracs = false,
             .only_cache_new_vals = false,
             .write_logprob_for_each_partition = false,
+            .max_infile_bytes = default_max_infile_bytes,
             .queries = .{},
         };
     }
@@ -149,7 +154,37 @@ pub const Args = struct {
     /// Parse the CSV input file (infile must already be set).
     /// Corresponds to the file-reading portion of C++ `Args::Args(argc, argv)`.
     pub fn readInfile(self: *Args, allocator: std.mem.Allocator) !void {
-        const content = try std.fs.cwd().readFileAlloc(allocator, self.infile, 64 * 1024 * 1024);
+        const content = std.fs.cwd().readFileAlloc(allocator, self.infile, self.max_infile_bytes) catch |err| switch (err) {
+            error.FileTooBig => {
+                var actual_size: ?u64 = null;
+                if (std.fs.cwd().statFile(self.infile)) |st| {
+                    actual_size = st.size;
+                } else |_| {}
+                if (actual_size) |sz| {
+                    if (self.max_infile_bytes >= 1024 * 1024 * 1024) {
+                        std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
+                            self.infile,
+                            sz,
+                            self.max_infile_bytes,
+                            self.max_infile_bytes / (1024 * 1024 * 1024),
+                        });
+                    } else {
+                        std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes)\n", .{
+                            self.infile,
+                            sz,
+                            self.max_infile_bytes,
+                        });
+                    }
+                } else {
+                    std.debug.print("error: input file '{s}' exceeds maximum supported size ({d} bytes)\n", .{
+                        self.infile,
+                        self.max_infile_bytes,
+                    });
+                }
+                return err;
+            },
+            else => return err,
+        };
         defer allocator.free(content);
 
         var line_iter = std.mem.splitScalar(u8, content, '\n');
@@ -288,3 +323,28 @@ test "Args: readInfile with minimal CSV" {
     try std.testing.expectEqual(@as(i32, 1), q.k_v_min);
     try std.testing.expectApproxEqAbs(0.05, q.mut_freq, 1e-9);
 }
+
+test "Args: readInfile FileTooBig diagnostics" {
+    const allocator = std.testing.allocator;
+
+    const csv = "names seqs only_genes k_v_min k_v_max k_d_min k_d_max cdr3_length mut_freq\n" ++
+        "seq1 ACGT gene1:gene2 1 10 1 5 30 0.05\n";
+
+    const tmp = "/tmp/test_args_input_large.csv";
+    {
+        const f = try std.fs.createFileAbsolute(tmp, .{});
+        defer f.close();
+        try f.writeAll(csv);
+    }
+    defer std.fs.deleteFileAbsolute(tmp) catch {};
+
+    var args = try Args.initDefaults(allocator);
+    defer args.deinit(allocator);
+    allocator.free(args.infile);
+    args.infile = try allocator.dupe(u8, tmp);
+    // Set max_infile_bytes smaller than the CSV size to trigger FileTooBig
+    args.max_infile_bytes = 20;
+
+    try std.testing.expectError(error.FileTooBig, args.readInfile(allocator));
+}
+
