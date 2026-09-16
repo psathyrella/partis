@@ -151,57 +151,72 @@ pub const Args = struct {
         self.queries.deinit(allocator);
     }
 
+    pub const read_buffer_size: usize = 2 * 1024 * 1024; // 2 MiB streaming buffer
+
     /// Parse the CSV input file (infile must already be set).
     /// Corresponds to the file-reading portion of C++ `Args::Args(argc, argv)`.
     pub fn readInfile(self: *Args, allocator: std.mem.Allocator) !void {
-        const content = std.fs.cwd().readFileAlloc(allocator, self.infile, self.max_infile_bytes) catch |err| switch (err) {
-            error.FileTooBig => {
-                var actual_size: ?u64 = null;
-                if (std.fs.cwd().statFile(self.infile)) |st| {
-                    actual_size = st.size;
-                } else |_| {}
-                if (actual_size) |sz| {
-                    if (self.max_infile_bytes >= 1024 * 1024 * 1024) {
-                        std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
-                            self.infile,
-                            sz,
-                            self.max_infile_bytes,
-                            self.max_infile_bytes / (1024 * 1024 * 1024),
-                        });
-                    } else {
-                        std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes)\n", .{
-                            self.infile,
-                            sz,
-                            self.max_infile_bytes,
-                        });
-                    }
-                } else {
-                    std.debug.print("error: input file '{s}' exceeds maximum supported size ({d} bytes)\n", .{
+        const file = std.fs.cwd().openFile(self.infile, .{}) catch |err| {
+            std.debug.print("error: unable to open input file '{s}': {}\n", .{ self.infile, err });
+            return err;
+        };
+        defer file.close();
+
+        // Check file size against max_infile_bytes if applicable
+        if (file.stat()) |st| {
+            if (st.size > self.max_infile_bytes) {
+                if (self.max_infile_bytes >= 1024 * 1024 * 1024) {
+                    std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
                         self.infile,
+                        st.size,
+                        self.max_infile_bytes,
+                        self.max_infile_bytes / (1024 * 1024 * 1024),
+                    });
+                } else {
+                    std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes)\n", .{
+                        self.infile,
+                        st.size,
                         self.max_infile_bytes,
                     });
                 }
+                return error.FileTooBig;
+            }
+        } else |_| {}
+
+        const read_buf = try allocator.alloc(u8, read_buffer_size);
+        defer allocator.free(read_buf);
+
+        var file_reader = file.readerStreaming(read_buf);
+
+        // Parse header line
+        const header_raw = (file_reader.interface.takeDelimiter('\n') catch |err| switch (err) {
+            error.StreamTooLong => {
+                std.debug.print("error: header line in '{s}' exceeds maximum supported line length (2 MiB)\n", .{self.infile});
                 return err;
             },
             else => return err,
-        };
-        defer allocator.free(content);
+        }) orelse return error.EmptyInputFile;
 
-        var line_iter = std.mem.splitScalar(u8, content, '\n');
-
-        // Parse header line
-        const header_line = line_iter.next() orelse return error.EmptyInputFile;
         var headers: std.ArrayListUnmanaged([]const u8) = .{};
-        defer headers.deinit(allocator);
+        defer {
+            for (headers.items) |h| allocator.free(h);
+            headers.deinit(allocator);
+        }
         {
-            var tok = std.mem.splitScalar(u8, std.mem.trim(u8, header_line, " \t\r"), ' ');
+            var tok = std.mem.splitScalar(u8, std.mem.trim(u8, header_raw, " \t\r"), ' ');
             while (tok.next()) |h| {
-                if (h.len > 0) try headers.append(allocator, h);
+                if (h.len > 0) try headers.append(allocator, try allocator.dupe(u8, h));
             }
         }
 
         // Parse data rows
-        while (line_iter.next()) |raw_line| {
+        while (file_reader.interface.takeDelimiter('\n') catch |err| switch (err) {
+            error.StreamTooLong => {
+                std.debug.print("error: data row in '{s}' exceeds maximum supported line length (2 MiB)\n", .{self.infile});
+                return err;
+            },
+            else => return err,
+        }) |raw_line| {
             const line = std.mem.trim(u8, raw_line, " \t\r");
             if (line.len < 10) continue; // skip blank/short lines
 
