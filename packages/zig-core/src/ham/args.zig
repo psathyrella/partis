@@ -150,7 +150,41 @@ pub const Args = struct {
         self.queries.deinit(allocator);
     }
 
-    pub const read_buffer_size: usize = 2 * 1024 * 1024; // 2 MiB streaming buffer
+    pub var initial_read_buffer_size: usize = 2 * 1024 * 1024; // 2 MiB initial streaming buffer (dynamically grows on StreamTooLong)
+
+    /// Read the next line from `file_reader`, dynamically growing `buffer` if the line exceeds
+    /// the current buffer capacity, up to `max_line_bytes`.
+    fn readNextLine(file_reader: *std.fs.File.Reader, buffer: *[]u8, allocator: std.mem.Allocator, max_line_bytes: usize, filename: []const u8) !?[]const u8 {
+        while (true) {
+            if (file_reader.interface.takeDelimiter('\n')) |maybe_line| {
+                return maybe_line;
+            } else |err| switch (err) {
+                error.StreamTooLong => {
+                    if (buffer.*.len >= max_line_bytes) {
+                        std.debug.print("error: line in '{s}' ({d} bytes) exceeds maximum supported line length ({d} bytes)\n", .{
+                            filename,
+                            buffer.*.len,
+                            max_line_bytes,
+                        });
+                        return error.StreamTooLong;
+                    }
+                    var new_size = buffer.*.len * 2;
+                    if (new_size > max_line_bytes) new_size = max_line_bytes;
+
+                    const unconsumed_len = file_reader.interface.end - file_reader.interface.seek;
+                    const new_buf = try allocator.alloc(u8, new_size);
+                    @memcpy(new_buf[0..unconsumed_len], file_reader.interface.buffer[file_reader.interface.seek..file_reader.interface.end]);
+                    allocator.free(buffer.*);
+                    buffer.* = new_buf;
+
+                    file_reader.interface.buffer = buffer.*;
+                    file_reader.interface.seek = 0;
+                    file_reader.interface.end = unconsumed_len;
+                },
+                else => return err,
+            }
+        }
+    }
 
     /// Parse the CSV input file (infile must already be set).
     /// Corresponds to the file-reading portion of C++ `Args::Args(argc, argv)`.
@@ -161,40 +195,23 @@ pub const Args = struct {
         };
         defer file.close();
 
-        // Check file size against max_infile_bytes if applicable
-        if (file.stat()) |st| {
-            if (st.size > self.max_infile_bytes) {
-                if (self.max_infile_bytes >= 1024 * 1024 * 1024) {
-                    std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
-                        self.infile,
-                        st.size,
-                        self.max_infile_bytes,
-                        self.max_infile_bytes / (1024 * 1024 * 1024),
-                    });
-                } else {
-                    std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes)\n", .{
-                        self.infile,
-                        st.size,
-                        self.max_infile_bytes,
-                    });
-                }
-                return error.FileTooBig;
-            }
-        } else |_| {}
+        // Check file size against max_infile_bytes up front
+        const file_stat = file.stat() catch |err| {
+            std.debug.print("error: unable to stat input file '{s}': {}\n", .{ self.infile, err });
+            return err;
+        };
+        if (file_stat.size > self.max_infile_bytes) {
+            ham_text.printFileTooBig("input file", self.infile, file_stat.size, self.max_infile_bytes);
+            return error.FileTooBig;
+        }
 
-        const read_buf = try allocator.alloc(u8, read_buffer_size);
+        var read_buf = try allocator.alloc(u8, initial_read_buffer_size);
         defer allocator.free(read_buf);
 
         var file_reader = file.readerStreaming(read_buf);
 
         // Parse header line
-        const header_raw = (file_reader.interface.takeDelimiter('\n') catch |err| switch (err) {
-            error.StreamTooLong => {
-                std.debug.print("error: header line in '{s}' exceeds maximum supported line length ({d} MiB)\n", .{ self.infile, read_buffer_size / (1024 * 1024) });
-                return err;
-            },
-            else => return err,
-        }) orelse return error.EmptyInputFile;
+        const header_raw = (try readNextLine(&file_reader, &read_buf, allocator, self.max_infile_bytes, self.infile)) orelse return error.EmptyInputFile;
 
         var headers: std.ArrayListUnmanaged([]const u8) = .{};
         defer {
@@ -217,35 +234,8 @@ pub const Args = struct {
             self.queries.clearRetainingCapacity();
         }
 
-        var total_bytes_read: usize = header_raw.len + 1;
-
         // Parse data rows
-        while (file_reader.interface.takeDelimiter('\n') catch |err| switch (err) {
-            error.StreamTooLong => {
-                std.debug.print("error: data row in '{s}' exceeds maximum supported line length ({d} MiB)\n", .{ self.infile, read_buffer_size / (1024 * 1024) });
-                return err;
-            },
-            else => return err,
-        }) |raw_line| {
-            total_bytes_read += raw_line.len + 1;
-            if (total_bytes_read > self.max_infile_bytes) {
-                if (self.max_infile_bytes >= 1024 * 1024 * 1024) {
-                    std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
-                        self.infile,
-                        total_bytes_read,
-                        self.max_infile_bytes,
-                        self.max_infile_bytes / (1024 * 1024 * 1024),
-                    });
-                } else {
-                    std.debug.print("error: input file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes)\n", .{
-                        self.infile,
-                        total_bytes_read,
-                        self.max_infile_bytes,
-                    });
-                }
-                return error.FileTooBig;
-            }
-
+        while (try readNextLine(&file_reader, &read_buf, allocator, self.max_infile_bytes, self.infile)) |raw_line| {
             const line = std.mem.trim(u8, raw_line, " \t\r");
             if (line.len < 10) continue; // skip blank/short lines
 
@@ -266,6 +256,7 @@ pub const Args = struct {
             for (headers.items) |head| {
                 const field = tok.next() orelse break;
                 if (isStrListHeader(head)) {
+                    // Split on ':' — matches C++ SplitString(tmpstr, ":") without intermediate vector allocations
                     var parts_iter = std.mem.splitScalar(u8, field, ':');
                     if (std.mem.eql(u8, head, "names")) {
                         while (parts_iter.next()) |p| {
@@ -275,6 +266,7 @@ pub const Args = struct {
                         }
                     } else if (std.mem.eql(u8, head, "seqs")) {
                         while (parts_iter.next()) |p| {
+                            // Strip newlines from each sequence
                             const owned = try allocator.dupe(u8, p);
                             errdefer allocator.free(owned);
                             try q.seqs.append(allocator, owned);
@@ -288,7 +280,11 @@ pub const Args = struct {
                     }
                 } else if (isIntHeader(head)) {
                     const val = try std.fmt.parseInt(i32, field, 10);
-                    if (std.mem.eql(u8, head, "k_v_min")) q.k_v_min = val else if (std.mem.eql(u8, head, "k_v_max")) q.k_v_max = val else if (std.mem.eql(u8, head, "k_d_min")) q.k_d_min = val else if (std.mem.eql(u8, head, "k_d_max")) q.k_d_max = val else if (std.mem.eql(u8, head, "cdr3_length")) q.cdr3_length = val;
+                    if (std.mem.eql(u8, head, "k_v_min")) q.k_v_min = val
+                    else if (std.mem.eql(u8, head, "k_v_max")) q.k_v_max = val
+                    else if (std.mem.eql(u8, head, "k_d_min")) q.k_d_min = val
+                    else if (std.mem.eql(u8, head, "k_d_max")) q.k_d_max = val
+                    else if (std.mem.eql(u8, head, "cdr3_length")) q.cdr3_length = val;
                 } else if (isFloatHeader(head)) {
                     const val = try std.fmt.parseFloat(f64, field);
                     if (std.mem.eql(u8, head, "mut_freq")) q.mut_freq = val;
@@ -338,22 +334,22 @@ test "Args: initDefaults" {
 test "Args: readInfile with minimal CSV" {
     const allocator = std.testing.allocator;
 
-    // Write a minimal input CSV to a temp file
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const abs_path = try tmp_dir.dir.realpath(".", &path_buf);
+    const full_path = try std.fmt.allocPrint(allocator, "{s}/test_args_input.csv", .{abs_path});
+    defer allocator.free(full_path);
+
     const csv = "names seqs only_genes k_v_min k_v_max k_d_min k_d_max cdr3_length mut_freq\n" ++
         "seq1 ACGT gene1:gene2 1 10 1 5 30 0.05\n";
-
-    const tmp = "/tmp/test_args_input.csv";
-    {
-        const f = try std.fs.createFileAbsolute(tmp, .{});
-        defer f.close();
-        try f.writeAll(csv);
-    }
-    defer std.fs.deleteFileAbsolute(tmp) catch {};
+    try tmp_dir.dir.writeFile(.{ .sub_path = "test_args_input.csv", .data = csv });
 
     var args = try Args.initDefaults(allocator);
     defer args.deinit(allocator);
     allocator.free(args.infile);
-    args.infile = try allocator.dupe(u8, tmp);
+    args.infile = try allocator.dupe(u8, full_path);
 
     try args.readInfile(allocator);
 
@@ -370,23 +366,127 @@ test "Args: readInfile with minimal CSV" {
 test "Args: readInfile FileTooBig diagnostics" {
     const allocator = std.testing.allocator;
 
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const abs_path = try tmp_dir.dir.realpath(".", &path_buf);
+    const full_path = try std.fmt.allocPrint(allocator, "{s}/test_args_input_large.csv", .{abs_path});
+    defer allocator.free(full_path);
+
     const csv = "names seqs only_genes k_v_min k_v_max k_d_min k_d_max cdr3_length mut_freq\n" ++
         "seq1 ACGT gene1:gene2 1 10 1 5 30 0.05\n";
-
-    const tmp = "/tmp/test_args_input_large.csv";
-    {
-        const f = try std.fs.createFileAbsolute(tmp, .{});
-        defer f.close();
-        try f.writeAll(csv);
-    }
-    defer std.fs.deleteFileAbsolute(tmp) catch {};
+    try tmp_dir.dir.writeFile(.{ .sub_path = "test_args_input_large.csv", .data = csv });
 
     var args = try Args.initDefaults(allocator);
     defer args.deinit(allocator);
     allocator.free(args.infile);
-    args.infile = try allocator.dupe(u8, tmp);
-    // Set max_infile_bytes smaller than the CSV size to trigger FileTooBig
+    args.infile = try allocator.dupe(u8, full_path);
     args.max_infile_bytes = 20;
 
     try std.testing.expectError(error.FileTooBig, args.readInfile(allocator));
+}
+
+test "Args: readInfile line longer than initial buffer (dynamic buffer growth)" {
+    const allocator = std.testing.allocator;
+
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const abs_path = try tmp_dir.dir.realpath(".", &path_buf);
+    const full_path = try std.fmt.allocPrint(allocator, "{s}/test_args_long_line.csv", .{abs_path});
+    defer allocator.free(full_path);
+
+    // Create a 200+ byte row with colon-separated names
+    const csv = "names seqs only_genes k_v_min k_v_max k_d_min k_d_max cdr3_length mut_freq\n" ++
+        "n1:n2:n3:n4:n5:n6:n7:n8:n9:n10:n11:n12:n13:n14:n15:n16:n17:n18:n19:n20 " ++
+        "s1:s2:s3:s4:s5:s6:s7:s8:s9:s10:s11:s12:s13:s14:s15:s16:s17:s18:s19:s20 " ++
+        "gene1:gene2 1 10 1 5 30 0.05\n";
+    try tmp_dir.dir.writeFile(.{ .sub_path = "test_args_long_line.csv", .data = csv });
+
+    const orig_buf_size = Args.initial_read_buffer_size;
+    Args.initial_read_buffer_size = 64; // Force small 64-byte initial buffer
+    defer Args.initial_read_buffer_size = orig_buf_size;
+
+    var args = try Args.initDefaults(allocator);
+    defer args.deinit(allocator);
+    allocator.free(args.infile);
+    args.infile = try allocator.dupe(u8, full_path);
+
+    try args.readInfile(allocator);
+
+    try std.testing.expectEqual(@as(usize, 1), args.queries.items.len);
+    const q = &args.queries.items[0];
+    try std.testing.expectEqual(@as(usize, 20), q.names.items.len);
+    try std.testing.expectEqualStrings("n1", q.names.items[0]);
+    try std.testing.expectEqualStrings("n20", q.names.items[19]);
+    try std.testing.expectEqual(@as(usize, 20), q.seqs.items.len);
+    try std.testing.expectEqualStrings("s1", q.seqs.items[0]);
+    try std.testing.expectEqualStrings("s20", q.seqs.items[19]);
+}
+
+test "Args: readInfile input without trailing newline" {
+    const allocator = std.testing.allocator;
+
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const abs_path = try tmp_dir.dir.realpath(".", &path_buf);
+    const full_path = try std.fmt.allocPrint(allocator, "{s}/test_args_no_newline.csv", .{abs_path});
+    defer allocator.free(full_path);
+
+    // Two rows, no trailing newline after row 2
+    const csv = "names seqs only_genes k_v_min k_v_max k_d_min k_d_max cdr3_length mut_freq\n" ++
+        "seq1 ACGT gene1 1 10 1 5 30 0.05\n" ++
+        "seq2 TGCA gene2 2 12 2 6 32 0.08";
+    try tmp_dir.dir.writeFile(.{ .sub_path = "test_args_no_newline.csv", .data = csv });
+
+    var args = try Args.initDefaults(allocator);
+    defer args.deinit(allocator);
+    allocator.free(args.infile);
+    args.infile = try allocator.dupe(u8, full_path);
+
+    try args.readInfile(allocator);
+
+    try std.testing.expectEqual(@as(usize, 2), args.queries.items.len);
+    try std.testing.expectEqualStrings("seq1", args.queries.items[0].names.items[0]);
+    try std.testing.expectEqualStrings("seq2", args.queries.items[1].names.items[0]);
+    try std.testing.expectApproxEqAbs(0.08, args.queries.items[1].mut_freq, 1e-9);
+}
+
+test "Args: readInfile row spanning buffer refill boundary" {
+    const allocator = std.testing.allocator;
+
+    var tmp_dir = std.testing.tmpDir(.{});
+    defer tmp_dir.cleanup();
+
+    var path_buf: [std.fs.max_path_bytes]u8 = undefined;
+    const abs_path = try tmp_dir.dir.realpath(".", &path_buf);
+    const full_path = try std.fmt.allocPrint(allocator, "{s}/test_args_refill.csv", .{abs_path});
+    defer allocator.free(full_path);
+
+    // Each row is ~45 bytes, with 64-byte buffer, row 2 crosses boundary
+    const csv = "names seqs only_genes k_v_min k_v_max k_d_min k_d_max cdr3_length mut_freq\n" ++
+        "seq1 ACGT gene1 1 10 1 5 30 0.05\n" ++
+        "seq2 TGCA gene2 2 12 2 6 32 0.08\n" ++
+        "seq3 GGGG gene3 3 15 3 7 35 0.10\n";
+    try tmp_dir.dir.writeFile(.{ .sub_path = "test_args_refill.csv", .data = csv });
+
+    const orig_buf_size = Args.initial_read_buffer_size;
+    Args.initial_read_buffer_size = 64;
+    defer Args.initial_read_buffer_size = orig_buf_size;
+
+    var args = try Args.initDefaults(allocator);
+    defer args.deinit(allocator);
+    allocator.free(args.infile);
+    args.infile = try allocator.dupe(u8, full_path);
+
+    try args.readInfile(allocator);
+
+    try std.testing.expectEqual(@as(usize, 3), args.queries.items.len);
+    try std.testing.expectEqualStrings("seq1", args.queries.items[0].names.items[0]);
+    try std.testing.expectEqualStrings("seq2", args.queries.items[1].names.items[0]);
+    try std.testing.expectEqualStrings("seq3", args.queries.items[2].names.items[0]);
 }

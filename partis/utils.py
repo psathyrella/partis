@@ -5823,7 +5823,7 @@ def extract_cli_arg(cmd_str, flag):
         idx = tokens.index(flag)
         if idx + 1 < len(tokens):
             return tokens[idx + 1]
-    except (ValueError, IndexError):
+    except ValueError:
         pass
     return None
 
@@ -5900,27 +5900,36 @@ def finish_process(iproc, procs, n_tried, cmdfo, n_max_tries, dbgfo=None, batch_
         except (OSError, IOError):
             pass
     is_file_too_big = 'FileTooBig' in err_content
+    is_stream_too_long = 'StreamTooLong' in err_content
+    is_fatal_read_error = is_file_too_big or is_stream_too_long
 
-    if n_tried < n_max_tries and not is_file_too_big:
+    if n_tried < n_max_tries and not is_fatal_read_error:
         rtn_strs.append(getlogstrs(['err']))
         rtn_strs.append('      restarting proc %d' % iproc)
         return 'restart', '\n'.join(rtn_strs)
     else:
-        if is_file_too_big:
-            failstr = 'fatal non-retryable error (FileTooBig) on try %d for subprocess with command:\n        %s\n' % (n_tried, cmdfo['cmd_str'])
+        if is_fatal_read_error:
+            err_name = 'StreamTooLong' if is_stream_too_long else 'FileTooBig'
+            failstr = 'fatal non-retryable error (%s) on try %d for subprocess with command:\n        %s\n' % (err_name, n_tried, cmdfo['cmd_str'])
         else:
             failstr = 'exceeded max number of tries (%d >= %d) for subprocess with command:\n        %s\n' % (n_tried, n_max_tries, cmdfo['cmd_str'])
         failstr += getlogstrs()  # used to try to only print err/out as needed, but it was too easy to miss useful info
-        if is_file_too_big:
+        if is_fatal_read_error:
             hint_lines = [
-                '\n    error diagnosis: backend failed because an input file exceeded the maximum supported size.'
+                '\n    error diagnosis: backend failed because an input file or row exceeded the maximum supported size.'
             ]
+            has_oversized_infile = False
             for flag, desc in [('--infile', 'per-proc input file'), ('--input-cachefname', 'input cache file')]:
                 in_path = extract_cli_arg(cmdfo.get('cmd_str'), flag)
                 if in_path and os.path.exists(in_path):
                     sz = os.path.getsize(in_path)
                     hint_lines.append('      %s (%s): %d bytes (%.1f MB)' % (desc, in_path, sz, sz / (1024.0 * 1024.0)))
-            hint_lines.append('      suggestion: increase --n-procs to split queries into smaller per-proc files.\n')
+                    if flag == '--infile':
+                        has_oversized_infile = True
+            if is_file_too_big and has_oversized_infile:
+                hint_lines.append('      suggestion: increase --n-procs to split queries into smaller per-proc files.\n')
+            else:
+                hint_lines.append('')
             failstr = '\n'.join(hint_lines) + '\n' + failstr
         if allow_failure:
             rtn_strs.append('      %s\n      not raising exception for failed process' % failstr)

@@ -515,20 +515,7 @@ pub const Glomerator = struct {
                 if (std.fs.cwd().statFile(self.args.input_cachefname)) |st| {
                     actual_size = st.size;
                 } else |_| {}
-                if (actual_size) |sz| {
-                    std.debug.print("error: cache file '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
-                        self.args.input_cachefname,
-                        sz,
-                        max_cache_bytes,
-                        max_cache_bytes / (1024 * 1024 * 1024),
-                    });
-                } else {
-                    std.debug.print("error: cache file '{s}' exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
-                        self.args.input_cachefname,
-                        max_cache_bytes,
-                        max_cache_bytes / (1024 * 1024 * 1024),
-                    });
-                }
+                ham_text.printFileTooBig("cache file", self.args.input_cachefname, actual_size, max_cache_bytes);
                 return err;
             },
             else => return err,
