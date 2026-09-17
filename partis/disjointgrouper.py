@@ -691,8 +691,10 @@ def resolve_sw_cache_paths(sw_cache_paths, locus):
     return [sw_cache_paths]
 
 # ----------------------------------------------------------------------------------------
-def _process_one_subset_cache(isubset, swpath, name_map, outdir, glfo, summary_path):
+def _process_one_subset_cache(isubset, swpath, name_map, outdir, glfo, summary_path, expected=None):
     # group one subset's sw cache by cdr3 length, writing its per-group sw-cache fragments and its counts to <summary_path>
+    if expected is not None:
+        check_sw_cache_against_index(swpath, expected)
     _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
     utils.update_gene_names_in_annotation_list(tantn_list, name_map)  # rename genes dropped by the union
     utils.check_annotation_glfo_consistency(glfo, tantn_list)
@@ -719,7 +721,9 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
     # <n_procs>: concurrent single-threaded vsearch jobs; defaults to available cpus.
     # <n_subset_workers>: per-subset caches read at once, capped at <n_procs>
     # multiple caches are grouped a bounded number of subsets at a time
-    sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
+    resolved_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
+    index_expectations = sw_cache_index_expectations(sw_cache_paths, resolved_paths)
+    sw_cache_paths = resolved_paths
     multi_cache = len(sw_cache_paths) > 1
     n_procs = utils.n_available_cpus() if n_procs is None else max(1, n_procs)
 
@@ -772,7 +776,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         summary_dir = '%s/subset-summaries' % outdir
         utils.mkdir(summary_dir)
         summary_paths = ['%s/subset%03d.json' % (summary_dir, isubset) for isubset in range(len(sw_cache_paths))]
-        procs = [multiprocessing.Process(target=_process_one_subset_cache, args=(isubset, swpath, subset_name_maps[isubset], outdir, glfo, summary_paths[isubset]))
+        procs = [multiprocessing.Process(target=_process_one_subset_cache, args=(isubset, swpath, subset_name_maps[isubset], outdir, glfo, summary_paths[isubset], index_expectations[isubset]))
                  for isubset, swpath in enumerate(sw_cache_paths)]
         utils.run_proc_functions(procs, n_procs=n_subset_workers)
 
@@ -895,7 +899,7 @@ def check_no_sw_cache_index(locus_pdir):
 def write_sw_cache_index(locus, locus_pdir, sw_cache_paths):
     # write the per-subset sw-cache index for <locus> into <locus_pdir>, in the order given
     swcfos = []
-    for swpath in sw_cache_paths:
+    for swpath in sw_cache_paths:  # sw-cache annotations hold one uid each, so events and sequences are the same count
         xxh3, n_seqs = hash_and_count_events(swpath)
         swcfos.append({'path' : os.path.relpath(swpath, locus_pdir), 'n_sequences' : n_seqs, 'xxh3' : xxh3})
     index = {'locus' : locus, 'n_subsets' : len(swcfos), 'sw_caches' : swcfos}
@@ -927,6 +931,27 @@ def sw_cache_index_paths(index_path):
     # the per-subset caches, in index order, as stored (relative, with '..' unresolved)
     idir = os.path.dirname(os.path.abspath(index_path))
     return ['%s/%s' % (idir, cfo['path']) for cfo in read_sw_cache_index(index_path)['sw_caches']]
+
+# ----------------------------------------------------------------------------------------
+def sw_cache_index_expectations(sw_cache_paths, resolved_paths):
+    # the index's hash and count for each resolved path, or None for each when there is no index
+    none_list = [None for _ in resolved_paths]
+    if not isinstance(sw_cache_paths, str) or not os.path.isdir(sw_cache_paths):
+        return none_list
+    index_path = sw_cache_index_fname(sw_cache_paths)
+    if not os.path.exists(index_path):
+        return none_list
+    idir = os.path.dirname(os.path.abspath(index_path))
+    by_path = {os.path.abspath('%s/%s' % (idir, cfo['path'])) : cfo for cfo in read_sw_cache_index(index_path)['sw_caches']}
+    return [by_path.get(os.path.abspath(p)) for p in resolved_paths]
+
+# ----------------------------------------------------------------------------------------
+def check_sw_cache_against_index(swpath, expected):
+    # compare the cache's own hash and event count to what the index recorded for it
+    xxh3, n_events = hash_and_count_events(swpath)
+    if xxh3 != expected['xxh3'] or n_events != expected['n_sequences']:
+        raise Exception('sw cache %s does not match the index: xxh3 %s (index %s), %d events (index %d)'
+                        % (swpath, xxh3, expected['xxh3'], n_events, expected['n_sequences']))
 
 # ----------------------------------------------------------------------------------------
 def write_multifile_output(locus, manifest, gpaths, counts, outfname, max_seqs_per_file=MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT):
