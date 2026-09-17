@@ -9,21 +9,23 @@
 ///                   --locus <igh|igk|igl|tra|trb|trg|trd> [optional-args...]
 ///
 /// Unknown arguments are silently ignored (bcrham compat).
-
 const std = @import("std");
+const builtin = @import("builtin");
 const bcrham = @import("ham/bcrham.zig");
 
 pub fn main() !void {
-    const allocator = if (@import("builtin").mode == .Debug) blk: {
-        // In debug builds, use GPA for leak detection and use-after-free checks.
+    const is_safe = builtin.mode == .Debug or builtin.mode == .ReleaseSafe;
+    const allocator = if (is_safe) blk: {
+        // In debug and release-safe builds, use GPA for leak detection and safety checks.
         break :blk gpa_instance.allocator();
     } else
-        // In release builds, use the C allocator — GPA's per-allocation tracking
-        // metadata adds massive overhead (observed 11 GB vs 278 MB on a 5k-sequence
-        // partition workload).
+        // In release-fast builds, use the C allocator — GPA's per-allocation tracking
+        // metadata adds overhead on large workloads.
         std.heap.c_allocator;
-    defer if (@import("builtin").mode == .Debug) {
-        _ = gpa_instance.deinit();
+    defer if (is_safe) {
+        if (gpa_instance.deinit() == .leak) {
+            std.process.exit(1);
+        }
     };
     try bcrham.run(allocator, std.os.argv[1..]);
 }

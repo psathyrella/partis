@@ -2,7 +2,13 @@
 # Build the in-tree Zig backend (drop-in replacements for bcrham and ig-sw).
 #
 # Usage:
-#   bin/zig-build.sh
+#   bin/zig-build.sh [options | mode]
+#
+# Modes:
+#   --release-fast (default), --release-safe, --debug, --release-small
+#
+# Or set environment variable:
+#   PARTIS_ZIG_OPTIMIZE=ReleaseSafe bin/zig-build.sh
 #
 # After building, pass --zig to partis:
 #   partis --zig annotate ...
@@ -13,6 +19,60 @@ PARTIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ZIG_CORE_DIR="$PARTIS_DIR/packages/zig-core"
 ZIG_EXE_FINAL="$ZIG_CORE_DIR/zig-out/bin/partis-zig-core"
 ZIG_IGSW_EXE_FINAL="$ZIG_CORE_DIR/zig-out/bin/partis-zig-igsw"
+
+OPTIMIZE="${PARTIS_ZIG_OPTIMIZE:-${ZIG_OPTIMIZE:-ReleaseFast}}"
+EXTRA_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --release-safe|safe|ReleaseSafe)
+            OPTIMIZE="ReleaseSafe"
+            shift
+            ;;
+        --release-fast|fast|ReleaseFast)
+            OPTIMIZE="ReleaseFast"
+            shift
+            ;;
+        --debug|debug|Debug)
+            OPTIMIZE="Debug"
+            shift
+            ;;
+        --release-small|small|ReleaseSmall)
+            OPTIMIZE="ReleaseSmall"
+            shift
+            ;;
+        -Doptimize)
+            if [[ $# -lt 2 ]]; then
+                echo "ERROR: -Doptimize requires a value" >&2
+                exit 1
+            fi
+            shift
+            OPTIMIZE="$1"
+            shift
+            ;;
+        -Doptimize=*)
+            OPTIMIZE="${1#-Doptimize=}"
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [mode | options]"
+            echo ""
+            echo "Modes:"
+            echo "  --release-fast, fast, ReleaseFast   Optimized for speed (default)"
+            echo "  --release-safe, safe, ReleaseSafe   Optimized with runtime safety and GPA leak checks"
+            echo "  --debug, debug, Debug               Unoptimized debug build with full tracking"
+            echo "  --release-small, small              Optimized for binary size"
+            echo ""
+            echo "Environment variables:"
+            echo "  PARTIS_ZIG_OPTIMIZE=ReleaseSafe $0"
+            exit 0
+            ;;
+        *)
+            EXTRA_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
 
 echo "==> Building Zig backend in: $ZIG_CORE_DIR"
 
@@ -66,16 +126,16 @@ fi
 # ── 2. Build ─────────────────────────────────────────────────────────────────
 
 export PARTIS_DIR
-echo "==> Building partis-zig-core (this takes ~30s)..."
-(cd "$ZIG_CORE_DIR" && "$ZIG" build -Doptimize=ReleaseFast)
+echo "==> Building partis-zig-core (mode: $OPTIMIZE)..."
+(cd "$ZIG_CORE_DIR" && "$ZIG" build -Doptimize="$OPTIMIZE" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}")
 
-if [[ ! -x "$ZIG_EXE_FINAL" ]]; then
-    echo "ERROR: build succeeded but executable not found at $ZIG_EXE_FINAL" >&2
+if [[ ! -x "$ZIG_EXE_FINAL" || ! -x "$ZIG_IGSW_EXE_FINAL" ]]; then
+    echo "ERROR: build succeeded but executable not found at $ZIG_EXE_FINAL or $ZIG_IGSW_EXE_FINAL" >&2
     exit 1
 fi
 
 echo ""
-echo "Build complete:"
+echo "Build complete (mode: $OPTIMIZE):"
 echo "  $ZIG_EXE_FINAL"
 echo "  $ZIG_IGSW_EXE_FINAL"
 echo ""
