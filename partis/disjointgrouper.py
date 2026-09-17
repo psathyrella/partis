@@ -16,6 +16,7 @@ from . import glutils
 
 MANIFEST_FNAME = 'manifest.yaml'
 MULTIFILE_INDEX_FNAME = 'index.yaml'
+SW_CACHE_FNAME = 'sw-cache.yaml'
 SW_CACHE_INDEX_FNAME = 'sw-cache-index.yaml'  # written in place of sw-cache.yaml when the per-subset caches are not merged
 
 # multifile defaults (referenced from bin/partis argparse so all three places stay in sync), set
@@ -39,6 +40,10 @@ def group_sw_cache_fname(locus):
     # the per-group sw cache subset written for <locus> (partitiondriver's hash-named caches
     # are a different convention and do not come through here)
     return 'sw-cache-%s.yaml' % locus
+
+# ----------------------------------------------------------------------------------------
+def subset_sw_cache_fname(isubset):
+    return 'sw-cache-subset%03d.yaml' % isubset
 
 # ----------------------------------------------------------------------------------------
 def group_sequences_by_cdr3_length(annotation_list):
@@ -672,7 +677,7 @@ def resolve_sw_cache_paths(sw_cache_paths, locus):
     if os.path.isdir(sw_cache_paths):
         if os.path.exists('%s/%s' % (sw_cache_paths, SW_CACHE_INDEX_FNAME)):
             return sw_cache_index_paths('%s/%s' % (sw_cache_paths, SW_CACHE_INDEX_FNAME))
-        pattern = '%s/%s/subset-*/parameters/%s/sw-cache.yaml' % (sw_cache_paths, utils.PARAMETER_SUBSET_DIRNAME, locus)
+        pattern = '%s/%s/subset-*/parameters/%s/%s' % (sw_cache_paths, utils.PARAMETER_SUBSET_DIRNAME, locus, SW_CACHE_FNAME)
         cpaths = glob.glob(pattern)
         if len(cpaths) == 0:
             raise Exception('--sw-cachefname is a directory (%s) but it holds neither %s nor any sw caches matching %s'
@@ -697,7 +702,7 @@ def _process_one_subset_cache(isubset, swpath, name_map, outdir, glfo, summary_p
     uid_to_antn = {line['unique_ids'][0] : line for line in tantn_list if len(line['unique_ids']) == 1}
     for c3len, seqfos in subset_groups.items():
         group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
-        frag_path = '%s/sw-cache-subset%03d.yaml' % (group_dir, isubset)
+        frag_path = '%s/%s' % (group_dir, subset_sw_cache_fname(isubset))
         subset_antns = [uid_to_antn[sfo['name']] for sfo in seqfos if sfo['name'] in uid_to_antn]
         utils.mkdir(frag_path, isfile=True)
         utils.write_annotations(frag_path, glfo, subset_antns, utils.sw_cache_headers)
@@ -780,7 +785,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
                 c3len = int(c3len_str)
                 all_groups.setdefault(c3len, []).extend(seqfos)
                 n_seqs += len(seqfos)
-                subset_fragments[c3len].append('%s/groups/cdr3-%d/sw-cache-subset%03d.yaml' % (outdir, c3len, isubset))
+                subset_fragments[c3len].append('%s/groups/cdr3-%d/%s' % (outdir, c3len, subset_sw_cache_fname(isubset)))
         n_seqs += n_failed
         shutil.rmtree(summary_dir)
 

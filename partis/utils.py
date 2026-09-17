@@ -5232,9 +5232,11 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
     if locus is not None and include_hmm_cache_files:
         raise Exception('include_hmm_cache_files only works with the paired dir structure')
     print('    merging parameters from %d subdirs (e.g. %s) to %s' % (n_subsets, subdfn(0), merged_odir))
+    merged_loci = []
     for ltmp in ([locus] if locus is not None else sub_loci(ig_or_tr)):
         if os.path.exists('%s/hmm/germline-sets' % pdir(merged_odir, ltmp)):  # just looks for one of the last thing we would've written
             print('       %s %s: subset-merged input exists, not rewriting' % (color('yellow', 'warning'), locstr(ltmp)))
+            merged_loci.append(ltmp)
             continue
         def swfn(dname): return '%s/sw-cache.yaml' % pdir(dname, ltmp)
         sub_swfs = [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
@@ -5400,6 +5402,10 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         if include_hmm_cache_files:  # these aren't parameters, but don't want to change the name, either, oh well
             subfns = ['%s/single-chain/persistent-cache-%s.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
             merge_csvs('%s/single-chain/persistent-cache-%s.csv'% (merged_odir, ltmp), subfns)
+        merged_loci.append(ltmp)
+
+    if len(merged_loci) == 0:
+        raise Exception('no per-subset parameters to merge in %s, from %d subdirs (e.g. %s)' % (merged_odir, n_subsets, subdfn(0)))
 
 # ----------------------------------------------------------------------------------------
 def get_nodelist_from_slurm_shorthand(nodestr, known_nodes=None, debug=False):
@@ -5785,12 +5791,20 @@ def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list o
     if debug:
         print('    running %d proc fcns with %d procs' % (len(procs), n_procs))
         sys.stdout.flush()
+    started = list(procs)
     while True:
         while len(procs) > 0 and len(multiprocessing.active_children()) < n_procs:
             procs[0].start()
             procs.pop(0)
         if len(multiprocessing.active_children()) == 0 and len(procs) == 0:
             break
+    failed = []
+    for iproc, proc in enumerate(started):
+        proc.join()
+        if proc.exitcode != 0:
+            failed.append((iproc, proc.exitcode))
+    if len(failed) > 0:
+        raise Exception('%d of %d proc fcns failed: %s' % (len(failed), len(started), ', '.join('proc %d exited %d' % (i, c) for i, c in failed)))
 
 # ----------------------------------------------------------------------------------------
 def get_batch_system_str(batch_system, cmdfo, fout, ferr, batch_options):

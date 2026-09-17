@@ -145,7 +145,7 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
 
 # ----------------------------------------------------------------------------------------
 def sw_cache_path(locus_pdir):
-    return '%s/sw-cache.yaml' % locus_pdir
+    return '%s/%s' % (locus_pdir, disjointgrouper.SW_CACHE_FNAME)
 
 # ----------------------------------------------------------------------------------------
 def sw_cache_input(locus_pdir):
@@ -633,7 +633,7 @@ def subset_cache_parameters(args):
             utils.replace_in_arglist(clist, '--paired-outdir', sdir(isub))
         else:  # single locus: set the cache path
             utils.replace_in_arglist(clist, '--parameter-dir', subset_pdir(args, isub))
-            utils.replace_in_arglist(clist, '--sw-cachefname', '%s/sw-cache.yaml' % subset_pdir(args, isub))
+            utils.replace_in_arglist(clist, '--sw-cachefname', sw_cache_path(subset_pdir(args, isub)))
         if args.input_metafnames is not None:
             utils.replace_in_arglist(clist, '--input-metafnames', '%s/meta.yaml' % sdir(isub))
         utils.replace_in_arglist(clist, '--n-procs', str(n_procs))
@@ -712,7 +712,7 @@ def merge_parameter_subsets(args):
     if not args.no_merged_sw_cache:
         return
     for ltmp in subset_loci(args):
-        swfns = [f for f in ('%s/sw-cache.yaml' % param_locus_dir(args, subdfn(i), ltmp) for i in range(n_subsets)) if os.path.exists(f)]
+        swfns = [f for f in (sw_cache_path(param_locus_dir(args, subdfn(i), ltmp)) for i in range(n_subsets)) if os.path.exists(f)]
         if len(swfns) == 0:
             continue
         disjointgrouper.write_sw_cache_index(ltmp, param_locus_dir(args, base, ltmp), swfns)
