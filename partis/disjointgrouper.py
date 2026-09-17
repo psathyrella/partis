@@ -877,6 +877,15 @@ def hash_and_count_events(fname, block_size=8 * 1024 * 1024):
     return hasher.hexdigest(), n_events
 
 # ----------------------------------------------------------------------------------------
+def sw_cache_index_fname(locus_pdir):
+    return '%s/%s' % (locus_pdir, SW_CACHE_INDEX_FNAME)
+
+# ----------------------------------------------------------------------------------------
+def check_no_sw_cache_index(locus_pdir):
+    if os.path.exists(sw_cache_index_fname(locus_pdir)):
+        raise Exception('no merged sw cache in %s, only the per-subset index %s' % (locus_pdir, SW_CACHE_INDEX_FNAME))
+
+# ----------------------------------------------------------------------------------------
 def write_sw_cache_index(locus, locus_pdir, sw_cache_paths):
     # write the per-subset sw-cache index for <locus> into <locus_pdir>, in the order given
     swcfos = []
@@ -885,7 +894,7 @@ def write_sw_cache_index(locus, locus_pdir, sw_cache_paths):
         swcfos.append({'path' : os.path.relpath(swpath, locus_pdir), 'n_sequences' : n_seqs, 'xxh3' : xxh3})
     index = {'locus' : locus, 'n_subsets' : len(swcfos), 'sw_caches' : swcfos}
     utils.mkdir(locus_pdir)
-    index_path = '%s/%s' % (locus_pdir, SW_CACHE_INDEX_FNAME)
+    index_path = sw_cache_index_fname(locus_pdir)
     with open(index_path, 'w') as ifile:
         yaml.dump(index, ifile, width=400, default_flow_style=False, sort_keys=False)
     print('       %s: wrote %s (%d caches, %d sequences)' % (utils.locstr(locus), index_path, len(swcfos), sum(f['n_sequences'] for f in swcfos)))

@@ -115,6 +115,8 @@ def process(args):
             raise Exception('--n-subsets must be positive, but got %d' % args.n_subsets)
         if args.write_subsets_only and args.n_subsets is None:
             raise Exception('--write-subsets-only requires --n-subsets for \'cache-parameters\'')
+        if args.no_merged_sw_cache and args.n_subsets is None:
+            raise Exception('--no-merged-sw-cache requires --n-subsets for \'cache-parameters\'')
 
     if args.action == 'partition' and args.disjoint_groups and not args.paired_loci:
         auto_enable_paired_loci('--disjoint-groups')

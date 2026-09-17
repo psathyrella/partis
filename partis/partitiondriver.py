@@ -24,6 +24,7 @@ from . import utils
 from . import glutils
 from . import indelutils
 from . import treeutils
+from . import disjointgrouper
 from . import lbplotting
 from .glomerator import Glomerator
 from .clusterpath import ClusterPath, ptnprint
@@ -128,7 +129,7 @@ class PartitionDriver(object):
             return utils.getprefix(self.args.sw_cachefname)
         elif None not in [self.args.parameter_dir, self.input_info]:
             if find_any:
-                fnames = glob.glob(self.args.parameter_dir + '/sw-cache*')  # remain suffix-agnostic
+                fnames = [f for f in glob.glob(self.args.parameter_dir + '/sw-cache*') if os.path.basename(f) != disjointgrouper.SW_CACHE_INDEX_FNAME]  # remain suffix-agnostic
                 if len(fnames) == 0:
                     raise Exception('couldn\'t find any sw cache files in %s, despite setting <find_any>' % self.args.parameter_dir)
                 return utils.getprefix(fnames[0])
@@ -244,6 +245,8 @@ class PartitionDriver(object):
         if look_for_cachefile or require_cachefile:
             if os.path.exists(cache_path + '.csv'):  # ...but if there's already an old csv, use that
                 cachefname = cache_path + '.csv'
+            if not os.path.exists(cachefname):
+                disjointgrouper.check_no_sw_cache_index(os.path.dirname(cachefname))
         else:  # i.e. if we're not explicitly told to look for it (and it exists) then it should be out of date
             waterer.clean_cache(cache_path)  # hm, should this be <cachefname> instead of <cache_path>? i mean they're the same, but still
         if (look_for_cachefile or require_cachefile) and os.path.exists(cachefname):

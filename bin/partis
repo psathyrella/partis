@@ -148,7 +148,7 @@ def sw_cache_path(locus_pdir):
 # ----------------------------------------------------------------------------------------
 def sw_cache_input(locus_pdir):
     # the sw-cache file, or the dir holding the index when there is no merged file
-    if not os.path.exists(sw_cache_path(locus_pdir)) and os.path.exists('%s/%s' % (locus_pdir, disjointgrouper.SW_CACHE_INDEX_FNAME)):
+    if not os.path.exists(sw_cache_path(locus_pdir)) and os.path.exists(disjointgrouper.sw_cache_index_fname(locus_pdir)):
         return locus_pdir
     return sw_cache_path(locus_pdir)
 
@@ -609,6 +609,7 @@ def subset_cache_parameters(args):
         clist[0] = utils.find_cmd(clist[0])
         utils.remove_from_arglist(clist, '--n-subsets', has_arg=True)
         utils.remove_from_arglist(clist, '--write-subsets-only')
+        utils.remove_from_arglist(clist, '--no-merged-sw-cache')
         utils.remove_from_arglist(clist, '--paired-indir', has_arg=True)
         utils.remove_from_arglist(clist, '--is-simu')  # subset fastas have no simulation info
         for targ in ['--n-max-queries', '--n-random-queries']:  # already applied when reading the input here
@@ -1425,6 +1426,7 @@ def run_all_loci(args, ig_or_tr='ig'):
         # ----------------------------------------------------------------------------------------
         def read_sw(ltmp):
             if not os.path.exists(sw_cache_path(getpdir(ltmp))):
+                disjointgrouper.check_no_sw_cache_index(getpdir(ltmp))
                 return []
             wargs = copy.deepcopy(args)
             wargs.seed_unique_id = seedid(ltmp) if ltmp in args.seed_loci else None
@@ -2290,7 +2292,8 @@ subargs['cache-parameters'].append({'name' : '--n-subsets', 'kwargs' : {'type' :
 subargs['cache-parameters'].append({'name' : '--write-subsets-only', 'kwargs' : {'action' : 'store_true', 'help' : 'With --n-subsets: write the per-subset input files (FASTAs and meta.yaml) and exit without running the subset jobs or merging. For use with external job orchestration (e.g. one batch job per subset, then \'merge-parameter-subsets\').'}})
 
 subargs['merge-parameter-subsets'] = []
-subargs['merge-parameter-subsets'].append({'name' : '--no-merged-sw-cache', 'kwargs' : {'action' : 'store_true', 'help' : 'Do not merge the per-subset sw-caches into one sw-cache.yaml, and write %s in its place. \'create-disjoint-groups\' reads the per-subset caches through it, but any action that needs a single sw-cache will not find one.' % disjointgrouper.SW_CACHE_INDEX_FNAME}})
+for tmpact in ['cache-parameters', 'merge-parameter-subsets']:
+    subargs[tmpact].append({'name' : '--no-merged-sw-cache', 'kwargs' : {'action' : 'store_true', 'help' : 'With --n-subsets: do not merge the per-subset sw-caches into one sw-cache.yaml, and write %s in its place. \'create-disjoint-groups\' reads the per-subset caches through it; any other action that reads an sw-cache raises an exception rather than re-running smith-waterman.' % disjointgrouper.SW_CACHE_INDEX_FNAME}})
 subargs['subset-annotate'].append({'name' : '--n-subsets', 'kwargs' : {'type' : int, 'default' : 5, 'help' : 'Number of subsets into which to divide the input for \'subset-annotate\''}})
 
 # ----------------------------------------------------------------------------------------
