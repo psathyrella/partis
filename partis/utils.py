@@ -5184,7 +5184,7 @@ def subset_index_fname(basedir):
 # ----------------------------------------------------------------------------------------
 # paths are relative to the index's own dir
 def write_subset_index(basedir, subsets):  # subsets: ordered list of {path, input_fasta, n_input_sequences}
-    index = {'n_subsets' : len(subsets), 'subsets' : subsets}
+    index = {'n_subsets' : len(subsets), 'completion_markers' : True, 'subsets' : subsets}
     ifn = subset_index_fname(basedir)
     mkdir(ifn, isfile=True)
     with open(ifn, 'w') as ifile:
@@ -5898,13 +5898,14 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
         if n_max_procs is not None:
             limit_procs(proc_limit_str, n_max_procs, procs=procs)  # NOTE now that I've added the <procs> arg, I should remove all the places where I'm using the old cmd str method (I mean, it works fine, but it's hackier/laggier, and in cases where several different parent procs are running a log of the same-named subprocs on the same machine, the old way will be wrong [i.e. limit_procs was originally intended as a global machine-wide limit, whereas in this fcn we usually call it wanting to set a specific number of subproces for this process])
 
-    dbgstrs = ['' for _ in procs]
+    dbgstrs, statuses = ['' for _ in procs], [None for _ in procs]
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
         for iproc in range(len(cmdfos)):
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
                 status, dbgstrs[iproc] = finish_process(iproc, procs, n_tries_list[iproc], cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, allow_failure=allow_failure)
+                statuses[iproc] = status
                 if status == 'restart':
                     print(dbgstrs[iproc])
                     procs[iproc] = run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell)
@@ -5920,6 +5921,7 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
     for dstr in dbgstrs:
         if dstr != '':
             print(dstr)
+    return statuses  # 'ok' or 'failed' for each cmdfo, in order
 
 # ----------------------------------------------------------------------------------------
 def pad_lines(linestr, padwidth=8):

@@ -603,8 +603,18 @@ def subset_cache_parameters(args):
     def input_fn(isub):
         return '%s/input-seqs.fa' % sdir(isub)
     # ----------------------------------------------------------------------------------------
-    def subset_is_cached(isub):
-        return any(os.path.exists('%s/hmm/germline-sets' % param_locus_dir(args, subset_pdir(args, isub), l)) for l in subset_loci(args))
+    def cached_loci(isub):
+        return [l for l in subset_loci(args) if os.path.exists('%s/hmm/germline-sets' % param_locus_dir(args, subset_pdir(args, isub), l))]
+    # ----------------------------------------------------------------------------------------
+    def complete_fname(isub):
+        return '%s/cache-parameters-complete.yaml' % sdir(isub)
+    # ----------------------------------------------------------------------------------------
+    def subset_is_cached(isub, completion_markers):
+        if os.path.exists(complete_fname(isub)):
+            return True
+        if completion_markers:  # a missing marker means the job didn't finish
+            return False
+        return len(cached_loci(isub)) > 0  # subsets from before the markers existed
     # ----------------------------------------------------------------------------------------
     def get_cmd(isub, n_procs):
         clist = copy.deepcopy(sys.argv)
@@ -657,7 +667,8 @@ def subset_cache_parameters(args):
         return '%s/parameters' % sdir(isub) if args.paired_loci else '%s/hmm/germline-sets' % subset_pdir(args, isub)
     # ----------------------------------------------------------------------------------------
     def run_subsets():
-        isubs = [i for i in range(args.n_subsets) if not subset_is_cached(i)]
+        completion_markers = utils.read_subset_index(base).get('completion_markers', False)
+        isubs = [i for i in range(args.n_subsets) if not subset_is_cached(i, completion_markers)]
         if len(isubs) == 0:
             return
         n_jobs, n_procs = job_proc_allocation(args, target_procs_per_job=SUBSET_TARGET_PROCS, n_queued=len(isubs), dbgstr='subset')
@@ -666,7 +677,13 @@ def subset_cache_parameters(args):
             print('    --dry-run: would run %d subset jobs (%d concurrent, %d procs each)' % (len(cmdfos), n_jobs, n_procs))
             return
         print('    running %d subset jobs (%d concurrent, %d procs each):' % (len(cmdfos), n_jobs, n_procs))
-        utils.run_cmds(cmdfos, n_max_procs=n_jobs, debug='write')
+        statuses = utils.run_cmds(cmdfos, n_max_procs=n_jobs, debug='write', allow_failure=True)
+        for isub, status in zip(isubs, statuses):
+            if status == 'ok':
+                utils.jsdump(complete_fname(isub), {'loci' : cached_loci(isub)})
+        failed = [i for i, s in zip(isubs, statuses) if s != 'ok']
+        if len(failed) > 0:
+            raise Exception('%d of %d subset jobs failed (subsets %s)' % (len(failed), len(isubs), ' '.join(str(i) for i in failed)))
     # ----------------------------------------------------------------------------------------
     if os.path.exists(utils.subset_index_fname(base)):
         n_indexed = utils.read_subset_index(base)['n_subsets']
