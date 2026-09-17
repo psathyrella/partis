@@ -46,6 +46,32 @@ def subset_sw_cache_fname(isubset):
     return 'sw-cache-subset%03d.yaml' % isubset
 
 # ----------------------------------------------------------------------------------------
+def subset_fasta_fname(locus, isubset):
+    return '%s-subset%03d.fa' % (locus, isubset)
+
+# ----------------------------------------------------------------------------------------
+def subset_naive_fasta_fname(isubset):
+    return 'naive-subset%03d.fa' % isubset
+
+# ----------------------------------------------------------------------------------------
+def group_naive_fasta_fname():
+    return 'naive-seqs.fa'
+
+# ----------------------------------------------------------------------------------------
+def concat_files(fnames, outfname):
+    # move <fnames> into <outfname>, one write pass, removing the fragments
+    if len(fnames) == 1:
+        os.rename(fnames[0], outfname)
+        return
+    utils.mkdir(outfname, isfile=True)
+    with open(outfname, 'w') as ofile:
+        for fname in fnames:
+            with open(fname) as ifile:
+                shutil.copyfileobj(ifile, ofile)
+    for fname in fnames:
+        os.remove(fname)
+
+# ----------------------------------------------------------------------------------------
 def group_sequences_by_cdr3_length(annotation_list):
     # group uids and their input sequences by cdr3 length from sw annotation list
     # also extracts naive_seq for hfrac sub-grouping
@@ -263,7 +289,7 @@ def _split_procs(sizes, budget):
     return threads, max(1, n_jobs)
 
 # ----------------------------------------------------------------------------------------
-def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs):
+def _build_round1_vsearch_cmds(specs, hi_bound, outdir, min_group_size, n_procs):
     # build vsearch greedy clustering commands for each CDR3 group above min_group_size
     # returns cmdfos (largest group first), n concurrent jobs, vsearch_groups (c3len -> workdir), small_groups (set of c3len)
     vsearch_binary = utils.get_vsearch_binary()
@@ -271,24 +297,24 @@ def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs
     vsearch_groups = {}
     small_groups = set()
     big_groups = []
-    for c3len, seqfos in sorted(groups.items()):
-        if len(seqfos) < min_group_size:
+    for c3len, spec in sorted(specs.items()):
+        if spec['n_seqs'] < min_group_size or spec['n_naive'] == 0:
             small_groups.add(c3len)
             continue
-        naive_seqdict = {sfo['name']: sfo['naive_seq'] for sfo in seqfos if sfo.get('naive_seq', '')}
-        if len(naive_seqdict) == 0:
-            small_groups.add(c3len)
-            continue
-        big_groups.append((c3len, naive_seqdict))
-    big_groups.sort(key=lambda g: len(g[1]), reverse=True)  # largest first, so the long pole starts first
-    threads, n_jobs = _split_procs([len(nsd) for _, nsd in big_groups], n_procs)
-    for (c3len, naive_seqdict), n_threads in zip(big_groups, threads):
+        big_groups.append((c3len, spec))
+    big_groups.sort(key=lambda g: g[1]['n_naive'], reverse=True)  # largest first, so the long pole starts first
+    threads, n_jobs = _split_procs([spec['n_naive'] for _, spec in big_groups], n_procs)
+    for (c3len, spec), n_threads in zip(big_groups, threads):
         workdir = '%s/groups/cdr3-%d/_vsearch_work' % (outdir, c3len)
         utils.prep_dir(workdir)
-        infname = workdir + '/input.fa'
-        with open(infname, 'w') as f:
-            for name, seq in naive_seqdict.items():
-                f.write('>%s\n%s\n' % (name, seq))
+        if spec['naive_fasta'] is None:
+            infname = workdir + '/input.fa'
+            with open(infname, 'w') as f:
+                for sfo in spec['seqfos']:
+                    if sfo.get('naive_seq', ''):
+                        f.write('>%s\n%s\n' % (sfo['name'], sfo['naive_seq']))
+        else:
+            infname = spec['naive_fasta']
         outfname = workdir + '/vsearch-clusters.txt'
         cmd = '%s --cluster_fast %s --id %s --uc %s --gapopen 1000I/2E --match 2 --mismatch -4 --threads %d' % (
             vsearch_binary, infname, str(1. - hi_bound), outfname, n_threads)
@@ -297,7 +323,7 @@ def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs
     return cmdfos, n_jobs, vsearch_groups, small_groups
 
 # ----------------------------------------------------------------------------------------
-def _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs):
+def _run_round2_tcm(specs, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs):
     # run round 2 TCM (transitive closure merge) on round 1 centroids
     # returns comps_by_c3len (c3len -> components), r2_workdirs (c3len -> workdir)
     comps_by_c3len = {}
@@ -315,7 +341,7 @@ def _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs
         if len(r1_results) < 2:
             comps_by_c3len[c3len] = [[c] for c, _ in r1_results]
             continue
-        naive_by_uid = {sfo['name']: sfo['naive_seq'] for sfo in groups[c3len] if sfo.get('naive_seq', '')}
+        naive_by_uid = _group_naive_seqs(specs[c3len])
         centroid_naives = {c: naive_by_uid[c] for c, _ in r1_results if c in naive_by_uid}
         if len(centroid_naives) < 2:
             comps_by_c3len[c3len] = [[c] for c, _ in r1_results]
@@ -339,14 +365,29 @@ def _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs
     return comps_by_c3len, r2_workdirs
 
 # ----------------------------------------------------------------------------------------
-def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, sub_glfo, all_group_infos, flattened_groups):
+def _group_naive_seqs(spec):
+    # uid to naive seq for one CDR3 group, from memory or from the group's naive fasta
+    if spec['seqfos'] is not None:
+        return {sfo['name'] : sfo['naive_seq'] for sfo in spec['seqfos'] if sfo.get('naive_seq', '')}
+    if spec['naive_fasta'] is None or not os.path.exists(spec['naive_fasta']):
+        return {}
+    return {sfo['name'] : sfo['seq'] for sfo in utils.read_fastx(spec['naive_fasta'], quiet=True)}
+
+# ----------------------------------------------------------------------------------------
+def _group_seqfos(spec, uid_to_antn):
+    # uid, input seq and naive seq for one CDR3 group, from memory or from its annotations
+    if spec['seqfos'] is not None:
+        return spec['seqfos']
+    return [{'name' : uid, 'seq' : line['input_seqs'][0], 'naive_seq' : line.get('naive_seq', '')} for uid, line in uid_to_antn.items()]
+
+# ----------------------------------------------------------------------------------------
+def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, sub_glfo, all_group_infos):
     # write per-sub-group FASTAs, SW cache subsets, and group info entries
     for isub, sub_seqfos in enumerate(sub_groups_list):
         sub_dir = '%s/groups/cdr3-%d/sub-groups/sub-%03d' % (outdir, c3len, isub)
         fasta_path = '%s/%s.fa' % (sub_dir, locus)
         utils.write_fasta(fasta_path, sub_seqfos)
-        sub_uids = set(sfo['name'] for sfo in sub_seqfos)
-        sub_antns = [uid_to_antn[uid] for uid in sub_uids if uid in uid_to_antn]
+        sub_antns = [uid_to_antn[sfo['name']] for sfo in sub_seqfos if sfo['name'] in uid_to_antn]
         sw_cache_path = '%s/%s' % (sub_dir, group_sw_cache_fname(locus))
         utils.write_annotations(sw_cache_path, sub_glfo, sub_antns, utils.sw_cache_headers)
         unique_naive = len(set(sfo.get('naive_seq', '') for sfo in sub_seqfos if sfo.get('naive_seq', '')))
@@ -361,14 +402,14 @@ def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, 
             'fasta_path' : rel_fasta,
             'partition_path' : None,
         })
-        flattened_groups[(c3len, isub)] = sub_seqfos
     if len(sub_groups_list) > 1:
         seqcount = sum(len(sg) for sg in sub_groups_list)
         print('        cdr3-%d: %d seqs -> %d sub-groups (sizes: %s)' % (c3len, seqcount, len(sub_groups_list), ' '.join(str(len(sg)) for sg in sub_groups_list)))
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=None, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=1):
+def _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=None, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=1):
     # apply hfrac sub-grouping within each CDR3 group, write per-sub-group outputs
+    # <specs>: per CDR3 length, n_seqs and n_naive, plus either in-memory seqfos or a naive fasta path
     # annotation_list set: single-cache in-memory path, everything is already loaded. unset:
     # multi-cache path, so re-read one CDR3 group's sw cache at a time to keep memory down
     # min_group_size: CDR3 groups smaller than this skip hfrac and are written as single groups
@@ -394,14 +435,14 @@ def _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=None, me
         return uid_to_antn, group_glfo
 
     # round 1: vsearch greedy clustering
-    cmdfos, n_r1_jobs, vsearch_groups, small_groups = _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs)
+    cmdfos, n_r1_jobs, vsearch_groups, small_groups = _build_round1_vsearch_cmds(specs, hi_bound, outdir, min_group_size, n_procs)
     if len(cmdfos) > 0:
         print('        running %d vsearch hfrac jobs (%d concurrent, %d procs)' % (len(cmdfos), n_r1_jobs, n_procs))
         utils.run_cmds(cmdfos, n_max_procs=n_r1_jobs)
 
     # parse round 1 results
     r1_by_c3len = {}
-    for c3len in sorted(groups):
+    for c3len in sorted(specs):
         if c3len in small_groups:
             continue
         cluster_file = '%s/vsearch-clusters.txt' % vsearch_groups[c3len]
@@ -410,15 +451,16 @@ def _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=None, me
     # round 2 (optional): TCM on centroids
     comps_by_c3len, r2_workdirs = {}, {}
     if merge_factor > 0:
-        comps_by_c3len, r2_workdirs = _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs)
+        comps_by_c3len, r2_workdirs = _run_round2_tcm(specs, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs)
 
     # build and write sub-groups per CDR3 group
     all_group_infos = []
-    flattened_groups = collections.OrderedDict()
     total_r1 = 0
     total_comps = 0
     total_bins = 0
-    for c3len, seqfos in sorted(groups.items()):
+    for c3len, spec in sorted(specs.items()):
+        uid_to_antn, group_glfo = group_antns(c3len)
+        seqfos = _group_seqfos(spec, uid_to_antn)
         if c3len in small_groups:
             sub_groups_list = [seqfos]
         else:
@@ -443,11 +485,10 @@ def _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=None, me
             shutil.rmtree(vsearch_groups[c3len])
             if merge_factor > 0 and c3len in r2_workdirs:
                 shutil.rmtree(r2_workdirs[c3len], ignore_errors=True)
-        uid_to_antn, group_glfo = group_antns(c3len)
-        _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, group_glfo, all_group_infos, flattened_groups)
+        _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, group_glfo, all_group_infos)
     if total_r1 > 0:
         print('        hfrac summary: %d round-1 sub-groups -> %d TCM components -> %d output bins' % (total_r1, total_comps, total_bins))
-    return flattened_groups, all_group_infos
+    return all_group_infos
 
 # ----------------------------------------------------------------------------------------
 def write_manifest(group_infos, outdir, locus, total_input, n_failed, parameter_dir=None, hfrac=False):
@@ -691,8 +732,8 @@ def resolve_sw_cache_paths(sw_cache_paths, locus):
     return [sw_cache_paths]
 
 # ----------------------------------------------------------------------------------------
-def _process_one_subset_cache(isubset, swpath, name_map, outdir, glfo, summary_path, expected=None):
-    # group one subset's sw cache by cdr3 length, writing its per-group sw-cache fragments and its counts to <summary_path>
+def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, summary_path, expected=None, write_naive=False):
+    # group one subset's sw cache by cdr3 length, writing its per-group fasta and sw-cache fragments and its counts to <summary_path>
     if expected is not None:
         check_sw_cache_against_index(swpath, expected)
     _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
@@ -702,15 +743,22 @@ def _process_one_subset_cache(isubset, swpath, name_map, outdir, glfo, summary_p
 
     # uid to annotation lookup, built once per subset
     uid_to_antn = {line['unique_ids'][0] : line for line in tantn_list if len(line['unique_ids']) == 1}
+    subset_counts, subset_naive_counts = {}, {}
     for c3len, seqfos in subset_groups.items():
         group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
         frag_path = '%s/%s' % (group_dir, subset_sw_cache_fname(isubset))
         subset_antns = [uid_to_antn[sfo['name']] for sfo in seqfos if sfo['name'] in uid_to_antn]
         utils.mkdir(frag_path, isfile=True)
         utils.write_annotations(frag_path, glfo, subset_antns, utils.sw_cache_headers)
+        utils.write_fasta('%s/%s' % (group_dir, subset_fasta_fname(locus, isubset)), seqfos)
+        subset_counts[c3len] = len(seqfos)
+        if write_naive:
+            nfos = [{'name' : sfo['name'], 'seq' : sfo['naive_seq']} for sfo in seqfos if sfo.get('naive_seq', '')]
+            utils.write_fasta('%s/%s' % (group_dir, subset_naive_fasta_fname(isubset)), nfos)
+            subset_naive_counts[c3len] = len(nfos)
 
     with open(summary_path, 'w') as sfile:
-        json.dump({'subset_groups' : subset_groups, 'subset_failed' : subset_failed}, sfile)
+        json.dump({'subset_counts' : subset_counts, 'subset_naive_counts' : subset_naive_counts, 'subset_failed' : subset_failed}, sfile)
 
 # ----------------------------------------------------------------------------------------
 def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None, n_subset_workers=MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT):
@@ -750,7 +798,9 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
         n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
         if hfrac:
-            groups, group_infos = _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs)
+            specs = collections.OrderedDict((c3len, {'n_seqs' : len(sfos), 'n_naive' : len([s for s in sfos if s.get('naive_seq', '')]), 'seqfos' : sfos, 'naive_fasta' : None})
+                                            for c3len, sfos in sorted(groups.items()))
+            group_infos = _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs)
         else:
             group_infos = write_group_fastas(groups, outdir, locus)
             write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
@@ -766,39 +816,57 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
             else:
                 glfo, tmap = glutils.get_merged_glfo(glfo, tglfo)  # union retains existing names
             subset_name_maps.append(tmap)
-        all_groups = collections.OrderedDict()  # cdr3_length -> [seqfos] (lightweight: uid + seq only)
+        group_counts = collections.OrderedDict()  # cdr3_length -> n sequences
+        naive_counts = collections.defaultdict(int)  # cdr3_length -> n sequences with a naive seq
         n_failed = 0
         n_seqs = 0
-        subset_fragments = collections.defaultdict(list)  # cdr3_length to list of fragment file paths
+        subset_fragments = collections.defaultdict(list)  # cdr3_length to list of sw-cache fragment paths
+        subset_fastas = collections.defaultdict(list)  # cdr3_length to list of input-seq fasta fragment paths
+        subset_naive_fastas = collections.defaultdict(list)  # cdr3_length to list of naive-seq fasta fragment paths
 
         n_subset_workers = max(1, min(n_procs, n_subset_workers))
         print('      running %d subsets with %d concurrent workers' % (len(sw_cache_paths), n_subset_workers))
         summary_dir = '%s/subset-summaries' % outdir
         utils.mkdir(summary_dir)
         summary_paths = ['%s/subset%03d.json' % (summary_dir, isubset) for isubset in range(len(sw_cache_paths))]
-        procs = [multiprocessing.Process(target=_process_one_subset_cache, args=(isubset, swpath, subset_name_maps[isubset], outdir, glfo, summary_paths[isubset], index_expectations[isubset]))
+        procs = [multiprocessing.Process(target=_process_one_subset_cache, args=(isubset, swpath, locus, subset_name_maps[isubset], outdir, glfo, summary_paths[isubset], index_expectations[isubset], hfrac))
                  for isubset, swpath in enumerate(sw_cache_paths)]
         utils.run_proc_functions(procs, n_procs=n_subset_workers)
 
-        # combine each subset's groups and failed count into the full-run totals
+        # combine each subset's counts and fragment paths into the full-run totals
         for isubset, summary_path in enumerate(summary_paths):
             with open(summary_path) as sfile:
                 summary = json.load(sfile)
             n_failed += summary['subset_failed']
-            for c3len_str, seqfos in summary['subset_groups'].items():
+            for c3len_str, n_sub in summary['subset_counts'].items():
                 c3len = int(c3len_str)
-                all_groups.setdefault(c3len, []).extend(seqfos)
-                n_seqs += len(seqfos)
-                subset_fragments[c3len].append('%s/groups/cdr3-%d/%s' % (outdir, c3len, subset_sw_cache_fname(isubset)))
+                gdir = '%s/groups/cdr3-%d' % (outdir, c3len)
+                group_counts[c3len] = group_counts.get(c3len, 0) + n_sub
+                n_seqs += n_sub
+                subset_fragments[c3len].append('%s/%s' % (gdir, subset_sw_cache_fname(isubset)))
+                subset_fastas[c3len].append('%s/%s' % (gdir, subset_fasta_fname(locus, isubset)))
+                if hfrac:
+                    naive_counts[c3len] += summary['subset_naive_counts'][c3len_str]
+                    subset_naive_fastas[c3len].append('%s/%s' % (gdir, subset_naive_fasta_fname(isubset)))
         n_seqs += n_failed
         shutil.rmtree(summary_dir)
 
-        # write per-group FASTAs
-        groups = collections.OrderedDict(sorted(all_groups.items()))
-        group_infos = write_group_fastas(groups, outdir, locus)
+        c3lens = sorted(group_counts)
+        # join each group's per-subset fasta fragments into its input-seq fasta
+        group_infos = []
+        for gid, c3len in enumerate(c3lens):
+            concat_files(subset_fastas[c3len], '%s/groups/cdr3-%d/%s.fa' % (outdir, c3len, locus))
+            group_infos.append({
+                'group_id' : gid,
+                'cdr3_length' : c3len,
+                'locus' : locus,
+                'sequence_count' : group_counts[c3len],
+                'fasta_path' : 'groups/cdr3-%d/%s.fa' % (c3len, locus),
+                'partition_path' : None,
+            })
 
         # merge per-subset sw-cache fragments into final per-group files, then clean up
-        for c3len in sorted(groups):
+        for c3len in c3lens:
             final_swc = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_sw_cache_fname(locus))
             frags = subset_fragments.get(c3len, [])
             if len(frags) == 1:
@@ -815,7 +883,14 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         # then dispatch all vsearch jobs in parallel
         # pass 2: read each CDR3 sw cache again, parse vsearch results, write sub-group outputs
         if hfrac:
-            _, group_infos = _apply_hfrac(groups, hi_bound, outdir, locus, glfo, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs)
+            specs = collections.OrderedDict()
+            for c3len in c3lens:
+                naive_fasta = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_naive_fasta_fname())
+                concat_files(subset_naive_fastas[c3len], naive_fasta)
+                specs[c3len] = {'n_seqs' : group_counts[c3len], 'n_naive' : naive_counts[c3len], 'seqfos' : None, 'naive_fasta' : naive_fasta}
+            group_infos = _apply_hfrac(specs, hi_bound, outdir, locus, glfo, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs)
+            for c3len in c3lens:
+                os.remove(specs[c3len]['naive_fasta'])
 
     n_cdr3_groups = len(set(g['cdr3_length'] for g in group_infos)) if len(group_infos) > 0 else 0
     print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, n_cdr3_groups, n_failed))
