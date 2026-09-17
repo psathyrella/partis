@@ -5236,12 +5236,12 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         if os.path.exists('%s/hmm/germline-sets' % pdir(merged_odir, ltmp)):  # just looks for one of the last thing we would've written
             print('       %s %s: subset-merged input exists, not rewriting' % (color('yellow', 'warning'), locstr(ltmp)))
             continue
-        mkdir(pdir(merged_odir, ltmp))
         def swfn(dname): return '%s/sw-cache.yaml' % pdir(dname, ltmp)
         sub_swfs = [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
         if len(sub_swfs) == 0:
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
             continue
+        mkdir(pdir(merged_odir, ltmp))
         if skip_sw_merge:
             print('       %s: skipping sw-cache merge' % locstr(ltmp))
         else:
