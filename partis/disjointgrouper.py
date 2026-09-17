@@ -706,12 +706,13 @@ def _process_one_subset_cache(isubset, swpath, name_map, outdir, glfo, summary_p
         json.dump({'subset_groups' : subset_groups, 'subset_failed' : subset_failed}, sfile)
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None):
+def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None, n_subset_workers=MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
     # <sw_cache_paths>: single path string or list of paths.
     # <n_procs>: concurrent single-threaded vsearch jobs; defaults to available cpus.
+    # <n_subset_workers>: per-subset caches read at once, capped at <n_procs>
     # multiple caches are grouped a bounded number of subsets at a time
     sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
     multi_cache = len(sw_cache_paths) > 1
@@ -761,7 +762,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         n_seqs = 0
         subset_fragments = collections.defaultdict(list)  # cdr3_length to list of fragment file paths
 
-        n_subset_workers = min(n_procs, MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT)
+        n_subset_workers = max(1, min(n_procs, n_subset_workers))
         print('      running %d subsets with %d concurrent workers' % (len(sw_cache_paths), n_subset_workers))
         summary_dir = '%s/subset-summaries' % outdir
         utils.mkdir(summary_dir)

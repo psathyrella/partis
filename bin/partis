@@ -117,7 +117,7 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
                     '--disjoint-groups', '--hfrac', '--partition-refine', '--ha-repartition', '--prepend-coverage-command',
                     '--plot-annotation-performance']:  # requires --is-simu which is also stripped
         utils.remove_from_arglist(clist, argname)
-    for argname in ['--n-subsets', '--n-max-procs', '--n-max-subprocs', '--n-sub-procs', '--hfrac-merge-factor', '--hfrac-max-bin-size', '--hfrac-min-seqs']:
+    for argname in ['--n-subsets', '--n-max-procs', '--n-max-subprocs', '--n-sub-procs', '--hfrac-merge-factor', '--hfrac-max-bin-size', '--hfrac-min-seqs', '--n-multi-cache-workers']:
         utils.remove_from_arglist(clist, argname, has_arg=True)
     # set action and locus
     clist[clist.index(args.action)] = tmpaction
@@ -170,7 +170,7 @@ def disjoint_group_action(args):
     if args.paired_outdir is None:
         raise Exception('--paired-outdir must be set')
     disjoint_dir = disjoint_dir_for(args.paired_outdir, args.locus)
-    disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir, hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size, min_group_size=args.hfrac_min_seqs, n_procs=proc_budget(args))
+    disjointgrouper.create_cdr3_groups(args.locus, sw_cache_paths, disjoint_dir, parameter_dir=args.parameter_dir, hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size, min_group_size=args.hfrac_min_seqs, n_procs=proc_budget(args), n_subset_workers=args.n_multi_cache_workers)
 
 # ----------------------------------------------------------------------------------------
 def assemble_groups_action(args):
@@ -1768,7 +1768,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             print('%s %s: manifest exists, skipping grouping: %s' % (utils.color('blue_bkg', 'create-disjoint-groups'), ltmp, manifest_path))
             manifest = disjointgrouper.read_manifest(manifest_path)
         else:
-            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_input(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp), hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size, min_group_size=args.hfrac_min_seqs, n_procs=proc_budget(args))
+            manifest = disjointgrouper.create_cdr3_groups(ltmp, sw_cache_input(getpdir(ltmp)), disjoint_dir, parameter_dir=getpdir(ltmp), hfrac=args.hfrac, hfrac_merge_factor=args.hfrac_merge_factor, hfrac_max_bin_size=args.hfrac_max_bin_size, min_group_size=args.hfrac_min_seqs, n_procs=proc_budget(args), n_subset_workers=args.n_multi_cache_workers)
 
         # step 2: partition each group (or sub-group if hfrac)
         if len(manifest['groups']) == 0:
@@ -2282,6 +2282,8 @@ subargs['create-disjoint-groups'].append({'name' : '--hfrac', 'kwargs' : {'actio
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MIN_SEQS_DEFAULT, 'help' : 'CDR3 groups smaller than this skip hfrac sub-grouping entirely.'}})
+for tmpact in ['partition', 'create-disjoint-groups']:
+    subargs[tmpact].append({'name' : '--n-multi-cache-workers', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT, 'help' : 'Number of per-subset sw-caches read at once when grouping from the caches of \'cache-parameters --n-subsets\' (capped at --n-procs).'}})
 
 subargs['assemble-groups'] = []
 subargs['assemble-groups'].append({'name' : '--multifile-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MIN_SEQS_DEFAULT, 'help' : 'Loci with more sequences than this assemble into a directory of partition files plus an index, rather than one merged file. Lower it to exercise the multifile path on a small sample.'}})
