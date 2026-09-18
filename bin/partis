@@ -166,7 +166,10 @@ def disjoint_group_action(args):
     if args.sw_cachefname is not None:
         sw_cache_paths = args.sw_cachefname.split(':') if ':' in args.sw_cachefname else args.sw_cachefname
     else:
-        sw_cache_paths = sw_cache_input('%s/%s' % (args.parameter_dir, args.locus))
+        locus_pdir = '%s/%s' % (args.parameter_dir, args.locus)
+        if not os.path.exists(locus_pdir):  # single-locus parameter dir, which has no per-locus subdir
+            locus_pdir = args.parameter_dir
+        sw_cache_paths = sw_cache_input(locus_pdir)
     if args.paired_outdir is None:
         raise Exception('--paired-outdir must be set')
     disjoint_dir = disjoint_dir_for(args.paired_outdir, args.locus)

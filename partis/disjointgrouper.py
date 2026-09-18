@@ -718,11 +718,16 @@ def resolve_sw_cache_paths(sw_cache_paths, locus):
     if os.path.isdir(sw_cache_paths):
         if os.path.exists('%s/%s' % (sw_cache_paths, SW_CACHE_INDEX_FNAME)):
             return sw_cache_index_paths('%s/%s' % (sw_cache_paths, SW_CACHE_INDEX_FNAME))
-        pattern = '%s/%s/subset-*/parameters/%s/%s' % (sw_cache_paths, utils.PARAMETER_SUBSET_DIRNAME, locus, SW_CACHE_FNAME)
-        cpaths = glob.glob(pattern)
+        patterns = ['%s/%s/subset-*/parameters/%s/%s' % (sw_cache_paths, utils.PARAMETER_SUBSET_DIRNAME, locus, SW_CACHE_FNAME),  # paired layout
+                    '%s/%s/subset-*/parameters/%s' % (sw_cache_paths, utils.PARAMETER_SUBSET_DIRNAME, SW_CACHE_FNAME)]  # single-locus layout, no locus dir
+        cpaths = []
+        for pattern in patterns:
+            cpaths = glob.glob(pattern)
+            if len(cpaths) > 0:
+                break
         if len(cpaths) == 0:
             raise Exception('--sw-cachefname is a directory (%s) but it holds neither %s nor any sw caches matching %s'
-                            % (sw_cache_paths, SW_CACHE_INDEX_FNAME, pattern))
+                            % (sw_cache_paths, SW_CACHE_INDEX_FNAME, ' or '.join(patterns)))
         def isubset(fn):
             mtch = re.search(r'subset-([0-9]+)', fn)
             if mtch is None:
