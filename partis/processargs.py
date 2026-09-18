@@ -312,6 +312,9 @@ def process(args):
         print('  forcing --gap-open-penalty to %d to prevent indels, since --no-indels or --all-seqs-simultaneous were set (you can also adjust this penalty directly)' % args.no_indel_gap_open_penalty)  # for all_seqs_simultaneous, we run the msa indel stuff so don't also want sw indels
         args.gap_open_penalty = args.no_indel_gap_open_penalty
 
+    if args.gap_open_penalty is not None and args.gap_open_penalty <= 0:
+        raise Exception('--gap-open-penalty must be positive (got %d)' % args.gap_open_penalty)
+
     if args.locus is not None and 'tr' in args.locus and args.mutation_multiplier is None:
         args.mutation_multiplier = 0.
 

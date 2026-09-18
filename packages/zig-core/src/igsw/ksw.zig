@@ -694,7 +694,6 @@ pub export fn ksw_global(
     const MINUS_INF: i32 = -0x40000000;
 
     if (n_cigar_) |p| p.* = 0;
-    if (qlen_u == 0 or tlen_u == 0) return 0;
 
     const n_col: usize = if (@as(usize, @intCast(qlen)) < @as(usize, @intCast(2 * w + 1)))
         qlen_u
@@ -784,8 +783,8 @@ pub export fn ksw_global(
         var m_cigar: c_int = 0;
         var cigar: ?[*]u32 = null;
         var which: i32 = 0;
-        var ti: i32 = @intCast(tlen_u - 1);
-        var k: i32 = @intCast((if (ti + w + 1 < @as(i32, @intCast(qlen_u))) ti + w + 1 else @as(i32, @intCast(qlen_u))) - 1);
+        var ti: i32 = @as(i32, @intCast(tlen_u)) - 1;
+        var k: i32 = (if (ti + w + 1 < @as(i32, @intCast(qlen_u))) ti + w + 1 else @as(i32, @intCast(qlen_u))) - 1;
         while (ti >= 0 and k >= 0) {
             const beg_i: i32 = if (ti > w) ti - w else 0;
             const d = z[@as(usize, @intCast(ti)) * n_col + @as(usize, @intCast(k - beg_i))];
@@ -805,12 +804,14 @@ pub export fn ksw_global(
         if (ti >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 2, @intCast(ti + 1));
         if (k >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 1, @intCast(k + 1));
         // reverse
-        var lo: usize = 0;
-        var hi: usize = @intCast(n_cigar - 1);
-        while (lo < hi) : ({ lo += 1; hi -= 1; }) {
-            const tmp = cigar.?[lo];
-            cigar.?[lo] = cigar.?[hi];
-            cigar.?[hi] = tmp;
+        if (n_cigar > 0) {
+            var lo: usize = 0;
+            var hi: usize = @intCast(n_cigar - 1);
+            while (lo < hi) : ({ lo += 1; hi -= 1; }) {
+                const tmp = cigar.?[lo];
+                cigar.?[lo] = cigar.?[hi];
+                cigar.?[hi] = tmp;
+            }
         }
         n_cigar_.?.* = n_cigar;
         cigar_.?.* = cigar;
