@@ -30,9 +30,10 @@
  * the partis-test gate, but bit-equality between backends is cheap to
  * keep so we keep it.)
  *
- * Mirrored on the Zig side at packages/zig-core/src/ham/fast_math.c.
- * Both sides MUST stay in sync; the table is data so cross-backend
- * parity is trivial as long as the same source compiles to both.
+ * Mirrored between packages/ham/src/fast_math.c and
+ * packages/zig-core/src/ham/fast_math.c. Both sides MUST stay in sync;
+ * the table is data so cross-backend parity is trivial as long as the
+ * same source compiles to both.
  */
 #include <math.h>
 
