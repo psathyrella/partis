@@ -732,8 +732,9 @@ def resolve_sw_cache_paths(sw_cache_paths, locus):
     return [sw_cache_paths]
 
 # ----------------------------------------------------------------------------------------
-def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, summary_path, expected=None, write_naive=False):
-    # group one subset's sw cache by cdr3 length, writing its per-group fasta and sw-cache fragments and its counts to <summary_path>
+def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, summary_path, expected=None, hfrac=False):
+    # group one subset's sw cache by cdr3 length, writing its sw-cache fragments, its fasta fragments and its counts to <summary_path>
+    # with <hfrac> the fasta fragments are naive seqs: _apply_hfrac writes sub-group fastas, the group-level one is never read
     if expected is not None:
         check_sw_cache_against_index(swpath, expected)
     _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
@@ -750,12 +751,13 @@ def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, su
         subset_antns = [uid_to_antn[sfo['name']] for sfo in seqfos if sfo['name'] in uid_to_antn]
         utils.mkdir(frag_path, isfile=True)
         utils.write_annotations(frag_path, glfo, subset_antns, utils.sw_cache_headers)
-        utils.write_fasta('%s/%s' % (group_dir, subset_fasta_fname(locus, isubset)), seqfos)
         subset_counts[c3len] = len(seqfos)
-        if write_naive:
+        if hfrac:
             nfos = [{'name' : sfo['name'], 'seq' : sfo['naive_seq']} for sfo in seqfos if sfo.get('naive_seq', '')]
             utils.write_fasta('%s/%s' % (group_dir, subset_naive_fasta_fname(isubset)), nfos)
             subset_naive_counts[c3len] = len(nfos)
+        else:
+            utils.write_fasta('%s/%s' % (group_dir, subset_fasta_fname(locus, isubset)), seqfos)
 
     with open(summary_path, 'w') as sfile:
         json.dump({'subset_counts' : subset_counts, 'subset_naive_counts' : subset_naive_counts, 'subset_failed' : subset_failed}, sfile)
@@ -844,26 +846,28 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
                 group_counts[c3len] = group_counts.get(c3len, 0) + n_sub
                 n_seqs += n_sub
                 subset_fragments[c3len].append('%s/%s' % (gdir, subset_sw_cache_fname(isubset)))
-                subset_fastas[c3len].append('%s/%s' % (gdir, subset_fasta_fname(locus, isubset)))
                 if hfrac:
                     naive_counts[c3len] += summary['subset_naive_counts'][c3len_str]
                     subset_naive_fastas[c3len].append('%s/%s' % (gdir, subset_naive_fasta_fname(isubset)))
+                else:
+                    subset_fastas[c3len].append('%s/%s' % (gdir, subset_fasta_fname(locus, isubset)))
         n_seqs += n_failed
         shutil.rmtree(summary_dir)
 
         c3lens = sorted(group_counts)
         # join each group's per-subset fasta fragments into its input-seq fasta
         group_infos = []
-        for gid, c3len in enumerate(c3lens):
-            concat_files(subset_fastas[c3len], '%s/groups/cdr3-%d/%s.fa' % (outdir, c3len, locus))
-            group_infos.append({
-                'group_id' : gid,
-                'cdr3_length' : c3len,
-                'locus' : locus,
-                'sequence_count' : group_counts[c3len],
-                'fasta_path' : 'groups/cdr3-%d/%s.fa' % (c3len, locus),
-                'partition_path' : None,
-            })
+        if not hfrac:  # with hfrac these are not written, and _apply_hfrac builds group_infos below
+            for gid, c3len in enumerate(c3lens):
+                concat_files(subset_fastas[c3len], '%s/groups/cdr3-%d/%s.fa' % (outdir, c3len, locus))
+                group_infos.append({
+                    'group_id' : gid,
+                    'cdr3_length' : c3len,
+                    'locus' : locus,
+                    'sequence_count' : group_counts[c3len],
+                    'fasta_path' : 'groups/cdr3-%d/%s.fa' % (c3len, locus),
+                    'partition_path' : None,
+                })
 
         # merge per-subset sw-cache fragments into final per-group files, then clean up
         for c3len in c3lens:
