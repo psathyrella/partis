@@ -12,7 +12,7 @@ from . import treeutils
 def get_dummy_outfname(workdir, locus=None):
     return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-'+locus if locus is not None else '')
 
-actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info', 'write-fake-paired-annotations', 'create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs']
+actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info', 'write-fake-paired-annotations', 'create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs', 'merge-parameter-subsets']
 
 single_locus_actions = ['create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs']  # standalone disjoint-grouping actions; always take one --locus
 
@@ -109,6 +109,14 @@ def process(args):
             raise Exception('have to set --paired-outdir (or --outfname) for \'subset-partition\'')
         if args.seed_unique_id is not None:  # note sure that it'd be much work, but there's much less reason to need it
             raise Exception('--seed-unique-id is not yet supported with \'subset-partition\'')
+
+    if args.action == 'cache-parameters':
+        if args.n_subsets is not None and args.n_subsets < 1:
+            raise Exception('--n-subsets must be positive, but got %d' % args.n_subsets)
+        if args.write_subsets_only and args.n_subsets is None:
+            raise Exception('--write-subsets-only requires --n-subsets for \'cache-parameters\'')
+        if args.no_merged_sw_cache and args.n_subsets is None:
+            raise Exception('--no-merged-sw-cache requires --n-subsets for \'cache-parameters\'')
 
     if args.action == 'partition' and args.disjoint_groups and not args.paired_loci:
         auto_enable_paired_loci('--disjoint-groups')

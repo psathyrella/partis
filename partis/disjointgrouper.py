@@ -4,16 +4,20 @@ import os
 import sys
 import yaml
 import csv
+import json
 import shutil
 import collections
 import glob
 import re
+import multiprocessing
 
 from . import utils
 from . import glutils
 
 MANIFEST_FNAME = 'manifest.yaml'
 MULTIFILE_INDEX_FNAME = 'index.yaml'
+SW_CACHE_FNAME = 'sw-cache.yaml'
+SW_CACHE_INDEX_FNAME = 'sw-cache-index.yaml'  # written in place of sw-cache.yaml when the per-subset caches are not merged
 
 # multifile defaults (referenced from bin/partis argparse so all three places stay in sync), set
 # from the rss of reading and writing one merged file
@@ -29,11 +33,43 @@ HFRAC_MIN_SEQS_DEFAULT = 240000   # CDR3 groups smaller than this skip hfrac ent
 BIN_PACK_TOLERANCE = 1.2               # bin-packing only fires past this multiple of the cap
 MAX_TCM_THRESHOLD = 0.49               # safety clamp on round-2 threshold; vsearch --id requires <= 1.0 and high-SHM regimes can otherwise drive merge_factor*hi_bound past sensible bounds
 
+MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT = 4   # concurrent subset workers for multi-cache grouping
+
 # ----------------------------------------------------------------------------------------
 def group_sw_cache_fname(locus):
     # the per-group sw cache subset written for <locus> (partitiondriver's hash-named caches
     # are a different convention and do not come through here)
     return 'sw-cache-%s.yaml' % locus
+
+# ----------------------------------------------------------------------------------------
+def subset_sw_cache_fname(isubset):
+    return 'sw-cache-subset%03d.yaml' % isubset
+
+# ----------------------------------------------------------------------------------------
+def subset_fasta_fname(locus, isubset):
+    return '%s-subset%03d.fa' % (locus, isubset)
+
+# ----------------------------------------------------------------------------------------
+def subset_naive_fasta_fname(isubset):
+    return 'naive-subset%03d.fa' % isubset
+
+# ----------------------------------------------------------------------------------------
+def group_naive_fasta_fname():
+    return 'naive-seqs.fa'
+
+# ----------------------------------------------------------------------------------------
+def concat_files(fnames, outfname):
+    # move <fnames> into <outfname>, one write pass, removing the fragments
+    if len(fnames) == 1:
+        os.rename(fnames[0], outfname)
+        return
+    utils.mkdir(outfname, isfile=True)
+    with open(outfname, 'w') as ofile:
+        for fname in fnames:
+            with open(fname) as ifile:
+                shutil.copyfileobj(ifile, ofile)
+    for fname in fnames:
+        os.remove(fname)
 
 # ----------------------------------------------------------------------------------------
 def group_sequences_by_cdr3_length(annotation_list):
@@ -253,7 +289,7 @@ def _split_procs(sizes, budget):
     return threads, max(1, n_jobs)
 
 # ----------------------------------------------------------------------------------------
-def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs):
+def _build_round1_vsearch_cmds(specs, hi_bound, outdir, min_group_size, n_procs):
     # build vsearch greedy clustering commands for each CDR3 group above min_group_size
     # returns cmdfos (largest group first), n concurrent jobs, vsearch_groups (c3len -> workdir), small_groups (set of c3len)
     vsearch_binary = utils.get_vsearch_binary()
@@ -261,24 +297,24 @@ def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs
     vsearch_groups = {}
     small_groups = set()
     big_groups = []
-    for c3len, seqfos in sorted(groups.items()):
-        if len(seqfos) < min_group_size:
+    for c3len, spec in sorted(specs.items()):
+        if spec['n_seqs'] < min_group_size or spec['n_naive'] == 0:
             small_groups.add(c3len)
             continue
-        naive_seqdict = {sfo['name']: sfo['naive_seq'] for sfo in seqfos if sfo.get('naive_seq', '')}
-        if len(naive_seqdict) == 0:
-            small_groups.add(c3len)
-            continue
-        big_groups.append((c3len, naive_seqdict))
-    big_groups.sort(key=lambda g: len(g[1]), reverse=True)  # largest first, so the long pole starts first
-    threads, n_jobs = _split_procs([len(nsd) for _, nsd in big_groups], n_procs)
-    for (c3len, naive_seqdict), n_threads in zip(big_groups, threads):
+        big_groups.append((c3len, spec))
+    big_groups.sort(key=lambda g: g[1]['n_naive'], reverse=True)  # largest first, so the long pole starts first
+    threads, n_jobs = _split_procs([spec['n_naive'] for _, spec in big_groups], n_procs)
+    for (c3len, spec), n_threads in zip(big_groups, threads):
         workdir = '%s/groups/cdr3-%d/_vsearch_work' % (outdir, c3len)
         utils.prep_dir(workdir)
-        infname = workdir + '/input.fa'
-        with open(infname, 'w') as f:
-            for name, seq in naive_seqdict.items():
-                f.write('>%s\n%s\n' % (name, seq))
+        if spec['naive_fasta'] is None:
+            infname = workdir + '/input.fa'
+            with open(infname, 'w') as f:
+                for sfo in spec['seqfos']:
+                    if sfo.get('naive_seq', ''):
+                        f.write('>%s\n%s\n' % (sfo['name'], sfo['naive_seq']))
+        else:
+            infname = spec['naive_fasta']
         outfname = workdir + '/vsearch-clusters.txt'
         cmd = '%s --cluster_fast %s --id %s --uc %s --gapopen 1000I/2E --match 2 --mismatch -4 --threads %d' % (
             vsearch_binary, infname, str(1. - hi_bound), outfname, n_threads)
@@ -287,7 +323,7 @@ def _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs
     return cmdfos, n_jobs, vsearch_groups, small_groups
 
 # ----------------------------------------------------------------------------------------
-def _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs):
+def _run_round2_tcm(specs, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs):
     # run round 2 TCM (transitive closure merge) on round 1 centroids
     # returns comps_by_c3len (c3len -> components), r2_workdirs (c3len -> workdir)
     comps_by_c3len = {}
@@ -305,7 +341,7 @@ def _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs
         if len(r1_results) < 2:
             comps_by_c3len[c3len] = [[c] for c, _ in r1_results]
             continue
-        naive_by_uid = {sfo['name']: sfo['naive_seq'] for sfo in groups[c3len] if sfo.get('naive_seq', '')}
+        naive_by_uid = _group_naive_seqs(specs[c3len])
         centroid_naives = {c: naive_by_uid[c] for c, _ in r1_results if c in naive_by_uid}
         if len(centroid_naives) < 2:
             comps_by_c3len[c3len] = [[c] for c, _ in r1_results]
@@ -329,14 +365,29 @@ def _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs
     return comps_by_c3len, r2_workdirs
 
 # ----------------------------------------------------------------------------------------
-def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, sub_glfo, all_group_infos, flattened_groups):
+def _group_naive_seqs(spec):
+    # uid to naive seq for one CDR3 group, from memory or from the group's naive fasta
+    if spec['seqfos'] is not None:
+        return {sfo['name'] : sfo['naive_seq'] for sfo in spec['seqfos'] if sfo.get('naive_seq', '')}
+    if spec['naive_fasta'] is None or not os.path.exists(spec['naive_fasta']):
+        return {}
+    return {sfo['name'] : sfo['seq'] for sfo in utils.read_fastx(spec['naive_fasta'], quiet=True)}
+
+# ----------------------------------------------------------------------------------------
+def _group_seqfos(spec, uid_to_antn):
+    # uid, input seq and naive seq for one CDR3 group, from memory or from its annotations
+    if spec['seqfos'] is not None:
+        return spec['seqfos']
+    return [{'name' : uid, 'seq' : line['input_seqs'][0], 'naive_seq' : line.get('naive_seq', '')} for uid, line in uid_to_antn.items()]
+
+# ----------------------------------------------------------------------------------------
+def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, sub_glfo, all_group_infos):
     # write per-sub-group FASTAs, SW cache subsets, and group info entries
     for isub, sub_seqfos in enumerate(sub_groups_list):
         sub_dir = '%s/groups/cdr3-%d/sub-groups/sub-%03d' % (outdir, c3len, isub)
         fasta_path = '%s/%s.fa' % (sub_dir, locus)
         utils.write_fasta(fasta_path, sub_seqfos)
-        sub_uids = set(sfo['name'] for sfo in sub_seqfos)
-        sub_antns = [uid_to_antn[uid] for uid in sub_uids if uid in uid_to_antn]
+        sub_antns = [uid_to_antn[sfo['name']] for sfo in sub_seqfos if sfo['name'] in uid_to_antn]
         sw_cache_path = '%s/%s' % (sub_dir, group_sw_cache_fname(locus))
         utils.write_annotations(sw_cache_path, sub_glfo, sub_antns, utils.sw_cache_headers)
         unique_naive = len(set(sfo.get('naive_seq', '') for sfo in sub_seqfos if sfo.get('naive_seq', '')))
@@ -351,14 +402,14 @@ def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, 
             'fasta_path' : rel_fasta,
             'partition_path' : None,
         })
-        flattened_groups[(c3len, isub)] = sub_seqfos
     if len(sub_groups_list) > 1:
         seqcount = sum(len(sg) for sg in sub_groups_list)
         print('        cdr3-%d: %d seqs -> %d sub-groups (sizes: %s)' % (c3len, seqcount, len(sub_groups_list), ' '.join(str(len(sg)) for sg in sub_groups_list)))
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=None, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=1):
+def _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=None, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=1):
     # apply hfrac sub-grouping within each CDR3 group, write per-sub-group outputs
+    # <specs>: per CDR3 length, n_seqs and n_naive, plus either in-memory seqfos or a naive fasta path
     # annotation_list set: single-cache in-memory path, everything is already loaded. unset:
     # multi-cache path, so re-read one CDR3 group's sw cache at a time to keep memory down
     # min_group_size: CDR3 groups smaller than this skip hfrac and are written as single groups
@@ -374,8 +425,7 @@ def _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=None, me
         # (uid -> annotation, glfo) for one CDR3 group
         if in_memory_antns is not None:
             return in_memory_antns, glfo
-        # the multi-chunk path's merge_yamls reconciled glfos across chunks, so the outer glfo from
-        # the first chunk would lose novel alleles from later ones
+        # read the fragment's own glfo, which is the union across subsets
         swc_path = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_sw_cache_fname(locus))
         if not os.path.exists(swc_path):
             return {}, glfo
@@ -385,14 +435,14 @@ def _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=None, me
         return uid_to_antn, group_glfo
 
     # round 1: vsearch greedy clustering
-    cmdfos, n_r1_jobs, vsearch_groups, small_groups = _build_round1_vsearch_cmds(groups, hi_bound, outdir, min_group_size, n_procs)
+    cmdfos, n_r1_jobs, vsearch_groups, small_groups = _build_round1_vsearch_cmds(specs, hi_bound, outdir, min_group_size, n_procs)
     if len(cmdfos) > 0:
         print('        running %d vsearch hfrac jobs (%d concurrent, %d procs)' % (len(cmdfos), n_r1_jobs, n_procs))
         utils.run_cmds(cmdfos, n_max_procs=n_r1_jobs)
 
     # parse round 1 results
     r1_by_c3len = {}
-    for c3len in sorted(groups):
+    for c3len in sorted(specs):
         if c3len in small_groups:
             continue
         cluster_file = '%s/vsearch-clusters.txt' % vsearch_groups[c3len]
@@ -401,15 +451,16 @@ def _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=None, me
     # round 2 (optional): TCM on centroids
     comps_by_c3len, r2_workdirs = {}, {}
     if merge_factor > 0:
-        comps_by_c3len, r2_workdirs = _run_round2_tcm(groups, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs)
+        comps_by_c3len, r2_workdirs = _run_round2_tcm(specs, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs)
 
     # build and write sub-groups per CDR3 group
     all_group_infos = []
-    flattened_groups = collections.OrderedDict()
     total_r1 = 0
     total_comps = 0
     total_bins = 0
-    for c3len, seqfos in sorted(groups.items()):
+    for c3len, spec in sorted(specs.items()):
+        uid_to_antn, group_glfo = group_antns(c3len)
+        seqfos = _group_seqfos(spec, uid_to_antn)
         if c3len in small_groups:
             sub_groups_list = [seqfos]
         else:
@@ -434,11 +485,10 @@ def _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=None, me
             shutil.rmtree(vsearch_groups[c3len])
             if merge_factor > 0 and c3len in r2_workdirs:
                 shutil.rmtree(r2_workdirs[c3len], ignore_errors=True)
-        uid_to_antn, group_glfo = group_antns(c3len)
-        _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, group_glfo, all_group_infos, flattened_groups)
+        _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, uid_to_antn, group_glfo, all_group_infos)
     if total_r1 > 0:
         print('        hfrac summary: %d round-1 sub-groups -> %d TCM components -> %d output bins' % (total_r1, total_comps, total_bins))
-    return flattened_groups, all_group_infos
+    return all_group_infos
 
 # ----------------------------------------------------------------------------------------
 def write_manifest(group_infos, outdir, locus, total_input, n_failed, parameter_dir=None, hfrac=False):
@@ -662,35 +712,73 @@ def validate_assembly(manifest, gpaths):
 
 # ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths, locus):
-    # resolve <sw_cache_paths> to a list of files: a single path string, a list of paths, or a parent
-    # dir of chunk<i>-out dirs (chunks sorted numerically, since order sets the fragment indices).
+    # <sw_cache_paths> as a list of files in subset order: one path, a list, or a dir holding the index or a parameter-subsets/ tree
     if not isinstance(sw_cache_paths, str):
         return list(sw_cache_paths)
     if os.path.isdir(sw_cache_paths):
-        pattern = '%s/chunk*-out/parameters/%s/sw-cache.yaml' % (sw_cache_paths, locus)
-        cpaths = glob.glob(pattern)
+        if os.path.exists('%s/%s' % (sw_cache_paths, SW_CACHE_INDEX_FNAME)):
+            return sw_cache_index_paths('%s/%s' % (sw_cache_paths, SW_CACHE_INDEX_FNAME))
+        patterns = ['%s/%s/subset-*/parameters/%s/%s' % (sw_cache_paths, utils.PARAMETER_SUBSET_DIRNAME, locus, SW_CACHE_FNAME),  # paired layout
+                    '%s/%s/subset-*/parameters/%s' % (sw_cache_paths, utils.PARAMETER_SUBSET_DIRNAME, SW_CACHE_FNAME)]  # single-locus layout, no locus dir
+        cpaths = []
+        for pattern in patterns:
+            cpaths = glob.glob(pattern)
+            if len(cpaths) > 0:
+                break
         if len(cpaths) == 0:
-            raise Exception('--sw-cachefname is a directory (%s) but no chunk sw caches matched %s; pass the file, or a colon-separated list of files'
-                            % (sw_cache_paths, pattern))
-        def ichunk(fn):
-            mtch = re.search(r'chunk([0-9]+)-out', fn)
+            raise Exception('--sw-cachefname is a directory (%s) but it holds neither %s nor any sw caches matching %s'
+                            % (sw_cache_paths, SW_CACHE_INDEX_FNAME, ' or '.join(patterns)))
+        def isubset(fn):
+            mtch = re.search(r'subset-([0-9]+)', fn)
             if mtch is None:
-                raise Exception('couldn\'t get chunk index from %s' % fn)
+                raise Exception('couldn\'t get subset index from %s' % fn)
             return int(mtch.group(1))
-        return sorted(cpaths, key=ichunk)
+        return sorted(cpaths, key=isubset)
     return [sw_cache_paths]
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None):
+def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, summary_path, expected=None, hfrac=False):
+    # group one subset's sw cache by cdr3 length, writing its sw-cache fragments, its fasta fragments and its counts to <summary_path>
+    # with <hfrac> the fasta fragments are naive seqs: _apply_hfrac writes sub-group fastas, the group-level one is never read
+    if expected is not None:
+        check_sw_cache_against_index(swpath, expected)
+    _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
+    utils.update_gene_names_in_annotation_list(tantn_list, name_map)  # rename genes dropped by the union
+    utils.check_annotation_glfo_consistency(glfo, tantn_list)
+    subset_groups, subset_failed = group_sequences_by_cdr3_length(tantn_list)
+
+    # uid to annotation lookup, built once per subset
+    uid_to_antn = {line['unique_ids'][0] : line for line in tantn_list if len(line['unique_ids']) == 1}
+    subset_counts, subset_naive_counts = {}, {}
+    for c3len, seqfos in subset_groups.items():
+        group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
+        frag_path = '%s/%s' % (group_dir, subset_sw_cache_fname(isubset))
+        subset_antns = [uid_to_antn[sfo['name']] for sfo in seqfos if sfo['name'] in uid_to_antn]
+        utils.mkdir(frag_path, isfile=True)
+        utils.write_annotations(frag_path, glfo, subset_antns, utils.sw_cache_headers)
+        subset_counts[c3len] = len(seqfos)
+        if hfrac:
+            nfos = [{'name' : sfo['name'], 'seq' : sfo['naive_seq']} for sfo in seqfos if sfo.get('naive_seq', '')]
+            utils.write_fasta('%s/%s' % (group_dir, subset_naive_fasta_fname(isubset)), nfos)
+            subset_naive_counts[c3len] = len(nfos)
+        else:
+            utils.write_fasta('%s/%s' % (group_dir, subset_fasta_fname(locus, isubset)), seqfos)
+
+    with open(summary_path, 'w') as sfile:
+        json.dump({'subset_counts' : subset_counts, 'subset_naive_counts' : subset_naive_counts, 'subset_failed' : subset_failed}, sfile)
+
+# ----------------------------------------------------------------------------------------
+def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None, n_subset_workers=MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
     # <sw_cache_paths>: single path string or list of paths.
     # <n_procs>: concurrent single-threaded vsearch jobs; defaults to available cpus.
-    # For multiple caches, processes one chunk at a time to limit peak memory:
-    #   - per-group FASTAs are written after all chunks are grouped (seqfos are lightweight)
-    #   - per-group sw-cache fragments are written per chunk, then merged and cleaned up
-    sw_cache_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
+    # <n_subset_workers>: per-subset caches read at once, capped at <n_procs>
+    # multiple caches are grouped a bounded number of subsets at a time
+    resolved_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
+    index_expectations = sw_cache_index_expectations(sw_cache_paths, resolved_paths)
+    sw_cache_paths = resolved_paths
     multi_cache = len(sw_cache_paths) > 1
     n_procs = utils.n_available_cpus() if n_procs is None else max(1, n_procs)
 
@@ -717,64 +805,88 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
         n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
         if hfrac:
-            groups, group_infos = _apply_hfrac(groups, hi_bound, outdir, locus, glfo, annotation_list=annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs)
+            specs = collections.OrderedDict((c3len, {'n_seqs' : len(sfos), 'n_naive' : len([s for s in sfos if s.get('naive_seq', '')]), 'seqfos' : sfos, 'naive_fasta' : None})
+                                            for c3len, sfos in sorted(groups.items()))
+            group_infos = _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs)
         else:
             group_infos = write_group_fastas(groups, outdir, locus)
             write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
     else:
-        # multiple sw caches: process one chunk at a time
+        # multiple sw caches: process a bounded number of subsets concurrently
         print('      processing %d sw cache files for %s' % (len(sw_cache_paths), locus))
-        # pre-pass: union the chunks' germline sets, so every fragment is written against one label set
-        glfo, chunk_name_maps = None, []
+        # pre-pass: union the subsets' germline sets
+        glfo, subset_name_maps = None, []
         for swpath in sw_cache_paths:
             tglfo, _, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True, skip_annotations=True)
             if glfo is None:
                 glfo, tmap = tglfo, {r : {} for r in utils.regions}
             else:
-                glfo, tmap = glutils.get_merged_glfo(glfo, tglfo)  # union names are retained, so earlier chunks' maps stay valid
-            chunk_name_maps.append(tmap)
-        all_groups = collections.OrderedDict()  # cdr3_length -> [seqfos] (lightweight: uid + seq only)
+                glfo, tmap = glutils.get_merged_glfo(glfo, tglfo)  # union retains existing names
+            subset_name_maps.append(tmap)
+        group_counts = collections.OrderedDict()  # cdr3_length -> n sequences
+        naive_counts = collections.defaultdict(int)  # cdr3_length -> n sequences with a naive seq
         n_failed = 0
         n_seqs = 0
-        chunk_fragments = collections.defaultdict(list)  # cdr3_length -> list of fragment file paths
+        subset_fragments = collections.defaultdict(list)  # cdr3_length to list of sw-cache fragment paths
+        subset_fastas = collections.defaultdict(list)  # cdr3_length to list of input-seq fasta fragment paths
+        subset_naive_fastas = collections.defaultdict(list)  # cdr3_length to list of naive-seq fasta fragment paths
 
-        for ichunk, swpath in enumerate(sw_cache_paths):
-            print('      chunk %d/%d: %s' % (ichunk + 1, len(sw_cache_paths), swpath))
-            _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
-            utils.update_gene_names_in_annotation_list(tantn_list, chunk_name_maps[ichunk])  # rename genes dropped by the union
-            chunk_groups, chunk_failed = group_sequences_by_cdr3_length(tantn_list)
-            n_failed += chunk_failed
-            n_seqs += sum(len(seqfos) for seqfos in chunk_groups.values()) + chunk_failed
+        n_subset_workers = max(1, min(n_procs, n_subset_workers))
+        print('      running %d subsets with %d concurrent workers' % (len(sw_cache_paths), n_subset_workers))
+        summary_dir = '%s/subset-summaries' % outdir
+        utils.mkdir(summary_dir)
+        summary_paths = ['%s/subset%03d.json' % (summary_dir, isubset) for isubset in range(len(sw_cache_paths))]
+        if any(e is not None for e in index_expectations):
+            utils.require_xxhash('verifying per-subset sw caches against the index')
+        procs = [multiprocessing.Process(target=_process_one_subset_cache, name='subset-%d'%isubset, args=(isubset, swpath, locus, subset_name_maps[isubset], outdir, glfo, summary_paths[isubset], index_expectations[isubset], hfrac))
+                 for isubset, swpath in enumerate(sw_cache_paths)]
+        utils.run_proc_functions(procs, n_procs=n_subset_workers)
 
-            # accumulate seqfos for FASTA writing, write sw-cache fragment per group
-            for c3len, seqfos in chunk_groups.items():
-                all_groups.setdefault(c3len, []).extend(seqfos)
-                group_dir = '%s/groups/cdr3-%d' % (outdir, c3len)
-                frag_path = '%s/sw-cache-chunk%03d.yaml' % (group_dir, ichunk)
-                uid_set = set(sfo['name'] for sfo in seqfos)
-                chunk_antns = [line for line in tantn_list if len(line['unique_ids']) == 1 and line['unique_ids'][0] in uid_set]
-                utils.mkdir(frag_path, isfile=True)
-                utils.write_annotations(frag_path, glfo, chunk_antns, utils.sw_cache_headers)
-                chunk_fragments[c3len].append(frag_path)
+        # combine each subset's counts and fragment paths into the full-run totals
+        for isubset, summary_path in enumerate(summary_paths):
+            with open(summary_path) as sfile:
+                summary = json.load(sfile)
+            n_failed += summary['subset_failed']
+            for c3len_str, n_sub in summary['subset_counts'].items():
+                c3len = int(c3len_str)
+                gdir = '%s/groups/cdr3-%d' % (outdir, c3len)
+                group_counts[c3len] = group_counts.get(c3len, 0) + n_sub
+                n_seqs += n_sub
+                subset_fragments[c3len].append('%s/%s' % (gdir, subset_sw_cache_fname(isubset)))
+                if hfrac:
+                    naive_counts[c3len] += summary['subset_naive_counts'][c3len_str]
+                    subset_naive_fastas[c3len].append('%s/%s' % (gdir, subset_naive_fasta_fname(isubset)))
+                else:
+                    subset_fastas[c3len].append('%s/%s' % (gdir, subset_fasta_fname(locus, isubset)))
+        n_seqs += n_failed
+        shutil.rmtree(summary_dir)
 
-            del tantn_list  # free chunk annotations
+        c3lens = sorted(group_counts)
+        # join each group's per-subset fasta fragments into its input-seq fasta
+        group_infos = []
+        if not hfrac:  # with hfrac these are not written, and _apply_hfrac builds group_infos below
+            for gid, c3len in enumerate(c3lens):
+                concat_files(subset_fastas[c3len], '%s/groups/cdr3-%d/%s.fa' % (outdir, c3len, locus))
+                group_infos.append({
+                    'group_id' : gid,
+                    'cdr3_length' : c3len,
+                    'locus' : locus,
+                    'sequence_count' : group_counts[c3len],
+                    'fasta_path' : 'groups/cdr3-%d/%s.fa' % (c3len, locus),
+                    'partition_path' : None,
+                })
 
-        # write per-group FASTAs
-        groups = collections.OrderedDict(sorted(all_groups.items()))
-        group_infos = write_group_fastas(groups, outdir, locus)
-
-        # merge per-chunk sw-cache fragments into final per-group files, then clean up
-        for c3len in sorted(groups):
+        # merge per-subset sw-cache fragments into final per-group files, then clean up
+        for c3len in c3lens:
             final_swc = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_sw_cache_fname(locus))
-            frags = chunk_fragments.get(c3len, [])
+            frags = subset_fragments.get(c3len, [])
             if len(frags) == 1:
                 os.rename(frags[0], final_swc)
             elif len(frags) > 1:
                 utils.merge_yamls(final_swc, frags, utils.sw_cache_headers, dont_write_git_info=True)
                 for frag in frags:
                     os.remove(frag)
-        # NOTE every fragment is written against the union germline set, but gene calls are still whatever
-        # SW assigned per chunk against that chunk's own germline set; grouping does not re-derive them.
+        # NOTE fragments use the union germline set, gene calls are whatever SW assigned per subset
         # For gene calls made against a single germline set, merge parameter dirs before running SW.
 
         # apply hfrac after merging: two-pass approach for memory efficiency
@@ -782,7 +894,14 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         # then dispatch all vsearch jobs in parallel
         # pass 2: read each CDR3 sw cache again, parse vsearch results, write sub-group outputs
         if hfrac:
-            _, group_infos = _apply_hfrac(groups, hi_bound, outdir, locus, glfo, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs)
+            specs = collections.OrderedDict()
+            for c3len in c3lens:
+                naive_fasta = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_naive_fasta_fname())
+                concat_files(subset_naive_fastas[c3len], naive_fasta)
+                specs[c3len] = {'n_seqs' : group_counts[c3len], 'n_naive' : naive_counts[c3len], 'seqfos' : None, 'naive_fasta' : naive_fasta}
+            group_infos = _apply_hfrac(specs, hi_bound, outdir, locus, glfo, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs)
+            for c3len in c3lens:
+                os.remove(specs[c3len]['naive_fasta'])
 
     n_cdr3_groups = len(set(g['cdr3_length'] for g in group_infos)) if len(group_infos) > 0 else 0
     print('      %s: %d sequences in %d cdr3 length groups (%d failed)' % (locus, n_seqs - n_failed, n_cdr3_groups, n_failed))
@@ -829,13 +948,70 @@ def pack_multifile_output(gpaths, counts, max_seqs_per_file=MULTIFILE_MAX_SEQS_P
     return fspecs
 
 # ----------------------------------------------------------------------------------------
-def xxh3_file_hash(fname, chunk_size=8 * 1024 * 1024):
-    import xxhash
-    hasher = xxhash.xxh3_128()
+def xxh3_file_hash(fname, block_size=utils.XXH3_BLOCK_SIZE):
+    hasher = utils.new_xxh3()
     with open(fname, 'rb') as ifile:
-        for chunk in iter(lambda: ifile.read(chunk_size), b''):
-            hasher.update(chunk)
+        for block in iter(lambda: ifile.read(block_size), b''):
+            hasher.update(block)
     return hasher.hexdigest()
+
+# ----------------------------------------------------------------------------------------
+def hash_and_count_events(fname, block_size=utils.XXH3_BLOCK_SIZE):
+    # sw-cache annotations hold one uid each, so events and sequences are the same count
+    return utils.hash_and_count(fname, utils.SW_CACHE_EVENT_MARKERS, block_size=block_size)
+
+# ----------------------------------------------------------------------------------------
+def sw_cache_index_fname(locus_pdir):
+    return '%s/%s' % (locus_pdir, SW_CACHE_INDEX_FNAME)
+
+# ----------------------------------------------------------------------------------------
+def check_no_sw_cache_index(locus_pdir):
+    if os.path.exists(sw_cache_index_fname(locus_pdir)):
+        raise Exception('no merged sw cache in %s, only the per-subset index %s' % (locus_pdir, SW_CACHE_INDEX_FNAME))
+
+# ----------------------------------------------------------------------------------------
+def write_sw_cache_index(locus, locus_pdir, sw_cache_paths):
+    # write the per-subset sw-cache index for <locus> into <locus_pdir>, in the order given
+    swcfos = []
+    for swpath in sw_cache_paths:
+        xxh3, n_seqs = hash_and_count_events(swpath)
+        swcfos.append({'path' : os.path.relpath(swpath, locus_pdir), 'n_sequences' : n_seqs, 'xxh3' : xxh3})
+    index = {'locus' : locus, 'n_subsets' : len(swcfos), 'sw_caches' : swcfos}
+    utils.mkdir(locus_pdir)
+    index_path = sw_cache_index_fname(locus_pdir)
+    with open(index_path, 'w') as ifile:
+        yaml.dump(index, ifile, width=400, default_flow_style=False, sort_keys=False)
+    print('       %s: wrote %s (%d caches, %d sequences)' % (utils.locstr(locus), index_path, len(swcfos), sum(f['n_sequences'] for f in swcfos)))
+    return index_path
+
+# ----------------------------------------------------------------------------------------
+def read_sw_cache_index(index_path):
+    index = utils.load_index(index_path, 'sw cache index', ['locus', 'n_subsets', 'sw_caches'])
+    utils.check_index_entries(index, index_path, 'sw cache index', 'sw_caches', count_key='n_subsets', hashes='required')
+    return index
+
+# ----------------------------------------------------------------------------------------
+def sw_cache_index_paths(index_path):
+    # the per-subset caches, in index order, as stored (relative, with '..' unresolved)
+    idir = os.path.dirname(os.path.abspath(index_path))
+    return ['%s/%s' % (idir, cfo['path']) for cfo in read_sw_cache_index(index_path)['sw_caches']]
+
+# ----------------------------------------------------------------------------------------
+def sw_cache_index_expectations(sw_cache_paths, resolved_paths):
+    # the index's hash and count for each resolved path, or None for each when there is no index
+    none_list = [None for _ in resolved_paths]
+    if not isinstance(sw_cache_paths, str) or not os.path.isdir(sw_cache_paths):
+        return none_list
+    index_path = sw_cache_index_fname(sw_cache_paths)
+    if not os.path.exists(index_path):
+        return none_list
+    idir = os.path.dirname(os.path.abspath(index_path))
+    by_path = {os.path.abspath('%s/%s' % (idir, cfo['path'])) : cfo for cfo in read_sw_cache_index(index_path)['sw_caches']}
+    return [by_path.get(os.path.abspath(p)) for p in resolved_paths]
+
+# ----------------------------------------------------------------------------------------
+def check_sw_cache_against_index(swpath, expected):
+    utils.check_file_against_index(swpath, expected['xxh3'], expected['n_sequences'], utils.SW_CACHE_EVENT_MARKERS, 'sw cache')
 
 # ----------------------------------------------------------------------------------------
 def write_multifile_output(locus, manifest, gpaths, counts, outfname, max_seqs_per_file=MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT):
@@ -917,12 +1093,7 @@ def validate_multifile_index(index, fname=None):
         raise Exception('multifile index mismatch%s: grouped %d + no cdr3 %d does not equal the sw cache count %d' % (fstr, ainfo['n_sequences_grouped'], ainfo['n_sequences_no_cdr3'], ainfo['n_sequences_in_sw_cache']))
     if ainfo['n_files'] < ainfo['n_cdr3_groups']:
         raise Exception('multifile index mismatch%s: %d files is fewer than the %d cdr3 groups they cover' % (fstr, ainfo['n_files'], ainfo['n_cdr3_groups']))
-    n_with_xxh3 = sum('xxh3' in f for f in index['files'])
-    if n_with_xxh3 not in (0, len(index['files'])):
-        raise Exception('multifile index mismatch%s: %d of %d files have an xxh3 hash, expected all or none' % (fstr, n_with_xxh3, len(index['files'])))
-    for f in index['files']:
-        if 'xxh3' in f and not re.match('^[0-9a-f]{32}$', f['xxh3']):
-            raise Exception('multifile index mismatch%s: %s has a malformed xxh3 hash %s' % (fstr, f['path'], f['xxh3']))
+    utils.check_index_entries(index, fname, 'multifile index', 'files', hashes='optional')
 
 # ----------------------------------------------------------------------------------------
 def read_multifile_index(index_path):

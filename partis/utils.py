@@ -14,6 +14,7 @@ import uuid
 import itertools
 import ast
 import math
+import re
 import glob
 from collections import Counter
 from collections import OrderedDict
@@ -4435,8 +4436,7 @@ def mkdir(path, isfile=False):  # adding this very late, so could use it in a lo
         path = os.path.dirname(path)
     if path == '':  # if it's a relative path we give up
         return
-    if not os.path.exists(path):
-        os.makedirs(path)
+    os.makedirs(path, exist_ok=True)
 
 # ----------------------------------------------------------------------------------------
 def makelink(odir, target, link_name, dryrun=False, extra_str='', debug=False):  # <odir> is generally os.path.dirname(link_name)   for search: def link def ln
@@ -4454,7 +4454,7 @@ def makelink(odir, target, link_name, dryrun=False, extra_str='', debug=False): 
     mkdir(odir)
     simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun, extra_str=extra_str, debug=debug)
 
-    if not os.path.exists(target if target==fpath(target) else odir+'/'+target):
+    if not dryrun and not os.path.exists(target if target==fpath(target) else odir+'/'+target):
         raise Exception('linked to missing file in odir %s (target %s)' % (odir, target if target==fpath(target) else odir+'/'+target))
 
 # ----------------------------------------------------------------------------------------
@@ -5166,10 +5166,130 @@ def merge_yamls(outfname, yaml_list, headers, cleanup=False, use_pyyaml=False, d
         return n_event_list, n_seq_list
 
 # ----------------------------------------------------------------------------------------
-# merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub> (only works with paired dir structure)
+# per-subset parameter dirs for 'cache-parameters --n-subsets'; <basedir> is --paired-outdir, or --parameter-dir for a single locus
+PARAMETER_SUBSET_DIRNAME = 'parameter-subsets'
+SUBSET_INDEX_FNAME = 'subset-index.yaml'
+
+# ----------------------------------------------------------------------------------------
+def parameter_subset_root(basedir):
+    return '%s/%s' % (basedir, PARAMETER_SUBSET_DIRNAME)
+
+# ----------------------------------------------------------------------------------------
+def parameter_subset_dir(basedir, isub):
+    return '%s/subset-%d' % (parameter_subset_root(basedir), isub)
+
+# ----------------------------------------------------------------------------------------
+def subset_index_fname(basedir):
+    return '%s/%s' % (parameter_subset_root(basedir), SUBSET_INDEX_FNAME)
+
+# ----------------------------------------------------------------------------------------
+# written only once a subset job finishes, so a job that died partway is re-run
+SUBSET_COMPLETE_FNAME = 'subset-complete.yaml'
+LEGACY_SUBSET_COMPLETE_FNAME = 'cache-parameters-complete.yaml'  # markers written before the name was shared
+
+# ----------------------------------------------------------------------------------------
+def mark_subset_complete(sdir):
+    with open('%s/%s' % (sdir, SUBSET_COMPLETE_FNAME), 'w') as cfile:
+        cfile.write('{}\n')
+
+# ----------------------------------------------------------------------------------------
+def subset_is_marked_complete(sdir):
+    return any(os.path.exists('%s/%s' % (sdir, f)) for f in [SUBSET_COMPLETE_FNAME, LEGACY_SUBSET_COMPLETE_FNAME])
+
+# ----------------------------------------------------------------------------------------
+# one hash convention and one set of error messages for every index that records what a split wrote
+XXH3_BLOCK_SIZE = 8 * 1024 * 1024
+SW_CACHE_EVENT_MARKERS = [b'"unique_ids"', b'unique_ids:']  # one per annotation, in json and yaml sw caches
+FASTA_SEQ_MARKERS = [b'>']
+
+# ----------------------------------------------------------------------------------------
+def require_xxhash(cstr):  # fail in a second rather than after the jobs have run
+    try:
+        import xxhash  # noqa: F401
+    except ImportError:
+        raise Exception('%s needs the xxhash module, which is not installed (pip install xxhash)' % cstr)
+
+# ----------------------------------------------------------------------------------------
+def new_xxh3():
+    require_xxhash('hashing')
+    import xxhash
+    return xxhash.xxh3_128()
+
+# ----------------------------------------------------------------------------------------
+def hash_and_count(fname, markers, block_size=XXH3_BLOCK_SIZE):
+    # one streaming pass: the file's hash, and how many times <markers> occur in it
+    hasher = new_xxh3()
+    overlap = max(len(m) for m in markers) - 1  # keep enough of each block to catch a marker split across two
+    n_found, tail = 0, b''
+    with open(fname, 'rb') as ifile:
+        for block in iter(lambda: ifile.read(block_size), b''):
+            hasher.update(block)
+            buf = tail + block
+            for mrk in markers:
+                n_found += buf.count(mrk, max(0, len(tail) - len(mrk) + 1))  # start past any match already counted within <tail>
+            tail = buf[-overlap:] if overlap > 0 else b''
+    return hasher.hexdigest(), n_found
+
+# ----------------------------------------------------------------------------------------
+def check_file_against_index(fname, expected_xxh3, expected_count, markers, cstr, unit='events'):
+    # compare a file's own hash and count to what the index recorded for it
+    xxh3, n_found = hash_and_count(fname, markers)
+    if xxh3 != expected_xxh3 or n_found != expected_count:
+        raise Exception('%s %s does not match the index: xxh3 %s (index %s), %d %s (index %d)'
+                        % (cstr, fname, xxh3, expected_xxh3, n_found, unit, expected_count))
+
+# ----------------------------------------------------------------------------------------
+def load_index(ifn, cstr, required_keys):
+    if not os.path.exists(ifn):
+        raise Exception('%s does not exist: %s' % (cstr, ifn))
+    with open(ifn) as ifile:
+        index = yaml.safe_load(ifile)
+    for required_key in required_keys:
+        if required_key not in index:
+            raise Exception('%s %s is missing required key \'%s\'' % (cstr, ifn, required_key))
+    return index
+
+# ----------------------------------------------------------------------------------------
+def check_index_entries(index, ifn, cstr, items_key, count_key=None, hashes=None):
+    # <hashes>: 'required' if every entry must carry an xxh3, 'optional' if older entries without one are ok
+    fstr = '' if ifn is None else ' in %s' % ifn
+    items = index[items_key]
+    if count_key is not None and len(items) != index[count_key]:
+        raise Exception('%s mismatch%s: %s %d does not equal the %d listed %s' % (cstr, fstr, count_key, index[count_key], len(items), items_key))
+    if hashes is None:
+        return
+    n_with_xxh3 = sum('xxh3' in i for i in items)
+    if hashes == 'required' and n_with_xxh3 != len(items):
+        raise Exception('%s mismatch%s: %d of %d %s have an xxh3 hash, expected all of them' % (cstr, fstr, n_with_xxh3, len(items), items_key))
+    if hashes == 'optional' and n_with_xxh3 not in (0, len(items)):
+        raise Exception('%s mismatch%s: %d of %d %s have an xxh3 hash, expected all or none' % (cstr, fstr, n_with_xxh3, len(items), items_key))
+    for ifo in items:
+        if 'xxh3' in ifo and not re.match('^[0-9a-f]{32}$', ifo['xxh3']):
+            raise Exception('%s mismatch%s: %s has a malformed xxh3 hash %s' % (cstr, fstr, ifo['path'], ifo['xxh3']))
+
+# ----------------------------------------------------------------------------------------
+# paths are relative to the index's own dir
+def write_subset_index(basedir, subsets):  # subsets: ordered list of {path, input_fasta, n_input_sequences, xxh3}
+    index = {'n_subsets' : len(subsets), 'completion_markers' : True, 'subsets' : subsets}
+    ifn = subset_index_fname(basedir)
+    mkdir(ifn, isfile=True)
+    with open(ifn, 'w') as ifile:
+        yaml.dump(index, ifile, width=400, default_flow_style=False, sort_keys=False)
+    return ifn
+
+# ----------------------------------------------------------------------------------------
+def read_subset_index(basedir):
+    ifn = subset_index_fname(basedir)
+    index = load_index(ifn, 'subset index', ['n_subsets', 'subsets'])
+    check_index_entries(index, ifn, 'subset index', 'subsets', count_key='n_subsets', hashes='optional')  # optional: indexes from before the hash existed
+    return index
+
+# ----------------------------------------------------------------------------------------
+# merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub>
+# (paired dir structure, unless <locus> is set, in which case the dirs are parameter dirs themselves)
 # some things are handled nicelycorrectly, others more hackily
 # NOTE only merges the 'hmm' parameter type, not 'sw'
-def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig'):
+def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig', skip_sw_merge=False, locus=None):
     from . import glutils, paircluster, fraction_uncertainty
     gene_index_cols = set(r + '_gene' for r in regions)  # index columns that hold a gene name, so need remapping
     simple_count_columns = ['seq_content', 'cluster_size'] + [b + '_insertion_content' for b in boundaries]  # single-key count tables, no gene name involved
@@ -5185,36 +5305,46 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
             remapped.append(val)
         return tuple(remapped)
     # ----------------------------------------------------------------------------------------
+    def pdir(dname, ltmp):  # the parameter dir for <ltmp> within <dname> (in single-locus mode <dname> is already it)
+        return dname if locus is not None else '%s/parameters/%s' % (dname, ltmp)
+    # ----------------------------------------------------------------------------------------
+    if locus is not None and include_hmm_cache_files:
+        raise Exception('include_hmm_cache_files only works with the paired dir structure')
     print('    merging parameters from %d subdirs (e.g. %s) to %s' % (n_subsets, subdfn(0), merged_odir))
-    for ltmp in sub_loci(ig_or_tr):
-        if os.path.exists('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp)):  # just looks for one of the last thing we would've written
+    merged_loci = []
+    for ltmp in ([locus] if locus is not None else sub_loci(ig_or_tr)):
+        if os.path.exists('%s/hmm/germline-sets' % pdir(merged_odir, ltmp)):  # just looks for one of the last thing we would've written
             print('       %s %s: subset-merged input exists, not rewriting' % (color('yellow', 'warning'), locstr(ltmp)))
+            merged_loci.append(ltmp)
             continue
-        mkdir('%s/parameters/%s' % (merged_odir, ltmp))
-        def swfn(dname): return '%s/parameters/%s/sw-cache.yaml'%(dname, ltmp)
+        def swfn(dname): return '%s/sw-cache.yaml' % pdir(dname, ltmp)
         sub_swfs = [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
         if len(sub_swfs) == 0:
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
             continue
-        merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
+        mkdir(pdir(merged_odir, ltmp))
+        if skip_sw_merge:
+            print('       %s: skipping sw-cache merge' % locstr(ltmp))
+        else:
+            merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
         # these overall mean-freq/n-muted histograms aren't summed, just linked from one subset, which should be fine
         sentinel_hist_fnames = ['all-mean-mute-freqs.csv', 'all-mean-n-muted.csv'] + ['%s-mean-%s.csv' % (r, mstr) for r in regions for mstr in ('mute-freqs', 'n-muted')]
         for hfname in sentinel_hist_fnames:
-            sub_hfns = [f for f in ('%s/parameters/%s/hmm/%s' % (subdfn(i), ltmp, hfname) for i in range(n_subsets)) if os.path.exists(f)]
+            sub_hfns = [f for f in ('%s/hmm/%s' % (pdir(subdfn(i), ltmp), hfname) for i in range(n_subsets)) if os.path.exists(f)]
             if len(sub_hfns) == 0:
                 continue
-            makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(sub_hfns[0]), hfname)
+            makelink('%s/hmm' % pdir(fpath(merged_odir), ltmp), fpath(sub_hfns[0]), hfname)
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         merged_mfreq_counts = {}  # summed counts, keyed by gene then position, same per-position dict shape mutefreqer uses
         merged_length_counts = {}  # summed counts for the deletion/insertion tables, keyed by column then remapped index tuple
         merged_all_counts = defaultdict(int)  # summed counts for all-probs.csv, keyed by remapped index tuple
         merged_simple_counts = {c : defaultdict(int) for c in simple_count_columns}
-        def gpfn(dname, l, r): return '%s/parameters/%s/hmm/%s_gene-probs.csv' % (dname, l, r)
-        def mffn(dname, l): return '%s/parameters/%s/hmm/mute-freqs' % (dname, l)
+        def gpfn(dname, l, r): return '%s/hmm/%s_gene-probs.csv' % (pdir(dname, l), r)
+        def mffn(dname, l): return '%s/hmm/mute-freqs' % pdir(dname, l)
         for isub in range(n_subsets):
-            for hfn in glob.glob('%s/parameters/%s/hmm/hmms/*.yaml' % (subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
-                makelink('%s/parameters/%s/hmm/hmms' % (fpath(merged_odir), ltmp), fpath(hfn), os.path.basename(hfn))
-            sub_glfo = glutils.read_glfo('%s/parameters/%s/hmm/germline-sets' % (subdfn(isub), ltmp), ltmp, dont_crash=True)
+            for hfn in glob.glob('%s/hmm/hmms/*.yaml' % pdir(subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
+                makelink('%s/hmm/hmms' % pdir(fpath(merged_odir), ltmp), fpath(hfn), os.path.basename(hfn))
+            sub_glfo = glutils.read_glfo('%s/hmm/germline-sets' % pdir(subdfn(isub), ltmp), ltmp, dont_crash=True)
             name_mapping = None
             if merged_glfo is None:
                 merged_glfo = sub_glfo
@@ -5235,7 +5365,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                 if col in gene_index_cols:  # v/d/j gene counts already summed just above
                     continue
                 cols_in_order = list(coltup)
-                lfn = '%s/parameters/%s/hmm/%s' % (subdfn(isub), ltmp, get_parameter_fname(column_and_deps=cols_in_order))
+                lfn = '%s/hmm/%s' % (pdir(subdfn(isub), ltmp), get_parameter_fname(column_and_deps=cols_in_order))
                 if not os.path.exists(lfn):
                     continue
                 table_counts = merged_length_counts.setdefault(col, defaultdict(int))
@@ -5244,14 +5374,14 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                     table_counts[key] += int(tline['count'])
             # same sum, for the one table keyed on the full rearrangement (all genes plus every deletion and insertion length)
             all_cols = list(index_columns) + ['cdr3_length']
-            afn = '%s/parameters/%s/hmm/%s' % (subdfn(isub), ltmp, get_parameter_fname(column='all'))
+            afn = '%s/hmm/%s' % (pdir(subdfn(isub), ltmp), get_parameter_fname(column='all'))
             if os.path.exists(afn):
                 for tline in csvlines(afn):
                     key = remap_index_values(all_cols, [tline[c] for c in all_cols], name_mapping)
                     merged_all_counts[key] += int(tline['count'])
             # sum the single-key count tables (base content, cluster size), no gene identity so no remapping needed
             for scol in simple_count_columns:
-                sfn = '%s/parameters/%s/hmm/%s.csv' % (subdfn(isub), ltmp, scol)
+                sfn = '%s/hmm/%s.csv' % (pdir(subdfn(isub), ltmp), scol)
                 if not os.path.exists(sfn):
                     continue
                 for tline in csvlines(sfn):
@@ -5289,7 +5419,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                         pcounts['total'] += obs_sum
         if merged_glfo is None:  # none of them exists
             continue
-        glutils.write_glfo('%s/parameters/%s/hmm/germline-sets' % (merged_odir, ltmp), merged_glfo)
+        glutils.write_glfo('%s/hmm/germline-sets' % pdir(merged_odir, ltmp), merged_glfo)
         for treg in regions:
             with open(gpfn(merged_odir, ltmp, treg), 'w') as gfile:
                 writer = csv.DictWriter(gfile, ['%s_gene'%treg, 'count'])
@@ -5321,7 +5451,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                         writer.writerow(row)
         for col, table_counts in merged_length_counts.items():  # write the summed deletion/insertion-length tables, same recompute-not-average approach as the mute-freqs table above
             cols_in_order = [col] + column_dependencies[col]
-            lfn = '%s/parameters/%s/hmm/%s' % (merged_odir, ltmp, get_parameter_fname(column_and_deps=cols_in_order))
+            lfn = '%s/hmm/%s' % (pdir(merged_odir, ltmp), get_parameter_fname(column_and_deps=cols_in_order))
             with open(lfn, csv_wmode()) as lfile:
                 writer = csv.DictWriter(lfile, cols_in_order + ['count'])
                 writer.writeheader()
@@ -5331,7 +5461,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                     writer.writerow(row)
         if len(merged_all_counts) > 0:  # write the summed full-rearrangement table
             all_cols = list(index_columns) + ['cdr3_length']
-            afn = '%s/parameters/%s/hmm/%s' % (merged_odir, ltmp, get_parameter_fname(column='all'))
+            afn = '%s/hmm/%s' % (pdir(merged_odir, ltmp), get_parameter_fname(column='all'))
             with open(afn, csv_wmode()) as afile:
                 writer = csv.DictWriter(afile, all_cols + ['count'])
                 writer.writeheader()
@@ -5342,7 +5472,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         for scol, counts in merged_simple_counts.items():  # write the summed single-key count tables
             if len(counts) == 0:
                 continue
-            sfn = '%s/parameters/%s/hmm/%s.csv' % (merged_odir, ltmp, scol)
+            sfn = '%s/hmm/%s.csv' % (pdir(merged_odir, ltmp), scol)
             with open(sfn, csv_wmode()) as sfile:
                 writer = csv.DictWriter(sfile, [scol, 'count'])
                 writer.writeheader()
@@ -5351,6 +5481,10 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         if include_hmm_cache_files:  # these aren't parameters, but don't want to change the name, either, oh well
             subfns = ['%s/single-chain/persistent-cache-%s.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
             merge_csvs('%s/single-chain/persistent-cache-%s.csv'% (merged_odir, ltmp), subfns)
+        merged_loci.append(ltmp)
+
+    if len(merged_loci) == 0:
+        raise Exception('no per-subset parameters to merge in %s, from %d subdirs (e.g. %s)' % (merged_odir, n_subsets, subdfn(0)))
 
 # ----------------------------------------------------------------------------------------
 def get_nodelist_from_slurm_shorthand(nodestr, known_nodes=None, debug=False):
@@ -5736,12 +5870,20 @@ def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list o
     if debug:
         print('    running %d proc fcns with %d procs' % (len(procs), n_procs))
         sys.stdout.flush()
+    started = list(procs)
     while True:
         while len(procs) > 0 and len(multiprocessing.active_children()) < n_procs:
             procs[0].start()
             procs.pop(0)
         if len(multiprocessing.active_children()) == 0 and len(procs) == 0:
             break
+    failed = []
+    for iproc, proc in enumerate(started):
+        proc.join()
+        if proc.exitcode != 0:
+            failed.append((iproc, proc.exitcode))
+    if len(failed) > 0:  # procs are named at construction, so this says which one
+        raise Exception('%d of %d proc fcns failed: %s' % (len(failed), len(started), ', '.join('%s exited %d' % (started[i].name, c) for i, c in failed)))
 
 # ----------------------------------------------------------------------------------------
 def get_batch_system_str(batch_system, cmdfo, fout, ferr, batch_options):
@@ -5849,13 +5991,14 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
         if n_max_procs is not None:
             limit_procs(proc_limit_str, n_max_procs, procs=procs)  # NOTE now that I've added the <procs> arg, I should remove all the places where I'm using the old cmd str method (I mean, it works fine, but it's hackier/laggier, and in cases where several different parent procs are running a log of the same-named subprocs on the same machine, the old way will be wrong [i.e. limit_procs was originally intended as a global machine-wide limit, whereas in this fcn we usually call it wanting to set a specific number of subproces for this process])
 
-    dbgstrs = ['' for _ in procs]
+    dbgstrs, statuses = ['' for _ in procs], [None for _ in procs]
     while procs.count(None) != len(procs):  # we set each proc to None when it finishes
         for iproc in range(len(cmdfos)):
             if procs[iproc] is None:  # already finished
                 continue
             if procs[iproc].poll() is not None:  # it just finished
                 status, dbgstrs[iproc] = finish_process(iproc, procs, n_tries_list[iproc], cmdfos[iproc], n_max_tries, dbgfo=cmdfos[iproc].get('dbgfo'), batch_system=batch_system, debug=debug, ignore_stderr=ignore_stderr, clean_on_success=clean_on_success, allow_failure=allow_failure)
+                statuses[iproc] = status
                 if status == 'restart':
                     print(dbgstrs[iproc])
                     procs[iproc] = run_cmd(cmdfos[iproc], batch_system=batch_system, batch_options=batch_options, shell=shell)
@@ -5871,6 +6014,7 @@ def run_cmds(cmdfos, shell=False, n_max_tries=None, clean_on_success=False, batc
     for dstr in dbgstrs:
         if dstr != '':
             print(dstr)
+    return statuses  # 'ok' or 'failed' for each cmdfo, in order
 
 # ----------------------------------------------------------------------------------------
 def pad_lines(linestr, padwidth=8):
@@ -7270,11 +7414,16 @@ def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(),
     jsdump(fname, seqfos)
 
 # ----------------------------------------------------------------------------------------
-def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
+def write_fasta(fname, seqfos, name_key='name', seq_key='seq', return_hash=False):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
+    hasher = new_xxh3() if return_hash else None  # hashes the bytes as they are written, so no extra read
     mkdir(fname, isfile=True)
     with open(fname, 'w') as seqfile:
         for sfo in seqfos:
-            seqfile.write('>%s\n%s\n' % (sfo[name_key], sfo[seq_key]))
+            fstr = '>%s\n%s\n' % (sfo[name_key], sfo[seq_key])
+            seqfile.write(fstr)
+            if hasher is not None:
+                hasher.update(fstr.encode('utf-8'))
+    return None if hasher is None else hasher.hexdigest()
 
 # ----------------------------------------------------------------------------------------
 # NOTE replacement for (some cases of) read_fastx()
