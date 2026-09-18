@@ -5882,8 +5882,8 @@ def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list o
         proc.join()
         if proc.exitcode != 0:
             failed.append((iproc, proc.exitcode))
-    if len(failed) > 0:
-        raise Exception('%d of %d proc fcns failed: %s' % (len(failed), len(started), ', '.join('proc %d exited %d' % (i, c) for i, c in failed)))
+    if len(failed) > 0:  # procs are named at construction, so this says which one
+        raise Exception('%d of %d proc fcns failed: %s' % (len(failed), len(started), ', '.join('%s exited %d' % (started[i].name, c) for i, c in failed)))
 
 # ----------------------------------------------------------------------------------------
 def get_batch_system_str(batch_system, cmdfo, fout, ferr, batch_options):

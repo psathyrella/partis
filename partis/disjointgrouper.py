@@ -831,7 +831,9 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         summary_dir = '%s/subset-summaries' % outdir
         utils.mkdir(summary_dir)
         summary_paths = ['%s/subset%03d.json' % (summary_dir, isubset) for isubset in range(len(sw_cache_paths))]
-        procs = [multiprocessing.Process(target=_process_one_subset_cache, args=(isubset, swpath, locus, subset_name_maps[isubset], outdir, glfo, summary_paths[isubset], index_expectations[isubset], hfrac))
+        if any(e is not None for e in index_expectations):
+            utils.require_xxhash('verifying per-subset sw caches against the index')
+        procs = [multiprocessing.Process(target=_process_one_subset_cache, name='subset-%d'%isubset, args=(isubset, swpath, locus, subset_name_maps[isubset], outdir, glfo, summary_paths[isubset], index_expectations[isubset], hfrac))
                  for isubset, swpath in enumerate(sw_cache_paths)]
         utils.run_proc_functions(procs, n_procs=n_subset_workers)
 

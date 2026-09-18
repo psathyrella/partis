@@ -593,6 +593,8 @@ def param_locus_dir(args, bdir, ltmp):
 def subset_cache_parameters(args):
     # split the input into --n-subsets, cache parameters on each, then merge to the usual parameter dir
     base = parameter_subset_base(args)
+    if args.no_merged_sw_cache:
+        utils.require_xxhash('--no-merged-sw-cache')
     if args.paired_loci and args.input_metafnames is None and not args.no_pairing_info:
         args.input_metafnames = ['%s/meta.yaml' % (args.paired_indir if args.paired_indir is not None else '%s/input'%args.paired_outdir)]
         print('  note: --input-metafnames not specified, so setting to default location %s' % args.input_metafnames[0])
@@ -714,6 +716,8 @@ def subset_cache_parameters(args):
 # ----------------------------------------------------------------------------------------
 def merge_parameter_subsets(args):
     # sum the per-subset count tables and union their glfos into one parameter dir
+    if args.no_merged_sw_cache:
+        utils.require_xxhash('--no-merged-sw-cache')
     base = parameter_subset_base(args)
     n_subsets = utils.read_subset_index(base)['n_subsets']
     def subdfn(isub): return subset_pdir(args, isub)
