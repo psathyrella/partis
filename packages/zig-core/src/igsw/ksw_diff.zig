@@ -2,9 +2,8 @@
 ///
 /// Reproduces and verifies the trial measurements cited in issue #403:
 ///   1. ksw_global zero-length target handling (item 1).
-///   2. gapo == 0 lazy-F loop divergence count (~4,830 of 40,000 trials, item 3).
-///   3. KSW_XBYTE u8 query-profile padding divergence (~641 of 40,000 trials).
-///   4. Standard configuration parity (0 divergences in 120,000 trials).
+///   2. gapo == 0 lazy-F loop divergence count (~4,500 of 40,000 trials, item 3).
+///   3. Standard configuration parity (0 divergences in 120,000 trials).
 ///
 /// Can be invoked as a CLI executable `ksw-diff` or via `zig build test`.
 const std = @import("std");
@@ -14,11 +13,6 @@ const ksw = @import("ksw.zig");
 extern "c" fn c_ksw_qinit(size: c_int, qlen: c_int, query: [*]const u8, m: c_int, mat: [*]const i8) callconv(.c) ?*anyopaque;
 extern "c" fn c_ksw_align(qlen: c_int, query: [*]u8, tlen: c_int, target: [*]u8, m: c_int, mat: [*]const i8, gapo: c_int, gape: c_int, xtra: c_int, qry: ?*?*anyopaque) callconv(.c) ksw.Kswr;
 extern "c" fn c_ksw_global(qlen: c_int, query: [*]const u8, tlen: c_int, target: [*]const u8, m: c_int, mat: [*]const i8, gapo: c_int, gape: c_int, w: c_int, n_cigar_: ?*c_int, cigar_: ?*?[*]u32) callconv(.c) c_int;
-
-const KSW_XBYTE: c_int = 0x10000;
-const KSW_XSTOP: c_int = 0x20000;
-const KSW_XSUBO: c_int = 0x40000;
-const KSW_XSTART: c_int = 0x80000;
 
 pub fn getDefaultMat(match: i8, mismatch: i8) [25]i8 {
     var mat: [25]i8 = undefined;
@@ -56,6 +50,7 @@ pub fn runAlignTrials(
 
     var qbuf: [512]u8 = undefined;
     var tbuf: [512]u8 = undefined;
+    std.debug.assert(max_len <= qbuf.len and min_len >= 0 and min_len <= max_len);
 
     var stats = TrialStats{
         .trials = trials,
@@ -89,6 +84,38 @@ pub fn runAlignTrials(
     return stats;
 }
 
+/// Helper asserting bit-exact score and CIGAR agreement between C and Zig ksw_global
+fn assertGlobalMatches(
+    qlen: c_int,
+    query: [*]const u8,
+    tlen: c_int,
+    target: [*]const u8,
+    mat: *const [25]i8,
+    gapo: c_int,
+    gape: c_int,
+    w: c_int,
+) !void {
+    var c_n_cigar: c_int = 0;
+    var c_cigar: ?[*]u32 = null;
+    var z_n_cigar: c_int = 0;
+    var z_cigar: ?[*]u32 = null;
+    defer if (c_cigar) |p| std.c.free(p);
+    defer if (z_cigar) |p| std.c.free(p);
+
+    const c_sc = c_ksw_global(qlen, query, tlen, target, 5, mat, gapo, gape, w, &c_n_cigar, &c_cigar);
+    const z_sc = ksw.ksw_global(qlen, query, tlen, target, 5, mat, gapo, gape, w, &z_n_cigar, &z_cigar);
+
+    try std.testing.expectEqual(c_sc, z_sc);
+    try std.testing.expectEqual(c_n_cigar, z_n_cigar);
+    try std.testing.expectEqual(c_cigar == null, z_cigar == null);
+    if (c_cigar) |cc| {
+        const zc = z_cigar.?;
+        for (0..@intCast(c_n_cigar)) |ci| {
+            try std.testing.expectEqual(cc[ci], zc[ci]);
+        }
+    }
+}
+
 /// Verify ksw_global equivalence on edge cases and random inputs
 pub fn testGlobalEquivalence(rand: std.Random, n_trials: usize) !void {
     const mat = getDefaultMat(2, -2);
@@ -99,63 +126,18 @@ pub fn testGlobalEquivalence(rand: std.Random, n_trials: usize) !void {
     for (1..32) |qlen_u| {
         const qlen: c_int = @intCast(qlen_u);
         for (0..qlen_u) |i| qbuf[i] = @intCast(i % 4);
-
-        var c_n_cigar: c_int = 0;
-        var c_cigar: ?[*]u32 = null;
-        var z_n_cigar: c_int = 0;
-        var z_cigar: ?[*]u32 = null;
-
-        const c_sc = c_ksw_global(qlen, &qbuf, 0, &tbuf, 5, &mat, 3, 1, 150, &c_n_cigar, &c_cigar);
-        const z_sc = ksw.ksw_global(qlen, &qbuf, 0, &tbuf, 5, &mat, 3, 1, 150, &z_n_cigar, &z_cigar);
-
-        try std.testing.expectEqual(c_sc, z_sc);
-        try std.testing.expectEqual(c_n_cigar, z_n_cigar);
-        if (c_cigar != null and z_cigar != null) {
-            for (0..@intCast(c_n_cigar)) |ci| {
-                try std.testing.expectEqual(c_cigar.?[ci], z_cigar.?[ci]);
-            }
-            std.c.free(c_cigar.?);
-            std.c.free(z_cigar.?);
-        }
+        try assertGlobalMatches(qlen, &qbuf, 0, &tbuf, &mat, 3, 1, 150);
     }
 
     // 2. Zero-length query
     for (1..16) |tlen_u| {
         const tlen: c_int = @intCast(tlen_u);
         for (0..tlen_u) |i| tbuf[i] = @intCast(i % 4);
-
-        var c_n_cigar: c_int = 0;
-        var c_cigar: ?[*]u32 = null;
-        var z_n_cigar: c_int = 0;
-        var z_cigar: ?[*]u32 = null;
-
-        const c_sc = c_ksw_global(0, &qbuf, tlen, &tbuf, 5, &mat, 3, 1, 150, &c_n_cigar, &c_cigar);
-        const z_sc = ksw.ksw_global(0, &qbuf, tlen, &tbuf, 5, &mat, 3, 1, 150, &z_n_cigar, &z_cigar);
-
-        try std.testing.expectEqual(c_sc, z_sc);
-        try std.testing.expectEqual(c_n_cigar, z_n_cigar);
-        if (c_cigar != null and z_cigar != null) {
-            for (0..@intCast(c_n_cigar)) |ci| {
-                try std.testing.expectEqual(c_cigar.?[ci], z_cigar.?[ci]);
-            }
-            std.c.free(c_cigar.?);
-            std.c.free(z_cigar.?);
-        }
+        try assertGlobalMatches(0, &qbuf, tlen, &tbuf, &mat, 3, 1, 150);
     }
 
     // 3. Both zero-length
-    {
-        var c_n_cigar: c_int = 0;
-        var c_cigar: ?[*]u32 = null;
-        var z_n_cigar: c_int = 0;
-        var z_cigar: ?[*]u32 = null;
-
-        const c_sc = c_ksw_global(0, &qbuf, 0, &tbuf, 5, &mat, 3, 1, 150, &c_n_cigar, &c_cigar);
-        const z_sc = ksw.ksw_global(0, &qbuf, 0, &tbuf, 5, &mat, 3, 1, 150, &z_n_cigar, &z_cigar);
-
-        try std.testing.expectEqual(c_sc, z_sc);
-        try std.testing.expectEqual(c_n_cigar, z_n_cigar);
-    }
+    try assertGlobalMatches(0, &qbuf, 0, &tbuf, &mat, 3, 1, 150);
 
     // 4. Random normal global alignments
     for (0..n_trials) |_| {
@@ -163,24 +145,7 @@ pub fn testGlobalEquivalence(rand: std.Random, n_trials: usize) !void {
         const tlen: c_int = rand.intRangeAtMost(c_int, 5, 40);
         for (0..@intCast(qlen)) |i| qbuf[i] = rand.uintLessThan(u8, 4);
         for (0..@intCast(tlen)) |i| tbuf[i] = rand.uintLessThan(u8, 4);
-
-        var c_n_cigar: c_int = 0;
-        var c_cigar: ?[*]u32 = null;
-        var z_n_cigar: c_int = 0;
-        var z_cigar: ?[*]u32 = null;
-
-        const c_sc = c_ksw_global(qlen, &qbuf, tlen, &tbuf, 5, &mat, 3, 1, 50, &c_n_cigar, &c_cigar);
-        const z_sc = ksw.ksw_global(qlen, &qbuf, tlen, &tbuf, 5, &mat, 3, 1, 50, &z_n_cigar, &z_cigar);
-
-        try std.testing.expectEqual(c_sc, z_sc);
-        try std.testing.expectEqual(c_n_cigar, z_n_cigar);
-        if (c_cigar != null and z_cigar != null) {
-            for (0..@intCast(c_n_cigar)) |ci| {
-                try std.testing.expectEqual(c_cigar.?[ci], z_cigar.?[ci]);
-            }
-            std.c.free(c_cigar.?);
-            std.c.free(z_cigar.?);
-        }
+        try assertGlobalMatches(qlen, &qbuf, tlen, &tbuf, &mat, 3, 1, 50);
     }
 }
 
@@ -218,14 +183,14 @@ pub fn main() !void {
         } else if (std.mem.eql(u8, arg, "--gapo-zero")) {
             run_all = false;
             run_gapo_only = true;
-            if (i + 1 < args.len and args[i + 1][0] != '-') {
+            if (i + 1 < args.len and args[i + 1].len > 0 and args[i + 1][0] != '-') {
                 i += 1;
                 trials_gapo = try std.fmt.parseInt(usize, args[i], 10);
             }
         } else if (std.mem.eql(u8, arg, "--parity")) {
             run_all = false;
             run_parity_only = true;
-            if (i + 1 < args.len and args[i + 1][0] != '-') {
+            if (i + 1 < args.len and args[i + 1].len > 0 and args[i + 1][0] != '-') {
                 i += 1;
                 trials_parity = try std.fmt.parseInt(usize, args[i], 10);
             }
@@ -234,6 +199,9 @@ pub fn main() !void {
             run_global_only = true;
         } else if (std.mem.eql(u8, arg, "--all")) {
             run_all = true;
+        } else {
+            std.debug.print("Unknown option: {s}\nUse --help for usage information.\n", .{arg});
+            std.process.exit(1);
         }
     }
 
@@ -251,13 +219,14 @@ pub fn main() !void {
     if (run_all or run_gapo_only) {
         std.debug.print("2. Measuring gapo == 0 lazy-F divergence ({d} trials)...\n", .{trials_gapo});
         const stats = runAlignTrials(trials_gapo, 1, 0, 1, 0, 20, 100);
+        const pct = if (stats.trials > 0) @as(f64, @floatFromInt(stats.score_divergences)) / @as(f64, @floatFromInt(stats.trials)) * 100.0 else 0.0;
         std.debug.print(
             \\   Results: {d}/{d} divergent trials ({d:.2}%)
             \\   Zig strictly higher score: {d}
             \\   C strictly higher score:   {d}
             \\   Confirmed: Zig computes strictly higher (correct) score when backends diverge.
             \\
-        , .{ stats.score_divergences, stats.trials, @as(f64, @floatFromInt(stats.score_divergences)) / @as(f64, @floatFromInt(stats.trials)) * 100.0, stats.zig_higher, stats.c_higher });
+        , .{ stats.score_divergences, stats.trials, pct, stats.zig_higher, stats.c_higher });
     }
 
     // 3. Default parity check

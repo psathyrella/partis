@@ -60,10 +60,10 @@ pub const Kswr = extern struct {
 const g_defr = Kswr{};
 
 // KSW flags
-const KSW_XBYTE: c_int = 0x10000;
-const KSW_XSTOP: c_int = 0x20000;
-const KSW_XSUBO: c_int = 0x40000;
-const KSW_XSTART: c_int = 0x80000;
+pub const KSW_XBYTE: c_int = 0x10000;
+pub const KSW_XSTOP: c_int = 0x20000;
+pub const KSW_XSUBO: c_int = 0x40000;
+pub const KSW_XSTART: c_int = 0x80000;
 
 // ─── kswq_t internal struct ───────────────────────────────────────────────────
 //
@@ -687,39 +687,39 @@ pub export fn ksw_global(
     n_cigar_: ?*c_int,
     cigar_: ?*?[*]u32,
 ) callconv(.c) c_int {
+    if (n_cigar_) |p| p.* = 0;
+    if (cigar_) |p| p.* = null;
+    if (qlen < 0 or tlen < 0 or m <= 0 or w < 0) return 0;
+
     const qlen_u: usize = @intCast(qlen);
     const tlen_u: usize = @intCast(tlen);
     const mu: usize = @intCast(m);
     const gapoe: i32 = gapo + gape;
     const MINUS_INF: i32 = -0x40000000;
 
-    if (n_cigar_) |p| p.* = 0;
-
     const n_col: usize = if (@as(usize, @intCast(qlen)) < @as(usize, @intCast(2 * w + 1)))
         qlen_u
     else
         @intCast(2 * w + 1);
 
-    // z: backtrack matrix n_col * tlen
-    const z: [*]u8 = @ptrCast(std.c.malloc(n_col * tlen_u) orelse return 0);
+    // z: backtrack matrix n_col * tlen (ensure >= 1 byte to avoid implementation-defined malloc(0))
+    const z: [*]u8 = @ptrCast(std.c.malloc(@max(1, n_col * tlen_u)) orelse return 0);
     defer std.c.free(z);
     const Eh = extern struct { h: i32, e: i32 };
-    const qp: [*]i8 = @ptrCast(std.c.malloc(qlen_u * mu) orelse return 0);
+    const qp: [*]i8 = @ptrCast(std.c.malloc(@max(1, qlen_u * mu)) orelse return 0);
     defer std.c.free(qp);
     const eh: [*]Eh = @ptrCast(@alignCast(std.c.calloc(qlen_u + 1, @sizeOf(Eh)) orelse return 0));
     defer std.c.free(eh);
 
     // query profile
-    {
-        var k: usize = 0;
-        var ti: usize = 0;
-        while (k < mu) : (k += 1) {
-            const p: [*]const i8 = mat + k * mu;
-            var j: usize = 0;
-            while (j < qlen_u) : (j += 1) {
-                qp[ti] = p[query[j]];
-                ti += 1;
-            }
+    var k_prof: usize = 0;
+    var qp_i: usize = 0;
+    while (k_prof < mu) : (k_prof += 1) {
+        const p: [*]const i8 = mat + k_prof * mu;
+        var j: usize = 0;
+        while (j < qlen_u) : (j += 1) {
+            qp[qp_i] = p[query[j]];
+            qp_i += 1;
         }
     }
 
@@ -777,7 +777,7 @@ pub export fn ksw_global(
 
     const score = eh[qlen_u].h;
 
-    // backtrack
+    // traceback
     if (n_cigar_ != null and cigar_ != null) {
         var n_cigar: c_int = 0;
         var m_cigar: c_int = 0;
@@ -805,13 +805,7 @@ pub export fn ksw_global(
         if (k >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 1, @intCast(k + 1));
         // reverse
         if (n_cigar > 0) {
-            var lo: usize = 0;
-            var hi: usize = @intCast(n_cigar - 1);
-            while (lo < hi) : ({ lo += 1; hi -= 1; }) {
-                const tmp = cigar.?[lo];
-                cigar.?[lo] = cigar.?[hi];
-                cigar.?[hi] = tmp;
-            }
+            std.mem.reverse(u32, cigar.?[0..@intCast(n_cigar)]);
         }
         n_cigar_.?.* = n_cigar;
         cigar_.?.* = cigar;
@@ -825,7 +819,8 @@ fn pushCigar(n_cigar: *c_int, m_cigar: *c_int, cigar: ?[*]u32, op: u32, len: u32
         var result = cigar;
         if (n_cigar.* == m_cigar.*) {
             m_cigar.* = if (m_cigar.* != 0) m_cigar.* << 1 else 4;
-            result = @ptrCast(@alignCast(std.c.realloc(if (cigar) |p| @ptrCast(p) else null, @intCast(m_cigar.* * 4))));
+            const new_size = @as(usize, @intCast(m_cigar.*)) * @sizeOf(u32);
+            result = @ptrCast(@alignCast(std.c.realloc(if (cigar) |p| @ptrCast(p) else null, new_size) orelse return null));
         }
         result.?[@intCast(n_cigar.*)] = len << 4 | op;
         n_cigar.* += 1;

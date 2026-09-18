@@ -135,35 +135,39 @@ pub fn build(b: *std.Build) void {
     check_fast_math_sync.setName("verify fast_math.c sync");
     check_fast_math_sync.addFileArg(b.path("src/ham/fast_math.c"));
     check_fast_math_sync.addFileArg(b.path("../ham/src/fast_math.c"));
+    const verify_sync_step = b.step("verify-sync", "Verify fast_math.c sync with packages/ham");
+    verify_sync_step.dependOn(&check_fast_math_sync.step);
     test_step.dependOn(&check_fast_math_sync.step);
-    exe.step.dependOn(&check_fast_math_sync.step);
 
     // ── ksw-diff: differential test harness (issue #403) ────────────────
-    const ksw_diff_mod = b.createModule(.{
-        .root_source_file = b.path("src/igsw/ksw_diff.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    ksw_diff_mod.linkSystemLibrary("c", .{});
-    ksw_diff_mod.addIncludePath(b.path("src/igsw/c"));
-    const ksw_rename_flags = &.{
-        "-std=gnu99",
-        "-O2",
-        "-Dksw_align=c_ksw_align",
-        "-Dksw_align2=c_ksw_align2",
-        "-Dksw_global=c_ksw_global",
-        "-Dksw_extend=c_ksw_extend",
-        "-Dksw_qinit=c_ksw_qinit",
-    };
-    ksw_diff_mod.addCSourceFile(.{ .file = b.path("src/igsw/c/ksw.c"), .flags = ksw_rename_flags });
+    // C ksw.c requires x86 SSE2 (<emmintrin.h>)
+    if (target.result.cpu.arch.isX86()) {
+        const ksw_diff_mod = b.createModule(.{
+            .root_source_file = b.path("src/igsw/ksw_diff.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        ksw_diff_mod.linkSystemLibrary("c", .{});
+        ksw_diff_mod.addIncludePath(b.path("src/igsw/c"));
+        const ksw_rename_flags = &.{
+            "-std=gnu99",
+            "-O2",
+            "-Dksw_align=c_ksw_align",
+            "-Dksw_align2=c_ksw_align2",
+            "-Dksw_global=c_ksw_global",
+            "-Dksw_extend=c_ksw_extend",
+            "-Dksw_qinit=c_ksw_qinit",
+        };
+        ksw_diff_mod.addCSourceFile(.{ .file = b.path("src/igsw/c/ksw.c"), .flags = ksw_rename_flags });
 
-    const ksw_diff_exe = b.addExecutable(.{
-        .name = "ksw-diff",
-        .root_module = ksw_diff_mod,
-    });
-    b.installArtifact(ksw_diff_exe);
+        const ksw_diff_exe = b.addExecutable(.{
+            .name = "ksw-diff",
+            .root_module = ksw_diff_mod,
+        });
+        b.installArtifact(ksw_diff_exe);
 
-    const ksw_unit_tests = b.addTest(.{ .root_module = ksw_diff_mod });
-    const run_ksw_unit_tests = b.addRunArtifact(ksw_unit_tests);
-    test_step.dependOn(&run_ksw_unit_tests.step);
+        const ksw_unit_tests = b.addTest(.{ .root_module = ksw_diff_mod });
+        const run_ksw_unit_tests = b.addRunArtifact(ksw_unit_tests);
+        test_step.dependOn(&run_ksw_unit_tests.step);
+    }
 }

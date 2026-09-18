@@ -315,6 +315,9 @@ def process(args):
     if args.gap_open_penalty is not None and args.gap_open_penalty <= 0:
         raise Exception('--gap-open-penalty must be positive (got %d)' % args.gap_open_penalty)
 
+    if args.no_indel_gap_open_penalty is not None and args.no_indel_gap_open_penalty <= 0:
+        raise Exception('--no-indel-gap-open-penalty must be positive (got %d)' % args.no_indel_gap_open_penalty)
+
     if args.locus is not None and 'tr' in args.locus and args.mutation_multiplier is None:
         args.mutation_multiplier = 0.
 
