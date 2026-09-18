@@ -14,6 +14,7 @@ import uuid
 import itertools
 import ast
 import math
+import re
 import glob
 from collections import Counter
 from collections import OrderedDict
@@ -5182,8 +5183,93 @@ def subset_index_fname(basedir):
     return '%s/%s' % (parameter_subset_root(basedir), SUBSET_INDEX_FNAME)
 
 # ----------------------------------------------------------------------------------------
+# written only once a subset job finishes, so a job that died partway is re-run
+SUBSET_COMPLETE_FNAME = 'subset-complete.yaml'
+LEGACY_SUBSET_COMPLETE_FNAME = 'cache-parameters-complete.yaml'  # markers written before the name was shared
+
+# ----------------------------------------------------------------------------------------
+def mark_subset_complete(sdir):
+    with open('%s/%s' % (sdir, SUBSET_COMPLETE_FNAME), 'w') as cfile:
+        cfile.write('{}\n')
+
+# ----------------------------------------------------------------------------------------
+def subset_is_marked_complete(sdir):
+    return any(os.path.exists('%s/%s' % (sdir, f)) for f in [SUBSET_COMPLETE_FNAME, LEGACY_SUBSET_COMPLETE_FNAME])
+
+# ----------------------------------------------------------------------------------------
+# one hash convention and one set of error messages for every index that records what a split wrote
+XXH3_BLOCK_SIZE = 8 * 1024 * 1024
+SW_CACHE_EVENT_MARKERS = [b'"unique_ids"', b'unique_ids:']  # one per annotation, in json and yaml sw caches
+FASTA_SEQ_MARKERS = [b'>']
+
+# ----------------------------------------------------------------------------------------
+def require_xxhash(cstr):  # fail in a second rather than after the jobs have run
+    try:
+        import xxhash  # noqa: F401
+    except ImportError:
+        raise Exception('%s needs the xxhash module, which is not installed (pip install xxhash)' % cstr)
+
+# ----------------------------------------------------------------------------------------
+def new_xxh3():
+    require_xxhash('hashing')
+    import xxhash
+    return xxhash.xxh3_128()
+
+# ----------------------------------------------------------------------------------------
+def hash_and_count(fname, markers, block_size=XXH3_BLOCK_SIZE):
+    # one streaming pass: the file's hash, and how many times <markers> occur in it
+    hasher = new_xxh3()
+    overlap = max(len(m) for m in markers) - 1  # keep enough of each block to catch a marker split across two
+    n_found, tail = 0, b''
+    with open(fname, 'rb') as ifile:
+        for block in iter(lambda: ifile.read(block_size), b''):
+            hasher.update(block)
+            buf = tail + block
+            for mrk in markers:
+                n_found += buf.count(mrk, max(0, len(tail) - len(mrk) + 1))  # start past any match already counted within <tail>
+            tail = buf[-overlap:] if overlap > 0 else b''
+    return hasher.hexdigest(), n_found
+
+# ----------------------------------------------------------------------------------------
+def check_file_against_index(fname, expected_xxh3, expected_count, markers, cstr, unit='events'):
+    # compare a file's own hash and count to what the index recorded for it
+    xxh3, n_found = hash_and_count(fname, markers)
+    if xxh3 != expected_xxh3 or n_found != expected_count:
+        raise Exception('%s %s does not match the index: xxh3 %s (index %s), %d %s (index %d)'
+                        % (cstr, fname, xxh3, expected_xxh3, n_found, unit, expected_count))
+
+# ----------------------------------------------------------------------------------------
+def load_index(ifn, cstr, required_keys):
+    if not os.path.exists(ifn):
+        raise Exception('%s does not exist: %s' % (cstr, ifn))
+    with open(ifn) as ifile:
+        index = yaml.safe_load(ifile)
+    for required_key in required_keys:
+        if required_key not in index:
+            raise Exception('%s %s is missing required key \'%s\'' % (cstr, ifn, required_key))
+    return index
+
+# ----------------------------------------------------------------------------------------
+def check_index_entries(index, ifn, cstr, items_key, count_key=None, hashes=None):
+    # <hashes>: 'required' if every entry must carry an xxh3, 'optional' if older entries without one are ok
+    fstr = '' if ifn is None else ' in %s' % ifn
+    items = index[items_key]
+    if count_key is not None and len(items) != index[count_key]:
+        raise Exception('%s mismatch%s: %s %d does not equal the %d listed %s' % (cstr, fstr, count_key, index[count_key], len(items), items_key))
+    if hashes is None:
+        return
+    n_with_xxh3 = sum('xxh3' in i for i in items)
+    if hashes == 'required' and n_with_xxh3 != len(items):
+        raise Exception('%s mismatch%s: %d of %d %s have an xxh3 hash, expected all of them' % (cstr, fstr, n_with_xxh3, len(items), items_key))
+    if hashes == 'optional' and n_with_xxh3 not in (0, len(items)):
+        raise Exception('%s mismatch%s: %d of %d %s have an xxh3 hash, expected all or none' % (cstr, fstr, n_with_xxh3, len(items), items_key))
+    for ifo in items:
+        if 'xxh3' in ifo and not re.match('^[0-9a-f]{32}$', ifo['xxh3']):
+            raise Exception('%s mismatch%s: %s has a malformed xxh3 hash %s' % (cstr, fstr, ifo['path'], ifo['xxh3']))
+
+# ----------------------------------------------------------------------------------------
 # paths are relative to the index's own dir
-def write_subset_index(basedir, subsets):  # subsets: ordered list of {path, input_fasta, n_input_sequences}
+def write_subset_index(basedir, subsets):  # subsets: ordered list of {path, input_fasta, n_input_sequences, xxh3}
     index = {'n_subsets' : len(subsets), 'completion_markers' : True, 'subsets' : subsets}
     ifn = subset_index_fname(basedir)
     mkdir(ifn, isfile=True)
@@ -5194,15 +5280,8 @@ def write_subset_index(basedir, subsets):  # subsets: ordered list of {path, inp
 # ----------------------------------------------------------------------------------------
 def read_subset_index(basedir):
     ifn = subset_index_fname(basedir)
-    if not os.path.exists(ifn):
-        raise Exception('subset index does not exist: %s' % ifn)
-    with open(ifn) as ifile:
-        index = yaml.safe_load(ifile)
-    for required_key in ['n_subsets', 'subsets']:
-        if required_key not in index:
-            raise Exception('subset index %s is missing required key \'%s\'' % (ifn, required_key))
-    if len(index['subsets']) != index['n_subsets']:
-        raise Exception('subset index mismatch in %s: n_subsets %d does not equal the %d listed subsets' % (ifn, index['n_subsets'], len(index['subsets'])))
+    index = load_index(ifn, 'subset index', ['n_subsets', 'subsets'])
+    check_index_entries(index, ifn, 'subset index', 'subsets', count_key='n_subsets', hashes='optional')  # optional: indexes from before the hash existed
     return index
 
 # ----------------------------------------------------------------------------------------
@@ -7335,11 +7414,16 @@ def write_seqfos(fname, seqfos):  # NOTE basically just a copy of write_fasta(),
     jsdump(fname, seqfos)
 
 # ----------------------------------------------------------------------------------------
-def write_fasta(fname, seqfos, name_key='name', seq_key='seq'):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
+def write_fasta(fname, seqfos, name_key='name', seq_key='seq', return_hash=False):  # should have written this a while ago -- there's tons of places where I could use this instead of writing it by hand, but I'm not going to hunt them all down now
+    hasher = new_xxh3() if return_hash else None  # hashes the bytes as they are written, so no extra read
     mkdir(fname, isfile=True)
     with open(fname, 'w') as seqfile:
         for sfo in seqfos:
-            seqfile.write('>%s\n%s\n' % (sfo[name_key], sfo[seq_key]))
+            fstr = '>%s\n%s\n' % (sfo[name_key], sfo[seq_key])
+            seqfile.write(fstr)
+            if hasher is not None:
+                hasher.update(fstr.encode('utf-8'))
+    return None if hasher is None else hasher.hexdigest()
 
 # ----------------------------------------------------------------------------------------
 # NOTE replacement for (some cases of) read_fastx()

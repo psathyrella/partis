@@ -941,29 +941,17 @@ def pack_multifile_output(gpaths, counts, max_seqs_per_file=MULTIFILE_MAX_SEQS_P
     return fspecs
 
 # ----------------------------------------------------------------------------------------
-def xxh3_file_hash(fname, block_size=8 * 1024 * 1024):
-    import xxhash
-    hasher = xxhash.xxh3_128()
+def xxh3_file_hash(fname, block_size=utils.XXH3_BLOCK_SIZE):
+    hasher = utils.new_xxh3()
     with open(fname, 'rb') as ifile:
         for block in iter(lambda: ifile.read(block_size), b''):
             hasher.update(block)
     return hasher.hexdigest()
 
 # ----------------------------------------------------------------------------------------
-def hash_and_count_events(fname, block_size=8 * 1024 * 1024):
-    import xxhash
-    hasher = xxhash.xxh3_128()
-    markers = [b'"unique_ids"', b'unique_ids:']
-    overlap = max(len(m) for m in markers) - 1  # keep enough of each block to catch a marker split across two
-    n_events, tail = 0, b''
-    with open(fname, 'rb') as ifile:
-        for block in iter(lambda: ifile.read(block_size), b''):
-            hasher.update(block)
-            buf = tail + block
-            for mrk in markers:
-                n_events += buf.count(mrk, max(0, len(tail) - len(mrk) + 1))  # start past any match already counted within <tail>
-            tail = buf[-overlap:]
-    return hasher.hexdigest(), n_events
+def hash_and_count_events(fname, block_size=utils.XXH3_BLOCK_SIZE):
+    # sw-cache annotations hold one uid each, so events and sequences are the same count
+    return utils.hash_and_count(fname, utils.SW_CACHE_EVENT_MARKERS, block_size=block_size)
 
 # ----------------------------------------------------------------------------------------
 def sw_cache_index_fname(locus_pdir):
@@ -978,7 +966,7 @@ def check_no_sw_cache_index(locus_pdir):
 def write_sw_cache_index(locus, locus_pdir, sw_cache_paths):
     # write the per-subset sw-cache index for <locus> into <locus_pdir>, in the order given
     swcfos = []
-    for swpath in sw_cache_paths:  # sw-cache annotations hold one uid each, so events and sequences are the same count
+    for swpath in sw_cache_paths:
         xxh3, n_seqs = hash_and_count_events(swpath)
         swcfos.append({'path' : os.path.relpath(swpath, locus_pdir), 'n_sequences' : n_seqs, 'xxh3' : xxh3})
     index = {'locus' : locus, 'n_subsets' : len(swcfos), 'sw_caches' : swcfos}
@@ -991,18 +979,8 @@ def write_sw_cache_index(locus, locus_pdir, sw_cache_paths):
 
 # ----------------------------------------------------------------------------------------
 def read_sw_cache_index(index_path):
-    if not os.path.exists(index_path):
-        raise Exception('sw cache index does not exist: %s' % index_path)
-    with open(index_path) as ifile:
-        index = yaml.safe_load(ifile)
-    for required_key in ['locus', 'n_subsets', 'sw_caches']:
-        if required_key not in index:
-            raise Exception('sw cache index %s is missing required key \'%s\'' % (index_path, required_key))
-    if len(index['sw_caches']) != index['n_subsets']:
-        raise Exception('sw cache index mismatch in %s: n_subsets %d does not equal the %d listed caches' % (index_path, index['n_subsets'], len(index['sw_caches'])))
-    for cfo in index['sw_caches']:
-        if not re.match('^[0-9a-f]{32}$', cfo.get('xxh3', '')):
-            raise Exception('sw cache index mismatch in %s: %s has a missing or malformed xxh3 hash' % (index_path, cfo['path']))
+    index = utils.load_index(index_path, 'sw cache index', ['locus', 'n_subsets', 'sw_caches'])
+    utils.check_index_entries(index, index_path, 'sw cache index', 'sw_caches', count_key='n_subsets', hashes='required')
     return index
 
 # ----------------------------------------------------------------------------------------
@@ -1026,11 +1004,7 @@ def sw_cache_index_expectations(sw_cache_paths, resolved_paths):
 
 # ----------------------------------------------------------------------------------------
 def check_sw_cache_against_index(swpath, expected):
-    # compare the cache's own hash and event count to what the index recorded for it
-    xxh3, n_events = hash_and_count_events(swpath)
-    if xxh3 != expected['xxh3'] or n_events != expected['n_sequences']:
-        raise Exception('sw cache %s does not match the index: xxh3 %s (index %s), %d events (index %d)'
-                        % (swpath, xxh3, expected['xxh3'], n_events, expected['n_sequences']))
+    utils.check_file_against_index(swpath, expected['xxh3'], expected['n_sequences'], utils.SW_CACHE_EVENT_MARKERS, 'sw cache')
 
 # ----------------------------------------------------------------------------------------
 def write_multifile_output(locus, manifest, gpaths, counts, outfname, max_seqs_per_file=MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT):
@@ -1112,12 +1086,7 @@ def validate_multifile_index(index, fname=None):
         raise Exception('multifile index mismatch%s: grouped %d + no cdr3 %d does not equal the sw cache count %d' % (fstr, ainfo['n_sequences_grouped'], ainfo['n_sequences_no_cdr3'], ainfo['n_sequences_in_sw_cache']))
     if ainfo['n_files'] < ainfo['n_cdr3_groups']:
         raise Exception('multifile index mismatch%s: %d files is fewer than the %d cdr3 groups they cover' % (fstr, ainfo['n_files'], ainfo['n_cdr3_groups']))
-    n_with_xxh3 = sum('xxh3' in f for f in index['files'])
-    if n_with_xxh3 not in (0, len(index['files'])):
-        raise Exception('multifile index mismatch%s: %d of %d files have an xxh3 hash, expected all or none' % (fstr, n_with_xxh3, len(index['files'])))
-    for f in index['files']:
-        if 'xxh3' in f and not re.match('^[0-9a-f]{32}$', f['xxh3']):
-            raise Exception('multifile index mismatch%s: %s has a malformed xxh3 hash %s' % (fstr, f['path'], f['xxh3']))
+    utils.check_index_entries(index, fname, 'multifile index', 'files', hashes='optional')
 
 # ----------------------------------------------------------------------------------------
 def read_multifile_index(index_path):

@@ -606,11 +606,8 @@ def subset_cache_parameters(args):
     def cached_loci(isub):
         return [l for l in subset_loci(args) if os.path.exists('%s/hmm/germline-sets' % param_locus_dir(args, subset_pdir(args, isub), l))]
     # ----------------------------------------------------------------------------------------
-    def complete_fname(isub):
-        return '%s/cache-parameters-complete.yaml' % sdir(isub)
-    # ----------------------------------------------------------------------------------------
     def subset_is_cached(isub, completion_markers):
-        if os.path.exists(complete_fname(isub)):
+        if utils.subset_is_marked_complete(sdir(isub)):
             return True
         if completion_markers:  # a missing marker means the job didn't finish
             return False
@@ -653,24 +650,36 @@ def subset_cache_parameters(args):
             input_info[uid] = {k : v for k, v in tline.items() if k in meta_keys or k == 'unique_ids'}
         subsets = []
         for isub, sfos in enumerate(sfo_lists):
-            utils.write_fasta(input_fn(isub), sfos)
+            xxh3 = utils.write_fasta(input_fn(isub), sfos, return_hash=True)
             if args.input_metafnames is not None:
                 metafos = {}
                 for sfo in sfos:
                     assert len(input_info[sfo['name']]['unique_ids']) == 1
                     metafos[sfo['name']] = {mk : input_info[sfo['name']][lk][0] for mk, lk in utils.input_metafile_keys.items() if lk in input_info[sfo['name']]}
                 utils.jsdump('%s/meta.yaml'%sdir(isub), metafos)
-            subsets.append({'path' : os.path.relpath(sdir(isub), utils.parameter_subset_root(base)), 'input_fasta' : os.path.relpath(input_fn(isub), utils.parameter_subset_root(base)), 'n_input_sequences' : len(sfos)})
+            subsets.append({'path' : os.path.relpath(sdir(isub), utils.parameter_subset_root(base)), 'input_fasta' : os.path.relpath(input_fn(isub), utils.parameter_subset_root(base)),
+                            'n_input_sequences' : len(sfos), 'xxh3' : xxh3})
         print('    wrote %d subset input files to %s (index: %s)' % (len(subsets), utils.parameter_subset_root(base), utils.write_subset_index(base, subsets)))
     # ----------------------------------------------------------------------------------------
     def subset_outfname(isub):  # the path a subset run writes for whichever of its loci had sequences
         return '%s/parameters' % sdir(isub) if args.paired_loci else '%s/hmm/germline-sets' % subset_pdir(args, isub)
     # ----------------------------------------------------------------------------------------
-    def run_subsets():
+    def check_subset_inputs(isubs):
+        # an earlier invocation wrote these, so check them against the index before spending a job
+        sfos = utils.read_subset_index(base)['subsets']
+        if not all('xxh3' in s for s in sfos):  # indexes from before the hash existed
+            return
+        for isub in isubs:
+            utils.check_file_against_index(input_fn(isub), sfos[isub]['xxh3'], sfos[isub]['n_input_sequences'], utils.FASTA_SEQ_MARKERS, 'subset input', unit='sequences')
+        print('    checked %d subset input files against the index' % len(isubs))
+    # ----------------------------------------------------------------------------------------
+    def run_subsets(inputs_preexisting):
         completion_markers = utils.read_subset_index(base).get('completion_markers', False)
         isubs = [i for i in range(args.n_subsets) if not subset_is_cached(i, completion_markers)]
         if len(isubs) == 0:
             return
+        if inputs_preexisting and not args.dry_run:
+            check_subset_inputs(isubs)
         n_jobs, n_procs = job_proc_allocation(args, target_procs_per_job=SUBSET_TARGET_PROCS, n_queued=len(isubs), dbgstr='subset')
         cmdfos = [{'cmd_str' : get_cmd(i, n_procs), 'outfname' : subset_outfname(i), 'workdir' : sdir(i), 'logdir' : sdir(i)} for i in isubs]
         if args.dry_run:
@@ -680,12 +689,13 @@ def subset_cache_parameters(args):
         statuses = utils.run_cmds(cmdfos, n_max_procs=n_jobs, debug='write', allow_failure=True)
         for isub, status in zip(isubs, statuses):
             if status == 'ok':
-                utils.jsdump(complete_fname(isub), {'loci' : cached_loci(isub)})
+                utils.mark_subset_complete(sdir(isub))
         failed = [i for i, s in zip(isubs, statuses) if s != 'ok']
         if len(failed) > 0:
             raise Exception('%d of %d subset jobs failed (subsets %s)' % (len(failed), len(isubs), ' '.join(str(i) for i in failed)))
     # ----------------------------------------------------------------------------------------
-    if os.path.exists(utils.subset_index_fname(base)):
+    inputs_preexisting = os.path.exists(utils.subset_index_fname(base))
+    if inputs_preexisting:
         n_indexed = utils.read_subset_index(base)['n_subsets']
         if n_indexed != args.n_subsets:
             raise Exception('--n-subsets %d does not match the %d subsets in %s' % (args.n_subsets, n_indexed, utils.subset_index_fname(base)))
@@ -695,7 +705,7 @@ def subset_cache_parameters(args):
     if args.write_subsets_only:
         print('  --write-subsets-only: exiting without running the %d subset jobs' % args.n_subsets)
         return
-    run_subsets()
+    run_subsets(inputs_preexisting)
     if args.dry_run:
         print('    --dry-run: not merging the subset parameter dirs')
         return
@@ -740,6 +750,14 @@ def subset_partition(args):
     # ----------------------------------------------------------------------------------------
     def ptnfn(bdir, ltmp, lpair=None):
         return paircluster.paired_fn(bdir, ltmp, lpair=lpair, actstr='partition', suffix='.yaml')
+    # ----------------------------------------------------------------------------------------
+    def subset_is_done(isub):
+        if utils.subset_is_marked_complete(subdir(isub)):
+            return True
+        if any(utils.subset_is_marked_complete(subdir(i)) for i in range(args.n_subsets)):
+            return False  # this run writes markers, so a subset without one did not finish
+        # subsets from before the markers existed: if e.g. keeping all unpaired seqs, we may only have an output file for one locus, hence the any() (yes this means it won't rerun if it crashes partway through writing the three files)
+        return any(os.path.exists(ptnfn(subdir(isub), 'ig'+l)) for l in 'hkl')
     # ----------------------------------------------------------------------------------------
     def get_cmd(infname, outdir, merged_odir=None, n_procs=None):
         clist = copy.deepcopy(sys.argv)
@@ -787,7 +805,7 @@ def subset_partition(args):
         # write all subset input files first, then dispatch subset jobs concurrently
         isubs = []
         for isub in range(len(sfo_lists)):
-            if os.path.exists(ptnfn(subdir(isub), 'igh')):
+            if subset_is_done(isub):
                 print('    isub-%s output exists, skipping: %s' % (isub, ptnfn(subdir(isub), 'igh')))
             else:
                 isubs.append(isub)
@@ -812,7 +830,9 @@ def subset_partition(args):
                 print('    --dry-run: would run %d subset jobs (%d concurrent, %d procs each)' % (len(cmdfos), n_jobs, n_procs))
             else:
                 print('    running %d subset jobs (%d concurrent, %d procs each):' % (len(cmdfos), n_jobs, n_procs))
-                utils.run_cmds(cmdfos, n_max_procs=n_jobs, debug='write')
+                utils.run_cmds(cmdfos, n_max_procs=n_jobs, debug='write')  # raises if any job failed, so everything left finished
+                for isub in isubs:
+                    utils.mark_subset_complete(subdir(isub))
     # ----------------------------------------------------------------------------------------
     def merge_subset_files():
         # NOTE it would be nice to merge duplicates in here (from --collapse-duplicate-sequences, but jeez it seems like it'll be a bit fiddly to implement it
@@ -829,7 +849,7 @@ def subset_partition(args):
         #         utils.merge_yamls(ptnfn(merged_odir, ltmp), [ptnfn(subdir(i), ltmp) for i in range(args.n_subsets)], headers, use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)
     # ----------------------------------------------------------------------------------------
     infname = subset_input_fname(args)
-    if all(any(os.path.exists(ptnfn(subdir(i), 'ig'+l)) for l in 'hkl') for i in range(args.n_subsets)):  # if e.g. keeping all unpaired seqs, we may only have an output file for one locus, hence the any() (yes this means it won't rerun if it crashes partway through writing the three files)
+    if all(subset_is_done(i) for i in range(args.n_subsets)):
         print('  all subset partitions exist (e.g. %s)' % ptnfn(subdir(0), 'igh'))
     else:
         run_subsets(infname)
