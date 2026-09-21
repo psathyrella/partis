@@ -724,7 +724,7 @@ def merge_parameter_subsets(args):
     base = parameter_subset_base(args)
     n_subsets = utils.read_subset_index(base)['n_subsets']
     def subdfn(isub): return subset_pdir(args, isub)
-    utils.merge_parameter_dirs(base, subdfn, n_subsets, ig_or_tr=args.ig_or_tr, skip_sw_merge=args.no_merged_sw_cache,
+    utils.merge_parameter_dirs(base, subdfn, n_subsets, args, ig_or_tr=args.ig_or_tr, skip_sw_merge=args.no_merged_sw_cache,
                                locus=None if args.paired_loci else args.locus)
     if not args.no_merged_sw_cache:
         return
@@ -848,7 +848,7 @@ def subset_partition(args):
         paircluster.merge_paired_yamls(merged_odir, [subdir(i) for i in range(args.n_subsets)], headers, ig_or_tr=args.ig_or_tr, use_pyyaml=args.write_full_yaml_output,
                                        dont_write_git_info=args.dont_write_git_info, merge_overlaps=args.seed_unique_id is not None or args.queries_to_include is not None,
                                        dont_calculate_annotations=args.dont_calculate_annotations, seed_unique_id=args.seed_unique_id, debug=args.debug_paired_clustering)
-        utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, ig_or_tr=args.ig_or_tr)  # , include_hmm_cache_files=True (see note about persistent cache files above)
+        utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, args, ig_or_tr=args.ig_or_tr)
         # maybe don't need this now I've added the locus_lpfos stuff above?
         # if args.keep_all_unpaired_seqs and len(locus_merged_lp_infos['antn_lists']) == 0:
         #     print('    --keep-all-unpaired-seqs: zero length paired results, so merging single chain outputs')

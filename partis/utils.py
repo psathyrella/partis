@@ -5289,8 +5289,9 @@ def read_subset_index(basedir):
 # (paired dir structure, unless <locus> is set, in which case the dirs are parameter dirs themselves)
 # some things are handled nicelycorrectly, others more hackily
 # NOTE only merges the 'hmm' parameter type, not 'sw'
-def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files=False, ig_or_tr='ig', skip_sw_merge=False, locus=None):
-    from . import glutils, paircluster, fraction_uncertainty
+def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_cache_files=False, ig_or_tr='ig', skip_sw_merge=False, locus=None):  # <args> is only needed to rebuild the merged hmm model files; pass None to skip that step
+    from . import glutils, paircluster, fraction_uncertainty, hmmwriter
+    from .hist import Hist
     gene_index_cols = set(r + '_gene' for r in regions)  # index columns that hold a gene name, so need remapping
     simple_count_columns = ['seq_content', 'cluster_size'] + [b + '_insertion_content' for b in boundaries]  # single-key count tables, no gene name involved
     # ----------------------------------------------------------------------------------------
@@ -5327,13 +5328,21 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
             print('       %s: skipping sw-cache merge' % locstr(ltmp))
         else:
             merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
-        # these overall mean-freq/n-muted histograms aren't summed, just linked from one subset, which should be fine
+        # sum bin contents across subsets rather than taking one subset's copy
         sentinel_hist_fnames = ['all-mean-mute-freqs.csv', 'all-mean-n-muted.csv'] + ['%s-mean-%s.csv' % (r, mstr) for r in regions for mstr in ('mute-freqs', 'n-muted')]
         for hfname in sentinel_hist_fnames:
-            sub_hfns = [f for f in ('%s/hmm/%s' % (pdir(subdfn(i), ltmp), hfname) for i in range(n_subsets)) if os.path.exists(f)]
-            if len(sub_hfns) == 0:
-                continue
-            makelink('%s/hmm' % pdir(fpath(merged_odir), ltmp), fpath(sub_hfns[0]), hfname)
+            merged_hist = None
+            for isub in range(n_subsets):
+                hfn = '%s/hmm/%s' % (pdir(subdfn(isub), ltmp), hfname)
+                if not os.path.exists(hfn):
+                    continue
+                sub_hist = Hist(fname=hfn)
+                if merged_hist is None:
+                    merged_hist = sub_hist
+                else:
+                    merged_hist.add(sub_hist)
+            if merged_hist is not None:
+                merged_hist.write('%s/hmm/%s' % (pdir(merged_odir, ltmp), hfname))
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         merged_mfreq_counts = {}  # summed counts, keyed by gene then position, same per-position dict shape mutefreqer uses
         merged_length_counts = {}  # summed counts for the deletion/insertion tables, keyed by column then remapped index tuple
@@ -5342,8 +5351,6 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         def gpfn(dname, l, r): return '%s/hmm/%s_gene-probs.csv' % (pdir(dname, l), r)
         def mffn(dname, l): return '%s/hmm/mute-freqs' % pdir(dname, l)
         for isub in range(n_subsets):
-            for hfn in glob.glob('%s/hmm/hmms/*.yaml' % pdir(subdfn(isub), ltmp)):  # these will get overwritten if they're in multiple dirs, which should be fine
-                makelink('%s/hmm/hmms' % pdir(fpath(merged_odir), ltmp), fpath(hfn), os.path.basename(hfn))
             sub_glfo = glutils.read_glfo('%s/hmm/germline-sets' % pdir(subdfn(isub), ltmp), ltmp, dont_crash=True)
             name_mapping = None
             if merged_glfo is None:
@@ -5478,6 +5485,10 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
                 writer.writeheader()
                 for val, count in counts.items():
                     writer.writerow({scol : val, 'count' : count})
+        if args is not None:
+            wargs = copy.deepcopy(args)
+            wargs.locus = ltmp
+            hmmwriter.write_hmms('%s/hmm' % pdir(merged_odir, ltmp), merged_glfo, wargs)
         if include_hmm_cache_files:  # these aren't parameters, but don't want to change the name, either, oh well
             subfns = ['%s/single-chain/persistent-cache-%s.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
             merge_csvs('%s/single-chain/persistent-cache-%s.csv'% (merged_odir, ltmp), subfns)
