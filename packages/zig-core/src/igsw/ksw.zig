@@ -789,20 +789,24 @@ pub export fn ksw_global(
             const beg_i: i32 = if (ti > w) ti - w else 0;
             const d = z[@as(usize, @intCast(ti)) * n_col + @as(usize, @intCast(k - beg_i))];
             which = (d >> @intCast(which * 2)) & 3;
+            // `orelse return 0` on OOM: pushCigar has already freed the
+            // partial cigar, and n_cigar_/cigar_ were zeroed on entry, so this
+            // matches the convention the three mallocs above use. C's
+            // push_cigar does not check at all and segfaults here instead.
             if (which == 0) {
-                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 0, 1);
+                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 0, 1) orelse return 0;
                 ti -= 1;
                 k -= 1;
             } else if (which == 1) {
-                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 2, 1);
+                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 2, 1) orelse return 0;
                 ti -= 1;
             } else {
-                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 1, 1);
+                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 1, 1) orelse return 0;
                 k -= 1;
             }
         }
-        if (ti >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 2, @intCast(ti + 1));
-        if (k >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 1, @intCast(k + 1));
+        if (ti >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 2, @intCast(ti + 1)) orelse return 0;
+        if (k >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 1, @intCast(k + 1)) orelse return 0;
         // reverse
         if (n_cigar > 0) {
             std.mem.reverse(u32, cigar.?[0..@intCast(n_cigar)]);
@@ -814,13 +818,23 @@ pub export fn ksw_global(
     return @intCast(score);
 }
 
+/// Append `len` copies of `op` to the cigar, growing it as needed. Returns
+/// null on allocation failure, having freed `cigar` and left `n_cigar` /
+/// `m_cigar` untouched — callers must not use `cigar` afterwards.
 fn pushCigar(n_cigar: *c_int, m_cigar: *c_int, cigar: ?[*]u32, op: u32, len: u32) ?[*]u32 {
     if (n_cigar.* == 0 or op != (cigar.?[@intCast(n_cigar.* - 1)] & 0xf)) {
         var result = cigar;
         if (n_cigar.* == m_cigar.*) {
-            m_cigar.* = if (m_cigar.* != 0) m_cigar.* << 1 else 4;
-            const new_size = @as(usize, @intCast(m_cigar.*)) * @sizeOf(u32);
-            result = @ptrCast(@alignCast(std.c.realloc(if (cigar) |p| @ptrCast(p) else null, new_size) orelse return null));
+            const new_m = if (m_cigar.* != 0) m_cigar.* << 1 else 4;
+            const new_size = @as(usize, @intCast(new_m)) * @sizeOf(u32);
+            // realloc does not free its argument on failure, so we do: the
+            // caller's only reference to the old block is the `cigar` it is
+            // about to overwrite with our null.
+            result = @ptrCast(@alignCast(std.c.realloc(if (cigar) |p| @ptrCast(p) else null, new_size) orelse {
+                if (cigar) |p| std.c.free(p);
+                return null;
+            }));
+            m_cigar.* = new_m;
         }
         result.?[@intCast(n_cigar.*)] = len << 4 | op;
         n_cigar.* += 1;

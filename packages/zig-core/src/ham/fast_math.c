@@ -77,10 +77,12 @@ double fast_softplus(double d) {
     /* Clamp `i` so `i+1` stays in bounds. At d == 0 (or d so close to 0
      * that float rounding gives t == LUT_N), the unclamped i would equal
      * LUT_N and the `softplus_lut[i+1]` read would be one past the array.
-     * The production result was correct only because `frac == 0` masked
-     * the OOB read; Debug-mode bounds checks fired. With the clamp,
-     * frac becomes 1.0 at the boundary and y0 + 1.0*(y1-y0) = y1 =
-     * softplus_lut[LUT_N], identical to the unclamped value. */
+     * The production result came out right only because `frac == 0` zeroed
+     * the interpolation term -- and that masking holds only while the
+     * out-of-bounds double happens to be finite, since 0.0 * (inf - y0) and
+     * 0.0 * (NaN - y0) are both NaN. Debug-mode bounds checks fired. With
+     * the clamp, frac becomes 1.0 at the boundary and y0 + 1.0*(y1-y0) =
+     * y1 = softplus_lut[LUT_N], identical to the unclamped value. */
     if (i >= LUT_N) i = LUT_N - 1;
     double frac = t - (double) i;
     double y0 = softplus_lut[i];

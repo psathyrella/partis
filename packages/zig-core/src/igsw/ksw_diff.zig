@@ -122,22 +122,28 @@ pub fn testGlobalEquivalence(rand: std.Random, n_trials: usize) !void {
     var qbuf: [512]u8 = undefined;
     var tbuf: [512]u8 = undefined;
 
+    // Bandwidths spanning both sides of the `w < qlen` / `w < tlen` boundary.
+    // With w >= the sequence length the leftover branch emits one cigar op
+    // covering the whole sequence; with w smaller, C emits a cigar that does
+    // not cover it (or none at all), which is the case that has to match too.
+    const widths = [_]c_int{ 0, 1, 3, 7, 150 };
+
     // 1. Zero-length target
     for (1..32) |qlen_u| {
         const qlen: c_int = @intCast(qlen_u);
         for (0..qlen_u) |i| qbuf[i] = @intCast(i % 4);
-        try assertGlobalMatches(qlen, &qbuf, 0, &tbuf, &mat, 3, 1, 150);
+        for (widths) |w| try assertGlobalMatches(qlen, &qbuf, 0, &tbuf, &mat, 3, 1, w);
     }
 
     // 2. Zero-length query
     for (1..16) |tlen_u| {
         const tlen: c_int = @intCast(tlen_u);
         for (0..tlen_u) |i| tbuf[i] = @intCast(i % 4);
-        try assertGlobalMatches(0, &qbuf, tlen, &tbuf, &mat, 3, 1, 150);
+        for (widths) |w| try assertGlobalMatches(0, &qbuf, tlen, &tbuf, &mat, 3, 1, w);
     }
 
     // 3. Both zero-length
-    try assertGlobalMatches(0, &qbuf, 0, &tbuf, &mat, 3, 1, 150);
+    for (widths) |w| try assertGlobalMatches(0, &qbuf, 0, &tbuf, &mat, 3, 1, w);
 
     // 4. Random normal global alignments
     for (0..n_trials) |_| {
