@@ -1,12 +1,24 @@
-[91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/input-seqs.fa
+[91mrun[0m /tmp/dralph/partis-411/bin/FastTree-linux -gtr -nt -out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/fasttree.out test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/input-seqs.fa
 FastTree Version 2.1.10 SSE3
 Alignment: test/paired/new-results-slow/partition-new-simu/fasttree/iclust-6/input-seqs.fa
 Nucleotide distances: Jukes-Cantor Joins: balanced Support: SH-like 1000
 Search: Normal +NNI +SPR (2 rounds range 10) +ML-NNI opt-each=1
 TopHits: 1.00*sqrtN close=default refresh=0.80
 ML Model: Generalized Time-Reversible, CAT approximation with 20 rate categories
-Ignored unknown character X (seen 25 times)
+Ignored unknown character X (seen 143 times)
 Initial topology in 0.00 seconds
-Refining topology: 0 rounds ME-NNIs, 2 rounds ME-SPRs, 0 rounds ML-NNIs
-Total branch-length 0.000 after 0.00 sec
-Total time: 0.00 seconds Unique: 1/11 Bad splits: 0/0
+Refining topology: 14 rounds ME-NNIs, 2 rounds ME-SPRs, 7 rounds ML-NNIs
+Total branch-length 0.226 after 0.02 sec
+ML-NNI round 1: LogLk = -2025.234 NNIs 0 max delta 0.00 Time 0.03
+      0.10 seconds: Optimizing GTR model, step 10 of 12
+GTR Frequencies: 0.2105 0.3000 0.2743 0.2153
+GTR rates(ac ag at cg ct gt) 1.2052 0.8787 1.2354 0.5830 0.7620 1.0000
+Switched to using 20 rate categories (CAT approximation)
+Rate categories were divided by 0.684 so that average rate = 1.0
+CAT-based log-likelihoods may not be comparable across runs
+Use -gamma for approximate but comparable Gamma(20) log-likelihoods
+ML-NNI round 2: LogLk = -1930.197 NNIs 0 max delta 0.00 Time 0.15
+Turning off heuristics for final round of ML NNIs (converged)
+ML-NNI round 3: LogLk = -1930.195 NNIs 0 max delta 0.00 Time 0.17 (final)
+Optimize all lengths: LogLk = -1930.195 Time 0.18
+Total time: 0.20 seconds Unique: 11/11 Bad splits: 0/8
