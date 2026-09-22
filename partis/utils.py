@@ -5315,9 +5315,10 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
     merged_loci = []
     for ltmp in ([locus] if locus is not None else sub_loci(ig_or_tr)):
         def swfn(dname): return '%s/sw-cache.yaml' % pdir(dname, ltmp)
-        if os.path.exists('%s/hmm/germline-sets' % pdir(merged_odir, ltmp)):  # just looks for one of the last thing we would've written
+        overwrite = args is not None and getattr(args, 'overwrite', False)
+        if os.path.exists('%s/hmm/germline-sets' % pdir(merged_odir, ltmp)) and not overwrite:  # just looks for one of the last thing we would've written
             if skip_sw_merge or os.path.exists(swfn(merged_odir)):
-                print('       %s %s: subset-merged input exists, not rewriting' % (color('yellow', 'warning'), locstr(ltmp)))
+                print('       %s %s: subset-merged input exists, not rewriting (--overwrite to redo it)' % (color('yellow', 'warning'), locstr(ltmp)))
             else:  # counts already merged, so add just the sw cache
                 from . import disjointgrouper
                 sub_swfs = [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
