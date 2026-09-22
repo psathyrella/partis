@@ -717,6 +717,31 @@ def subset_cache_parameters(args):
     merge_parameter_subsets(args)
 
 # ----------------------------------------------------------------------------------------
+def subset_locus_n_seqs(args, subdfn, n_subsets, ltmp):
+    # summed from the subsets' gene-probs tables, to avoid a pass over the large caches
+    n_seqs = 0
+    for isub in range(n_subsets):
+        gpfn = '%s/hmm/v_gene-probs.csv' % param_locus_dir(args, subdfn(isub), ltmp)
+        if not os.path.exists(gpfn):
+            continue
+        with open(gpfn) as gfile:
+            n_seqs += sum(int(line['count']) for line in csv.DictReader(gfile))
+    return n_seqs
+
+# ----------------------------------------------------------------------------------------
+def warn_on_sw_cache_choice(args, subdfn, n_subsets):
+    # warn when the sw cache form looks wrong for the locus size, but don't change it
+    min_seqs = getattr(args, 'multifile_min_seqs', None) or disjointgrouper.MULTIFILE_MIN_SEQS_DEFAULT
+    for ltmp in subset_loci(args):
+        n_seqs = subset_locus_n_seqs(args, subdfn, n_subsets, ltmp)
+        if n_seqs == 0:
+            continue
+        if args.no_merged_sw_cache and n_seqs <= min_seqs:
+            print('    %s %s: %d sequences, small enough for a merged sw cache, which any later action can read' % (utils.wrnstr(), utils.locstr(ltmp), n_seqs))
+        elif not args.no_merged_sw_cache and n_seqs > min_seqs:
+            print('    %s %s: %d sequences, large for a merged sw cache, disjoint grouping with --no-merged-sw-cache is faster and lighter' % (utils.wrnstr(), utils.locstr(ltmp), n_seqs))
+
+# ----------------------------------------------------------------------------------------
 def merge_parameter_subsets(args):
     # sum the per-subset count tables and union their glfos into one parameter dir
     if args.no_merged_sw_cache:
@@ -724,6 +749,7 @@ def merge_parameter_subsets(args):
     base = parameter_subset_base(args)
     n_subsets = utils.read_subset_index(base)['n_subsets']
     def subdfn(isub): return subset_pdir(args, isub)
+    warn_on_sw_cache_choice(args, subdfn, n_subsets)
     utils.merge_parameter_dirs(base, subdfn, n_subsets, args, ig_or_tr=args.ig_or_tr, skip_sw_merge=args.no_merged_sw_cache,
                                locus=None if args.paired_loci else args.locus)
     if not args.no_merged_sw_cache:

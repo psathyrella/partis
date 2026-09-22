@@ -5314,11 +5314,22 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
     print('    merging parameters from %d subdirs (e.g. %s) to %s' % (n_subsets, subdfn(0), merged_odir))
     merged_loci = []
     for ltmp in ([locus] if locus is not None else sub_loci(ig_or_tr)):
+        def swfn(dname): return '%s/sw-cache.yaml' % pdir(dname, ltmp)
         if os.path.exists('%s/hmm/germline-sets' % pdir(merged_odir, ltmp)):  # just looks for one of the last thing we would've written
-            print('       %s %s: subset-merged input exists, not rewriting' % (color('yellow', 'warning'), locstr(ltmp)))
+            if skip_sw_merge or os.path.exists(swfn(merged_odir)):
+                print('       %s %s: subset-merged input exists, not rewriting' % (color('yellow', 'warning'), locstr(ltmp)))
+            else:  # counts already merged, so add just the sw cache
+                from . import disjointgrouper
+                sub_swfs = [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
+                print('       %s %s: subset-merged input exists but has no merged sw cache, merging %d per-subset caches into it' % (color('yellow', 'warning'), locstr(ltmp), len(sub_swfs)))
+                if len(sub_swfs) > 0:
+                    merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
+                    index_fn = disjointgrouper.sw_cache_index_fname(pdir(merged_odir, ltmp))
+                    if os.path.exists(index_fn):  # other actions refuse a dir that has one
+                        os.rename(index_fn, index_fn + '.superseded')
+                        print('         renamed stale %s' % os.path.basename(index_fn))
             merged_loci.append(ltmp)
             continue
-        def swfn(dname): return '%s/sw-cache.yaml' % pdir(dname, ltmp)
         sub_swfs = [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
         if len(sub_swfs) == 0:
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
