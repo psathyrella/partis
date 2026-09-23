@@ -718,7 +718,7 @@ def subset_cache_parameters(args):
 
 # ----------------------------------------------------------------------------------------
 def subset_locus_n_seqs(args, subdfn, n_subsets, ltmp):
-    # summed from the subsets' gene-probs tables, to avoid a pass over the large caches
+    # summed from the subsets' gene-probs tables
     n_seqs = 0
     for isub in range(n_subsets):
         gpfn = '%s/hmm/v_gene-probs.csv' % param_locus_dir(args, subdfn(isub), ltmp)
@@ -730,16 +730,16 @@ def subset_locus_n_seqs(args, subdfn, n_subsets, ltmp):
 
 # ----------------------------------------------------------------------------------------
 def warn_on_sw_cache_choice(args, subdfn, n_subsets):
-    # warn when the sw cache form looks wrong for the locus size, but don't change it
+    # warns only, does not change the cache form
     min_seqs = getattr(args, 'multifile_min_seqs', None) or disjointgrouper.MULTIFILE_MIN_SEQS_DEFAULT
     for ltmp in subset_loci(args):
         n_seqs = subset_locus_n_seqs(args, subdfn, n_subsets, ltmp)
         if n_seqs == 0:
             continue
         if args.no_merged_sw_cache and n_seqs <= min_seqs:
-            print('    %s %s: %d sequences, small enough for a merged sw cache, which any later action can read' % (utils.wrnstr(), utils.locstr(ltmp), n_seqs))
+            print('    %s %s: %d sequences, small enough for a merged sw cache' % (utils.wrnstr(), utils.locstr(ltmp), n_seqs))
         elif not args.no_merged_sw_cache and n_seqs > min_seqs:
-            print('    %s %s: %d sequences, large for a merged sw cache, disjoint grouping with --no-merged-sw-cache is faster and lighter' % (utils.wrnstr(), utils.locstr(ltmp), n_seqs))
+            print('    %s %s: %d sequences, large for a merged sw cache' % (utils.wrnstr(), utils.locstr(ltmp), n_seqs))
 
 # ----------------------------------------------------------------------------------------
 def merge_parameter_subsets(args):
