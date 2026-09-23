@@ -5288,7 +5288,7 @@ def read_subset_index(basedir):
 # merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub>
 # (paired dir structure, unless <locus> is set, in which case the dirs are parameter dirs themselves)
 # some things are handled nicelycorrectly, others more hackily
-# NOTE only merges the 'hmm' parameter type, not 'sw'
+# NOTE merges the 'hmm' parameter type plus the per-locus sw cache, but nothing else under 'sw'
 def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_cache_files=False, ig_or_tr='ig', skip_sw_merge=False, locus=None):  # <args> is only needed to rebuild the merged hmm model files; pass None to skip that step
     from . import glutils, paircluster, fraction_uncertainty, hmmwriter
     from .hist import Hist
@@ -5315,23 +5315,31 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
     merged_loci = []
     for ltmp in ([locus] if locus is not None else sub_loci(ig_or_tr)):
         def swfn(dname): return '%s/sw-cache.yaml' % pdir(dname, ltmp)
-        overwrite = args is not None and getattr(args, 'overwrite', False)
+        def sub_sw_caches(): return [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
+        # ----------------------------------------------------------------------------------------
+        def merge_sw_caches(sub_swfs):  # every path that writes the merged cache also has to retire the index, since other actions refuse a dir that has one
+            from . import disjointgrouper
+            merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
+            index_fn = disjointgrouper.sw_cache_index_fname(pdir(merged_odir, ltmp))
+            if os.path.exists(index_fn):
+                os.rename(index_fn, index_fn + '.superseded')  # renamed rather than removed so a bad merge can be undone by hand
+                print('         renamed stale %s' % os.path.basename(index_fn))
+        # ----------------------------------------------------------------------------------------
+        overwrite = args is not None and args.overwrite
         if os.path.exists('%s/hmm/germline-sets' % pdir(merged_odir, ltmp)) and not overwrite:  # just looks for one of the last thing we would've written
             if skip_sw_merge or os.path.exists(swfn(merged_odir)):
                 print('       %s %s: subset-merged input exists, not rewriting (--overwrite to redo it)' % (color('yellow', 'warning'), locstr(ltmp)))
             else:  # counts already merged, so add just the sw cache
-                from . import disjointgrouper
-                sub_swfs = [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
+                sub_swfs = sub_sw_caches()
                 print('       %s %s: subset-merged input exists but has no merged sw cache, merging %d per-subset caches into it' % (color('yellow', 'warning'), locstr(ltmp), len(sub_swfs)))
                 if len(sub_swfs) > 0:
-                    merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
-                    index_fn = disjointgrouper.sw_cache_index_fname(pdir(merged_odir, ltmp))
-                    if os.path.exists(index_fn):  # other actions refuse a dir that has one
-                        os.rename(index_fn, index_fn + '.superseded')
-                        print('         renamed stale %s' % os.path.basename(index_fn))
+                    merge_sw_caches(sub_swfs)
+            linked_hmms = [f for f in glob.glob('%s/hmm/hmms/*.yaml' % pdir(merged_odir, ltmp)) if os.path.islink(f)]
+            if len(linked_hmms) > 0:  # we link them only in pre-rebuild code, so these hold one subset's counts rather than the pooled ones
+                raise Exception('%s: %d merged hmm model files are symlinks, so %s was merged before we rebuilt models from pooled counts. Rerun the merge with --overwrite.' % (locstr(ltmp), len(linked_hmms), pdir(merged_odir, ltmp)))
             merged_loci.append(ltmp)
             continue
-        sub_swfs = [swfn(subdfn(i)) for i in range(n_subsets) if os.path.exists(swfn(subdfn(i)))]
+        sub_swfs = sub_sw_caches()
         if len(sub_swfs) == 0:
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
             continue
@@ -5339,7 +5347,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
         if skip_sw_merge:
             print('       %s: skipping sw-cache merge' % locstr(ltmp))
         else:
-            merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
+            merge_sw_caches(sub_swfs)
         # sum bin contents across subsets rather than taking one subset's copy
         sentinel_hist_fnames = ['all-mean-mute-freqs.csv', 'all-mean-n-muted.csv'] + ['%s-mean-%s.csv' % (r, mstr) for r in regions for mstr in ('mute-freqs', 'n-muted')]
         for hfname in sentinel_hist_fnames:
@@ -5350,7 +5358,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
                     continue
                 sub_hist = Hist(fname=hfn)
                 if merged_hist is None:
-                    merged_hist = sub_hist
+                    merged_hist = copy.deepcopy(sub_hist)
                 else:
                     merged_hist.add(sub_hist)
             if merged_hist is not None:
