@@ -38,3 +38,12 @@ Do **NOT** remove comments, commented code, or TODOs unless absolutely certain t
 Comments and TODOs are not 'cruft' to remove, they are purposefully placed to remind of things in the future.
 
 Also do not remove functionality or checks that seem peripheral without CAREFULLY asking whether they should be removed.
+
+## data
+
+The parameter and simulation dirs under `test/` (`test/ref-results/`, `test/new-results/`, and their
+`-slow` counterparts) are **test fixtures, not data**. They are tiny -- e.g.
+`test/ref-results/test/parameters/data/hmm` is built from 47 sequences -- and they are not
+representative of anything. Never draw a conclusion about partis's behaviour on real repertoires from
+them, and never quote a number measured on them as if it described data. They exist to detect changes
+in output, and that is all they are good for. Measure on real repertoires instead.
