@@ -1,5 +1,5 @@
-[92mcache-parameters-data[0m            partis cache-parameters --dont-write-git-info --infname /tmp/dralph/partis-411/test/mishmash.fa --parameter-dir test/new-results-slow/test/parameters/data --sw-cachefname test/new-results-slow/test/parameters/data/sw-cache.yaml --n-max-queries -1 --input-metafnames /tmp/dralph/partis-411/test/input-meta.yaml --random-seed 1 --n-procs 10
-  --input-metafnames: added meta info for 4 sequences from /tmp/dralph/partis-411/test/input-meta.yaml: multiplicities
+[92mcache-parameters-data[0m            partis cache-parameters --dont-write-git-info --infname /tmp/dralph/partis-main/test/mishmash.fa --parameter-dir test/new-results-slow/test/parameters/data --sw-cachefname test/new-results-slow/test/parameters/data/sw-cache.yaml --n-max-queries -1 --input-metafnames /tmp/dralph/partis-main/test/input-meta.yaml --random-seed 1 --n-procs 10
+  --input-metafnames: added meta info for 4 sequences from /tmp/dralph/partis-main/test/input-meta.yaml: multiplicities
 caching parameters
   vsearch: 1277 / 1412 v annotations (135 failed) with 348 v genes in 0.1 sec
     keeping 76 / 541 v genes
@@ -10,7 +10,7 @@ smith-waterman  (new-allele fitting)
     running 13 procs for 55 seqs
       info for 1373 / 1412 = 0.972   (removed: 39 failed)
       kept 440 (0.312) unproductive
-    water time: 2.4  (ig-sw 0.1  processing 0.1)
+    water time: 2.3  (ig-sw 0.2  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 1273 / 1412 v annotations (139 failed) with 76 v genes in 0.1 sec
     running 10 procs for 1373 seqs
@@ -19,21 +19,21 @@ smith-waterman  (writing parameters)
       kept 440 (0.312) unproductive
         writing sw results to test/new-results-slow/test/parameters/data/sw-cache.yaml
     writing parameters to test/new-results-slow/test/parameters/data/sw (2.3 sec)
-    water time: 5.1  (ig-sw 2.9  processing 0.1)
+    water time: 5.1  (ig-sw 3.0  processing 0.1)
   writing hmms     removed 6  genes from glfo (leaving v 73  d 87  j 16)
-(1.0 sec)
+(0.9 sec)
 hmm
     skipping matches from 12 genes without enough counts: [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01_g18-_t19-_c28-[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91mj[0m[95m5[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01_g10-_g18a[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01_c7t[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01_t8c_g10-[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01_a14g_a17-_c18-_c19g[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01_c8t[0m [95mh[0m[91mj[0m[95m4[0m[93m02_g23-[0m
     reading output
         read 1373 hmm output lines with 1363 sequences in 1363 events  (10 failures)
           [91mwarning[0m no valid paths: -1651760806376077044 -1889013233140917886 -4348677206158192452 -5294497590599348090 04-A-M_3755036 25164396670180087 4182690314301324604 4937696822602299712 6182728664197942741 6880877555932742798
-    writing parameters to test/new-results-slow/test/parameters/data/hmm (2.3 sec)
-         infra time: 3.3
-      hmm step time: 8.8
-  writing hmms     removed 20 genes from glfo (leaving v 70  d 75  j 11)
-(0.9 sec)
-      total time: 19.1
-      bcrham time: 5.5 (28.6% of total, 1 calls)
+    writing parameters to test/new-results-slow/test/parameters/data/hmm (2.2 sec)
+         infra time: 3.2
+      hmm step time: 8.7
+  writing hmms     removed 20 genes from glfo (leaving v 69  d 76  j 11)
+(0.8 sec)
+      total time: 18.9
+      bcrham time: 5.5 (29.0% of total, 1 calls)
 [92msimulate[0m                         partis simulate --dont-write-git-info --parameter-dir test/new-results-slow/test/parameters/data --n-sim-events 200 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/test/simu.yaml --indel-frequency 0.2
 simulating
       --> proc 0
@@ -43,8 +43,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 129 seqs in 5.1s (4.7s of which was running bppseqgen)
-      total time: 7.2
+    made 20 events with 129 seqs in 4.2s (3.9s of which was running bppseqgen)
+      total time: 6.2
 
       --> proc 1
 stty: 'standard input': Inappropriate ioctl for device
@@ -53,8 +53,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 99 seqs in 4.2s (3.9s of which was running bppseqgen)
-      total time: 6.3
+    made 20 events with 99 seqs in 4.1s (3.8s of which was running bppseqgen)
+      total time: 6.1
 
       --> proc 2
 stty: 'standard input': Inappropriate ioctl for device
@@ -63,8 +63,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 92 seqs in 4.2s (3.9s of which was running bppseqgen)
-      total time: 6.2
+    made 20 events with 92 seqs in 4.4s (4.2s of which was running bppseqgen)
+      total time: 6.4
 
       --> proc 3
 stty: 'standard input': Inappropriate ioctl for device
@@ -73,8 +73,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 123 seqs in 4.6s (4.2s of which was running bppseqgen)
-      total time: 6.6
+    made 20 events with 123 seqs in 4.3s (3.9s of which was running bppseqgen)
+      total time: 6.2
 
       --> proc 4
 stty: 'standard input': Inappropriate ioctl for device
@@ -83,8 +83,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 109 seqs in 4.4s (4.1s of which was running bppseqgen)
-      total time: 6.4
+    made 20 events with 109 seqs in 4.3s (3.9s of which was running bppseqgen)
+      total time: 6.3
 
       --> proc 5
 stty: 'standard input': Inappropriate ioctl for device
@@ -93,7 +93,7 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 127 seqs in 4.6s (4.2s of which was running bppseqgen)
+    made 20 events with 127 seqs in 4.7s (4.2s of which was running bppseqgen)
       total time: 6.6
 
       --> proc 6
@@ -103,8 +103,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 109 seqs in 4.4s (4.1s of which was running bppseqgen)
-      total time: 6.4
+    made 20 events with 109 seqs in 4.2s (3.9s of which was running bppseqgen)
+      total time: 6.2
 
       --> proc 7
 stty: 'standard input': Inappropriate ioctl for device
@@ -113,8 +113,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 77 seqs in 4.4s (4.1s of which was running bppseqgen)
-      total time: 6.4
+    made 20 events with 77 seqs in 3.5s (3.1s of which was running bppseqgen)
+      total time: 5.5
 
       --> proc 8
 stty: 'standard input': Inappropriate ioctl for device
@@ -123,8 +123,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 101 seqs in 4.5s (4.2s of which was running bppseqgen)
-      total time: 6.5
+    made 20 events with 101 seqs in 3.9s (3.6s of which was running bppseqgen)
+      total time: 6.0
 
       --> proc 9
 stty: 'standard input': Inappropriate ioctl for device
@@ -133,588 +133,560 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 109 seqs in 4.5s (4.2s of which was running bppseqgen)
-      total time: 6.5
+    made 20 events with 109 seqs in 4.3s (4.1s of which was running bppseqgen)
+      total time: 6.3
 
    read 200 events with 1075 seqs from 10 .yaml files
-      total time: 8.8
+      total time: 8.2
 [92mcache-parameters-simu[0m            partis cache-parameters --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --is-simu --random-seed 1 --n-procs 10
 caching parameters
-  vsearch: 1072 / 1075 v annotations (3 failed) with 113 v genes in 0.1 sec
-    keeping 41 / 541 v genes
-    [91mmissing[0m 32 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-24[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-3[0m[93m04[0m 10  [95mh[0m[91mv[0m[95m1[0m[95m-46[0m[93m03_a75t_a163t_t164g_a165g_g191a_g234t_t260c[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-58[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m1/OR15[0m[95m-9[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m13[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-13[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-13[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-15[0m[93m07[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-19[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-20[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m06[0m 3  [95mh[0m[91mv[0m[95m3[0m[95m-35[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-38-3[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-43[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-72[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3/OR16[0m[95m-10[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m3/OR16[0m[95m-13[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-28[0m[93m01_a295g[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-2[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m09[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-39[0m[93m09[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-4[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-4[0m[93m06[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-4[0m[93m07[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-61[0m[93m07[0m 0
+  vsearch: 1067 / 1075 v annotations (8 failed) with 116 v genes in 0.1 sec
+    keeping 45 / 541 v genes
+    [91mmissing[0m 30 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-3[0m[93m02[0m 1  [95mh[0m[91mv[0m[95m1[0m[95m-3[0m[93m04[0m 13  [95mh[0m[91mv[0m[95m1[0m[95m-58[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69-2[0m[93m01_c201t[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-26[0m[93m05[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-13[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-13[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-19[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-20[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m06[0m 11  [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-30-5[0m[93m01_t288c_t300c_a317g[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-35[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-38-3[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-49[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-72[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3/OR16[0m[95m-13[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-28[0m[93m01_a295g[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-2[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m09[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-39[0m[93m09[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-4[0m[93m07[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-61[0m[93m07[0m 0  [95mh[0m[91mv[0m[95m5[0m[95m-10-1[0m[93m01[0m 9  [95mh[0m[91mv[0m[95m7[0m[95m-4-1[0m[93m02[0m 0
 smith-waterman  (new-allele fitting)
-  vsearch: 1075 / 1075 v annotations (0 failed) with 41 v genes in 0.2 sec
+  vsearch: 1067 / 1075 v annotations (8 failed) with 44 v genes in 0.2 sec
   removing old sw cache test/new-results-slow/test/parameters/simu/sw-cache.yaml
     running 10 procs for 1075 seqs
-    running 13 procs for 32 seqs
+    running 13 procs for 27 seqs
       info for 1075 / 1075 = 1.000   (removed: 0 failed)
-      kept 567 (0.527) unproductive
-    water time: 1.6  (ig-sw 0.1  processing 0.1)
+      kept 530 (0.493) unproductive
+    water time: 1.7  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 1075 / 1075 v annotations (0 failed) with 41 v genes in 0.2 sec
+  vsearch: 1067 / 1075 v annotations (8 failed) with 44 v genes in 0.2 sec
     running 10 procs for 1075 seqs
-    running 13 procs for 32 seqs
+    running 13 procs for 27 seqs
       info for 1075 / 1075 = 1.000   (removed: 0 failed)
-      kept 567 (0.527) unproductive
+      kept 530 (0.493) unproductive
         writing sw results to test/new-results-slow/test/parameters/simu/sw-cache.yaml
-    writing parameters to test/new-results-slow/test/parameters/simu/sw (2.3 sec)
-    water time: 4.4  (ig-sw 2.8  processing 0.1)
-  writing hmms     removed 22 genes from glfo (leaving v 41  d 71  j 13)
+    writing parameters to test/new-results-slow/test/parameters/simu/sw (2.4 sec)
+    water time: 4.5  (ig-sw 2.9  processing 0.1)
+  writing hmms     removed 18 genes from glfo (leaving v 42  d 77  j 14)
 (0.9 sec)
 hmm
-    skipping matches from 20 genes without enough counts: [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01_g10-[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01_t8c_g10-_a19g[0m [95mh[0m[91md[0m[95m4[0m[95m-23[0m[93m01_c7t[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01_c12g_a15g_t21-_a22c_a29g[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01_g14a_c28-[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01_g18-_t19-_c28t[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01_c12g_a15g_17accagc22_t28c_a29t_c30g_32c32[0m [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01_a14g_a17-_c18-_c19g[0m [95mh[0m[91md[0m[95m6[0m[95m-25[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01_g10-_g18a[0m [95mh[0m[91md[0m[95m3/OR15[0m[95m-3a[0m[93m01[0m [95mh[0m[91mj[0m[95m5[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m [95mh[0m[91mj[0m[95m3[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02[0m
+    skipping matches from 14 genes without enough counts: [95mh[0m[91mj[0m[95m3[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01_g10-[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01_g14a_c28-[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01_g18-_t19-_c28t[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01_c12g_a15g_17accagc22_t28c_a29t_c30g_32c32[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01_c12g_a15g_t21-_a22c_a29g[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01_c8t[0m [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02_g23-[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02_c12g_t21-_a22c_a29t[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m
     reading output
         read 1075 hmm output lines with 1075 sequences in 1075 events  (0 failures)
-    writing parameters to test/new-results-slow/test/parameters/simu/hmm (1.9 sec)
-    writing parameters to test/new-results-slow/test/parameters/simu/true (1.9 sec)
-         infra time: 5.0
-      hmm step time: 7.4
-  writing hmms     removed 22 genes from glfo (leaving v 41  d 52  j 10)
+    writing parameters to test/new-results-slow/test/parameters/simu/hmm (2.2 sec)
+    writing parameters to test/new-results-slow/test/parameters/simu/true (2.2 sec)
+         infra time: 5.7
+      hmm step time: 8.3
+  writing hmms     removed 17 genes from glfo (leaving v 42  d 63  j 11)
 (0.8 sec)
-      total time: 16.5
-      bcrham time: 2.4 (14.5% of total, 1 calls)
+      total time: 17.6
+      bcrham time: 2.6 (15.0% of total, 1 calls)
 [92mannotate-new-simu[0m                partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --plotdir test/new-results-slow/annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/annotate-new-simu.yaml
 annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1075 / 1075 v annotations (0 failed) with 41 v genes in 0.2 sec
+  vsearch: 1067 / 1075 v annotations (8 failed) with 42 v genes in 0.2 sec
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 1075 / 1075 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 567 (0.527) unproductive
+      kept 530 (0.493) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 56 queries with different true and inferred net shm indel lengths: b4a52eaceb 747ee0e425 01b5fc3e6d 59bf1d97bd 5c259d07f8 9ad9e0daff c11fa55d6b 41048a646d d3a19a3d4b 64cc957004 eb7538e4e4 38236d0684 6d1e8f4c1d 2b3c8647d5 8d35754c15 15f5ec00b2 244f467cb9 0541eebd05 c8eb415987 1ec0fe7500 8b3ee74b08 4e67af7d52 75f3e01f57 89bda120c1 119acf3acf cd8eedfc35 b14a64ff71 fe174b6b47 9b2c24dde0 0162dd0f70 55b10eda8a 7879cadea9 f543b2d548 ba302a0b9b db95a2b875 be00f3ab6d 6f283c38e8 fb56f4369d 2a4c76de71 3956095a3a b09d87eb20 899ad9aca1 be92aa7be4 b148a2dedc d62ec4c5e2 0f09cfa0b8 fc36293e1e bd9a9b77f4 24b34e3012 d21fec3b39 75472e9c54 19f36dee60 d7e7b4fe98 849a0702ed 63a7f587d6 dcb647f260
+    [93mwarning[0m skipped annotation performance evaluation on 60 queries with different true and inferred net shm indel lengths: d214828413 a8042f6d09 3887469a27 642ae709a1 1581061608 080cc2a69b c158fd8654 14d32d710b 55e4ebdaf5 5c259d07f8 11b38716a8 c90f2c3d6d e3edcbe4f9 c11fa55d6b 615c82ba95 90c03b2d3e d3a19a3d4b d416c90902 33440c0771 27b176cf2c 5836cd7fd2 d6f14abc09 6cc33702bc 78a30b4ba0 95f3ce4121 1e19e92fe6 5aca994b85 75f3e01f57 453ddb1537 ddcbd5d81d 9a85bc70b8 dec7e55369 f583bfc28e 01bb4b9a4b c5090db090 9b2c24dde0 8715eebbed 88572773f9 ba302a0b9b db95a2b875 caf29d20a7 21370d4360 6f283c38e8 fb56f4369d 17449ee2a4 74f04370b5 ebd4ad4833 1358105577 dc393bf261 6da41dd744 24b34e3012 4034ed5c78 6da331a127 77ad3ef589 90da3ed235 3450cd8076 19f36dee60 d7e7b4fe98 f37e9b5aac 6cf62154fd
 (0.0 sec)
         water time: 0.6
 hmm
     reading output
         read 1075 hmm output lines with 1075 sequences in 1075 events  (0 failures)
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 56 queries with different true and inferred net shm indel lengths: eb7538e4e4 f543b2d548 fb56f4369d 2a4c76de71 b148a2dedc b4a52eaceb 5c259d07f8 be92aa7be4 24b34e3012 19f36dee60 747ee0e425 41048a646d 15f5ec00b2 fe174b6b47 0162dd0f70 d62ec4c5e2 849a0702ed 63a7f587d6 01b5fc3e6d c11fa55d6b 64cc957004 8d35754c15 4e67af7d52 ba302a0b9b 3956095a3a 0f09cfa0b8 dcb647f260 0541eebd05 75f3e01f57 119acf3acf 9b2c24dde0 7879cadea9 b09d87eb20 d21fec3b39 75472e9c54 d7e7b4fe98 db95a2b875 d3a19a3d4b c8eb415987 cd8eedfc35 be00f3ab6d fc36293e1e 59bf1d97bd 9ad9e0daff 89bda120c1 b14a64ff71 bd9a9b77f4 38236d0684 6d1e8f4c1d 244f467cb9 1ec0fe7500 899ad9aca1 2b3c8647d5 8b3ee74b08 55b10eda8a 6f283c38e8
+    [93mwarning[0m skipped annotation performance evaluation on 60 queries with different true and inferred net shm indel lengths: 14d32d710b fb56f4369d 55e4ebdaf5 5c259d07f8 453ddb1537 dc393bf261 24b34e3012 90da3ed235 19f36dee60 c90f2c3d6d 615c82ba95 74f04370b5 d214828413 3887469a27 c11fa55d6b 27b176cf2c ba302a0b9b caf29d20a7 f37e9b5aac 78a30b4ba0 75f3e01f57 ddcbd5d81d 9b2c24dde0 8715eebbed 17449ee2a4 d7e7b4fe98 6cf62154fd a8042f6d09 11b38716a8 f583bfc28e db95a2b875 ebd4ad4833 642ae709a1 90c03b2d3e d3a19a3d4b 95f3ce4121 dec7e55369 01bb4b9a4b 1581061608 5836cd7fd2 21370d4360 6da41dd744 4034ed5c78 6da331a127 080cc2a69b e3edcbe4f9 d416c90902 33440c0771 1e19e92fe6 1358105577 c158fd8654 d6f14abc09 6cc33702bc 5aca994b85 9a85bc70b8 c5090db090 88572773f9 6f283c38e8 77ad3ef589 3450cd8076
 (0.0 sec)
-         infra time: 0.9
-      hmm step time: 3.3
-      total time: 4.4
-      bcrham time: 2.4 (54.5% of total, 1 calls)
+         infra time: 0.8
+      hmm step time: 3.4
+      total time: 4.6
+      bcrham time: 2.6 (56.9% of total, 1 calls)
 [92mmulti-annotate-new-simu[0m          partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --simultaneous-true-clonal-seqs --is-simu --plotdir test/new-results-slow/multi-annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/multi-annotate-new-simu.yaml
 annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1075 / 1075 v annotations (0 failed) with 41 v genes in 0.2 sec
+  vsearch: 1067 / 1075 v annotations (8 failed) with 42 v genes in 0.2 sec
   note: not running msa indel stuff for --simultaneous-true-clonal-seqs, so any families with shm indels within cdr3 will be split up before running the hmm. To fix this you'll either need to run set_msa_info() (which is fine and easy, but slow, and requires deciding whether to make sure to run parameter caching with the arg, or else rerun smith waterman with the msa indels
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 1075 / 1075 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 567 (0.527) unproductive
+      kept 530 (0.493) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 56 queries with different true and inferred net shm indel lengths: b4a52eaceb 747ee0e425 01b5fc3e6d 59bf1d97bd 5c259d07f8 9ad9e0daff c11fa55d6b 41048a646d d3a19a3d4b 64cc957004 eb7538e4e4 38236d0684 6d1e8f4c1d 2b3c8647d5 8d35754c15 15f5ec00b2 244f467cb9 0541eebd05 c8eb415987 1ec0fe7500 8b3ee74b08 4e67af7d52 75f3e01f57 89bda120c1 119acf3acf cd8eedfc35 b14a64ff71 fe174b6b47 9b2c24dde0 0162dd0f70 55b10eda8a 7879cadea9 f543b2d548 ba302a0b9b db95a2b875 be00f3ab6d 6f283c38e8 fb56f4369d 2a4c76de71 3956095a3a b09d87eb20 899ad9aca1 be92aa7be4 b148a2dedc d62ec4c5e2 0f09cfa0b8 fc36293e1e bd9a9b77f4 24b34e3012 d21fec3b39 75472e9c54 19f36dee60 d7e7b4fe98 849a0702ed 63a7f587d6 dcb647f260
+    [93mwarning[0m skipped annotation performance evaluation on 60 queries with different true and inferred net shm indel lengths: d214828413 a8042f6d09 3887469a27 642ae709a1 1581061608 080cc2a69b c158fd8654 14d32d710b 55e4ebdaf5 5c259d07f8 11b38716a8 c90f2c3d6d e3edcbe4f9 c11fa55d6b 615c82ba95 90c03b2d3e d3a19a3d4b d416c90902 33440c0771 27b176cf2c 5836cd7fd2 d6f14abc09 6cc33702bc 78a30b4ba0 95f3ce4121 1e19e92fe6 5aca994b85 75f3e01f57 453ddb1537 ddcbd5d81d 9a85bc70b8 dec7e55369 f583bfc28e 01bb4b9a4b c5090db090 9b2c24dde0 8715eebbed 88572773f9 ba302a0b9b db95a2b875 caf29d20a7 21370d4360 6f283c38e8 fb56f4369d 17449ee2a4 74f04370b5 ebd4ad4833 1358105577 dc393bf261 6da41dd744 24b34e3012 4034ed5c78 6da331a127 77ad3ef589 90da3ed235 3450cd8076 19f36dee60 d7e7b4fe98 f37e9b5aac 6cf62154fd
 (0.0 sec)
         water time: 0.6
 hmm
   --simultaneous-true-clonal-seqs: grouping seqs according to true partition
-  [93mwarning[0m split apart 35 clusters that contained multiple cdr3 lengths (total clusters: 200 --> 237)
-      cluster splits:  11 --> 10 1,  11 --> 1 10,  16 --> 1 15,  11 --> 1 10,  13 --> 1 12,   4 --> 1 3,   8 --> 7 1,   2 --> 1 1,   8 --> 7 1,  14 --> 1 13,   5 --> 4 1,   4 --> 1 3,   8 --> 7 1,   7 --> 1 6,   8 --> 1 1 6,   5 --> 4 1,   7 --> 1 6,   6 --> 5 1,  11 --> 1 10,   2 --> 1 1,  27 --> 1 26,  19 --> 18 1,   2 --> 1 1,   3 --> 2 1,  19 --> 1 1 17,  16 --> 15 1,   6 --> 1 5,   7 --> 1 6,   5 --> 4 1,   4 --> 1 3,   8 --> 7 1,   2 --> 1 1,   7 --> 1 6,   8 --> 1 7,   7 --> 1 6
-  subcluster annotating 237 clusters with steps:  (2.2s) (1.1s) (0.5s) [93mwarning[0m different length true and inferred naive seqs for 2cfff5d814, proceeding to align, which is very slow (see above):
+  [93mwarning[0m split apart 34 clusters that contained multiple cdr3 lengths (total clusters: 200 --> 240)
+      cluster splits:  11 --> 10 1,  11 --> 1 10,   2 --> 1 1,  16 --> 1 15,  13 --> 1 12,   8 --> 7 1,   2 --> 1 1,   4 --> 1 3,   8 --> 1 7,  11 --> 1 1 9,  16 --> 1 15,  14 --> 1 13,   8 --> 7 1,   8 --> 1 1 6,  19 --> 1 17 1,   2 --> 1 1,  27 --> 1 26,   2 --> 1 1,   9 --> 8 1,  20 --> 19 1,   6 --> 1 5,   3 --> 2 1,   5 --> 4 1,   7 --> 1 6,   2 --> 1 1,   4 --> 3 1,   7 --> 1 6,   8 --> 7 1,  11 --> 1 8 1 1,   7 --> 6 1,  19 --> 1 1 17,   5 --> 1 4,   7 --> 1 6,   5 --> 4 1
+  subcluster annotating 240 clusters with steps:  (2.5s) (1.4s) (0.5s) [93mwarning[0m different length true and inferred naive seqs for 2cfff5d814, proceeding to align, which is very slow (see above):
   GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGACACCCCTACGGTGACTATCGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
   GTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTAGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGACCCCTACGGTGACTACGGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
 GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGACACCCCTACGGTGACTATCGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
 [94mN[0m[94mN[0m[94mN[0mGTGCAGCTGGTGGAGTCTGGGGGAGGC[91mT[0mTGGT[91mA[0m[91mC[0mAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGT[91mT[0mTCAT[91mA[0mCATTAGTAGTAGTAGT[91mA[0m[91mG[0mCATATACTACGCAGACTC[91mT[0mGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGA[91mG[0mACCCCTACGGTGACTA[91mC[0m[91mG[0mGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
-[93mwarning[0m different length true and inferred naive seqs for 4756e30b3f, proceeding to align, which is very slow (see above):
+[93mwarning[0m different length true and inferred naive seqs for ebacf2a46c, proceeding to align, which is very slow (see above):
   GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGACACCCCTACGGTGACTATCGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
   GTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTAGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGACCCCTACGGTGACTACGGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
 GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGACACCCCTACGGTGACTATCGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
 [94mN[0m[94mN[0m[94mN[0mGTGCAGCTGGTGGAGTCTGGGGGAGGC[91mT[0mTGGT[91mA[0m[91mC[0mAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGT[91mT[0mTCAT[91mA[0mCATTAGTAGTAGTAGT[91mA[0m[91mG[0mCATATACTACGCAGACTC[91mT[0mGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGA[91mG[0mACCCCTACGGTGACTA[91mC[0m[91mG[0mGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
-[93mwarning[0m different length true and inferred naive seqs for f5dfcb1060, proceeding to align, which is very slow (see above):
+[93mwarning[0m different length true and inferred naive seqs for b39ae0b3dc, proceeding to align, which is very slow (see above):
   GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGACACCCCTACGGTGACTATCGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
   GTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTAGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGACCCCTACGGTGACTACGGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
 GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGACACCCCTACGGTGACTATCGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
 [94mN[0m[94mN[0m[94mN[0mGTGCAGCTGGTGGAGTCTGGGGGAGGC[91mT[0mTGGT[91mA[0m[91mC[0mAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGT[91mT[0mTCAT[91mA[0mCATTAGTAGTAGTAGT[91mA[0m[91mG[0mCATATACTACGCAGACTC[91mT[0mGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGA[91mG[0mACCCCTACGGTGACTA[91mC[0m[91mG[0mGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
-[93mwarning[0m different length true and inferred naive seqs for 232b010de6, proceeding to align, which is very slow (see above):
-  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGACTACTATGATAGTAGTGGTTATTACTACCTTGACCACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-  GTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGACTGTTATGATAGTAGTGGTTATTACTACCTTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGACTACTATGATAGTAGTGGTTATTACTACCTTGACCACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-[94mN[0m[94mN[0m[94mN[0mGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGACT[91mG[0m[91mT[0mTATGATAGTAGTGGTTATTACTACCTTGAC[91mT[0mACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-[93mwarning[0m different length true and inferred naive seqs for 988f6b67d8, proceeding to align, which is very slow (see above):
-  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAACAGTGGTATAGCAGCAGCTGGTACTCCAGTAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-  GTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAACGGGGGTATAGCAGCAGCTGGTACGCGGGGAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAACAGTGGTATAGCAGCAGCTGGTACTCCAGTAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-[94mN[0m[94mN[0m[94mN[0mGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAAC[91mG[0mG[91mG[0mGGTATAGCAGCAGCTGGTAC[91mG[0mC[91mG[0m[91mG[0mG[91mG[0mAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-[93mwarning[0m different length true and inferred naive seqs for c3b71ee406, proceeding to align, which is very slow (see above):
-  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAACAGTGGTATAGCAGCAGCTGGTACTCCAGTAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-  GTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAACGGGGGTATAGCAGCAGCTGGTACGCGGGGAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAACAGTGGTATAGCAGCAGCTGGTACTCCAGTAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-[94mN[0m[94mN[0m[94mN[0mGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAAC[91mG[0mG[91mG[0mGGTATAGCAGCAGCTGGTAC[91mG[0mC[91mG[0m[91mG[0mG[91mG[0mAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-[93mwarning[0m different length true and inferred naive seqs for 41d5fb7b53, proceeding to align, which is very slow (see above):
-  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAACAGTGGTATAGCAGCAGCTGGTACTCCAGTAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-  GTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAACGGGGGTATAGCAGCAGCTGGTACGCGGGGAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAACAGTGGTATAGCAGCAGCTGGTACTCCAGTAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
-[94mN[0m[94mN[0m[94mN[0mGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAAC[91mG[0mG[91mG[0mGGTATAGCAGCAGCTGGTAC[91mG[0mC[91mG[0m[91mG[0mG[91mG[0mAAAGCGTTGTGACTACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+[93mwarning[0m different length true and inferred naive seqs for 0bcb850a39, proceeding to align, which is very slow (see above):
+  GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGGGCGCCATGGTGACCGGCGAACCGATTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+  GTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGAGCGCCACGGTGACCTGGGAACCGATTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGGGCGCCATGGTGACCGGCGAACCGATTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
+[94mN[0m[94mN[0m[94mN[0mGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAG[91mA[0mGCGCCA[91mC[0mGGTGACC[91mT[0mG[91mG[0mGAACCGATTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 56 queries with different true and inferred net shm indel lengths: 41048a646d 59bf1d97bd 75472e9c54 d21fec3b39 c11fa55d6b 0541eebd05 c8eb415987 1ec0fe7500 8b3ee74b08 899ad9aca1 5c259d07f8 2a4c76de71 3956095a3a b09d87eb20 7879cadea9 f543b2d548 244f467cb9 d3a19a3d4b 15f5ec00b2 be92aa7be4 6f283c38e8 6d1e8f4c1d 2b3c8647d5 eb7538e4e4 ba302a0b9b db95a2b875 b4a52eaceb 38236d0684 64cc957004 b14a64ff71 24b34e3012 75f3e01f57 be00f3ab6d 19f36dee60 8d35754c15 119acf3acf 89bda120c1 cd8eedfc35 9ad9e0daff fb56f4369d 747ee0e425 849a0702ed dcb647f260 63a7f587d6 b148a2dedc d62ec4c5e2 fc36293e1e bd9a9b77f4 0f09cfa0b8 fe174b6b47 4e67af7d52 9b2c24dde0 01b5fc3e6d 0162dd0f70 55b10eda8a d7e7b4fe98
+    [93mwarning[0m skipped annotation performance evaluation on 60 queries with different true and inferred net shm indel lengths: 615c82ba95 4034ed5c78 17449ee2a4 3450cd8076 c11fa55d6b 74f04370b5 8715eebbed 78a30b4ba0 95f3ce4121 1e19e92fe6 5aca994b85 1358105577 5c259d07f8 5836cd7fd2 90c03b2d3e 9a85bc70b8 dec7e55369 e3edcbe4f9 88572773f9 d3a19a3d4b 6f283c38e8 11b38716a8 a8042f6d09 ba302a0b9b db95a2b875 21370d4360 caf29d20a7 ebd4ad4833 24b34e3012 75f3e01f57 f583bfc28e 19f36dee60 d416c90902 d6f14abc09 fb56f4369d 27b176cf2c 3887469a27 33440c0771 6cc33702bc c90f2c3d6d dc393bf261 01bb4b9a4b c5090db090 6da41dd744 90da3ed235 77ad3ef589 6da331a127 642ae709a1 1581061608 080cc2a69b 14d32d710b 55e4ebdaf5 c158fd8654 453ddb1537 ddcbd5d81d 9b2c24dde0 d214828413 d7e7b4fe98 f37e9b5aac 6cf62154fd
 (0.0 sec)
 
-    subcluster annotation time 9.0
-      total time: 10.1
-      bcrham time: 3.2 (31.8% of total, 3 calls)
+    subcluster annotation time 8.9
+      total time: 10.0
+      bcrham time: 3.8 (38.5% of total, 3 calls)
 [92mpartition-new-simu[0m               partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --plotdir test/new-results-slow/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1075 / 1075 v annotations (0 failed) with 41 v genes in 0.2 sec
+  vsearch: 1067 / 1075 v annotations (8 failed) with 42 v genes in 0.2 sec
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 1075 / 1075 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 567 (0.527) unproductive
+      kept 530 (0.493) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 56 queries with different true and inferred net shm indel lengths: b4a52eaceb 747ee0e425 01b5fc3e6d 59bf1d97bd 5c259d07f8 9ad9e0daff c11fa55d6b 41048a646d d3a19a3d4b 64cc957004 eb7538e4e4 38236d0684 6d1e8f4c1d 2b3c8647d5 8d35754c15 15f5ec00b2 244f467cb9 0541eebd05 c8eb415987 1ec0fe7500 8b3ee74b08 4e67af7d52 75f3e01f57 89bda120c1 119acf3acf cd8eedfc35 b14a64ff71 fe174b6b47 9b2c24dde0 0162dd0f70 55b10eda8a 7879cadea9 f543b2d548 ba302a0b9b db95a2b875 be00f3ab6d 6f283c38e8 fb56f4369d 2a4c76de71 3956095a3a b09d87eb20 899ad9aca1 be92aa7be4 b148a2dedc d62ec4c5e2 0f09cfa0b8 fc36293e1e bd9a9b77f4 24b34e3012 d21fec3b39 75472e9c54 19f36dee60 d7e7b4fe98 849a0702ed 63a7f587d6 dcb647f260
+    [93mwarning[0m skipped annotation performance evaluation on 60 queries with different true and inferred net shm indel lengths: d214828413 a8042f6d09 3887469a27 642ae709a1 1581061608 080cc2a69b c158fd8654 14d32d710b 55e4ebdaf5 5c259d07f8 11b38716a8 c90f2c3d6d e3edcbe4f9 c11fa55d6b 615c82ba95 90c03b2d3e d3a19a3d4b d416c90902 33440c0771 27b176cf2c 5836cd7fd2 d6f14abc09 6cc33702bc 78a30b4ba0 95f3ce4121 1e19e92fe6 5aca994b85 75f3e01f57 453ddb1537 ddcbd5d81d 9a85bc70b8 dec7e55369 f583bfc28e 01bb4b9a4b c5090db090 9b2c24dde0 8715eebbed 88572773f9 ba302a0b9b db95a2b875 caf29d20a7 21370d4360 6f283c38e8 fb56f4369d 17449ee2a4 74f04370b5 ebd4ad4833 1358105577 dc393bf261 6da41dd744 24b34e3012 4034ed5c78 6da331a127 77ad3ef589 90da3ed235 3450cd8076 19f36dee60 d7e7b4fe98 f37e9b5aac 6cf62154fd
 (0.0 sec)
         water time: 0.6
 hmm
   --persistent-cachefname: using existing hmm cache file test/new-results-slow/cache-new-partition.csv
-  caching all 1075 naive sequences (2.6s)
-    collapsed 1075 queries into 470 clusters with identical naive seqs (0.1 sec)
-  470 clusters with 10 procs (1.9s)
-   412 clusters with 7 procs (1.7s)
-   365 clusters with 5 procs (4.3s)
-   321 clusters with 3 procs (6.3s)
-   279 clusters with 2 procs (6.8s)
-   255 clusters with 2 procs (3.3s)
-   241 clusters with 2 procs (1.5s)
-   232 clusters with 1 proc (4.9s)
+  caching all 1075 naive sequences (2.9s)
+    collapsed 1075 queries into 466 clusters with identical naive seqs (0.0 sec)
+  466 clusters with 10 procs (2.0s)
+   406 clusters with 7 procs (2.9s)
+   364 clusters with 5 procs (2.1s)
+   325 clusters with 3 procs (3.1s)
+   284 clusters with 2 procs (6.6s)
+   252 clusters with 2 procs (2.5s)
+   240 clusters with 2 procs (1.9s)
+   234 clusters with 1 proc (4.8s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 30.6
+      partition loop time: 26.0
 getting annotations for final partition
-  subcluster annotating 227 clusters with steps:  (2.3s) (1.2s) (0.6s) (0.1s)   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 56 queries with different true and inferred net shm indel lengths: cd8eedfc35 55b10eda8a 0541eebd05 1ec0fe7500 8b3ee74b08 c8eb415987 b148a2dedc d62ec4c5e2 bd9a9b77f4 fc36293e1e 2a4c76de71 3956095a3a 2b3c8647d5 6d1e8f4c1d 0162dd0f70 01b5fc3e6d 0f09cfa0b8 119acf3acf 15f5ec00b2 19f36dee60 244f467cb9 24b34e3012 38236d0684 41048a646d 4e67af7d52 59bf1d97bd 5c259d07f8 63a7f587d6 64cc957004 6f283c38e8 747ee0e425 75472e9c54 75f3e01f57 7879cadea9 849a0702ed 899ad9aca1 89bda120c1 8d35754c15 9ad9e0daff 9b2c24dde0 b09d87eb20 b14a64ff71 b4a52eaceb ba302a0b9b be00f3ab6d be92aa7be4 c11fa55d6b d21fec3b39 d3a19a3d4b d7e7b4fe98 db95a2b875 dcb647f260 eb7538e4e4 f543b2d548 fb56f4369d fe174b6b47
+  subcluster annotating 227 clusters with steps:  (2.4s) (1.3s) (0.7s) (0.1s)   plotting performance 
+    [93mwarning[0m skipped annotation performance evaluation on 60 queries with different true and inferred net shm indel lengths: 11b38716a8 c5090db090 080cc2a69b 1581061608 14d32d710b 55e4ebdaf5 642ae709a1 f37e9b5aac 1e19e92fe6 5aca994b85 95f3ce4121 78a30b4ba0 01bb4b9a4b 1358105577 17449ee2a4 19f36dee60 21370d4360 24b34e3012 27b176cf2c 33440c0771 3450cd8076 3887469a27 4034ed5c78 453ddb1537 5836cd7fd2 5c259d07f8 615c82ba95 6cc33702bc 6cf62154fd 6da331a127 6da41dd744 6f283c38e8 74f04370b5 75f3e01f57 77ad3ef589 8715eebbed 88572773f9 90c03b2d3e 90da3ed235 9a85bc70b8 9b2c24dde0 a8042f6d09 ba302a0b9b c11fa55d6b c158fd8654 c90f2c3d6d caf29d20a7 d214828413 d3a19a3d4b d416c90902 d6f14abc09 d7e7b4fe98 db95a2b875 dc393bf261 ddcbd5d81d dec7e55369 e3edcbe4f9 ebd4ad4833 f583bfc28e fb56f4369d
 (0.0 sec)
 
-    subcluster annotation time 7.7
-      total time: 42.2
-      bcrham time: 35.1 (83.1% of total, 13 calls)
-[92mseed-partition-new-simu[0m          partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --seed-unique-id 415fd34391 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/seed-partition-new-simu.yaml
+    subcluster annotation time 7.4
+      total time: 37.5
+      bcrham time: 30.6 (81.6% of total, 13 calls)
+[92mseed-partition-new-simu[0m          partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --seed-unique-id 6adb92dee0 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/seed-partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1075 / 1075 v annotations (0 failed) with 41 v genes in 0.2 sec
+  vsearch: 1067 / 1075 v annotations (8 failed) with 42 v genes in 0.2 sec
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 1075 / 1075 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 567 (0.527) unproductive
-      removed 1009 / 1075 = 0.94 sequences with cdr3 length different from seed sequence (leaving 66)
+      kept 530 (0.493) unproductive
+      removed 885 / 1075 = 0.82 sequences with cdr3 length different from seed sequence (leaving 190)
         water time: 0.3
 hmm
   --persistent-cachefname: using existing hmm cache file test/new-results-slow/cache-new-partition.csv
-   collapsed 66 queries into 19 clusters with identical naive seqs (0.0 sec)
-  19 clusters with 10 procs (0.1s)
-   28 clusters with 7 procs   [93mwarning[0m cluster occurs 10 times in the <nsets> we're sending to bcrham: 000dfcf694:0eae05bb04:1494d606f0:40138e6d43:415fd34391:53eb4a7bf5:5445e5f72c:55b55f0f5b:57fc437f05:6598f8e9f5:a74578a53b:b4bab9805a:ba5d0bf79d:c59f65ee75:cefd9c3192:d8c262d149:e37c27e887:ea2e0680b6:f2662dadc2:f7f1e6c9dd
+   collapsed 190 queries into 54 clusters with identical naive seqs (0.0 sec)
+  54 clusters with 10 procs (0.1s)
+   63 clusters with 7 procs   [93mwarning[0m cluster occurs 10 times in the <nsets> we're sending to bcrham: 13ab630e41:23050396de:28fa2c42ad:29dbf8e97e:3e975a4169:44df4e0491:6adb92dee0:7c08f33751:942667e9ea:aa90943c9d:b72889ac3f:c1b4f12bd7:c38be5f1e3:d3ccaf5901:dd9d2a8913:e25dd5365e:e8c3b32077:ea46f2a600:fd9146aed0
 (0.1s)
-   25 clusters with 5 procs   [93mwarning[0m cluster occurs 7 times in the <nsets> we're sending to bcrham: 000dfcf694:0eae05bb04:1494d606f0:40138e6d43:415fd34391:53eb4a7bf5:5445e5f72c:55b55f0f5b:57fc437f05:6598f8e9f5:a74578a53b:b4bab9805a:ba5d0bf79d:c59f65ee75:cefd9c3192:d8c262d149:e37c27e887:ea2e0680b6:f2662dadc2:f7f1e6c9dd
+   60 clusters with 5 procs   [93mwarning[0m cluster occurs 7 times in the <nsets> we're sending to bcrham: 13ab630e41:23050396de:28fa2c42ad:29dbf8e97e:3e975a4169:44df4e0491:6adb92dee0:7c08f33751:942667e9ea:aa90943c9d:b72889ac3f:c1b4f12bd7:c38be5f1e3:d3ccaf5901:dd9d2a8913:e25dd5365e:e8c3b32077:ea46f2a600:fd9146aed0
 (0.1s)
-       removed 46 sequences in unseeded clusters, split 5 seeded clusters into 20 singletons, and merged these into 1 clusters with identical naive seqs (0.0 sec)
-        new n_procs 1 (initial seqs/proc: 6.60   new seqs/proc: 1.00
+       removed 171 sequences in unseeded clusters, split 5 seeded clusters into 19 singletons, and merged these into 1 clusters with identical naive seqs (0.0 sec)
+        new n_procs 1 (initial seqs/proc: 19.00   new seqs/proc: 1.00
   1 clusters with 1 proc (0.1s)
        partition loop time: 0.4
 getting annotations for final partition
   subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.4
-  seed cluster size in best partition: 20, excluding seed seq: 19
-      total time: 1.5
-      bcrham time: 0.4 (28.6% of total, 7 calls)
+  seed cluster size in best partition: 19, excluding seed seq: 18
+      total time: 1.6
+      bcrham time: 0.4 (27.4% of total, 7 calls)
 [92mvsearch-partition-new-simu[0m       partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --naive-vsearch --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --random-seed 1 --n-procs 10 --outfname test/new-results-slow/vsearch-partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 1075 / 1075 v annotations (0 failed) with 41 v genes in 0.2 sec
+  vsearch: 1067 / 1075 v annotations (8 failed) with 42 v genes in 0.2 sec
         reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 1075 / 1075 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 567 (0.527) unproductive
+      kept 530 (0.493) unproductive
         water time: 0.3
 hmm
   --persistent-cachefname: using existing hmm cache file test/new-results-slow/cache-new-partition.csv
-        collapsed 1075 sequences (1075 initial naive seqs/clusters) into 470 unique naive sequences over 42 cdr3 lengths (0.0 sec)
+        collapsed 1075 sequences (1075 initial naive seqs/clusters) into 466 unique naive sequences over 44 cdr3 lengths (0.0 sec)
     using hfrac bound for vsearch 0.021
-    running vsearch 42 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
-      vsearch time: 2.1
+    running vsearch 44 times (once for each cdr3 length class): . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+      vsearch time: 2.4
 getting annotations for final partition
       calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
-  subcluster annotating 254 clusters with steps:  (2.3s) (1.1s) (0.4s) (0.1s) 
-    subcluster annotation time 5.6
-      total time: 8.6
-      bcrham time: 3.3 (38.8% of total, 4 calls)
-[92mget-selection-metrics-new-simu[0m   partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml --selection-metric-fname test/new-results-slow/get-selection-metrics-new-simu.yaml --ab-choice-cfg /tmp/dralph/partis-411/test/ab-choice-slow.yaml
+  subcluster annotating 260 clusters with steps:  (2.5s) (1.1s) (0.4s) (0.1s) 
+    subcluster annotation time 4.5
+      total time: 7.8
+      bcrham time: 3.5 (44.8% of total, 4 calls)
+[92mget-selection-metrics-new-simu[0m   partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml --selection-metric-fname test/new-results-slow/get-selection-metrics-new-simu.yaml --ab-choice-cfg /tmp/dralph/partis-main/test/ab-choice-slow.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: By default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set).
         If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters (or, if set during partitioning, --n-final-clusters or --min-largest-cluster-size).
-    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 35 clusters with sizes 50 26 21 20 18 17 17 17 15 15 15 14 14 13 12 12 12 12 12 12 11 11 11 11 11 10 10 10 10 10 10 10 10 10 10
-      skipped 192 smaller than 10 (controlled by --min-selection-metric-cluster-size)
-    getting trees for 35 clusters with sizes: 50 26 21 20 18 17 17 17 15 15 15 14 14 13 12 12 12 12 12 12 11 11 11 11 11 10 10 10 10 10 10 10 10 10 10
-      29 tree output files already there, not rerunning (e.g. /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-0/fasttree.out)
-      starting 6 jobs
-        [91mrun[0m /tmp/dralph/partis-411/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-29/fasttree.out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-29/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-411/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-30/fasttree.out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-30/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-411/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-31/fasttree.out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-31/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-411/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-32/fasttree.out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-32/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-411/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-33/fasttree.out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-33/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-411/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-34/fasttree.out /tmp/dralph/partis-411/test/new-results-slow/partition-new-simu/fasttree/iclust-34/input-seqs.fa
-      made 6 fasttree trees (0.4s)
-    [93mwarning[0m 26 / 52 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 1ded72d081 1f15b193c0 29a524e18f 2aaf38fbde 355f4ada9e 36315dae7a 382250eefb 43471ae766 4ca14184e1 59dc0be24b 5e59efa5a3 6695726103 77560c4618 809999c194 871bc8ed52 87fa050af2 8b02efe130 8d22f2f285 8e1db4b81a 9b5d6903e7 a3afe6b8ef ba1e89e7a4 bfeaef9f89 c5ecf6070e d869e04ad4 da80c952de
-    [93mwarning[0m 26 / 28 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0323b26fb2 0ade8715b7 19366cc060 1c370a9703 2ce79f3da3 30d7d4cb5a 36d001a137 4d9bbef26b 531d169707 5d49ca94b7 5f69516a3f 6567b40aa9 6fc26f19fa 797ffa246a 79a0113c6f 8cd762ed4e 987f4a978f a8fe066adf b8bde76bf7 d1eb8e0cec dbffddc41e dc2d21be0f dfc559ecdb e3fef80786 f4b9e268ec f9ee2119a5
+    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 32 clusters with sizes 50 26 24 21 19 19 17 17 17 17 15 15 14 14 14 13 12 12 12 12 12 11 11 11 11 10 10 10 10 10 10 10
+      skipped 195 smaller than 10 (controlled by --min-selection-metric-cluster-size)
+    getting trees for 32 clusters with sizes: 50 26 24 21 19 19 17 17 17 17 15 15 14 14 14 13 12 12 12 12 12 11 11 11 11 10 10 10 10 10 10 10
+      all fasttree outputs exist, not rerunning (e.g. /tmp/dralph/partis-main/test/new-results-slow/partition-new-simu/fasttree/iclust-0/fasttree.out)
+    [93mwarning[0m 2 / 52 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0a0c60dc75 4f31e09c5f
+    [93mwarning[0m 24 / 26 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 03c443cd20 072eed3b55 26bedb0a6c 55305cafd8 650bfbf5c7 6844d848b9 6dd0a307dd 6ed13d96ec 7836dfd1b8 7a9fd68039 7cb13b3ea6 84938c1840 8663b65cea 90bbc561eb 95508546e8 a8fc7d88c0 bb539f3e51 c4aed7f10c c52ee9438e d92f1ebf70 dc38c2f887 eb1014a412 eb9b0c3e0d f0e84593b9
     [93mwarning[0m 21 / 23 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 06775e93dc 10c1a035bc 1438567a44 17666402ff 205b3831e0 245a6a4488 347ff5177d 46e1ca9627 52f8d2722e 5f620a9555 6776b1df46 6b6f7e7060 72fbf5aa73 8c01acea09 902cbdf084 ac7520c521 b4d353ee97 bc8c6594ca f46afbfde5 fb64c2e77b fcecd7c40d
-    [93mwarning[0m 20 / 22 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 000dfcf694 0eae05bb04 1494d606f0 40138e6d43 415fd34391 53eb4a7bf5 5445e5f72c 55b55f0f5b 57fc437f05 6598f8e9f5 a74578a53b b4bab9805a ba5d0bf79d c59f65ee75 cefd9c3192 d8c262d149 e37c27e887 ea2e0680b6 f2662dadc2 f7f1e6c9dd
-    [93mwarning[0m 18 / 20 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 45be22bd5e 6795925548 74e0330195 7a1bad12ea 80bf77c5c7 829b3926b2 9afc43a53b a7f6e113a4 b0c04638d5 b3ee461fc2 b59780fab2 b676075b72 b9f7083965 c011e1843d cc878e4d8c e5db4e90b6 ed531701c5 f1ec6237a8
-    [93mwarning[0m 17 / 19 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 05bf7783e9 0bded73e09 2d09ab6de1 304f1ec099 41a4e1eba6 60451250ad 6e40765d49 6e72c6e40d 9c8dce1d84 c6a5062fbb ccffa6d7a7 cd8eedfc35 cfd6482b64 d6316ca346 e01ee9808a ec2a878b82 ef23eb5610
-    [93mwarning[0m 17 / 19 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0724456949 11e0cd9f1a 132451c758 1cf3592746 24826d22f3 49e8cd0205 54b5bd34ab 5a1e384734 61bdfb5129 68d8010adf 89fd64bcbc 8e55e6af93 9dadae8be1 a8c92db7b1 ab7d1c5b2d b8c7551a17 c9bb66ebc8
-    [93mwarning[0m 17 / 19 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 15a5a0c218 1a97ab0b36 3e971e815e 55b10eda8a 59f7184270 6718d6fe2e 781d6dc2ed 7c83781b67 7fa04b2834 99ce389988 a862688e00 bcaa80c97d c212d46c3d c44a36070a d4e5678253 d9a77b7bea e6b8a3e4ba
-    [93mwarning[0m 15 / 17 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 011ddc0860 1ac51d93f5 1d61ae9699 4bf61d9503 554877149d 5589e3293c 56f46d0e6d 5c0d08fd35 620d4e7fc0 6529d6bf8b 7a5157fb6a a220266150 c64beba989 d1af5666f8 da414597dc
-    [93mwarning[0m 15 / 17 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 32e2f550e4 437b239f4a 4848f72b77 60110fc871 7836c0d7bc 78c7fa62f5 832435b3e9 8e23d9c2b4 9d614a47af bc39eadeed c467c66df5 cf139a804a eb0aa4a5c7 ef6395c4df f0583938a1
-    [93mwarning[0m 15 / 17 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 3890157d89 43613a3b1e 472f0ff03c 69ae952f34 71c23baa36 7b9f6511c9 7cd88b6581 7d27890ef0 9a27c91c38 a7d64aa29b a87608bd40 b9edc3e5d9 ec371b98d3 ec5c29505b f183a795a0
-    [93mwarning[0m 14 / 16 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0a1dc20b97 1db70cbe32 4a34a3c438 670b5248fa 698b9b51ee 8e60736e08 a332ba8037 a734730825 b3faf7c7d9 b52acac58b d639a98f6a ddd9fc82f9 ea5356fadd f3284200bd
-    [93mwarning[0m 14 / 16 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 2246aa790c 510034cd5a 6bc486ede1 6c0cfb3742 7d4a0758ba 84b09aec55 a5894f2dfa aa9c0dcc3b c693818c0d ccf5470a31 de42763806 ec97f5e49f f1b5eb121a f41202a07e
+    [93mwarning[0m 19 / 21 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 03428497a7 36bfcb2046 4c51554ce2 5395f814db 5d8caaf039 67907fca48 7ef7c19418 9938e86bc9 a43c3451cf b20119d8f2 b2b6989dc4 b42175892c c5faa70fc2 c9cf81a9b0 ccb1024522 dbd9bd2a9e e4deeb705e fd2c5db629 ffba1c8a20
+    [93mwarning[0m 19 / 21 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 13ab630e41 23050396de 28fa2c42ad 29dbf8e97e 3e975a4169 44df4e0491 6adb92dee0 7c08f33751 942667e9ea aa90943c9d b72889ac3f c1b4f12bd7 c38be5f1e3 d3ccaf5901 dd9d2a8913 e25dd5365e e8c3b32077 ea46f2a600 fd9146aed0
+    [93mwarning[0m 17 / 19 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0024fb634d 147535d737 19ccb07ad2 289dca99f0 2c1a90fb27 303361c087 459fe027bf 5c6c509938 8d8e40b4aa 90428191fb a24e8d8a1a a6699e890b be8ed429ee c1d90f4853 cb61650513 d3612bf8ec f3ec75b1ba
+    [93mwarning[0m 17 / 19 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 00fdc693ce 030dc7fd34 0433bbc96b 17aec1f980 24e17f1d91 3cd55ede34 55568f7896 5ac90c718a 726fa450cc 82ca577c66 ad4fe43c2f be2578106d d415bbe37c ddb0fdce72 e33f091a2a ee77c3bc89 f97240112c
+    [93mwarning[0m 17 / 19 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0420ee190d 129ed2caa6 13553c6dae 22dabcdfea 2c8a4f0bb9 4a22f50e48 520abb719a 5e210808fc 63848db09c 72e2db20f9 84c183e3a6 8a99260dd2 9903bff0f4 9a829be028 c5e523780c c6ad3f5448 e34efcb1f1
+    [93mwarning[0m 17 / 19 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0724456949 11e0cd9f1a 132451c758 1cf3592746 24826d22f3 36b477c836 5dc19e74ad 61bdfb5129 68d8010adf 8e55e6af93 99eaa743d5 9dadae8be1 a8c92db7b1 ab7d1c5b2d acd15d802e b8c7551a17 c9bb66ebc8
+    [93mwarning[0m 15 / 17 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 00ac7c7573 20802fb53e 4fd623d4a8 5c7b2d96f2 5d6f0a4239 6ce0e1a07d 6fb7cf71ec 7620b898c4 a966ad2e3e cb6a1f2634 e0ca9dd51c e380b02c87 e5d59256d6 f3dca92fcc feb92f8ab3
+    [93mwarning[0m 15 / 17 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 12b75ff13e 2d223dc726 500bb47a28 5bd28ada51 62826fb250 7de6e61293 857265049e 8bcc393c18 99d9c8c9da 9e2dce259a bd82d91b48 ca6d62b862 dd44658e54 f6d92c5615 ffb5942e5e
+    [93mwarning[0m 14 / 16 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0a1dc20b97 1db70cbe32 4a34a3c438 670b5248fa 698b9b51ee 7e3ab703f6 8e60736e08 b3faf7c7d9 b52acac58b d639a98f6a ddd9fc82f9 ea5356fadd f3284200bd fd7473da07
+    [93mwarning[0m 14 / 16 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 1494fd70fc 2c3c24b833 3a81823992 3dd033788f 8817b6ca3f 909488cc63 adb9675945 b6f0cae4df c10b4f0704 c8459c91c9 cc265da95f d149fb3fa0 e95295f2a7 ee52de6f19
+    [93mwarning[0m 14 / 16 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 160e5f6714 249a302ef4 283f6f99f0 4900212d0e 6424ad59ef 88758009d5 909f9e6186 9cfd3bcad0 d0895a5b55 d15598b625 d6fcc1a457 dca8cd8bd4 e002cbeb5e e624fa543f
     [93mwarning[0m 13 / 15 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 16a29117ca 20e6f3a11b 5a837eac1f 5ab069b123 685e1eacf2 8baa20f19a 963c6ffd6b 9dd6e9cdbb a15fc34321 a450dfc127 da412cef4b e00408f500 edf824abf7
-    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 05449cc1f8 2204ba0895 2411596187 2ff8818fd9 36dec30906 4b8ba42036 5bf425bc23 630db89771 82b62289f7 a59795f206 aca2149b27 cd0ca62973
-    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 07fc8ab0d1 56472259ac 5cc95d9a82 6805290760 6a654be187 8b28243307 8be5d74261 b30b0d0368 c8b4aabf9f ec4c26b20a f8d01d6d2d fc40e5d5a7
-    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0af0fbd0d2 25da752f19 2af8d67ded 4e5f4b28d5 59b092468d 6b836f60f6 70b812f403 9688a1666a ad09500ccd d65c141b3d e8518ca7ef efd8a6e0c8
-    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0d52ea2ee3 193ba2bd1c 45b0452392 688fdcf412 97d3414c2a 9d55e6744a a403986010 ac1d1cbbec c0e1625fde c2b12b5d0f cf8757aff9 fdc446aa5b
-    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 30bd99791b 7527878d14 80e95ec26f 82a93643b2 9e2e1440c9 9f11f0fcef b3a7f890fd c0781209eb d24cf3ad26 ded06f4e21 e59785b5b7 f67f484dab
-    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 48bc283a72 83895fd15e 8471cf46c1 9775c47cd1 a7cce29bb0 aeb5cb13f2 b24e03da3b c31c6821e8 ccee8bd88e ce77c2ae72 de46df66c5 e81355570b
+    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 09b6266d9f 0af0fbd0d2 25da752f19 4e5f4b28d5 59b092468d 6b836f60f6 70b812f403 9688a1666a ad09500ccd d65c141b3d e8518ca7ef efd8a6e0c8
+    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0a59d45a1d 0c57f5e2b7 4fd5d2b500 58e0d759e4 6ca2b135e4 6ebe3c9441 905e323004 a3fa793595 aaecba921d ca36d2f8c2 cd1e8c7088 f88c78880d
+    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 11be8f868f 38f0627c72 3dd6ecb2d9 43718020d6 66905ab388 896e1c16cb ac30eae962 bc48335105 bc8962c1d7 d18fb570f7 e14631cb40 f6766b56be
+    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 2204ba0895 2411596187 2ff8818fd9 36dec30906 4b8ba42036 5bf425bc23 630db89771 82b62289f7 a59795f206 aca2149b27 bef224f5a9 cd0ca62973
+    [93mwarning[0m 12 / 14 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 3e752e5d4b 4182404c61 8a045731eb 8e644d5158 a679a00a58 cd5754177b d22ca45a34 d90c115964 de5bb2537f ec56ecf47e f5c1241244 f6cbe0ea07
     [93mwarning[0m 11 / 13 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 06dc6994bc 17f7e2f576 43843695b8 74a9b0d162 7f935fea18 93df5e1e84 ab9838148f bcd613f4df c7c2347ae1 e49544ca4f e8208962a2
-    [93mwarning[0m 11 / 13 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 06fa0ae61d 09138e0002 14cd1e227c 1785341d3e 4946601f63 762c482f84 7e6380f55b 8848696975 d2fbe8bb64 da48ff5bff fe78fc18fd
-    [93mwarning[0m 11 / 13 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 10bab99689 1e9139a3e1 20a46100c1 2fff0dfa23 3f56c3ae01 4986c540c6 521a0ee310 72cc0791a7 cd96cf838f d8913f39de f17a41bfe8
-    [93mwarning[0m 11 / 13 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 aafc75627d bf4a557bed d704a90dac
-    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 03c443cd20 26bedb0a6c 6dd0a307dd 7a9fd68039 84938c1840 90bbc561eb bb539f3e51 c4aed7f10c c52ee9438e d92f1ebf70
-    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 06d14159a4 299c3fd782 38d8f4859d 52bd8c6166 7b61d95263 afff98a5a5 d863ebe021 da4fcade90 dee8c13f46 e38a7e358c
-    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0ad939fb65 168a20f352 27ed64afce 28efb53906 a52c712521 af02d03f0d afa703e2df b33c9667f1 c8db682848 ee4949d588
-    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0b579fc8b1 0e4a30e54e 1607ef8c4d 2fdda5100e 621deea1a0 91f369ee1f 96d353c035 a9284c683a f2048cc35f f57beaff7f
-    tree origins: 35 ran fasttree
+    [93mwarning[0m 11 / 13 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0e8e991317 2ca1626832 31aa2c9ff6 79d735886e 8959ed8d54 995ce332e2 a1d3552df7 a77cbb76e0 bcadd00e6b d9dab90680 de587c5e8a
+    [93mwarning[0m 11 / 13 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 5aabe123da 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 aafc75627d d704a90dac
+    [93mwarning[0m 11 / 13 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 203018d35e 21ae57f79d 54d74ab405 595eca9946 6b9c11d175 7596f70eb5 8bbb8f6db4 9557269ea8 cb3986828d d941a1729e fa9fa4de34
+    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0029142fe9 0fad8a3fbd 60a00ed921 711590d18f 80250b212a c27c136a32 cefae8d3c3 e1dcdbbc7f f15148935a fd3cc3fd63
+    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 024306ef94 23037f3b92 43002852a8 80e95ec26f 82a93643b2 9e2e1440c9 a7667abb8b cbe9a421ef f67f484dab f81e5a321c
+    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 0c0c444682 12d19e5e5d 1502b845d3 35aaed19e5 4e95c1fe98 603dcd0eea bcaed0cf7b e355bceb33 e42a9869bd e6b17ac6b8
+    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 19a48cfd71 29b5794184 458153b04f 571a8c9dd0 71b13a6647 cc4ffc950b cc9d9965f2 e3b882f88a e4187d03c1 f4c95db308
+    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 1a1b29a6c9 56472259ac 5cc95d9a82 6805290760 8b28243307 b30b0d0368 c8b4aabf9f ec4c26b20a f8d01d6d2d fc40e5d5a7
+    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 1b695bbeb5 3817aa2d65 477d29074a 5b6def13ea 83da5c7f6a c5a0760c94 d58b2c5c4a df231bd376 e45882392d e80bea9e91
+    [93mwarning[0m 10 / 12 sequence ids weren't found in node labels when collapsing zero length leaves (maybe sequence ids are messed up, or/and maybe you're running this on a tree from something other than fasttree/iqtree?): 3022d17b77 420f8d1b66 4a0ea223e5 4d313924b4 672655cbec 6782753d31 7ef644ed92 966dde078f ac0c543be9 ec6c4d2c34
+    tree origins: 32 ran fasttree
       setting default tau to 1 / 385 = 0.0026
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0026
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  26 missing from lb info  51 extra in lb info  (24 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  26 missing from lb info  51 extra in lb info  (24 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  26 missing from lb info  51 extra in lb info  (24 in common)
-                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 10/24 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.021  mfreq 0.018  diff 0.003  abs(frac diff) 27%  ratio 1.3
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  2 missing from lb info  31 extra in lb info  (48 in common)
+      missing from lb info: 0a0c60dc75 4f31e09c5f
+      missing from annotation: XnaiveX a3afe6b8ef ajs bcp bev bgs blz bop bqz chk cqv d869e04ad4 dhn dvx efi eiu eks eps eqz euz fty gil gox gsx hjl ikl lpt lsy psx tuv uvw
+      common: 0aaa37ac2d 0b293564f2 1ad36ae78e 1ded72d081 1f15b193c0 29a524e18f 2aaf38fbde 3073381c4f 355f4ada9e 36315dae7a 382250eefb 3cbe41de69 43471ae766 4ca14184e1 4f16b8ab3d 5665554072 59dc0be24b 5e59efa5a3 635c21cdc3 6445447108 65938eddcc 6695726103 6a4c8b60c9 6f861ed60f 720bac255a 77560c4618 7d8cd2064e 809999c194 850c5e8fc5 871bc8ed52 87fa050af2 8b02efe130 8d22f2f285 8e1db4b81a 96047c1687 9b5d6903e7 9f1914cd3b ba1e89e7a4 bd65b97136 bfeaef9f89 c0028aa9ac c5ecf6070e da7c56b27e da80c952de e032fafdac ea8f24be2f f9ed7e4332 fb5e38a55e
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  2 missing from lb info  31 extra in lb info  (48 in common)
+      missing from lb info: 0a0c60dc75 4f31e09c5f
+      missing from annotation: XnaiveX a3afe6b8ef ajs bcp bev bgs blz bop bqz chk cqv d869e04ad4 dhn dvx efi eiu eks eps eqz euz fty gil gox gsx hjl ikl lpt lsy psx tuv uvw
+      common: 0aaa37ac2d 0b293564f2 1ad36ae78e 1ded72d081 1f15b193c0 29a524e18f 2aaf38fbde 3073381c4f 355f4ada9e 36315dae7a 382250eefb 3cbe41de69 43471ae766 4ca14184e1 4f16b8ab3d 5665554072 59dc0be24b 5e59efa5a3 635c21cdc3 6445447108 65938eddcc 6695726103 6a4c8b60c9 6f861ed60f 720bac255a 77560c4618 7d8cd2064e 809999c194 850c5e8fc5 871bc8ed52 87fa050af2 8b02efe130 8d22f2f285 8e1db4b81a 96047c1687 9b5d6903e7 9f1914cd3b ba1e89e7a4 bd65b97136 bfeaef9f89 c0028aa9ac c5ecf6070e da7c56b27e da80c952de e032fafdac ea8f24be2f f9ed7e4332 fb5e38a55e
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  2 missing from lb info  31 extra in lb info  (48 in common)
+      missing from lb info: 0a0c60dc75 4f31e09c5f
+      missing from annotation: XnaiveX a3afe6b8ef ajs bcp bev bgs blz bop bqz chk cqv d869e04ad4 dhn dvx efi eiu eks eps eqz euz fty gil gox gsx hjl ikl lpt lsy psx tuv uvw
+      common: 0aaa37ac2d 0b293564f2 1ad36ae78e 1ded72d081 1f15b193c0 29a524e18f 2aaf38fbde 3073381c4f 355f4ada9e 36315dae7a 382250eefb 3cbe41de69 43471ae766 4ca14184e1 4f16b8ab3d 5665554072 59dc0be24b 5e59efa5a3 635c21cdc3 6445447108 65938eddcc 6695726103 6a4c8b60c9 6f861ed60f 720bac255a 77560c4618 7d8cd2064e 809999c194 850c5e8fc5 871bc8ed52 87fa050af2 8b02efe130 8d22f2f285 8e1db4b81a 96047c1687 9b5d6903e7 9f1914cd3b ba1e89e7a4 bd65b97136 bfeaef9f89 c0028aa9ac c5ecf6070e da7c56b27e da80c952de e032fafdac ea8f24be2f f9ed7e4332 fb5e38a55e
+                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 7/48 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.030  mfreq 0.027  diff 0.004  abs(frac diff) 20%  ratio 1.2
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.0135    0.0106       1.3     0.0028     96047c1687
-              0.0135    0.0106       1.3     0.0028     0b293564f2
-              0.0080    0.0053       1.5     0.0026     0aaa37ac2d
-              0.0074    0.0053       1.4     0.0021     ea8f24be2f
-              0.0074    0.0053       1.4     0.0021     9f1914cd3b
-              0.0042    0.0027       1.6     0.0016     1ad36ae78e
-              0.0042    0.0027       1.6     0.0016     635c21cdc3
-              0.0042    0.0027       1.6     0.0016     6445447108
-              0.0042    0.0027       1.6     0.0016     7d8cd2064e
-              0.0041    0.0027       1.5     0.0015     e032fafdac
+              0.0047    0.0027       1.8     0.0021     1ad36ae78e
+              0.0047    0.0027       1.8     0.0021     635c21cdc3
+              0.0047    0.0027       1.8     0.0021     6445447108
+              0.0047    0.0027       1.8     0.0021     7d8cd2064e
+              0.0069    0.0053       1.3     0.0015     0aaa37ac2d
+              0.0069    0.0053       1.3     0.0015     ea8f24be2f
+              0.0036    0.0027       1.3     0.0009     e032fafdac
           10 with highest+lowest ratios:
-              0.0042    0.0027       1.6     0.0016     1ad36ae78e
-              0.0042    0.0027       1.6     0.0016     635c21cdc3
-              0.0042    0.0027       1.6     0.0016     6445447108
-              0.0042    0.0027       1.6     0.0016     7d8cd2064e
-              0.0041    0.0027       1.5     0.0015     e032fafdac
-              0.0080    0.0053       1.5     0.0026     0aaa37ac2d
-              0.0074    0.0053       1.4     0.0021     ea8f24be2f
-              0.0074    0.0053       1.4     0.0021     9f1914cd3b
-              0.0135    0.0106       1.3     0.0028     96047c1687
-              0.0135    0.0106       1.3     0.0028     0b293564f2
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 66/75 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0a0c60dc75 24f30cf966 2529edf60d 3411419d3e 55e9779393 6385268534 66aede6bbe 66c3a06447 7223b35cf8 9398af6436 a80c5f5a2a ab2fd06f37 ajs b0f285b5e4 b5c1f83d16 bcp bd5d1d9fba bds bev bgs bqz c1539ac4fd cft chk ckn cqv csz d0d3efec08 dmv e205a40cd2 e9eaf57093 e9ee5dd08e eca42a06e9 eiu eps eqz euz evw f9f0937004 fkw fty gox gsx hjl ikm jqx otw psx tuv uvw
+              0.0047    0.0027       1.8     0.0021     1ad36ae78e
+              0.0047    0.0027       1.8     0.0021     635c21cdc3
+              0.0047    0.0027       1.8     0.0021     6445447108
+              0.0047    0.0027       1.8     0.0021     7d8cd2064e
+              0.0036    0.0027       1.3     0.0009     e032fafdac
+              0.0047    0.0027       1.8     0.0021     6445447108
+              0.0047    0.0027       1.8     0.0021     7d8cd2064e
+              0.0036    0.0027       1.3     0.0009     e032fafdac
+              0.0069    0.0053       1.3     0.0015     0aaa37ac2d
+              0.0069    0.0053       1.3     0.0015     ea8f24be2f
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 62/79 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: a3afe6b8ef ajs bcp bev bgs blz bop bqz chk cqv d869e04ad4 dhn dvx efi eiu eks eps eqz euz fty gil gox gsx hjl ikl lpt lsy psx tuv uvw
       setting default tau to 1 / 385 = 0.0026
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0026
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  26 missing from lb info  61 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  26 missing from lb info  61 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  26 missing from lb info  61 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 60/61 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 1e08b56f46 202328ce18 213a25ab9a 26f90c2ec6 282c014cfc 29a2edcd11 2a83a2d949 3068bd5d0d 3bfd8b253d 3c42bcea02 531d50faf1 56ed949690 7297331ec3 7438c53082 7d1315c6b0 83bcb1aba0 83f235960c 846ae065ca 94ea9aff05 9521a35e3f 95367f3a96 97d56177b9 ac3be1cd28 ace awy b9e059fbbe bd3f8f1e9d bea6231cba bfj cadeae349f cls d383602aba dcfaaf5115 dhn dmo doq dst e75d427524 ee61c50135 eov eoy eqs eqv etx fc051067b8 fkm flx fmp gmn hln hot htv huy ily jor jpw lmn lvx npq oxy
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  21 missing from lb info  2 extra in lb info  (0 in common)
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  24 missing from lb info  21 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  24 missing from lb info  21 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  24 missing from lb info  21 extra in lb info  (0 in common)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 20/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 205b3831e0 347ff5177d 46e1ca9627 52f8d2722e 6b6f7e7060 72fbf5aa73 902cbdf084 ac7520c521 aex b4d353ee97 bc8c6594ca bft dij esv f46afbfde5 fb64c2e77b fcecd7c40d oyz svz uvx
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  21 missing from lb info  11 extra in lb info  (0 in common)
       missing from lb info: 06775e93dc 10c1a035bc 1438567a44 17666402ff 205b3831e0 245a6a4488 347ff5177d 46e1ca9627 52f8d2722e 5f620a9555 6776b1df46 6b6f7e7060 72fbf5aa73 8c01acea09 902cbdf084 ac7520c521 b4d353ee97 bc8c6594ca f46afbfde5 fb64c2e77b fcecd7c40d
-      missing from annotation: XnaiveX f9ee2119a5
+      missing from annotation: 000dfcf694 1494d606f0 XnaiveX b4bab9805a c59f65ee75 d8c262d149 f7f1e6c9dd fpy hiq ivy mpy
       common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  21 missing from lb info  2 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  21 missing from lb info  11 extra in lb info  (0 in common)
       missing from lb info: 06775e93dc 10c1a035bc 1438567a44 17666402ff 205b3831e0 245a6a4488 347ff5177d 46e1ca9627 52f8d2722e 5f620a9555 6776b1df46 6b6f7e7060 72fbf5aa73 8c01acea09 902cbdf084 ac7520c521 b4d353ee97 bc8c6594ca f46afbfde5 fb64c2e77b fcecd7c40d
-      missing from annotation: XnaiveX f9ee2119a5
+      missing from annotation: 000dfcf694 1494d606f0 XnaiveX b4bab9805a c59f65ee75 d8c262d149 f7f1e6c9dd fpy hiq ivy mpy
       common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  21 missing from lb info  2 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  21 missing from lb info  11 extra in lb info  (0 in common)
       missing from lb info: 06775e93dc 10c1a035bc 1438567a44 17666402ff 205b3831e0 245a6a4488 347ff5177d 46e1ca9627 52f8d2722e 5f620a9555 6776b1df46 6b6f7e7060 72fbf5aa73 8c01acea09 902cbdf084 ac7520c521 b4d353ee97 bc8c6594ca f46afbfde5 fb64c2e77b fcecd7c40d
-      missing from annotation: XnaiveX f9ee2119a5
+      missing from annotation: 000dfcf694 1494d606f0 XnaiveX b4bab9805a c59f65ee75 d8c262d149 f7f1e6c9dd fpy hiq ivy mpy
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: f9ee2119a5
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  20 missing from lb info  15 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  20 missing from lb info  15 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  20 missing from lb info  15 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 14/15 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 05681a16ab 065f555e02 069363c486 2d2e9094f7 2ee19062ef 442ed6c259 63e05736d0 a67a0c48a7 cik f01af23790 f63dc3fb64 fd9851b15c fpy mpy
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  18 missing from lb info  13 extra in lb info  (0 in common)
-      missing from lb info: 45be22bd5e 6795925548 74e0330195 7a1bad12ea 80bf77c5c7 829b3926b2 9afc43a53b a7f6e113a4 b0c04638d5 b3ee461fc2 b59780fab2 b676075b72 b9f7083965 c011e1843d cc878e4d8c e5db4e90b6 ed531701c5 f1ec6237a8
-      missing from annotation: 5ea28b7575 75c70d9999 XnaiveX a23582bd13 ae9970c98e cbab0f4345 df1173f344 djk f213139cfb guw ijy iot itz
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 10/11 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 000dfcf694 1494d606f0 b4bab9805a c59f65ee75 d8c262d149 f7f1e6c9dd fpy hiq ivy mpy
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  19 missing from lb info  13 extra in lb info  (0 in common)
+      missing from lb info: 03428497a7 36bfcb2046 4c51554ce2 5395f814db 5d8caaf039 67907fca48 7ef7c19418 9938e86bc9 a43c3451cf b20119d8f2 b2b6989dc4 b42175892c c5faa70fc2 c9cf81a9b0 ccb1024522 dbd9bd2a9e e4deeb705e fd2c5db629 ffba1c8a20
+      missing from annotation: 45be22bd5e 829b3926b2 XnaiveX a7f6e113a4 ahj bcr cc878e4d8c e5db4e90b6 ed531701c5 f1ec6237a8 iot itz nsu
       common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  18 missing from lb info  13 extra in lb info  (0 in common)
-      missing from lb info: 45be22bd5e 6795925548 74e0330195 7a1bad12ea 80bf77c5c7 829b3926b2 9afc43a53b a7f6e113a4 b0c04638d5 b3ee461fc2 b59780fab2 b676075b72 b9f7083965 c011e1843d cc878e4d8c e5db4e90b6 ed531701c5 f1ec6237a8
-      missing from annotation: 5ea28b7575 75c70d9999 XnaiveX a23582bd13 ae9970c98e cbab0f4345 df1173f344 djk f213139cfb guw ijy iot itz
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  19 missing from lb info  13 extra in lb info  (0 in common)
+      missing from lb info: 03428497a7 36bfcb2046 4c51554ce2 5395f814db 5d8caaf039 67907fca48 7ef7c19418 9938e86bc9 a43c3451cf b20119d8f2 b2b6989dc4 b42175892c c5faa70fc2 c9cf81a9b0 ccb1024522 dbd9bd2a9e e4deeb705e fd2c5db629 ffba1c8a20
+      missing from annotation: 45be22bd5e 829b3926b2 XnaiveX a7f6e113a4 ahj bcr cc878e4d8c e5db4e90b6 ed531701c5 f1ec6237a8 iot itz nsu
       common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  18 missing from lb info  13 extra in lb info  (0 in common)
-      missing from lb info: 45be22bd5e 6795925548 74e0330195 7a1bad12ea 80bf77c5c7 829b3926b2 9afc43a53b a7f6e113a4 b0c04638d5 b3ee461fc2 b59780fab2 b676075b72 b9f7083965 c011e1843d cc878e4d8c e5db4e90b6 ed531701c5 f1ec6237a8
-      missing from annotation: 5ea28b7575 75c70d9999 XnaiveX a23582bd13 ae9970c98e cbab0f4345 df1173f344 djk f213139cfb guw ijy iot itz
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  19 missing from lb info  13 extra in lb info  (0 in common)
+      missing from lb info: 03428497a7 36bfcb2046 4c51554ce2 5395f814db 5d8caaf039 67907fca48 7ef7c19418 9938e86bc9 a43c3451cf b20119d8f2 b2b6989dc4 b42175892c c5faa70fc2 c9cf81a9b0 ccb1024522 dbd9bd2a9e e4deeb705e fd2c5db629 ffba1c8a20
+      missing from annotation: 45be22bd5e 829b3926b2 XnaiveX a7f6e113a4 ahj bcr cc878e4d8c e5db4e90b6 ed531701c5 f1ec6237a8 iot itz nsu
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 4): skipped 12/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 5ea28b7575 75c70d9999 a23582bd13 ae9970c98e cbab0f4345 df1173f344 djk f213139cfb guw ijy iot itz
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  17 missing from lb info  35 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  17 missing from lb info  35 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  17 missing from lb info  35 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 34/35 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 03c443cd20 10c82400c1 215b77ca1a 26bedb0a6c 5f9cd9e58d 6dd0a307dd 7a9fd68039 834227c571 84938c1840 84c439bccd 90bbc561eb aew b39bdbf9fd bb539f3e51 bny c4aed7f10c c52ee9438e ckv d92f1ebf70 dfbb986d56 diz ehx f96c342062 fiz hjo hmy hpr ijo ijq kwz mpw mrt nor rvx
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  17 missing from lb info  35 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  17 missing from lb info  35 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  17 missing from lb info  35 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 34/35 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 14b897e990 1578f9cb03 1b3cd7376f 1ba8ee2cd8 27d232103b 32d9bb2d47 339c6db9f1 4f12961e83 5d1c4c50db 646a6bb13a 69df8d9eab 742a186675 78f45caf9a 97ab2ae4aa 9885cc861e a369df02f7 agk agt aru bc29eb6813 chr cku der dmn dqw ec0c39cd95 efk eix fjw hix hrz jmq jps uxy
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  17 missing from lb info  18 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  17 missing from lb info  18 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  17 missing from lb info  18 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 17/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 07dfa84d66 2941e71196 31bd57e26a 3d448dc211 3e7046aedb 9724f3c30c 9feaef74d4 abs akr bqs cef crt den ef210ce3d5 f6bda0b935 f7c455d5d0 imy
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  15 missing from lb info  21 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  15 missing from lb info  21 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  15 missing from lb info  21 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 20/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 12bb517c6b 22fb1517a6 260e2e446d 2c9f8a5b60 478c86b262 4e930b85b2 6a33be9d3e a23412a9ec aft atv b94c0e7118 c331eb7960 ceb7b7aae7 da24ae066b e57c45da79 hks kxz lor ouz ovw
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  15 missing from lb info  17 extra in lb info  (0 in common)
-      missing from lb info: 32e2f550e4 437b239f4a 4848f72b77 60110fc871 7836c0d7bc 78c7fa62f5 832435b3e9 8e23d9c2b4 9d614a47af bc39eadeed c467c66df5 cf139a804a eb0aa4a5c7 ef6395c4df f0583938a1
-      missing from annotation: 3848ceaac5 46f83b8f79 4979c03f8a 80f544e834 86c5d8496d 93b06ed83e XnaiveX a795980ba0 ars bdb41cf4da bvx dqs ea90f9ad14 fd1c705701 hil hux lmw
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 4): skipped 12/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 45be22bd5e 829b3926b2 a7f6e113a4 ahj bcr cc878e4d8c e5db4e90b6 ed531701c5 f1ec6237a8 iot itz nsu
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  19 missing from lb info  34 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  19 missing from lb info  34 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  19 missing from lb info  34 extra in lb info  (0 in common)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 33/34 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 05bf7783e9 0bded73e09 2d09ab6de1 304f1ec099 41a4e1eba6 60451250ad 6e40765d49 6e72c6e40d 9c8dce1d84 aew bny c6a5062fbb ccffa6d7a7 cd8eedfc35 cfd6482b64 ckv d6316ca346 diz e01ee9808a ec2a878b82 ef23eb5610 ehx fiz hjo hks hmy ijo ijq kwz mpw mrt nor rvx
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  17 missing from lb info  32 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  17 missing from lb info  32 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  17 missing from lb info  32 extra in lb info  (0 in common)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 31/32 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0724456949 11e0cd9f1a 132451c758 1cf3592746 24826d22f3 49e8cd0205 54b5bd34ab 5a1e384734 61bdfb5129 68d8010adf 89fd64bcbc 8e55e6af93 9dadae8be1 a8c92db7b1 ab7d1c5b2d agk agt b8c7551a17 bfk c9bb66ebc8 chr cku der dqw eix fjw hix hrz jmq jps uxy
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  17 missing from lb info  26 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  17 missing from lb info  26 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  17 missing from lb info  26 extra in lb info  (0 in common)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 25/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 1a97ab0b36 3e971e815e 55b10eda8a 59f7184270 6718d6fe2e 781d6dc2ed 7c83781b67 7fa04b2834 99ce389988 a862688e00 abs akr bck bns c212d46c3d c44a36070a crt d4e5678253 d9a77b7bea den e6b8a3e4ba ent fhj fns mpz
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  17 missing from lb info  20 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  17 missing from lb info  20 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  17 missing from lb info  20 extra in lb info  (0 in common)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 011ddc0860 4bf61d9503 554877149d 56f46d0e6d 5c0d08fd35 620d4e7fc0 6529d6bf8b 7a5157fb6a aft alw aop c64beba989 d1af5666f8 da414597dc dgw gpx kxz lor ouz
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  17 missing from lb info  12 extra in lb info  (0 in common)
+      missing from lb info: 0724456949 11e0cd9f1a 132451c758 1cf3592746 24826d22f3 36b477c836 5dc19e74ad 61bdfb5129 68d8010adf 8e55e6af93 99eaa743d5 9dadae8be1 a8c92db7b1 ab7d1c5b2d acd15d802e b8c7551a17 c9bb66ebc8
+      missing from annotation: 7836c0d7bc 78c7fa62f5 8e23d9c2b4 XnaiveX bc39eadeed bvx c467c66df5 dqs ef6395c4df f0583938a1 inp lmw
       common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  15 missing from lb info  17 extra in lb info  (0 in common)
-      missing from lb info: 32e2f550e4 437b239f4a 4848f72b77 60110fc871 7836c0d7bc 78c7fa62f5 832435b3e9 8e23d9c2b4 9d614a47af bc39eadeed c467c66df5 cf139a804a eb0aa4a5c7 ef6395c4df f0583938a1
-      missing from annotation: 3848ceaac5 46f83b8f79 4979c03f8a 80f544e834 86c5d8496d 93b06ed83e XnaiveX a795980ba0 ars bdb41cf4da bvx dqs ea90f9ad14 fd1c705701 hil hux lmw
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  17 missing from lb info  12 extra in lb info  (0 in common)
+      missing from lb info: 0724456949 11e0cd9f1a 132451c758 1cf3592746 24826d22f3 36b477c836 5dc19e74ad 61bdfb5129 68d8010adf 8e55e6af93 99eaa743d5 9dadae8be1 a8c92db7b1 ab7d1c5b2d acd15d802e b8c7551a17 c9bb66ebc8
+      missing from annotation: 7836c0d7bc 78c7fa62f5 8e23d9c2b4 XnaiveX bc39eadeed bvx c467c66df5 dqs ef6395c4df f0583938a1 inp lmw
       common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  15 missing from lb info  17 extra in lb info  (0 in common)
-      missing from lb info: 32e2f550e4 437b239f4a 4848f72b77 60110fc871 7836c0d7bc 78c7fa62f5 832435b3e9 8e23d9c2b4 9d614a47af bc39eadeed c467c66df5 cf139a804a eb0aa4a5c7 ef6395c4df f0583938a1
-      missing from annotation: 3848ceaac5 46f83b8f79 4979c03f8a 80f544e834 86c5d8496d 93b06ed83e XnaiveX a795980ba0 ars bdb41cf4da bvx dqs ea90f9ad14 fd1c705701 hil hux lmw
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  17 missing from lb info  12 extra in lb info  (0 in common)
+      missing from lb info: 0724456949 11e0cd9f1a 132451c758 1cf3592746 24826d22f3 36b477c836 5dc19e74ad 61bdfb5129 68d8010adf 8e55e6af93 99eaa743d5 9dadae8be1 a8c92db7b1 ab7d1c5b2d acd15d802e b8c7551a17 c9bb66ebc8
+      missing from annotation: 7836c0d7bc 78c7fa62f5 8e23d9c2b4 XnaiveX bc39eadeed bvx c467c66df5 dqs ef6395c4df f0583938a1 inp lmw
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 16/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 3848ceaac5 46f83b8f79 4979c03f8a 80f544e834 86c5d8496d 93b06ed83e a795980ba0 ars bdb41cf4da bvx dqs ea90f9ad14 fd1c705701 hil hux lmw
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  15 missing from lb info  28 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  15 missing from lb info  28 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  15 missing from lb info  28 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 27/28 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0c594f11a9 1871b46606 218f1cffa3 2fc6ba3ecb 4d4c2f8d78 75f990f3cb a607be7fdd acf53d228f agh aly bhr bsx c0794eb835 caff583ce8 cb461839ed cdbbef8fa9 d085922449 d2fd1e1443 ddc1c02982 fqy gjr glx klw kvw lou prw rtu
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  14 missing from lb info  17 extra in lb info  (0 in common)
-      missing from lb info: 0a1dc20b97 1db70cbe32 4a34a3c438 670b5248fa 698b9b51ee 8e60736e08 a332ba8037 a734730825 b3faf7c7d9 b52acac58b d639a98f6a ddd9fc82f9 ea5356fadd f3284200bd
-      missing from annotation: 1958310c9d 275ccbc4fd 2f4efd177b 6cf0970a0c 707bd60e8b 7fabd156a4 XnaiveX a18ddfb6fc af8d5d28dd amw bgz c1db011ba7 c283d5e7f4 duz enu f8e42dfcad hop
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 11/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 7836c0d7bc 78c7fa62f5 8e23d9c2b4 bc39eadeed bvx c467c66df5 dqs ef6395c4df f0583938a1 inp lmw
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  15 missing from lb info  29 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  15 missing from lb info  29 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  15 missing from lb info  29 extra in lb info  (0 in common)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 28/29 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 3890157d89 43613a3b1e 472f0ff03c 69ae952f34 71c23baa36 7b9f6511c9 7cd88b6581 7d27890ef0 9a27c91c38 a7d64aa29b a87608bd40 aby aly b9edc3e5d9 bhr bsx ec371b98d3 ec5c29505b f183a795a0 fqy gjr glx klw kvw lou prw rtu tux
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  15 missing from lb info  24 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  15 missing from lb info  24 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  15 missing from lb info  24 extra in lb info  (0 in common)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 23/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0a1dc20b97 670b5248fa 698b9b51ee 8e60736e08 a332ba8037 a734730825 amw b3faf7c7d9 b52acac58b bgz bls d639a98f6a ddd9fc82f9 dkq dlr dlz dov duz ea5356fadd enu f3284200bd gsx hop
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  14 missing from lb info  8 extra in lb info  (0 in common)
+      missing from lb info: 0a1dc20b97 1db70cbe32 4a34a3c438 670b5248fa 698b9b51ee 7e3ab703f6 8e60736e08 b3faf7c7d9 b52acac58b d639a98f6a ddd9fc82f9 ea5356fadd f3284200bd fd7473da07
+      missing from annotation: 8d77c7df1e 981ba84417 XnaiveX a7b959143d bb4cd805fd bkn d121e8e7c6 pqt
       common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  14 missing from lb info  17 extra in lb info  (0 in common)
-      missing from lb info: 0a1dc20b97 1db70cbe32 4a34a3c438 670b5248fa 698b9b51ee 8e60736e08 a332ba8037 a734730825 b3faf7c7d9 b52acac58b d639a98f6a ddd9fc82f9 ea5356fadd f3284200bd
-      missing from annotation: 1958310c9d 275ccbc4fd 2f4efd177b 6cf0970a0c 707bd60e8b 7fabd156a4 XnaiveX a18ddfb6fc af8d5d28dd amw bgz c1db011ba7 c283d5e7f4 duz enu f8e42dfcad hop
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  14 missing from lb info  8 extra in lb info  (0 in common)
+      missing from lb info: 0a1dc20b97 1db70cbe32 4a34a3c438 670b5248fa 698b9b51ee 7e3ab703f6 8e60736e08 b3faf7c7d9 b52acac58b d639a98f6a ddd9fc82f9 ea5356fadd f3284200bd fd7473da07
+      missing from annotation: 8d77c7df1e 981ba84417 XnaiveX a7b959143d bb4cd805fd bkn d121e8e7c6 pqt
       common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  14 missing from lb info  17 extra in lb info  (0 in common)
-      missing from lb info: 0a1dc20b97 1db70cbe32 4a34a3c438 670b5248fa 698b9b51ee 8e60736e08 a332ba8037 a734730825 b3faf7c7d9 b52acac58b d639a98f6a ddd9fc82f9 ea5356fadd f3284200bd
-      missing from annotation: 1958310c9d 275ccbc4fd 2f4efd177b 6cf0970a0c 707bd60e8b 7fabd156a4 XnaiveX a18ddfb6fc af8d5d28dd amw bgz c1db011ba7 c283d5e7f4 duz enu f8e42dfcad hop
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  14 missing from lb info  8 extra in lb info  (0 in common)
+      missing from lb info: 0a1dc20b97 1db70cbe32 4a34a3c438 670b5248fa 698b9b51ee 7e3ab703f6 8e60736e08 b3faf7c7d9 b52acac58b d639a98f6a ddd9fc82f9 ea5356fadd f3284200bd fd7473da07
+      missing from annotation: 8d77c7df1e 981ba84417 XnaiveX a7b959143d bb4cd805fd bkn d121e8e7c6 pqt
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 16/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 1958310c9d 275ccbc4fd 2f4efd177b 6cf0970a0c 707bd60e8b 7fabd156a4 a18ddfb6fc af8d5d28dd amw bgz c1db011ba7 c283d5e7f4 duz enu f8e42dfcad hop
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  14 missing from lb info  26 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  14 missing from lb info  26 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  14 missing from lb info  26 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 12): skipped 25/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0724456949 132451c758 1cf3592746 24826d22f3 5a1e384734 68d8010adf 8e55e6af93 9dadae8be1 a8c92db7b1 ab7d1c5b2d ayz b8c7551a17 bju blp c9bb66ebc8 cdv coz d07d2696ab dmp ejw fe32a8ed43 hsy kmr kvw pqt
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  13 missing from lb info  26 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  13 missing from lb info  26 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  13 missing from lb info  26 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 13): skipped 25/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 25ba679c16 2b4971f5a1 3a560e1585 770c78ce93 996977cac7 abq amt anv b46e31b4da bd127aeba6 bpz bry cb66685e70 d74ffc5db2 d775f3a593 d813ff6a37 e432651848 f276be1363 fmv hjs hnx ijn irt jtx mno
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  26 extra in lb info  (0 in common)
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  26 extra in lb info  (0 in common)
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  26 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 14): skipped 25/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 019b6e6fce 186a5e7ec6 3cf4ba1e90 686bbc4753 715c1086b9 7990207393 7c5afd4926 84a5612c03 akv bcw bdafa1bda5 bel c75e48e4c8 cnq d91fa10de8 daa096a724 db6cd21a83 dru gjz gkv glz hty nqy nuw rvw
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 12): skipped 7/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 8d77c7df1e 981ba84417 a7b959143d bb4cd805fd bkn d121e8e7c6 pqt
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  14 missing from lb info  8 extra in lb info  (0 in common)
+      missing from lb info: 1494fd70fc 2c3c24b833 3a81823992 3dd033788f 8817b6ca3f 909488cc63 adb9675945 b6f0cae4df c10b4f0704 c8459c91c9 cc265da95f d149fb3fa0 e95295f2a7 ee52de6f19
+      missing from annotation: 16a29117ca 5ab069b123 8baa20f19a XnaiveX e00408f500 edf824abf7 fmv hnx
+      common: 
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  14 missing from lb info  8 extra in lb info  (0 in common)
+      missing from lb info: 1494fd70fc 2c3c24b833 3a81823992 3dd033788f 8817b6ca3f 909488cc63 adb9675945 b6f0cae4df c10b4f0704 c8459c91c9 cc265da95f d149fb3fa0 e95295f2a7 ee52de6f19
+      missing from annotation: 16a29117ca 5ab069b123 8baa20f19a XnaiveX e00408f500 edf824abf7 fmv hnx
+      common: 
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  14 missing from lb info  8 extra in lb info  (0 in common)
+      missing from lb info: 1494fd70fc 2c3c24b833 3a81823992 3dd033788f 8817b6ca3f 909488cc63 adb9675945 b6f0cae4df c10b4f0704 c8459c91c9 cc265da95f d149fb3fa0 e95295f2a7 ee52de6f19
+      missing from annotation: 16a29117ca 5ab069b123 8baa20f19a XnaiveX e00408f500 edf824abf7 fmv hnx
+      common: 
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 13): skipped 7/8 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 16a29117ca 5ab069b123 8baa20f19a e00408f500 edf824abf7 fmv hnx
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  14 missing from lb info  22 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  14 missing from lb info  22 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  14 missing from lb info  22 extra in lb info  (0 in common)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 14): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 05449cc1f8 2204ba0895 2ff8818fd9 36dec30906 4b8ba42036 5bf425bc23 630db89771 82b62289f7 a59795f206 aca2149b27 akv bel cd0ca62973 dru gjz gkv glz hty nqy nuw rvw
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  13 missing from lb info  24 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  13 missing from lb info  24 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  13 missing from lb info  24 extra in lb info  (0 in common)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 15): skipped 23/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0af0fbd0d2 25da752f19 2af8d67ded 4e5f4b28d5 59b092468d 6b836f60f6 70b812f403 9688a1666a ad09500ccd ady boy d65c141b3d dlm e8518ca7ef efd8a6e0c8 fhq gux lqw mnq mrv nwz pux suy
     [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 07fc8ab0d1 56472259ac 5cc95d9a82 6805290760 6a654be187 8b28243307 8be5d74261 b30b0d0368 c8b4aabf9f ec4c26b20a f8d01d6d2d fc40e5d5a7
+      missing from lb info: 09b6266d9f 0af0fbd0d2 25da752f19 4e5f4b28d5 59b092468d 6b836f60f6 70b812f403 9688a1666a ad09500ccd d65c141b3d e8518ca7ef efd8a6e0c8
       missing from annotation: XnaiveX fdc446aa5b
       common: 
     [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 07fc8ab0d1 56472259ac 5cc95d9a82 6805290760 6a654be187 8b28243307 8be5d74261 b30b0d0368 c8b4aabf9f ec4c26b20a f8d01d6d2d fc40e5d5a7
+      missing from lb info: 09b6266d9f 0af0fbd0d2 25da752f19 4e5f4b28d5 59b092468d 6b836f60f6 70b812f403 9688a1666a ad09500ccd d65c141b3d e8518ca7ef efd8a6e0c8
       missing from annotation: XnaiveX fdc446aa5b
       common: 
     [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 07fc8ab0d1 56472259ac 5cc95d9a82 6805290760 6a654be187 8b28243307 8be5d74261 b30b0d0368 c8b4aabf9f ec4c26b20a f8d01d6d2d fc40e5d5a7
+      missing from lb info: 09b6266d9f 0af0fbd0d2 25da752f19 4e5f4b28d5 59b092468d 6b836f60f6 70b812f403 9688a1666a ad09500ccd d65c141b3d e8518ca7ef efd8a6e0c8
       missing from annotation: XnaiveX fdc446aa5b
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 15): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fdc446aa5b
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 16): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fdc446aa5b
     [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  24 extra in lb info  (0 in common)
     [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  24 extra in lb info  (0 in common)
     [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  24 extra in lb info  (0 in common)
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 16): skipped 23/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 1107361328 1146d76e20 1ab3e11e13 1b5037f04f 32d178e034 5c2311f934 8e0d2cc951 8fdb1fe11c aa09c718c2 aeo akl amt be5cdf182b bhp bkn dbbd54635a eacf0dca8b ehw eiv lnz mrs ovz rsw
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  12 extra in lb info  (0 in common)
-      missing from lb info: 0d52ea2ee3 193ba2bd1c 45b0452392 688fdcf412 97d3414c2a 9d55e6744a a403986010 ac1d1cbbec c0e1625fde c2b12b5d0f cf8757aff9 fdc446aa5b
-      missing from annotation: 1d8d1dfb8e 407f528db5 69d4200dde 79e340f6fd 8fefbdc0cf XnaiveX ams d193aca77b e8b9c1e980 ekv gru lqy
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 23/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 30bd99791b 7527878d14 80e95ec26f 82a93643b2 9e2e1440c9 9f11f0fcef ams b3a7f890fd c0781209eb cmu cry d24cf3ad26 ded06f4e21 dkl e59785b5b7 ekv emn f67f484dab gru kns lqy lsx quy
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  23 extra in lb info  (0 in common)
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  23 extra in lb info  (0 in common)
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  23 extra in lb info  (0 in common)
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 18): skipped 22/23 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 48bc283a72 83895fd15e 8471cf46c1 9775c47cd1 a7cce29bb0 aeb5cb13f2 b24e03da3b bdi c31c6821e8 ccee8bd88e ce77c2ae72 ctx de46df66c5 e81355570b fmv giz hqu lmv lmz nps nqx tyz
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  17 extra in lb info  (0 in common)
+      missing from lb info: 2204ba0895 2411596187 2ff8818fd9 36dec30906 4b8ba42036 5bf425bc23 630db89771 82b62289f7 a59795f206 aca2149b27 bef224f5a9 cd0ca62973
+      missing from annotation: 17f7e2f576 43843695b8 74a9b0d162 7f935fea18 93df5e1e84 XnaiveX ab9838148f aqv bdx c7c2347ae1 dmn e49544ca4f e8208962a2 gsu hlu klt kmr
       common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  12 extra in lb info  (0 in common)
-      missing from lb info: 0d52ea2ee3 193ba2bd1c 45b0452392 688fdcf412 97d3414c2a 9d55e6744a a403986010 ac1d1cbbec c0e1625fde c2b12b5d0f cf8757aff9 fdc446aa5b
-      missing from annotation: 1d8d1dfb8e 407f528db5 69d4200dde 79e340f6fd 8fefbdc0cf XnaiveX ams d193aca77b e8b9c1e980 ekv gru lqy
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  17 extra in lb info  (0 in common)
+      missing from lb info: 2204ba0895 2411596187 2ff8818fd9 36dec30906 4b8ba42036 5bf425bc23 630db89771 82b62289f7 a59795f206 aca2149b27 bef224f5a9 cd0ca62973
+      missing from annotation: 17f7e2f576 43843695b8 74a9b0d162 7f935fea18 93df5e1e84 XnaiveX ab9838148f aqv bdx c7c2347ae1 dmn e49544ca4f e8208962a2 gsu hlu klt kmr
       common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  12 extra in lb info  (0 in common)
-      missing from lb info: 0d52ea2ee3 193ba2bd1c 45b0452392 688fdcf412 97d3414c2a 9d55e6744a a403986010 ac1d1cbbec c0e1625fde c2b12b5d0f cf8757aff9 fdc446aa5b
-      missing from annotation: 1d8d1dfb8e 407f528db5 69d4200dde 79e340f6fd 8fefbdc0cf XnaiveX ams d193aca77b e8b9c1e980 ekv gru lqy
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  17 extra in lb info  (0 in common)
+      missing from lb info: 2204ba0895 2411596187 2ff8818fd9 36dec30906 4b8ba42036 5bf425bc23 630db89771 82b62289f7 a59795f206 aca2149b27 bef224f5a9 cd0ca62973
+      missing from annotation: 17f7e2f576 43843695b8 74a9b0d162 7f935fea18 93df5e1e84 XnaiveX ab9838148f aqv bdx c7c2347ae1 dmn e49544ca4f e8208962a2 gsu hlu klt kmr
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 11/12 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 1d8d1dfb8e 407f528db5 69d4200dde 79e340f6fd 8fefbdc0cf ams d193aca77b e8b9c1e980 ekv gru lqy
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  6 extra in lb info  (0 in common)
-      missing from lb info: 30bd99791b 7527878d14 80e95ec26f 82a93643b2 9e2e1440c9 9f11f0fcef b3a7f890fd c0781209eb d24cf3ad26 ded06f4e21 e59785b5b7 f67f484dab
-      missing from annotation: 1db5ccd4be 7249d65114 XnaiveX c3998fa5d7 nps tyz
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 19): skipped 16/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 17f7e2f576 43843695b8 74a9b0d162 7f935fea18 93df5e1e84 ab9838148f aqv bdx c7c2347ae1 dmn e49544ca4f e8208962a2 gsu hlu klt kmr
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  2 extra in lb info  (0 in common)
+      missing from lb info: 3e752e5d4b 4182404c61 8a045731eb 8e644d5158 a679a00a58 cd5754177b d22ca45a34 d90c115964 de5bb2537f ec56ecf47e f5c1241244 f6cbe0ea07
+      missing from annotation: XnaiveX fe78fc18fd
       common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  6 extra in lb info  (0 in common)
-      missing from lb info: 30bd99791b 7527878d14 80e95ec26f 82a93643b2 9e2e1440c9 9f11f0fcef b3a7f890fd c0781209eb d24cf3ad26 ded06f4e21 e59785b5b7 f67f484dab
-      missing from annotation: 1db5ccd4be 7249d65114 XnaiveX c3998fa5d7 nps tyz
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  2 extra in lb info  (0 in common)
+      missing from lb info: 3e752e5d4b 4182404c61 8a045731eb 8e644d5158 a679a00a58 cd5754177b d22ca45a34 d90c115964 de5bb2537f ec56ecf47e f5c1241244 f6cbe0ea07
+      missing from annotation: XnaiveX fe78fc18fd
       common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  6 extra in lb info  (0 in common)
-      missing from lb info: 30bd99791b 7527878d14 80e95ec26f 82a93643b2 9e2e1440c9 9f11f0fcef b3a7f890fd c0781209eb d24cf3ad26 ded06f4e21 e59785b5b7 f67f484dab
-      missing from annotation: 1db5ccd4be 7249d65114 XnaiveX c3998fa5d7 nps tyz
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  2 extra in lb info  (0 in common)
+      missing from lb info: 3e752e5d4b 4182404c61 8a045731eb 8e644d5158 a679a00a58 cd5754177b d22ca45a34 d90c115964 de5bb2537f ec56ecf47e f5c1241244 f6cbe0ea07
+      missing from annotation: XnaiveX fe78fc18fd
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 18): skipped 5/6 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 1db5ccd4be 7249d65114 c3998fa5d7 nps tyz
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  12 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 48bc283a72 83895fd15e 8471cf46c1 9775c47cd1 a7cce29bb0 aeb5cb13f2 b24e03da3b c31c6821e8 ccee8bd88e ce77c2ae72 de46df66c5 e81355570b
-      missing from annotation: 1691a04cdf 2497dc3b2e 2d8142648b 6be30386a8 6ceb287433 8b8679b414 XnaiveX aqv b1e3b98c9c bbc518ba00 bd9e51fe76 bdx bkt cin d487d35a6c dmn hlu klt kmr mqs
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  12 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 48bc283a72 83895fd15e 8471cf46c1 9775c47cd1 a7cce29bb0 aeb5cb13f2 b24e03da3b c31c6821e8 ccee8bd88e ce77c2ae72 de46df66c5 e81355570b
-      missing from annotation: 1691a04cdf 2497dc3b2e 2d8142648b 6be30386a8 6ceb287433 8b8679b414 XnaiveX aqv b1e3b98c9c bbc518ba00 bd9e51fe76 bdx bkt cin d487d35a6c dmn hlu klt kmr mqs
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  12 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 48bc283a72 83895fd15e 8471cf46c1 9775c47cd1 a7cce29bb0 aeb5cb13f2 b24e03da3b c31c6821e8 ccee8bd88e ce77c2ae72 de46df66c5 e81355570b
-      missing from annotation: 1691a04cdf 2497dc3b2e 2d8142648b 6be30386a8 6ceb287433 8b8679b414 XnaiveX aqv b1e3b98c9c bbc518ba00 bd9e51fe76 bdx bkt cin d487d35a6c dmn hlu klt kmr mqs
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 19): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 1691a04cdf 2497dc3b2e 2d8142648b 6be30386a8 6ceb287433 8b8679b414 aqv b1e3b98c9c bbc518ba00 bd9e51fe76 bdx bkt cin d487d35a6c dmn hlu klt kmr mqs
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 20): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fe78fc18fd
     [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  22 extra in lb info  (0 in common)
       missing from lb info: 06dc6994bc 17f7e2f576 43843695b8 74a9b0d162 7f935fea18 93df5e1e84 ab9838148f bcd613f4df c7c2347ae1 e49544ca4f e8208962a2
-      missing from annotation: 07fae86a1e 1223c61494 247c70709a 46d5e5ac40 5a0210ce84 62cc0a0fac 77653e554b 8d36e3c9a5 XnaiveX adu axy b4f0ef2c79 db54b6506a dfp e702de7e20 fnt frt grx hmr ikx itu qtw
+      missing from annotation: 10bab99689 1e9139a3e1 20a46100c1 2fff0dfa23 3f56c3ae01 4986c540c6 521a0ee310 72cc0791a7 XnaiveX asv atu beu bkz cd96cf838f cdi d8913f39de f17a41bfe8 fmw foq grv hir nsz
       common: 
     [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  22 extra in lb info  (0 in common)
       missing from lb info: 06dc6994bc 17f7e2f576 43843695b8 74a9b0d162 7f935fea18 93df5e1e84 ab9838148f bcd613f4df c7c2347ae1 e49544ca4f e8208962a2
-      missing from annotation: 07fae86a1e 1223c61494 247c70709a 46d5e5ac40 5a0210ce84 62cc0a0fac 77653e554b 8d36e3c9a5 XnaiveX adu axy b4f0ef2c79 db54b6506a dfp e702de7e20 fnt frt grx hmr ikx itu qtw
+      missing from annotation: 10bab99689 1e9139a3e1 20a46100c1 2fff0dfa23 3f56c3ae01 4986c540c6 521a0ee310 72cc0791a7 XnaiveX asv atu beu bkz cd96cf838f cdi d8913f39de f17a41bfe8 fmw foq grv hir nsz
       common: 
     [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  22 extra in lb info  (0 in common)
       missing from lb info: 06dc6994bc 17f7e2f576 43843695b8 74a9b0d162 7f935fea18 93df5e1e84 ab9838148f bcd613f4df c7c2347ae1 e49544ca4f e8208962a2
-      missing from annotation: 07fae86a1e 1223c61494 247c70709a 46d5e5ac40 5a0210ce84 62cc0a0fac 77653e554b 8d36e3c9a5 XnaiveX adu axy b4f0ef2c79 db54b6506a dfp e702de7e20 fnt frt grx hmr ikx itu qtw
+      missing from annotation: 10bab99689 1e9139a3e1 20a46100c1 2fff0dfa23 3f56c3ae01 4986c540c6 521a0ee310 72cc0791a7 XnaiveX asv atu beu bkz cd96cf838f cdi d8913f39de f17a41bfe8 fmw foq grv hir nsz
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 20): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 07fae86a1e 1223c61494 247c70709a 46d5e5ac40 5a0210ce84 62cc0a0fac 77653e554b 8d36e3c9a5 adu axy b4f0ef2c79 db54b6506a dfp e702de7e20 fnt frt grx hmr ikx itu qtw
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 06fa0ae61d 09138e0002 14cd1e227c 1785341d3e 4946601f63 762c482f84 7e6380f55b 8848696975 d2fbe8bb64 da48ff5bff fe78fc18fd
-      missing from annotation: XnaiveX e0ae8126eb
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 06fa0ae61d 09138e0002 14cd1e227c 1785341d3e 4946601f63 762c482f84 7e6380f55b 8848696975 d2fbe8bb64 da48ff5bff fe78fc18fd
-      missing from annotation: XnaiveX e0ae8126eb
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 06fa0ae61d 09138e0002 14cd1e227c 1785341d3e 4946601f63 762c482f84 7e6380f55b 8848696975 d2fbe8bb64 da48ff5bff fe78fc18fd
-      missing from annotation: XnaiveX e0ae8126eb
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 21): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: e0ae8126eb
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 10bab99689 1e9139a3e1 20a46100c1 2fff0dfa23 3f56c3ae01 4986c540c6 521a0ee310 72cc0791a7 cd96cf838f d8913f39de f17a41bfe8
-      missing from annotation: XnaiveX fec612ecb3
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 10bab99689 1e9139a3e1 20a46100c1 2fff0dfa23 3f56c3ae01 4986c540c6 521a0ee310 72cc0791a7 cd96cf838f d8913f39de f17a41bfe8
-      missing from annotation: XnaiveX fec612ecb3
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  2 extra in lb info  (0 in common)
-      missing from lb info: 10bab99689 1e9139a3e1 20a46100c1 2fff0dfa23 3f56c3ae01 4986c540c6 521a0ee310 72cc0791a7 cd96cf838f d8913f39de f17a41bfe8
-      missing from annotation: XnaiveX fec612ecb3
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 22): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: fec612ecb3
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 21): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 10bab99689 1e9139a3e1 20a46100c1 2fff0dfa23 3f56c3ae01 4986c540c6 521a0ee310 72cc0791a7 asv atu beu bkz cd96cf838f cdi d8913f39de f17a41bfe8 fmw foq grv hir nsz
     [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  22 extra in lb info  (0 in common)
-      missing from lb info: 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 aafc75627d bf4a557bed d704a90dac
-      missing from annotation: 2cc5615f8e 2faacabce6 3d885af527 53be1f9ea9 8d7975d7fc 91b0cd284a 91b17bee52 XnaiveX ad71c39e1a asv b762db21cd bcm bpw c368056a97 ec918a35fb eir epy gpu hkl ltv lxz ouv
+      missing from lb info: 0e8e991317 2ca1626832 31aa2c9ff6 79d735886e 8959ed8d54 995ce332e2 a1d3552df7 a77cbb76e0 bcadd00e6b d9dab90680 de587c5e8a
+      missing from annotation: 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 XnaiveX aafc75627d acf aeg amx bf4a557bed bfk d704a90dac deg emz gju hip hux klu
       common: 
     [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  22 extra in lb info  (0 in common)
-      missing from lb info: 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 aafc75627d bf4a557bed d704a90dac
-      missing from annotation: 2cc5615f8e 2faacabce6 3d885af527 53be1f9ea9 8d7975d7fc 91b0cd284a 91b17bee52 XnaiveX ad71c39e1a asv b762db21cd bcm bpw c368056a97 ec918a35fb eir epy gpu hkl ltv lxz ouv
+      missing from lb info: 0e8e991317 2ca1626832 31aa2c9ff6 79d735886e 8959ed8d54 995ce332e2 a1d3552df7 a77cbb76e0 bcadd00e6b d9dab90680 de587c5e8a
+      missing from annotation: 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 XnaiveX aafc75627d acf aeg amx bf4a557bed bfk d704a90dac deg emz gju hip hux klu
       common: 
     [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  22 extra in lb info  (0 in common)
-      missing from lb info: 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 aafc75627d bf4a557bed d704a90dac
-      missing from annotation: 2cc5615f8e 2faacabce6 3d885af527 53be1f9ea9 8d7975d7fc 91b0cd284a 91b17bee52 XnaiveX ad71c39e1a asv b762db21cd bcm bpw c368056a97 ec918a35fb eir epy gpu hkl ltv lxz ouv
+      missing from lb info: 0e8e991317 2ca1626832 31aa2c9ff6 79d735886e 8959ed8d54 995ce332e2 a1d3552df7 a77cbb76e0 bcadd00e6b d9dab90680 de587c5e8a
+      missing from annotation: 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 XnaiveX aafc75627d acf aeg amx bf4a557bed bfk d704a90dac deg emz gju hip hux klu
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 23): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 2cc5615f8e 2faacabce6 3d885af527 53be1f9ea9 8d7975d7fc 91b0cd284a 91b17bee52 ad71c39e1a asv b762db21cd bcm bpw c368056a97 ec918a35fb eir epy gpu hkl ltv lxz ouv
-                [94miclust 24: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.006  mfreq 0.005  diff 0.001  abs(frac diff) 7%  ratio 1.1
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0291    0.0220       1.3     0.0071     a28cfc1fb1
-          10 with highest+lowest ratios:
-              0.0291    0.0220       1.3     0.0071     a28cfc1fb1
-              0.0291    0.0220       1.3     0.0071     a28cfc1fb1
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 22): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 aafc75627d acf aeg amx bf4a557bed bfk d704a90dac deg emz gju hip hux klu
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  22 extra in lb info  (0 in common)
+      missing from lb info: 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 5aabe123da 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 aafc75627d d704a90dac
+      missing from annotation: 2246aa790c 510034cd5a 6c0cfb3742 7d4a0758ba 84b09aec55 XnaiveX a5894f2dfa asv bc71683dd6 bcm bpw c693818c0d cc9ad5d9f4 ccf5470a31 eir epy f41202a07e gpu hkl ltv lxz ouv
+      common: 
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  22 extra in lb info  (0 in common)
+      missing from lb info: 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 5aabe123da 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 aafc75627d d704a90dac
+      missing from annotation: 2246aa790c 510034cd5a 6c0cfb3742 7d4a0758ba 84b09aec55 XnaiveX a5894f2dfa asv bc71683dd6 bcm bpw c693818c0d cc9ad5d9f4 ccf5470a31 eir epy f41202a07e gpu hkl ltv lxz ouv
+      common: 
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  22 extra in lb info  (0 in common)
+      missing from lb info: 1310765e4e 2ac29a7472 53654c8bac 5a9c4aa14e 5aabe123da 697af055d0 6be02b25a5 8f1a3be5dc 9f7b4fc9b7 aafc75627d d704a90dac
+      missing from annotation: 2246aa790c 510034cd5a 6c0cfb3742 7d4a0758ba 84b09aec55 XnaiveX a5894f2dfa asv bc71683dd6 bcm bpw c693818c0d cc9ad5d9f4 ccf5470a31 eir epy f41202a07e gpu hkl ltv lxz ouv
+      common: 
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 23): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 2246aa790c 510034cd5a 6c0cfb3742 7d4a0758ba 84b09aec55 a5894f2dfa asv bc71683dd6 bcm bpw c693818c0d cc9ad5d9f4 ccf5470a31 eir epy f41202a07e gpu hkl ltv lxz ouv
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  11 missing from lb info  5 extra in lb info  (0 in common)
+      missing from lb info: 203018d35e 21ae57f79d 54d74ab405 595eca9946 6b9c11d175 7596f70eb5 8bbb8f6db4 9557269ea8 cb3986828d d941a1729e fa9fa4de34
+      missing from annotation: 88d0cba6b8 XnaiveX a28cfc1fb1 b25cbc75ba fea9e41340
+      common: 
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  11 missing from lb info  5 extra in lb info  (0 in common)
+      missing from lb info: 203018d35e 21ae57f79d 54d74ab405 595eca9946 6b9c11d175 7596f70eb5 8bbb8f6db4 9557269ea8 cb3986828d d941a1729e fa9fa4de34
+      missing from annotation: 88d0cba6b8 XnaiveX a28cfc1fb1 b25cbc75ba fea9e41340
+      common: 
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  11 missing from lb info  5 extra in lb info  (0 in common)
+      missing from lb info: 203018d35e 21ae57f79d 54d74ab405 595eca9946 6b9c11d175 7596f70eb5 8bbb8f6db4 9557269ea8 cb3986828d d941a1729e fa9fa4de34
+      missing from annotation: 88d0cba6b8 XnaiveX a28cfc1fb1 b25cbc75ba fea9e41340
+      common: 
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 24): skipped 4/5 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 88d0cba6b8 a28cfc1fb1 b25cbc75ba fea9e41340
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  19 extra in lb info  (0 in common)
+      missing from lb info: 0029142fe9 0fad8a3fbd 60a00ed921 711590d18f 80250b212a c27c136a32 cefae8d3c3 e1dcdbbc7f f15148935a fd3cc3fd63
+      missing from annotation: 03c443cd20 26bedb0a6c 6dd0a307dd 7a9fd68039 84938c1840 90bbc561eb XnaiveX bb539f3e51 bqt c4aed7f10c c52ee9438e clw cpv d92f1ebf70 enp fhx hmw jls lty
+      common: 
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  19 extra in lb info  (0 in common)
+      missing from lb info: 0029142fe9 0fad8a3fbd 60a00ed921 711590d18f 80250b212a c27c136a32 cefae8d3c3 e1dcdbbc7f f15148935a fd3cc3fd63
+      missing from annotation: 03c443cd20 26bedb0a6c 6dd0a307dd 7a9fd68039 84938c1840 90bbc561eb XnaiveX bb539f3e51 bqt c4aed7f10c c52ee9438e clw cpv d92f1ebf70 enp fhx hmw jls lty
+      common: 
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  19 extra in lb info  (0 in common)
+      missing from lb info: 0029142fe9 0fad8a3fbd 60a00ed921 711590d18f 80250b212a c27c136a32 cefae8d3c3 e1dcdbbc7f f15148935a fd3cc3fd63
+      missing from annotation: 03c443cd20 26bedb0a6c 6dd0a307dd 7a9fd68039 84938c1840 90bbc561eb XnaiveX bb539f3e51 bqt c4aed7f10c c52ee9438e clw cpv d92f1ebf70 enp fhx hmw jls lty
+      common: 
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 25): skipped 18/19 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 03c443cd20 26bedb0a6c 6dd0a307dd 7a9fd68039 84938c1840 90bbc561eb bb539f3e51 bqt c4aed7f10c c52ee9438e clw cpv d92f1ebf70 enp fhx hmw jls lty
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  2 extra in lb info  (0 in common)
+      missing from lb info: 024306ef94 23037f3b92 43002852a8 80e95ec26f 82a93643b2 9e2e1440c9 a7667abb8b cbe9a421ef f67f484dab f81e5a321c
+      missing from annotation: XnaiveX ee4949d588
+      common: 
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  2 extra in lb info  (0 in common)
+      missing from lb info: 024306ef94 23037f3b92 43002852a8 80e95ec26f 82a93643b2 9e2e1440c9 a7667abb8b cbe9a421ef f67f484dab f81e5a321c
+      missing from annotation: XnaiveX ee4949d588
+      common: 
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  2 extra in lb info  (0 in common)
+      missing from lb info: 024306ef94 23037f3b92 43002852a8 80e95ec26f 82a93643b2 9e2e1440c9 a7667abb8b cbe9a421ef f67f484dab f81e5a321c
+      missing from annotation: XnaiveX ee4949d588
+      common: 
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 26): skipped 1/2 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ee4949d588
     [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 03c443cd20 26bedb0a6c 6dd0a307dd 7a9fd68039 84938c1840 90bbc561eb bb539f3e51 c4aed7f10c c52ee9438e d92f1ebf70
-      missing from annotation: 05ae131f1c 07a53f98ad 08ec64b377 167026488d 6b5ea64129 814fc27c3a 8a449d06c0 92abfe0a85 XnaiveX a4c753dc34 adx bqt cedfd807af clw cpv enp fhx hmw jls lty
+      missing from lb info: 0c0c444682 12d19e5e5d 1502b845d3 35aaed19e5 4e95c1fe98 603dcd0eea bcaed0cf7b e355bceb33 e42a9869bd e6b17ac6b8
+      missing from annotation: 0b579fc8b1 0e4a30e54e 1607ef8c4d 2fdda5100e 621deea1a0 91f369ee1f 96d353c035 XnaiveX a9284c683a aqz bet cox dhz f2048cc35f f57beaff7f frz ilv inw ior nvw
       common: 
     [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 03c443cd20 26bedb0a6c 6dd0a307dd 7a9fd68039 84938c1840 90bbc561eb bb539f3e51 c4aed7f10c c52ee9438e d92f1ebf70
-      missing from annotation: 05ae131f1c 07a53f98ad 08ec64b377 167026488d 6b5ea64129 814fc27c3a 8a449d06c0 92abfe0a85 XnaiveX a4c753dc34 adx bqt cedfd807af clw cpv enp fhx hmw jls lty
+      missing from lb info: 0c0c444682 12d19e5e5d 1502b845d3 35aaed19e5 4e95c1fe98 603dcd0eea bcaed0cf7b e355bceb33 e42a9869bd e6b17ac6b8
+      missing from annotation: 0b579fc8b1 0e4a30e54e 1607ef8c4d 2fdda5100e 621deea1a0 91f369ee1f 96d353c035 XnaiveX a9284c683a aqz bet cox dhz f2048cc35f f57beaff7f frz ilv inw ior nvw
       common: 
     [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 03c443cd20 26bedb0a6c 6dd0a307dd 7a9fd68039 84938c1840 90bbc561eb bb539f3e51 c4aed7f10c c52ee9438e d92f1ebf70
-      missing from annotation: 05ae131f1c 07a53f98ad 08ec64b377 167026488d 6b5ea64129 814fc27c3a 8a449d06c0 92abfe0a85 XnaiveX a4c753dc34 adx bqt cedfd807af clw cpv enp fhx hmw jls lty
+      missing from lb info: 0c0c444682 12d19e5e5d 1502b845d3 35aaed19e5 4e95c1fe98 603dcd0eea bcaed0cf7b e355bceb33 e42a9869bd e6b17ac6b8
+      missing from annotation: 0b579fc8b1 0e4a30e54e 1607ef8c4d 2fdda5100e 621deea1a0 91f369ee1f 96d353c035 XnaiveX a9284c683a aqz bet cox dhz f2048cc35f f57beaff7f frz ilv inw ior nvw
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 25): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 05ae131f1c 07a53f98ad 08ec64b377 167026488d 6b5ea64129 814fc27c3a 8a449d06c0 92abfe0a85 a4c753dc34 adx bqt cedfd807af clw cpv enp fhx hmw jls lty
-    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  18 extra in lb info  (0 in common)
-      missing from lb info: 06d14159a4 299c3fd782 38d8f4859d 52bd8c6166 7b61d95263 afff98a5a5 d863ebe021 da4fcade90 dee8c13f46 e38a7e358c
-      missing from annotation: 155bf11e9e 21875e531a 2c9741a7cd 427398ec16 6a555a6842 932678134f XnaiveX ajl alw b26181a588 cc9b2751f4 cpq e6c16be3f5 elr els fpt joq npu
-      common: 
-    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  18 extra in lb info  (0 in common)
-      missing from lb info: 06d14159a4 299c3fd782 38d8f4859d 52bd8c6166 7b61d95263 afff98a5a5 d863ebe021 da4fcade90 dee8c13f46 e38a7e358c
-      missing from annotation: 155bf11e9e 21875e531a 2c9741a7cd 427398ec16 6a555a6842 932678134f XnaiveX ajl alw b26181a588 cc9b2751f4 cpq e6c16be3f5 elr els fpt joq npu
-      common: 
-    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  18 extra in lb info  (0 in common)
-      missing from lb info: 06d14159a4 299c3fd782 38d8f4859d 52bd8c6166 7b61d95263 afff98a5a5 d863ebe021 da4fcade90 dee8c13f46 e38a7e358c
-      missing from annotation: 155bf11e9e 21875e531a 2c9741a7cd 427398ec16 6a555a6842 932678134f XnaiveX ajl alw b26181a588 cc9b2751f4 cpq e6c16be3f5 elr els fpt joq npu
-      common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 26): skipped 17/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 155bf11e9e 21875e531a 2c9741a7cd 427398ec16 6a555a6842 932678134f ajl alw b26181a588 cc9b2751f4 cpq e6c16be3f5 elr els fpt joq npu
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 27): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0b579fc8b1 0e4a30e54e 1607ef8c4d 2fdda5100e 621deea1a0 91f369ee1f 96d353c035 a9284c683a aqz bet cox dhz f2048cc35f f57beaff7f frz ilv inw ior nvw
     [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 0ad939fb65 168a20f352 27ed64afce 28efb53906 a52c712521 af02d03f0d afa703e2df b33c9667f1 c8db682848 ee4949d588
-      missing from annotation: 2606c3acd3 2d41d18eef 413dcc9da9 82c6302028 912116856b 99a5968108 XnaiveX a68684aa96 a996eb6331 aqz bet c650ebc7a0 cox ddbf060475 dhz frz ilv inw ior nvw
+      missing from lb info: 19a48cfd71 29b5794184 458153b04f 571a8c9dd0 71b13a6647 cc4ffc950b cc9d9965f2 e3b882f88a e4187d03c1 f4c95db308
+      missing from annotation: 0bf0d46a0d 2990db9eac 463ddd265b 6554abe3a6 79a4f6199a 8601a02235 XnaiveX a699669068 b5e3f69da3 bkx c82deb51aa cjk d05498a71d glu guy hip hvz ivw now nty
       common: 
     [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 0ad939fb65 168a20f352 27ed64afce 28efb53906 a52c712521 af02d03f0d afa703e2df b33c9667f1 c8db682848 ee4949d588
-      missing from annotation: 2606c3acd3 2d41d18eef 413dcc9da9 82c6302028 912116856b 99a5968108 XnaiveX a68684aa96 a996eb6331 aqz bet c650ebc7a0 cox ddbf060475 dhz frz ilv inw ior nvw
+      missing from lb info: 19a48cfd71 29b5794184 458153b04f 571a8c9dd0 71b13a6647 cc4ffc950b cc9d9965f2 e3b882f88a e4187d03c1 f4c95db308
+      missing from annotation: 0bf0d46a0d 2990db9eac 463ddd265b 6554abe3a6 79a4f6199a 8601a02235 XnaiveX a699669068 b5e3f69da3 bkx c82deb51aa cjk d05498a71d glu guy hip hvz ivw now nty
       common: 
     [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 0ad939fb65 168a20f352 27ed64afce 28efb53906 a52c712521 af02d03f0d afa703e2df b33c9667f1 c8db682848 ee4949d588
-      missing from annotation: 2606c3acd3 2d41d18eef 413dcc9da9 82c6302028 912116856b 99a5968108 XnaiveX a68684aa96 a996eb6331 aqz bet c650ebc7a0 cox ddbf060475 dhz frz ilv inw ior nvw
+      missing from lb info: 19a48cfd71 29b5794184 458153b04f 571a8c9dd0 71b13a6647 cc4ffc950b cc9d9965f2 e3b882f88a e4187d03c1 f4c95db308
+      missing from annotation: 0bf0d46a0d 2990db9eac 463ddd265b 6554abe3a6 79a4f6199a 8601a02235 XnaiveX a699669068 b5e3f69da3 bkx c82deb51aa cjk d05498a71d glu guy hip hvz ivw now nty
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 27): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 2606c3acd3 2d41d18eef 413dcc9da9 82c6302028 912116856b 99a5968108 a68684aa96 a996eb6331 aqz bet c650ebc7a0 cox ddbf060475 dhz frz ilv inw ior nvw
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 28): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0bf0d46a0d 2990db9eac 463ddd265b 6554abe3a6 79a4f6199a 8601a02235 a699669068 b5e3f69da3 bkx c82deb51aa cjk d05498a71d glu guy hip hvz ivw now nty
     [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 0b579fc8b1 0e4a30e54e 1607ef8c4d 2fdda5100e 621deea1a0 91f369ee1f 96d353c035 a9284c683a f2048cc35f f57beaff7f
-      missing from annotation: 5605261b6e 5d563bb138 7bc0b25921 84e16c49a5 8ae2fef81c XnaiveX bkx cjk e2163993a6 eb41f93b01 f1e2bd604f f39ab0c75f f4ff07766b glu guy hip hvz ivw now nty
+      missing from lb info: 1a1b29a6c9 56472259ac 5cc95d9a82 6805290760 8b28243307 b30b0d0368 c8b4aabf9f ec4c26b20a f8d01d6d2d fc40e5d5a7
+      missing from annotation: 0d08a6069b 1e24c74df1 26539d10ec 2753c00a8b 2e8fab6229 31a046ff95 97d0bac03f 9de6355a74 XnaiveX b3d22a4d73 bju cdj ceg ckq db69e6fe79 dsx jpr lpv lrv pqz
       common: 
     [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 0b579fc8b1 0e4a30e54e 1607ef8c4d 2fdda5100e 621deea1a0 91f369ee1f 96d353c035 a9284c683a f2048cc35f f57beaff7f
-      missing from annotation: 5605261b6e 5d563bb138 7bc0b25921 84e16c49a5 8ae2fef81c XnaiveX bkx cjk e2163993a6 eb41f93b01 f1e2bd604f f39ab0c75f f4ff07766b glu guy hip hvz ivw now nty
+      missing from lb info: 1a1b29a6c9 56472259ac 5cc95d9a82 6805290760 8b28243307 b30b0d0368 c8b4aabf9f ec4c26b20a f8d01d6d2d fc40e5d5a7
+      missing from annotation: 0d08a6069b 1e24c74df1 26539d10ec 2753c00a8b 2e8fab6229 31a046ff95 97d0bac03f 9de6355a74 XnaiveX b3d22a4d73 bju cdj ceg ckq db69e6fe79 dsx jpr lpv lrv pqz
       common: 
     [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  20 extra in lb info  (0 in common)
-      missing from lb info: 0b579fc8b1 0e4a30e54e 1607ef8c4d 2fdda5100e 621deea1a0 91f369ee1f 96d353c035 a9284c683a f2048cc35f f57beaff7f
-      missing from annotation: 5605261b6e 5d563bb138 7bc0b25921 84e16c49a5 8ae2fef81c XnaiveX bkx cjk e2163993a6 eb41f93b01 f1e2bd604f f39ab0c75f f4ff07766b glu guy hip hvz ivw now nty
+      missing from lb info: 1a1b29a6c9 56472259ac 5cc95d9a82 6805290760 8b28243307 b30b0d0368 c8b4aabf9f ec4c26b20a f8d01d6d2d fc40e5d5a7
+      missing from annotation: 0d08a6069b 1e24c74df1 26539d10ec 2753c00a8b 2e8fab6229 31a046ff95 97d0bac03f 9de6355a74 XnaiveX b3d22a4d73 bju cdj ceg ckq db69e6fe79 dsx jpr lpv lrv pqz
       common: 
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 28): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 5605261b6e 5d563bb138 7bc0b25921 84e16c49a5 8ae2fef81c bkx cjk e2163993a6 eb41f93b01 f1e2bd604f f39ab0c75f f4ff07766b glu guy hip hvz ivw now nty
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 29): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bju cdj ceg ckq dsx jpr lpv lrv pqz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 30): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dev dop fju fkr fou fov gst low lvy
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 31): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bdf bvz cde deq fvz hnq hnr ksz nuv
-                [94miclust 32: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/10 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.035  mfreq 0.028  diff 0.007  abs(frac diff) 22%  ratio 1.2
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.3011    0.2367       1.3     0.0644     a7b959143d
-          10 with highest+lowest ratios:
-              0.3011    0.2367       1.3     0.0644     a7b959143d
-              0.3011    0.2367       1.3     0.0644     a7b959143d
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 32): skipped 5/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: csz ehz
-                [94miclust 33: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 2/10 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.014  mfreq 0.012  diff 0.002  abs(frac diff) 17%  ratio 1.2
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0105    0.0080       1.3     0.0024     8e600526a4
-              0.0072    0.0054       1.3     0.0018     27ca2461bd
-          10 with highest+lowest ratios:
-              0.0072    0.0054       1.3     0.0018     27ca2461bd
-              0.0105    0.0080       1.3     0.0024     8e600526a4
-              0.0072    0.0054       1.3     0.0018     27ca2461bd
-              0.0105    0.0080       1.3     0.0024     8e600526a4
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 33): skipped 15/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bow cuy iku jno lmn ovy
-                [94miclust 34: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 5/10 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.227  mfreq 0.179  diff 0.047  abs(frac diff) 26%  ratio 1.3
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.2829    0.2044       1.4     0.0786     5f11aa12bc
-              0.2382    0.1798       1.3     0.0584     da61857e9e
-              0.2547    0.1989       1.3     0.0557     a0078e7c12
-              0.2364    0.1880       1.3     0.0484     740192855a
-              0.2265    0.1798       1.3     0.0466     747f63ade2
-          10 with highest+lowest ratios:
-              0.2829    0.2044       1.4     0.0786     5f11aa12bc
-              0.2382    0.1798       1.3     0.0584     da61857e9e
-              0.2547    0.1989       1.3     0.0557     a0078e7c12
-              0.2265    0.1798       1.3     0.0466     747f63ade2
-              0.2364    0.1880       1.3     0.0484     740192855a
-              0.2829    0.2044       1.4     0.0786     5f11aa12bc
-              0.2382    0.1798       1.3     0.0584     da61857e9e
-              0.2547    0.1989       1.3     0.0557     a0078e7c12
-              0.2265    0.1798       1.3     0.0466     747f63ade2
-              0.2364    0.1880       1.3     0.0484     740192855a
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 34): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aht bhp cde din hjv hvz rsu rtz vxy
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 29): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0d08a6069b 1e24c74df1 26539d10ec 2753c00a8b 2e8fab6229 31a046ff95 97d0bac03f 9de6355a74 b3d22a4d73 bju cdj ceg ckq db69e6fe79 dsx jpr lpv lrv pqz
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  20 extra in lb info  (0 in common)
+      missing from lb info: 1b695bbeb5 3817aa2d65 477d29074a 5b6def13ea 83da5c7f6a c5a0760c94 d58b2c5c4a df231bd376 e45882392d e80bea9e91
+      missing from annotation: 0d096335a1 67afea7678 76180506ed 81c323f194 841deeb6c7 84bf44d26a 938c63d402 XnaiveX d35fc93bd9 d5b775009b dev dfbafe2539 dop fju fkr fou fov gst low lvy
+      common: 
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  20 extra in lb info  (0 in common)
+      missing from lb info: 1b695bbeb5 3817aa2d65 477d29074a 5b6def13ea 83da5c7f6a c5a0760c94 d58b2c5c4a df231bd376 e45882392d e80bea9e91
+      missing from annotation: 0d096335a1 67afea7678 76180506ed 81c323f194 841deeb6c7 84bf44d26a 938c63d402 XnaiveX d35fc93bd9 d5b775009b dev dfbafe2539 dop fju fkr fou fov gst low lvy
+      common: 
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  20 extra in lb info  (0 in common)
+      missing from lb info: 1b695bbeb5 3817aa2d65 477d29074a 5b6def13ea 83da5c7f6a c5a0760c94 d58b2c5c4a df231bd376 e45882392d e80bea9e91
+      missing from annotation: 0d096335a1 67afea7678 76180506ed 81c323f194 841deeb6c7 84bf44d26a 938c63d402 XnaiveX d35fc93bd9 d5b775009b dev dfbafe2539 dop fju fkr fou fov gst low lvy
+      common: 
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 30): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 0d096335a1 67afea7678 76180506ed 81c323f194 841deeb6c7 84bf44d26a 938c63d402 d35fc93bd9 d5b775009b dev dfbafe2539 dop fju fkr fou fov gst low lvy
+    [91merror[0m [94mlbi[0m uids in annotation not the same as lb info keys for 'lbi':  10 missing from lb info  16 extra in lb info  (0 in common)
+      missing from lb info: 3022d17b77 420f8d1b66 4a0ea223e5 4d313924b4 672655cbec 6782753d31 7ef644ed92 966dde078f ac0c543be9 ec6c4d2c34
+      missing from annotation: 2767a3b1d1 27ca2461bd 4272c4b71f 8e600526a4 8f37eef123 91f2fb13e9 XnaiveX bdf bvz cde d02ae819a4 deq f85e577ebe fd96c6fe37 fvz hnq
+      common: 
+    [91merror[0m [94mlbr[0m uids in annotation not the same as lb info keys for 'lbr':  10 missing from lb info  16 extra in lb info  (0 in common)
+      missing from lb info: 3022d17b77 420f8d1b66 4a0ea223e5 4d313924b4 672655cbec 6782753d31 7ef644ed92 966dde078f ac0c543be9 ec6c4d2c34
+      missing from annotation: 2767a3b1d1 27ca2461bd 4272c4b71f 8e600526a4 8f37eef123 91f2fb13e9 XnaiveX bdf bvz cde d02ae819a4 deq f85e577ebe fd96c6fe37 fvz hnq
+      common: 
+    [91merror[0m [94mlbf[0m uids in annotation not the same as lb info keys for 'lbf':  10 missing from lb info  16 extra in lb info  (0 in common)
+      missing from lb info: 3022d17b77 420f8d1b66 4a0ea223e5 4d313924b4 672655cbec 6782753d31 7ef644ed92 966dde078f ac0c543be9 ec6c4d2c34
+      missing from annotation: 2767a3b1d1 27ca2461bd 4272c4b71f 8e600526a4 8f37eef123 91f2fb13e9 XnaiveX bdf bvz cde d02ae819a4 deq f85e577ebe fd96c6fe37 fvz hnq
+      common: 
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 31): skipped 15/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 2767a3b1d1 27ca2461bd 4272c4b71f 8e600526a4 8f37eef123 91f2fb13e9 bdf bvz cde d02ae819a4 deq f85e577ebe fd96c6fe37 fvz hnq
   writing selection metrics to test/new-results-slow/get-selection-metrics-new-simu.yaml
-      total time: 1.0
+      total time: 0.5
