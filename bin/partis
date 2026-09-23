@@ -717,6 +717,31 @@ def subset_cache_parameters(args):
     merge_parameter_subsets(args)
 
 # ----------------------------------------------------------------------------------------
+def subset_locus_n_seqs(args, subdfn, n_subsets, ltmp):
+    # summed from the subsets' gene-probs tables
+    n_seqs = 0
+    for isub in range(n_subsets):
+        gpfn = '%s/hmm/v_gene-probs.csv' % param_locus_dir(args, subdfn(isub), ltmp)
+        if not os.path.exists(gpfn):
+            continue
+        with open(gpfn) as gfile:
+            n_seqs += sum(int(line['count']) for line in csv.DictReader(gfile))
+    return n_seqs
+
+# ----------------------------------------------------------------------------------------
+def warn_on_sw_cache_choice(args, subdfn, n_subsets):
+    # warns only, does not change the cache form
+    min_seqs = getattr(args, 'multifile_min_seqs', None) or disjointgrouper.MULTIFILE_MIN_SEQS_DEFAULT
+    for ltmp in subset_loci(args):
+        n_seqs = subset_locus_n_seqs(args, subdfn, n_subsets, ltmp)
+        if n_seqs == 0:
+            continue
+        if args.no_merged_sw_cache and n_seqs <= min_seqs:
+            print('    %s %s: %d sequences, small enough for a merged sw cache' % (utils.wrnstr(), utils.locstr(ltmp), n_seqs))
+        elif not args.no_merged_sw_cache and n_seqs > min_seqs:
+            print('    %s %s: %d sequences, large for a merged sw cache' % (utils.wrnstr(), utils.locstr(ltmp), n_seqs))
+
+# ----------------------------------------------------------------------------------------
 def merge_parameter_subsets(args):
     # sum the per-subset count tables and union their glfos into one parameter dir
     if args.no_merged_sw_cache:
@@ -724,7 +749,8 @@ def merge_parameter_subsets(args):
     base = parameter_subset_base(args)
     n_subsets = utils.read_subset_index(base)['n_subsets']
     def subdfn(isub): return subset_pdir(args, isub)
-    utils.merge_parameter_dirs(base, subdfn, n_subsets, ig_or_tr=args.ig_or_tr, skip_sw_merge=args.no_merged_sw_cache,
+    warn_on_sw_cache_choice(args, subdfn, n_subsets)
+    utils.merge_parameter_dirs(base, subdfn, n_subsets, args, ig_or_tr=args.ig_or_tr, skip_sw_merge=args.no_merged_sw_cache,
                                locus=None if args.paired_loci else args.locus)
     if not args.no_merged_sw_cache:
         return
@@ -848,7 +874,7 @@ def subset_partition(args):
         paircluster.merge_paired_yamls(merged_odir, [subdir(i) for i in range(args.n_subsets)], headers, ig_or_tr=args.ig_or_tr, use_pyyaml=args.write_full_yaml_output,
                                        dont_write_git_info=args.dont_write_git_info, merge_overlaps=args.seed_unique_id is not None or args.queries_to_include is not None,
                                        dont_calculate_annotations=args.dont_calculate_annotations, seed_unique_id=args.seed_unique_id, debug=args.debug_paired_clustering)
-        utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, ig_or_tr=args.ig_or_tr)  # , include_hmm_cache_files=True (see note about persistent cache files above)
+        utils.merge_parameter_dirs(merged_odir, subdir, args.n_subsets, args, ig_or_tr=args.ig_or_tr)  # , include_hmm_cache_files=True (see note about persistent cache files above)
         # maybe don't need this now I've added the locus_lpfos stuff above?
         # if args.keep_all_unpaired_seqs and len(locus_merged_lp_infos['antn_lists']) == 0:
         #     print('    --keep-all-unpaired-seqs: zero length paired results, so merging single chain outputs')

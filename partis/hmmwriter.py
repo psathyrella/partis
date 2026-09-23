@@ -8,6 +8,7 @@ from scipy.stats import norm
 import csv
 import time
 import copy
+import multiprocessing
 import numpy
 import yaml
 from io import open
@@ -945,3 +946,36 @@ class HmmWriter(object):
         state.extras['ambiguous_emission_prob'] = self.get_ambiguos_emission_prob(inuke)
         state.extras['ambiguous_char'] = utils.ambig_base
         # print '%30s, %4d %f' % (state.name, inuke, self.get_ambiguos_emission_prob(inuke))
+
+# ----------------------------------------------------------------------------------------
+def write_hmms(parameter_dir, glfo, args):
+    """ Write hmm model files to <parameter_dir>/hmms, using information from <parameter_dir>; modifies <glfo> """
+    if args.dont_write_parameters:
+        return
+    print('  writing hmms', end=' ')
+    sys.stdout.flush()
+    start = time.time()
+
+    hmm_dir = parameter_dir + '/hmms'
+    utils.prep_dir(hmm_dir, '*.yaml')
+    # hmglfo = copy.deepcopy(glfo)  # it might be better to not modify glfo here, but there's way too many potential downstream effects to change it at this point
+    glutils.restrict_to_observed_genes(glfo, parameter_dir, debug=True)  # this is kind of a weird place to put this... it would make more sense to read the glfo from the parameter dir, but I don't want to mess around with changing that a.t.m.
+
+    if args.debug:
+        print('to %s' % parameter_dir + '/hmms', end=' ')
+
+    if multiprocessing.cpu_count() * utils.memory_usage_fraction() > 0.8:  # already using a lot of memory, so don't to call multiprocessing, which will duplicate all the memory for each process
+        for region in utils.regions:
+            for gene in glfo['seqs'][region]:
+                writer = HmmWriter(parameter_dir, hmm_dir, gene, glfo, args)
+                writer.write()
+    else:
+        def write_single_hmm(gene):
+            writer = HmmWriter(parameter_dir, hmm_dir, gene, glfo, args)
+            writer.write()
+        procs = [multiprocessing.Process(target=write_single_hmm, name=gene, args=(gene,))
+                 for region in utils.regions for gene in glfo['seqs'][region]]
+        utils.run_proc_functions(procs)  # uses all the cores (should only be for a little bit, though)
+
+    print('(%.1f sec)' % (time.time()-start))
+    sys.stdout.flush()
