@@ -243,7 +243,7 @@ class HmmWriter(object):
         self.n_max_to_interpolate = 20  # we interpolate for empty insertion + deletion bins if neighboring (non-empty) bins have fewer than this many entries (i.e. if filled bins have at least this many entries, we _don't_ interpolate between them)
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
         self.mute_freq_bounds = {'lo' : 0.01, 'hi' : 0.35}  # don't let any position mutate less frequently than 1% of the time, or more frequently than half the time
-        self.default_mute_freq = 0.1  # prior for positional mute freqs
+        # NOTE the prior for positional mute freqs (self.default_mute_freq) is set below, once we've read the sample's mean mute freq
 
         self.enforced_flat_mfreq_length = {  # i.e. distance over which the mute freqs are typically screwed up. I'm not really sure why these vary so much, but it's probably to do with how the s-w step works
             'v_3p' : 9,
@@ -281,6 +281,9 @@ class HmmWriter(object):
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(approved_genes)
         self.mute_freqs = paramutils.read_mute_freqs_with_weights(self.indir, approved_genes, debug=self.debug)  # weighted averages over genes
         self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus, debug=self.debug)  # raw per-{ACGT} counts NOTE do *not* set <approved_genes> here (see note in paramutils)
+        tmp_mean_freq_hist = Hist(fname=self.indir + '/all-mean-mute-freqs.csv')
+        self.overall_mute_freq = tmp_mean_freq_hist.get_mean()
+        self.default_mute_freq = min(self.mute_freq_bounds['hi'], max(self.mute_freq_bounds['lo'], self.overall_mute_freq))  # prior for positional mute freqs (positions with few or no observations): the sample's own mean, within the positional bounds. bcrham rescales each query by (query mute freq) / overall_mute_freq, so after rescaling a position we know nothing about gets the query's own mute freq (unless the sample mean is outside the bounds, e.g. naive samples) (previously a fixed 0.1, which in e.g. a naive sample pulled thin alleles far above their well-observed siblings, see psathyrella/partis#414)
         self.process_mutation_info()  # smooth/interpolation/whatnot for <self.mute_freqs> and <self.mute_counts>
         # NOTE i'm using a hybrid approach with mute_freqs and mute_counts -- the only thing I get from mute_counts is the ratios of the different bases, whereas the actual freq comes from mute_freqs (which has all the corrections/smooth/bullshit)
 
@@ -288,8 +291,7 @@ class HmmWriter(object):
         self.saniname = utils.sanitize_name(gene_name)
         self.hmm = HMM(self.saniname, self.track.getdict())  # pass the track as a dict rather than a Track object to keep the yaml file a bit more readable
         self.hmm.extras['gene_prob'] = max(self.eps, utils.read_overall_gene_probs(self.indir, only_gene=gene_name))  # if we really didn't see this gene at all, take pity on it and kick it an eps
-        tmp_mean_freq_hist = Hist(fname=self.indir + '/all-mean-mute-freqs.csv')
-        self.hmm.extras['overall_mute_freq'] = tmp_mean_freq_hist.get_mean()
+        self.hmm.extras['overall_mute_freq'] = self.overall_mute_freq
         self.hmm.extras['per_gene_mute_freq'] = self.mute_freqs['unweighted_overall_mean']  # the other (weighted) one might be technically more accurate, depending on what you want, but it's probably not what anyone is expecting, so we write the unweighted one
 
     # ----------------------------------------------------------------------------------------

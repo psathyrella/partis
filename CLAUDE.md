@@ -47,3 +47,13 @@ The parameter and simulation dirs under `test/` (`test/ref-results/`, `test/new-
 representative of anything. Never draw a conclusion about partis's behaviour on real repertoires from
 them, and never quote a number measured on them as if it described data. They exist to detect changes
 in output, and that is all they are good for. Measure on real repertoires instead.
+
+## judging changes
+
+BCR repertoires vary along many axes at once: mutation rate, clonal family sizes, tree shape, germline
+set, allele frequencies, read length, locus, sample size. That space can't be scanned, even in
+principle -- there is no way to enumerate tree shapes, for instance. So "it worked on a few samples"
+does not by itself justify a change. Before making one, work out from how the code works which inputs it
+affects and how, including the ones that aren't at hand (very high and very low mutation, tiny and
+huge samples, rare alleles, other loci), and make sure it doesn't break some other part of that space.
+Samples can confirm that understanding. They can't replace it.
