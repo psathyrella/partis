@@ -10,7 +10,7 @@ smith-waterman  (new-allele fitting)
     running 13 procs for 55 seqs
       info for 1373 / 1412 = 0.972   (removed: 39 failed)
       kept 440 (0.312) unproductive
-    water time: 2.3  (ig-sw 0.2  processing 0.1)
+    water time: 2.3  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 1273 / 1412 v annotations (139 failed) with 76 v genes in 0.1 sec
     running 10 procs for 1373 seqs
@@ -18,7 +18,7 @@ smith-waterman  (writing parameters)
       info for 1373 / 1412 = 0.972   (removed: 39 failed)
       kept 440 (0.312) unproductive
         writing sw results to test/new-results-slow/test/parameters/data/sw-cache.yaml
-    writing parameters to test/new-results-slow/test/parameters/data/sw (2.3 sec)
+    writing parameters to test/new-results-slow/test/parameters/data/sw (2.4 sec)
     water time: 5.1  (ig-sw 3.0  processing 0.1)
   writing hmms     removed 6  genes from glfo (leaving v 73  d 87  j 16)
 (0.9 sec)
@@ -27,13 +27,13 @@ hmm
     reading output
         read 1373 hmm output lines with 1363 sequences in 1363 events  (10 failures)
           [91mwarning[0m no valid paths: -1651760806376077044 -1889013233140917886 -4348677206158192452 -5294497590599348090 04-A-M_3755036 25164396670180087 4182690314301324604 4937696822602299712 6182728664197942741 6880877555932742798
-    writing parameters to test/new-results-slow/test/parameters/data/hmm (2.2 sec)
+    writing parameters to test/new-results-slow/test/parameters/data/hmm (2.3 sec)
          infra time: 3.2
-      hmm step time: 8.7
+      hmm step time: 9.6
   writing hmms     removed 20 genes from glfo (leaving v 69  d 76  j 11)
-(0.8 sec)
-      total time: 18.9
-      bcrham time: 5.5 (29.0% of total, 1 calls)
+(0.9 sec)
+      total time: 19.8
+      bcrham time: 6.4 (32.3% of total, 1 calls)
 [92msimulate[0m                         partis simulate --dont-write-git-info --parameter-dir test/new-results-slow/test/parameters/data --n-sim-events 200 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/test/simu.yaml --indel-frequency 0.2
 simulating
       --> proc 0
@@ -43,8 +43,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 129 seqs in 4.2s (3.9s of which was running bppseqgen)
-      total time: 6.2
+    made 20 events with 129 seqs in 4.6s (4.2s of which was running bppseqgen)
+      total time: 6.5
 
       --> proc 1
 stty: 'standard input': Inappropriate ioctl for device
@@ -53,8 +53,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 99 seqs in 4.1s (3.8s of which was running bppseqgen)
-      total time: 6.1
+    made 20 events with 99 seqs in 4.2s (3.9s of which was running bppseqgen)
+      total time: 6.2
 
       --> proc 2
 stty: 'standard input': Inappropriate ioctl for device
@@ -63,8 +63,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 92 seqs in 4.4s (4.2s of which was running bppseqgen)
-      total time: 6.4
+    made 20 events with 92 seqs in 3.7s (3.4s of which was running bppseqgen)
+      total time: 5.7
 
       --> proc 3
 stty: 'standard input': Inappropriate ioctl for device
@@ -73,8 +73,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 123 seqs in 4.3s (3.9s of which was running bppseqgen)
-      total time: 6.2
+    made 20 events with 123 seqs in 4.4s (4.0s of which was running bppseqgen)
+      total time: 6.4
 
       --> proc 4
 stty: 'standard input': Inappropriate ioctl for device
@@ -83,8 +83,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 109 seqs in 4.3s (3.9s of which was running bppseqgen)
-      total time: 6.3
+    made 20 events with 109 seqs in 3.8s (3.5s of which was running bppseqgen)
+      total time: 5.8
 
       --> proc 5
 stty: 'standard input': Inappropriate ioctl for device
@@ -93,8 +93,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 127 seqs in 4.7s (4.2s of which was running bppseqgen)
-      total time: 6.6
+    made 20 events with 127 seqs in 4.4s (3.9s of which was running bppseqgen)
+      total time: 6.4
 
       --> proc 6
 stty: 'standard input': Inappropriate ioctl for device
@@ -103,8 +103,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 109 seqs in 4.2s (3.9s of which was running bppseqgen)
-      total time: 6.2
+    made 20 events with 109 seqs in 4.5s (4.2s of which was running bppseqgen)
+      total time: 6.5
 
       --> proc 7
 stty: 'standard input': Inappropriate ioctl for device
@@ -113,8 +113,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 77 seqs in 3.5s (3.1s of which was running bppseqgen)
-      total time: 5.5
+    made 20 events with 77 seqs in 4.2s (3.8s of which was running bppseqgen)
+      total time: 6.2
 
       --> proc 8
 stty: 'standard input': Inappropriate ioctl for device
@@ -123,7 +123,7 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 101 seqs in 3.9s (3.6s of which was running bppseqgen)
+    made 20 events with 101 seqs in 4.0s (3.8s of which was running bppseqgen)
       total time: 6.0
 
       --> proc 9
@@ -133,11 +133,11 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 109 seqs in 4.3s (4.1s of which was running bppseqgen)
+    made 20 events with 109 seqs in 4.3s (4.0s of which was running bppseqgen)
       total time: 6.3
 
    read 200 events with 1075 seqs from 10 .yaml files
-      total time: 8.2
+      total time: 8.3
 [92mcache-parameters-simu[0m            partis cache-parameters --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --is-simu --random-seed 1 --n-procs 10
 caching parameters
   vsearch: 1067 / 1075 v annotations (8 failed) with 116 v genes in 0.1 sec
@@ -158,22 +158,22 @@ smith-waterman  (writing parameters)
       info for 1075 / 1075 = 1.000   (removed: 0 failed)
       kept 530 (0.493) unproductive
         writing sw results to test/new-results-slow/test/parameters/simu/sw-cache.yaml
-    writing parameters to test/new-results-slow/test/parameters/simu/sw (2.4 sec)
-    water time: 4.5  (ig-sw 2.9  processing 0.1)
+    writing parameters to test/new-results-slow/test/parameters/simu/sw (2.2 sec)
+    water time: 4.3  (ig-sw 2.7  processing 0.1)
   writing hmms     removed 18 genes from glfo (leaving v 42  d 77  j 14)
 (0.9 sec)
 hmm
     skipping matches from 14 genes without enough counts: [95mh[0m[91mj[0m[95m3[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m5[0m[95m-12[0m[93m01_g10-[0m [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01_g14a_c28-[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01_g18-_t19-_c28t[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01_c12g_a15g_17accagc22_t28c_a29t_c30g_32c32[0m [95mh[0m[91md[0m[95m1/OR15[0m[95m-1a[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01_c12g_a15g_t21-_a22c_a29g[0m [95mh[0m[91md[0m[95m5[0m[95m-18[0m[93m01_c8t[0m [95mh[0m[91md[0m[95m5/OR15[0m[95m-5a[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02_g23-[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02_c12g_t21-_a22c_a29t[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m01[0m
     reading output
         read 1075 hmm output lines with 1075 sequences in 1075 events  (0 failures)
-    writing parameters to test/new-results-slow/test/parameters/simu/hmm (2.2 sec)
+    writing parameters to test/new-results-slow/test/parameters/simu/hmm (2.1 sec)
     writing parameters to test/new-results-slow/test/parameters/simu/true (2.2 sec)
-         infra time: 5.7
+         infra time: 5.6
       hmm step time: 8.3
   writing hmms     removed 17 genes from glfo (leaving v 42  d 63  j 11)
-(0.8 sec)
-      total time: 17.6
-      bcrham time: 2.6 (15.0% of total, 1 calls)
+(0.9 sec)
+      total time: 17.4
+      bcrham time: 2.7 (15.4% of total, 1 calls)
 [92mannotate-new-simu[0m                partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --plotdir test/new-results-slow/annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/annotate-new-simu.yaml
 annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -191,10 +191,10 @@ hmm
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 60 queries with different true and inferred net shm indel lengths: 14d32d710b fb56f4369d 55e4ebdaf5 5c259d07f8 453ddb1537 dc393bf261 24b34e3012 90da3ed235 19f36dee60 c90f2c3d6d 615c82ba95 74f04370b5 d214828413 3887469a27 c11fa55d6b 27b176cf2c ba302a0b9b caf29d20a7 f37e9b5aac 78a30b4ba0 75f3e01f57 ddcbd5d81d 9b2c24dde0 8715eebbed 17449ee2a4 d7e7b4fe98 6cf62154fd a8042f6d09 11b38716a8 f583bfc28e db95a2b875 ebd4ad4833 642ae709a1 90c03b2d3e d3a19a3d4b 95f3ce4121 dec7e55369 01bb4b9a4b 1581061608 5836cd7fd2 21370d4360 6da41dd744 4034ed5c78 6da331a127 080cc2a69b e3edcbe4f9 d416c90902 33440c0771 1e19e92fe6 1358105577 c158fd8654 d6f14abc09 6cc33702bc 5aca994b85 9a85bc70b8 c5090db090 88572773f9 6f283c38e8 77ad3ef589 3450cd8076
 (0.0 sec)
-         infra time: 0.8
-      hmm step time: 3.4
+         infra time: 0.9
+      hmm step time: 3.5
       total time: 4.6
-      bcrham time: 2.6 (56.9% of total, 1 calls)
+      bcrham time: 2.7 (57.5% of total, 1 calls)
 [92mmulti-annotate-new-simu[0m          partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --simultaneous-true-clonal-seqs --is-simu --plotdir test/new-results-slow/multi-annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/multi-annotate-new-simu.yaml
 annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -211,7 +211,7 @@ hmm
   --simultaneous-true-clonal-seqs: grouping seqs according to true partition
   [93mwarning[0m split apart 34 clusters that contained multiple cdr3 lengths (total clusters: 200 --> 240)
       cluster splits:  11 --> 10 1,  11 --> 1 10,   2 --> 1 1,  16 --> 1 15,  13 --> 1 12,   8 --> 7 1,   2 --> 1 1,   4 --> 1 3,   8 --> 1 7,  11 --> 1 1 9,  16 --> 1 15,  14 --> 1 13,   8 --> 7 1,   8 --> 1 1 6,  19 --> 1 17 1,   2 --> 1 1,  27 --> 1 26,   2 --> 1 1,   9 --> 8 1,  20 --> 19 1,   6 --> 1 5,   3 --> 2 1,   5 --> 4 1,   7 --> 1 6,   2 --> 1 1,   4 --> 3 1,   7 --> 1 6,   8 --> 7 1,  11 --> 1 8 1 1,   7 --> 6 1,  19 --> 1 1 17,   5 --> 1 4,   7 --> 1 6,   5 --> 4 1
-  subcluster annotating 240 clusters with steps:  (2.5s) (1.4s) (0.5s) [93mwarning[0m different length true and inferred naive seqs for 2cfff5d814, proceeding to align, which is very slow (see above):
+  subcluster annotating 240 clusters with steps:  (2.5s) (1.5s) (0.5s) [93mwarning[0m different length true and inferred naive seqs for 2cfff5d814, proceeding to align, which is very slow (see above):
   GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGACACCCCTACGGTGACTATCGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
   GTGCAGCTGGTGGAGTCTGGGGGAGGCTTGGTACAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTTTCATACATTAGTAGTAGTAGTAGTACCATATACTACGCAGACTCTGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGAGACCCCTACGGTGACTACGGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
 GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAGACACCCCTACGGTGACTATCGCTGTGCTTTTGATATCTGGGGCCAAGGGACAATGGTCACCGTCTCTTCAG
@@ -235,9 +235,9 @@ GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATT
     [93mwarning[0m skipped annotation performance evaluation on 60 queries with different true and inferred net shm indel lengths: 615c82ba95 4034ed5c78 17449ee2a4 3450cd8076 c11fa55d6b 74f04370b5 8715eebbed 78a30b4ba0 95f3ce4121 1e19e92fe6 5aca994b85 1358105577 5c259d07f8 5836cd7fd2 90c03b2d3e 9a85bc70b8 dec7e55369 e3edcbe4f9 88572773f9 d3a19a3d4b 6f283c38e8 11b38716a8 a8042f6d09 ba302a0b9b db95a2b875 21370d4360 caf29d20a7 ebd4ad4833 24b34e3012 75f3e01f57 f583bfc28e 19f36dee60 d416c90902 d6f14abc09 fb56f4369d 27b176cf2c 3887469a27 33440c0771 6cc33702bc c90f2c3d6d dc393bf261 01bb4b9a4b c5090db090 6da41dd744 90da3ed235 77ad3ef589 6da331a127 642ae709a1 1581061608 080cc2a69b 14d32d710b 55e4ebdaf5 c158fd8654 453ddb1537 ddcbd5d81d 9b2c24dde0 d214828413 d7e7b4fe98 f37e9b5aac 6cf62154fd
 (0.0 sec)
 
-    subcluster annotation time 8.9
-      total time: 10.0
-      bcrham time: 3.8 (38.5% of total, 3 calls)
+    subcluster annotation time 9.1
+      total time: 10.2
+      bcrham time: 3.9 (38.7% of total, 3 calls)
 [92mpartition-new-simu[0m               partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --plotdir test/new-results-slow/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -251,26 +251,26 @@ smith-waterman
         water time: 0.6
 hmm
   --persistent-cachefname: using existing hmm cache file test/new-results-slow/cache-new-partition.csv
-  caching all 1075 naive sequences (2.9s)
+  caching all 1075 naive sequences (2.8s)
     collapsed 1075 queries into 466 clusters with identical naive seqs (0.0 sec)
   466 clusters with 10 procs (2.0s)
-   406 clusters with 7 procs (2.9s)
+   406 clusters with 7 procs (2.1s)
    364 clusters with 5 procs (2.1s)
-   325 clusters with 3 procs (3.1s)
-   284 clusters with 2 procs (6.6s)
+   325 clusters with 3 procs (3.2s)
+   284 clusters with 2 procs (6.0s)
    252 clusters with 2 procs (2.5s)
-   240 clusters with 2 procs (1.9s)
-   234 clusters with 1 proc (4.8s)
+   240 clusters with 2 procs (2.0s)
+   234 clusters with 1 proc (4.9s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 26.0
+      partition loop time: 24.8
 getting annotations for final partition
-  subcluster annotating 227 clusters with steps:  (2.4s) (1.3s) (0.7s) (0.1s)   plotting performance 
+  subcluster annotating 227 clusters with steps:  (2.5s) (1.3s) (0.7s) (0.1s)   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 60 queries with different true and inferred net shm indel lengths: 11b38716a8 c5090db090 080cc2a69b 1581061608 14d32d710b 55e4ebdaf5 642ae709a1 f37e9b5aac 1e19e92fe6 5aca994b85 95f3ce4121 78a30b4ba0 01bb4b9a4b 1358105577 17449ee2a4 19f36dee60 21370d4360 24b34e3012 27b176cf2c 33440c0771 3450cd8076 3887469a27 4034ed5c78 453ddb1537 5836cd7fd2 5c259d07f8 615c82ba95 6cc33702bc 6cf62154fd 6da331a127 6da41dd744 6f283c38e8 74f04370b5 75f3e01f57 77ad3ef589 8715eebbed 88572773f9 90c03b2d3e 90da3ed235 9a85bc70b8 9b2c24dde0 a8042f6d09 ba302a0b9b c11fa55d6b c158fd8654 c90f2c3d6d caf29d20a7 d214828413 d3a19a3d4b d416c90902 d6f14abc09 d7e7b4fe98 db95a2b875 dc393bf261 ddcbd5d81d dec7e55369 e3edcbe4f9 ebd4ad4833 f583bfc28e fb56f4369d
 (0.0 sec)
 
     subcluster annotation time 7.4
-      total time: 37.5
-      bcrham time: 30.6 (81.6% of total, 13 calls)
+      total time: 36.3
+      bcrham time: 30.1 (83.1% of total, 13 calls)
 [92mseed-partition-new-simu[0m          partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --seed-unique-id 6adb92dee0 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/seed-partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -291,13 +291,13 @@ hmm
        removed 171 sequences in unseeded clusters, split 5 seeded clusters into 19 singletons, and merged these into 1 clusters with identical naive seqs (0.0 sec)
         new n_procs 1 (initial seqs/proc: 19.00   new seqs/proc: 1.00
   1 clusters with 1 proc (0.1s)
-       partition loop time: 0.4
+       partition loop time: 0.5
 getting annotations for final partition
   subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.4
   seed cluster size in best partition: 19, excluding seed seq: 18
       total time: 1.6
-      bcrham time: 0.4 (27.4% of total, 7 calls)
+      bcrham time: 0.5 (28.4% of total, 7 calls)
 [92mvsearch-partition-new-simu[0m       partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --naive-vsearch --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --random-seed 1 --n-procs 10 --outfname test/new-results-slow/vsearch-partition-new-simu.yaml
 partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
@@ -317,7 +317,7 @@ getting annotations for final partition
   subcluster annotating 260 clusters with steps:  (2.5s) (1.1s) (0.4s) (0.1s) 
     subcluster annotation time 4.5
       total time: 7.8
-      bcrham time: 3.5 (44.8% of total, 4 calls)
+      bcrham time: 3.5 (45.0% of total, 4 calls)
 [92mget-selection-metrics-new-simu[0m   partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --outfname test/new-results-slow/partition-new-simu.yaml --selection-metric-fname test/new-results-slow/get-selection-metrics-new-simu.yaml --ab-choice-cfg /tmp/dralph/partis-main/test/ab-choice-slow.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: By default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set).
@@ -689,4 +689,4 @@ getting annotations for final partition
       common: 
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 31): skipped 15/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: 2767a3b1d1 27ca2461bd 4272c4b71f 8e600526a4 8f37eef123 91f2fb13e9 bdf bvz cde d02ae819a4 deq f85e577ebe fd96c6fe37 fvz hnq
   writing selection metrics to test/new-results-slow/get-selection-metrics-new-simu.yaml
-      total time: 0.5
+      total time: 0.6
