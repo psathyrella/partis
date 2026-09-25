@@ -27,13 +27,13 @@ hmm
     [44mcaching[0m input annotation naive seqs in bcrham cache file for 18 clusters (55 seqs)
       --continue-from-input-partition: using input partition for initial cpath
              18 clusters (55 seqs)
-  18 clusters with 10 procs (0.1s)
+  18 clusters with 10 procs (0.2s)
    17 clusters with 7 procs (0.2s)
    16 clusters with 5 procs (0.2s)
    16 clusters with 3 procs (0.2s)
    15 clusters with 2 procs (0.2s)
-   12 clusters with 1 proc (0.4s)
-       partition loop time: 1.2
+   12 clusters with 1 proc (0.5s)
+       partition loop time: 1.3
 getting annotations for final partition
   subcluster annotating 10 clusters with steps:  (0.2s) (0.1s) (0.1s) 
     subcluster annotation time 0.5
@@ -47,7 +47,7 @@ getting annotations for final partition
     [93mwarning[0m added 1 / 56 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 1 / 56 missing ids as singletons to inferred partition, to match ids in true partition
       total time: 1.9
-      bcrham time: 1.4 (71.5% of total, 9 calls)
+      bcrham time: 1.4 (73.5% of total, 9 calls)
 [44mpartition[0m [94migk[0m:
 [91mrun[0m partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.25 --is-simu --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/merged-subsets/meta.yaml --input-partition-fname test/paired/new-results/subset-partition-new-simu/merged-subsets/partition-igk.yaml --continue-from-input-partition --parameter-dir test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters/igk --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results/test/simu/igk.yaml --outfname test/paired/new-results/subset-partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml
   [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '604d0b9750-igk' with value from test/paired/new-results/subset-partition-new-simu/merged-subsets/meta.yaml: ['604d0b9750-igh', 'a46e26cc6d-igh', 'a46e26cc6d-igl'] --> ['604d0b9750-igh']
@@ -84,7 +84,7 @@ getting annotations for final partition
   subcluster annotating 5 clusters with steps:  (0.2s) (0.1s) (0.1s) 
     subcluster annotation time 0.4
       total time: 1.1
-      bcrham time: 0.6 (58.9% of total, 9 calls)
+      bcrham time: 0.6 (58.1% of total, 9 calls)
 [44mpartition[0m [94migl[0m:
 [91mrun[0m partis partition --locus igl --dont-write-git-info --max-ccf-fail-frac 0.25 --is-simu --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/merged-subsets/meta.yaml --input-partition-fname test/paired/new-results/subset-partition-new-simu/merged-subsets/partition-igl.yaml --continue-from-input-partition --parameter-dir test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters/igl --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results/test/simu/igl.yaml --outfname test/paired/new-results/subset-partition-new-simu/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
   [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '5d41abf1b7-igl' with value from test/paired/new-results/subset-partition-new-simu/merged-subsets/meta.yaml: ['5d41abf1b7-igh', 'd8a0eddc20-igh'] --> ['5d41abf1b7-igh']
@@ -102,7 +102,7 @@ getting annotations for final partition
     removed 3/21 queries from input info that were absent from input partition
 partitioning     (with test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters/igl/hmm)
 smith-waterman
-  vsearch: 18 / 18 v annotations (0 failed) with 3 v genes in 0.0 sec
+  vsearch: 18 / 18 v annotations (0 failed) with 3 v genes in 0.1 sec
         reading sw results from test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
       info for 18 / 18 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 3 (0.167) unproductive
@@ -116,16 +116,16 @@ hmm
   5 clusters with 5 procs (0.1s)
    5 clusters with 3 procs (0.1s)
    5 clusters with 2 procs (0.1s)
-   5 clusters with 1 proc (1.0s)
-       partition loop time: 1.1
+   5 clusters with 1 proc (0.2s)
+       partition loop time: 0.3
 getting annotations for final partition
   subcluster annotating 4 clusters with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.3
     [93mwarning[0m added 3 / 21 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 3 / 21 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 3 / 21 missing ids as singletons to inferred partition, to match ids in true partition
-      total time: 1.5
-      bcrham time: 0.5 (31.6% of total, 7 calls)
+      total time: 0.7
+      bcrham time: 0.4 (61.8% of total, 7 calls)
 [44mcombining[0m chains
 cleaning pair info for 109 seqs
      synchronized/fixed 0 pairs where one had no pair info after cleaning: [94mh[0m 0  [95mk[0m 0  [92ml[0m 0
@@ -173,8 +173,8 @@ smith-waterman
 hmm
   subcluster annotating 8 clusters with steps:  (0.2s) (0.1s) (0.1s) 
     subcluster annotation time 0.5
-      total time: 0.5
-      bcrham time: 0.4 (70.1% of total, 3 calls)
+      total time: 0.6
+      bcrham time: 0.4 (72.1% of total, 3 calls)
   need to get annotations for 6/8 joint igk clusters
 [44mannotate[0m [94migh+igk[0m:[94m igk[0m
     removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
@@ -191,8 +191,8 @@ smith-waterman
 hmm
   subcluster annotating 8 clusters with steps:  (0.2s) (0.1s) (0.1s) 
     subcluster annotation time 0.4
-      total time: 0.5
-      bcrham time: 0.3 (57.4% of total, 3 calls)
+      total time: 0.4
+      bcrham time: 0.3 (61.4% of total, 3 calls)
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
     removing badly + unpaired seqs:  kept 4 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 3  [92ml[0m 1
             note: discarding unpaired seqs in families with no (well-)paired seqs (i.e. families that are all either unpaired or paired to the other/wrong light chain), rather than keeping track of them to re-add later
@@ -232,10 +232,10 @@ smith-waterman
       kept 15 (0.750) unproductive
         water time: 0.0
 hmm
-  subcluster annotating 4 clusters with steps:  (0.2s) (0.1s) (0.1s) 
+  subcluster annotating 4 clusters with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.4
-      total time: 0.5
-      bcrham time: 0.4 (70.4% of total, 3 calls)
+      total time: 0.4
+      bcrham time: 0.3 (68.2% of total, 3 calls)
   need to get annotations for 1/4 joint igl clusters
 [44mannotate[0m [94migh+igl[0m:[94m igl[0m
     removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
@@ -244,7 +244,7 @@ hmm
   --input-partition-fname: read best partition with 18 sequences in 4 clusters from test/paired/new-results/subset-partition-new-simu/igh+igl/partition-igl-only-partition.yaml
 annotating    (with test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters/igl/hmm)
 smith-waterman
-  vsearch: 18 / 18 v annotations (0 failed) with 3 v genes in 0.1 sec
+  vsearch: 18 / 18 v annotations (0 failed) with 3 v genes in 0.0 sec
         reading sw results from test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
       info for 18 / 18 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 3 (0.167) unproductive
@@ -253,7 +253,7 @@ hmm
   subcluster annotating 4 clusters with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.3
       total time: 0.4
-      bcrham time: 0.3 (66.6% of total, 3 calls)
+      bcrham time: 0.3 (66.9% of total, 3 calls)
   --input-metafnames: no meta info added from test/paired/new-results/subset-partition-new-simu/merged-subsets/meta.yaml
   concatenating heavy chain loci:
       [94mh[0m starting with 8 annotations (37 seqs)
@@ -268,4 +268,4 @@ hmm
         [94mh[0m   10 --> 12   [91m+2[0m
         [95mk[0m    5 --> 8    [91m+3[0m
         [92ml[0m    4 --> 4   
-      total time: 14.8
+      total time: 14.5
