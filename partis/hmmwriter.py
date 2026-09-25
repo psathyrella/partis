@@ -284,6 +284,8 @@ class HmmWriter(object):
         tmp_mean_freq_hist = Hist(fname=self.indir + '/all-mean-mute-freqs.csv')
         self.overall_mute_freq = tmp_mean_freq_hist.get_mean()
         self.default_mute_freq = min(self.mute_freq_bounds['hi'], max(self.mute_freq_bounds['lo'], self.overall_mute_freq))  # prior for positional mute freqs (positions with few or no observations): the sample's own mean, within the positional bounds. bcrham rescales each query by (query mute freq) / overall_mute_freq, so after rescaling a position we know nothing about gets the query's own mute freq (unless the sample mean is outside the bounds, e.g. naive samples) (previously a fixed 0.1, which in e.g. a naive sample pulled thin alleles far above their well-observed siblings, see psathyrella/partis#414)
+        if gene_name == glutils.dummy_d_genes[self.args.locus]:  # the light chain dummy d's single base is a placeholder rather than a germline position, so the sample's mean doesn't describe it: keep the value it has always had (it should really emit all four bases equally, see psathyrella/partis#417)
+            self.default_mute_freq = 0.1
         self.process_mutation_info()  # smooth/interpolation/whatnot for <self.mute_freqs> and <self.mute_counts>
         # NOTE i'm using a hybrid approach with mute_freqs and mute_counts -- the only thing I get from mute_counts is the ratios of the different bases, whereas the actual freq comes from mute_freqs (which has all the corrections/smooth/bullshit)
 
