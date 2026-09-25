@@ -129,4 +129,75 @@ pub fn build(b: *std.Build) void {
     const run_unit_tests = b.addRunArtifact(unit_tests);
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_unit_tests.step);
+
+    // ── verify vendored C copies in sync with their submodules (issue #403) ─
+    // Each of these files exists twice: once here, compiled into the zig
+    // backend, and once in a sibling submodule, compiled into the C/C++
+    // backend. Nothing but this check keeps them identical, and drift is
+    // silent — bumping a submodule would leave the zig side on the old code.
+    // check-vendored-sync.sh skips (rather than fails) when the submodule is
+    // not checked out, so a fresh clone can still run `zig build test`.
+    const verify_sync_step = b.step("verify-sync", "Verify vendored C copies match their submodules");
+    const addSyncCheck = struct {
+        fn f(bb: *std.Build, step: *std.Build.Step, ts: *std.Build.Step, vendored: []const u8, upstream: []const u8) void {
+            const run = bb.addSystemCommand(&.{"sh"});
+            run.addFileArg(bb.path("tools/check-vendored-sync.sh"));
+            run.addFileArg(bb.path(vendored));
+            // Plain arg, not addFileArg: the submodule may not be checked out.
+            run.addArg(bb.pathFromRoot(upstream));
+            run.setName(bb.fmt("verify {s} sync", .{vendored}));
+            // The upstream copy is not a tracked input, so let it re-run.
+            run.has_side_effects = true;
+            step.dependOn(&run.step);
+            ts.dependOn(&run.step);
+        }
+    }.f;
+    addSyncCheck(b, verify_sync_step, test_step, "src/ham/fast_math.c", "../ham/src/fast_math.c");
+    // Every file vendored from ig-sw, not just the two compiled into
+    // partis-zig-igsw: ksw.c is what ksw-diff validates ksw.zig against, and a
+    // stale header drifts just as silently as a stale .c.
+    for ([_][]const u8{
+        "ig_align.c", "ig_align.h", "kseq.h", "ksort.h", "kstring.c",
+        "kstring.h",  "ksw.c",      "ksw.h",  "kvec.h",
+    }) |name| {
+        addSyncCheck(
+            b,
+            verify_sync_step,
+            test_step,
+            b.fmt("src/igsw/c/{s}", .{name}),
+            b.fmt("../ig-sw/src/ig_align/{s}", .{name}),
+        );
+    }
+
+    // ── ksw-diff: differential test harness (issue #403) ────────────────
+    // C ksw.c requires x86 SSE2 (<emmintrin.h>)
+    if (target.result.cpu.arch.isX86()) {
+        const ksw_diff_mod = b.createModule(.{
+            .root_source_file = b.path("src/igsw/ksw_diff.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        ksw_diff_mod.linkSystemLibrary("c", .{});
+        ksw_diff_mod.addIncludePath(b.path("src/igsw/c"));
+        const ksw_rename_flags = &.{
+            "-std=gnu99",
+            "-O2",
+            "-Dksw_align=c_ksw_align",
+            "-Dksw_align2=c_ksw_align2",
+            "-Dksw_global=c_ksw_global",
+            "-Dksw_extend=c_ksw_extend",
+            "-Dksw_qinit=c_ksw_qinit",
+        };
+        ksw_diff_mod.addCSourceFile(.{ .file = b.path("src/igsw/c/ksw.c"), .flags = ksw_rename_flags });
+
+        const ksw_diff_exe = b.addExecutable(.{
+            .name = "ksw-diff",
+            .root_module = ksw_diff_mod,
+        });
+        b.installArtifact(ksw_diff_exe);
+
+        const ksw_unit_tests = b.addTest(.{ .root_module = ksw_diff_mod });
+        const run_ksw_unit_tests = b.addRunArtifact(ksw_unit_tests);
+        test_step.dependOn(&run_ksw_unit_tests.step);
+    }
 }
