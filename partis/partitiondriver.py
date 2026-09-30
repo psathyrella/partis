@@ -2045,37 +2045,9 @@ class PartitionDriver(object):
 
     # ----------------------------------------------------------------------------------------
     def write_hmms(self, parameter_dir):
-        """ Write hmm model files to <parameter_dir>/hmms, using information from <parameter_dir> """
-        if self.args.dont_write_parameters:
-            return
-        print('  writing hmms', end=' ')
-        sys.stdout.flush()
-        start = time.time()
-
-        from .hmmwriter import HmmWriter
-        hmm_dir = parameter_dir + '/hmms'
-        utils.prep_dir(hmm_dir, '*.yaml')
-        # hmglfo = copy.deepcopy(self.glfo)  # it might be better to not modify self.glfo here, but there's way too many potential downstream effects to change it at this point
-        glutils.restrict_to_observed_genes(self.glfo, parameter_dir, debug=True)  # this is kind of a weird place to put this... it would make more sense to read the glfo from the parameter dir, but I don't want to mess around with changing that a.t.m.
-
-        if self.args.debug:
-            print('to %s' % parameter_dir + '/hmms', end=' ')
-
-        if multiprocessing.cpu_count() * utils.memory_usage_fraction() > 0.8:  # already using a lot of memory, so don't to call multiprocessing, which will duplicate all the memory for each process
-            for region in utils.regions:
-                for gene in self.glfo['seqs'][region]:
-                    writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
-                    writer.write()
-        else:
-            def write_single_hmm(gene):
-                writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
-                writer.write()
-            procs = [multiprocessing.Process(target=write_single_hmm, name=gene, args=(gene,))
-                     for region in utils.regions for gene in self.glfo['seqs'][region]]
-            utils.run_proc_functions(procs)  # uses all the cores (should only be for a little bit, though)
-
-        print('(%.1f sec)' % (time.time()-start))
-        sys.stdout.flush()
+        """ Write hmm model files to <parameter_dir>/hmms, using information from <parameter_dir>; modifies <self.glfo> """
+        from . import hmmwriter
+        hmmwriter.write_hmms(parameter_dir, self.glfo, self.args)
 
     # ----------------------------------------------------------------------------------------
     def get_existing_hmm_files(self, parameter_dir):
