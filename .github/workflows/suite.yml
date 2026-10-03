@@ -10,8 +10,13 @@ on:
 jobs:
   suite:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        backend: [cpp, zig]
+      fail-fast: false
     env:
       TERM: xterm
+      PARTIS_TEST_BACKEND: ${{ matrix.backend }}
     steps:
     - uses: actions/checkout@v4
       with:
@@ -40,6 +45,11 @@ jobs:
     - name: Check xxhash
       run: |
         python -c "import xxhash"
+
+    - name: Build zig backend
+      if: matrix.backend == 'zig'
+      run: |
+        bin/zig-build.sh
 
     - name: Run suite
       run: |

@@ -31,6 +31,13 @@ def test_installs_partis_and_runs_whole_suite():
     assert any(cmd.strip() == 'make test' for cmd in cmds)
 
 
+def test_runs_on_both_backends():
+    job = load_workflow()['jobs']['suite']
+    assert job['strategy']['matrix']['backend'] == ['cpp', 'zig']
+    assert job['env']['PARTIS_TEST_BACKEND'] == '${{ matrix.backend }}'
+    assert any(step.get('if') == "matrix.backend == 'zig'" and 'bin/zig-build.sh' in step['run'] for step in job['steps'])
+
+
 def test_make_fails_when_a_pipeline_script_fails(tmp_path):
     def make_pipelines(scripts):
         return subprocess.run(['make', '-C', REPO_DIR, 'pipeline-tests', 'PIPELINE_TESTS=%s' % ' '.join(scripts)], capture_output=True, text=True)
