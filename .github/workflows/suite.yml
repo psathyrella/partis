@@ -1,6 +1,6 @@
 # disjoint-grouping test suite (make test), on every PR into the feature branch
 
-name: Test suite
+name: Disjoint-grouping tests
 
 on:
   pull_request:
@@ -9,6 +9,7 @@ on:
 
 jobs:
   suite:
+    name: ${{ matrix.backend }} backend
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
