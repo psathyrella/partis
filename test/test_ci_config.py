@@ -1,16 +1,13 @@
 import os
 import subprocess
 
-import yaml
-
-from _helpers import REPO_DIR
+from _helpers import REPO_DIR, read_yaml
 
 WORKFLOW = os.path.join(REPO_DIR, '.github', 'workflows', 'suite.yml')
 
 
 def load_workflow():
-    with open(WORKFLOW) as wfile:
-        return yaml.safe_load(wfile)
+    return read_yaml(WORKFLOW)
 
 
 def run_cmds(wflow):
@@ -33,6 +30,7 @@ def test_installs_partis_and_runs_whole_suite():
 
 def test_runs_on_both_backends():
     job = load_workflow()['jobs']['suite']
+    assert job['timeout-minutes'] > 0
     assert job['strategy']['matrix']['backend'] == ['cpp', 'zig']
     assert job['env']['PARTIS_TEST_BACKEND'] == '${{ matrix.backend }}'
     assert any(step.get('if') == "matrix.backend == 'zig'" and 'bin/zig-build.sh' in step['run'] for step in job['steps'])

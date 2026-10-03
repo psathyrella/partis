@@ -6,6 +6,7 @@ from partis.disjointgrouper import _split_procs
 
 
 def test_one_big_group_gets_most_threads():
+    # big group gets its proportional share of the budget, the rest one thread each until the budget is used
     threads, n_jobs = _split_procs([2100000] + [50000] * 19, 16)
     assert threads[0] == 11
     assert n_jobs == 6
@@ -30,7 +31,7 @@ def test_invariants_on_random_sizes():
         threads, n_jobs = _split_procs(sizes, budget)
         assert len(threads) == len(sizes)
         assert min(threads) >= 1
-        assert n_jobs >= 1
+        assert 1 <= n_jobs <= len(sizes)
         assert sum(threads[:n_jobs]) <= budget
 
 

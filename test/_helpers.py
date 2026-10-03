@@ -9,11 +9,14 @@ TEST_DIR = os.path.join(REPO_DIR, 'test')
 
 # import partis from this checkout, not from whatever is installed
 sys.path.insert(0, REPO_DIR)
+from partis.clusterpath import ClusterPath
 
 # tracked paired simulation and the parameters inferred on it
 PAIRED_SIMU_DIR = os.path.join(TEST_DIR, 'paired', 'ref-results', 'test', 'simu')
 PAIRED_PARAM_DIR = os.path.join(TEST_DIR, 'paired', 'ref-results', 'test', 'parameters', 'simu')
 LOCI = ['igh', 'igk', 'igl']
+N_SUBSETS = 2
+PARTIS_TIMEOUT = 900  # seconds per partis run
 
 BACKEND = os.environ.get('PARTIS_TEST_BACKEND', 'cpp')
 if BACKEND not in ('cpp', 'zig'):
@@ -29,7 +32,7 @@ def run_partis(args, logfname):
         cmd.append('--zig')
     env = dict(os.environ, PATH='%s/bin:%s' % (REPO_DIR, os.environ['PATH']))  # subset jobs call partis by name
     with open(logfname, 'w') as logfile:
-        retcode = subprocess.call(cmd, stdout=logfile, stderr=subprocess.STDOUT, cwd=REPO_DIR, env=env)
+        retcode = subprocess.run(cmd, stdout=logfile, stderr=subprocess.STDOUT, cwd=REPO_DIR, env=env, timeout=PARTIS_TIMEOUT).returncode
     if retcode != 0:
         with open(logfname) as logfile:
             tail = ''.join(logfile.readlines()[-20:])
@@ -41,10 +44,19 @@ def read_yaml(fname):
         return yaml.safe_load(yfile)
 
 
+def simu_meta():
+    return read_yaml(os.path.join(PAIRED_SIMU_DIR, 'meta.yaml'))
+
+
 def input_uids(locus):
-    return set(u for u, info in read_yaml(os.path.join(PAIRED_SIMU_DIR, 'meta.yaml')).items() if info['locus'] == locus)
+    return set(u for u, info in simu_meta().items() if info['locus'] == locus)
+
+
+def well_paired_uids(locus):
+    # paired to exactly one other-chain uid, which is paired back to only it
+    meta = simu_meta()
+    return set(u for u, info in meta.items() if info['locus'] == locus and len(info['paired-uids']) == 1 and meta[info['paired-uids'][0]]['paired-uids'] == [u])
 
 
 def partition_uids(fname):
-    from partis.clusterpath import ClusterPath
     return set(u for cluster in ClusterPath(fname=str(fname)).best() for u in cluster)
