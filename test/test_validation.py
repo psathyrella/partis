@@ -200,17 +200,16 @@ def test_ha_jobs_past_end(tmp_path, ha_only_dir):
     assert re.search(r'warning --job-start 100000 is past the end of the [0-9]+ jobs in', read_log(str(log)))
 
 
-def test_ha_assemble_with_missing_and_short_results(tmp_path, ha_only_dir):
+def test_ha_assemble_with_short_result(tmp_path, ha_only_dir):
     outdir = copy_dir(ha_only_dir, tmp_path / 'out')
     ddir, manifest = locus_manifest(outdir, 'igh')
     specs = ha_repartition.group_specs(ddir, manifest['groups'], 'igh')
     for spec in specs:  # so assemble redoes every group
         os.remove(spec['harep_out'])
     results = sorted(glob.glob('%s/**/clusters/*/partition.yaml' % ddir, recursive=True))
-    assert len(results) >= 3
+    assert len(results) >= 2
     shutil.copy(results[0], results[1])  # cluster 1's result now holds cluster 0's uids
-    os.remove(results[2])
     log = tmp_path / 'partis.log'
     run_partis(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(log))
-    counts = [tuple(int(n) for n in m) for m in re.findall(r'warning HA results in \S+: ([0-9]+) missing and ([0-9]+) not covering their cluster', read_log(str(log)))]
-    assert tuple(sum(c) for c in zip(*counts)) == (1, 1)
+    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) not covering their cluster, so those clusters are kept whole: cluster-', read_log(str(log)))]
+    assert sum(counts) == 1

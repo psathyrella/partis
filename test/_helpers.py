@@ -123,6 +123,10 @@ def logged_cmd(logfname):
         return logfile.readline().split()
 
 
+def group_stage_path(ddir, ginfo, stage, locus):
+    return '%s/%s/%s' % (ddir, os.path.dirname(ginfo['fasta_path']), dg.stage_fname(stage, locus))
+
+
 def manifest_fname(outdir, locus):
     return '%s/%s' % (disjoint_dir(outdir, locus), dg.MANIFEST_FNAME)
 

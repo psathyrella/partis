@@ -5197,6 +5197,30 @@ def subset_is_marked_complete(sdir):
     return any(os.path.exists('%s/%s' % (sdir, f)) for f in [SUBSET_COMPLETE_FNAME, LEGACY_SUBSET_COMPLETE_FNAME])
 
 # ----------------------------------------------------------------------------------------
+SUBSET_INPUT_FNAME = 'input-seqs.fa'
+
+# ----------------------------------------------------------------------------------------
+def subset_job_dir(args):
+    # the subset dir if this run is one subset's job (in-process or external), else None
+    if args.infname is None or os.path.basename(args.infname) != SUBSET_INPUT_FNAME:
+        return None
+    sdir = os.path.dirname(os.path.abspath(args.infname))
+    outdirs = [os.path.abspath(d) for d in [args.paired_outdir, args.parameter_dir] if d is not None]
+    if args.action == 'cache-parameters' and os.path.basename(os.path.dirname(sdir)) == PARAMETER_SUBSET_DIRNAME:
+        return sdir if any(d in [sdir, '%s/parameters' % sdir] for d in outdirs) else None  # paired, or single locus
+    if args.action in ['partition', 'annotate'] and re.match(r'^isub-[0-9]+$', os.path.basename(sdir)):  # subset-partition
+        return sdir if args.paired_outdir is not None and os.path.abspath(args.paired_outdir) == sdir else None
+    return None
+
+# ----------------------------------------------------------------------------------------
+def require_subsets_marked(sdirs, cstr):
+    # every subset counts as done only if its own job wrote the marker
+    unmarked = [d for d in sdirs if not subset_is_marked_complete(d)]
+    if len(unmarked) > 0:
+        raise Exception('%s: %d of %d subsets have no completion marker %s, so their jobs did not finish (re-run them, or create the marker by hand if the outputs are known good): %s'
+                        % (cstr, len(unmarked), len(sdirs), SUBSET_COMPLETE_FNAME, ' '.join(unmarked)))
+
+# ----------------------------------------------------------------------------------------
 # one hash convention and one set of error messages for every index that records what a split wrote
 XXH3_BLOCK_SIZE = 8 * 1024 * 1024
 SW_CACHE_EVENT_MARKERS = [b'"unique_ids"', b'unique_ids:']  # one per annotation, in json and yaml sw caches
@@ -8256,9 +8280,12 @@ def multifile_index_path(fname):
         return fname
     if os.path.isdir(fname):
         return '%s/%s' % (fname, disjointgrouper.MULTIFILE_INDEX_FNAME)
-    if os.path.exists(fname):  # a real file isn't multifile, even with a stale dir beside it
+    ifn = '%s/%s' % (multifile_dir(fname), disjointgrouper.MULTIFILE_INDEX_FNAME)
+    if os.path.exists(fname):
+        if os.path.exists(ifn):  # one of the two is stale, and nothing says which
+            raise Exception('output %s exists both as a single file and as a multifile dir %s, so one of them is stale (remove it)' % (fname, multifile_dir(fname)))
         return None
-    return '%s/%s' % (multifile_dir(fname), disjointgrouper.MULTIFILE_INDEX_FNAME)
+    return ifn
 
 # ----------------------------------------------------------------------------------------
 def multifile_output_exists(fname):

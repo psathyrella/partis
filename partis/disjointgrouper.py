@@ -557,6 +557,29 @@ def validate_sequence_count(manifest, fname=None, quiet=False):
         print('      sequence count validated: %d grouped + %d failed = %d total' % (total_grouped, n_failed, total_input))
 
 # ----------------------------------------------------------------------------------------
+def group_str(ginfo):
+    return 'group %d (cdr3-%d, %d seqs, %s)' % (ginfo['group_id'], ginfo['cdr3_length'], ginfo['sequence_count'], os.path.dirname(ginfo['fasta_path']))
+
+# ----------------------------------------------------------------------------------------
+def require_group_inputs(missing, n_groups, stagestr, prevstr):
+    # <missing>: groups whose earlier-stage files are gone, so they would drop out of <stagestr>
+    if len(missing) > 0:
+        raise Exception('%d of %d groups are missing their %s, so the earlier stage did not finish (run it first, then %s): %s'
+                        % (len(missing), n_groups, prevstr, stagestr, ', '.join(group_str(g) for g in missing[:5])))
+
+# ----------------------------------------------------------------------------------------
+def check_group_partition_complete(ginfo, fname):
+    # an existing group partition is skipped on re-run, so it has to be a finished one
+    estr = 'existing partition for %s is incomplete, so its partition job did not finish (delete it and re-run): %s' % (group_str(ginfo), fname)
+    if os.path.getsize(fname) == 0:
+        raise Exception('%s: empty file' % estr)
+    try:
+        _, annotation_list, cpath = utils.read_yaml_output(fname, dont_add_implicit_info=True)
+        check_stage_file_complete(fname, annotation_list, cpath)
+    except Exception as exc:
+        raise Exception('%s: %s' % (estr, exc)) from exc
+
+# ----------------------------------------------------------------------------------------
 def check_stage_file_complete(fname, annotation_list, cpath):
     # every annotated uid has to be in the file's best partition. a stage file written as block
     # yaml (--write-full-yaml-output) and truncated at a line boundary parses fine but loses the
@@ -666,7 +689,7 @@ def get_partition_paths(manifest, manifest_dir):
         if len(glist) == 0:
             continue
         raise Exception('%d of %d groups %s, so their partition jobs failed (re-running the stage skips the groups that are already done): %s'
-                        % (len(glist), len(manifest['groups']), dstr, ', '.join('group %d (cdr3-%d, %d seqs, %s)' % (g['group_id'], g['cdr3_length'], g['sequence_count'], os.path.dirname(g['fasta_path'])) for g in glist[:5])))
+                        % (len(glist), len(manifest['groups']), dstr, ', '.join(group_str(g) for g in glist[:5])))
     if n_superseded > 0:
         print('      %s manifest partition_path was stale for %d groups, used the more refined output instead' % (utils.wrnstr(), n_superseded))
     if len(unknown_stage) > 0:
@@ -1134,7 +1157,11 @@ def assemble_groups(locus, disjoint_dir, outfname, multifile_min_seqs=MULTIFILE_
     manifest['assembly']['validation']['gene_lists_consistent'] = True
 
     utils.mkdir(outfname, isfile=True)
-    if manifest['grouping-info']['total_grouped_sequences'] > multifile_min_seqs:
+    to_multifile = manifest['grouping-info']['total_grouped_sequences'] > multifile_min_seqs
+    stale = outfname if to_multifile else multifile_dir_path(outfname)  # the other form, from an earlier run
+    if os.path.exists(stale):
+        raise Exception('%s output from an earlier run is in the way of the %s output for %s (remove it): %s' % ('single file' if to_multifile else 'multifile', 'multifile' if to_multifile else 'single file', locus, stale))
+    if to_multifile:
         manifest['assembly']['status'] = 'multifile'
         manifest['assembly']['multifile_index_path'] = write_multifile_output(locus, manifest, gpaths, counts, outfname, max_seqs_per_file=multifile_max_seqs_per_file)
     else:
