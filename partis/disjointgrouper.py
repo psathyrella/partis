@@ -439,6 +439,8 @@ def _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=None, mer
     if len(cmdfos) > 0:
         print('        running %d vsearch hfrac jobs (%d concurrent, %d procs)' % (len(cmdfos), n_r1_jobs, n_procs))
         utils.run_cmds(cmdfos, n_max_procs=n_r1_jobs)
+    else:
+        print('        note: --hfrac has no effect: no cdr3 group qualifies for hfrac vsearch (--hfrac-min-seqs %d, largest group %d seqs)' % (min_group_size, max([s['n_seqs'] for s in specs.values()], default=0)))
 
     # parse round 1 results
     r1_by_c3len = {}
@@ -711,6 +713,14 @@ def validate_assembly(manifest, gpaths):
     return counts
 
 # ----------------------------------------------------------------------------------------
+def check_sw_cache_paths_exist(resolved_paths, sw_cache_paths):
+    # <sw_cache_paths> is what <resolved_paths> was resolved from, named in the error if it was a dir
+    missing = [p for p in resolved_paths if not os.path.exists(p)]
+    if len(missing) > 0:
+        srcstr = ' (listed in %s)' % sw_cache_index_fname(sw_cache_paths) if isinstance(sw_cache_paths, str) and os.path.isdir(sw_cache_paths) else ''
+        raise Exception('%d of %d sw cache files do not exist%s: %s' % (len(missing), len(resolved_paths), srcstr, ' '.join(missing)))
+
+# ----------------------------------------------------------------------------------------
 def resolve_sw_cache_paths(sw_cache_paths, locus):
     # <sw_cache_paths> as a list of files in subset order: one path, a list, or a dir holding the index or a parameter-subsets/ tree
     if not isinstance(sw_cache_paths, str):
@@ -777,6 +787,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
     # <n_subset_workers>: per-subset caches read at once, capped at <n_procs>
     # multiple caches are grouped a bounded number of subsets at a time
     resolved_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
+    check_sw_cache_paths_exist(resolved_paths, sw_cache_paths)
     index_expectations = sw_cache_index_expectations(sw_cache_paths, resolved_paths)
     sw_cache_paths = resolved_paths
     multi_cache = len(sw_cache_paths) > 1
@@ -965,9 +976,9 @@ def sw_cache_index_fname(locus_pdir):
     return '%s/%s' % (locus_pdir, SW_CACHE_INDEX_FNAME)
 
 # ----------------------------------------------------------------------------------------
-def check_no_sw_cache_index(locus_pdir):
+def check_no_sw_cache_index(locus_pdir, reason=None):
     if os.path.exists(sw_cache_index_fname(locus_pdir)):
-        raise Exception('no merged sw cache in %s, only the per-subset index %s' % (locus_pdir, SW_CACHE_INDEX_FNAME))
+        raise Exception('no merged sw cache in %s, only the per-subset index %s%s' % (locus_pdir, SW_CACHE_INDEX_FNAME, '' if reason is None else ': ' + reason))
 
 # ----------------------------------------------------------------------------------------
 def write_sw_cache_index(locus, locus_pdir, sw_cache_paths):

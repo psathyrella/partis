@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from _helpers import HFRAC_ARGS, N_SUBSETS, PAIRED_DATA_DIR, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, run_partis
+from _helpers import HFRAC_ARGS, N_SUBSETS, PAIRED_DATA_DIR, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, paired_partition_args, run_partis
 
 
 def run_chunked_cache_parameters(tmp_path_factory, name, extra_args):
@@ -36,10 +36,6 @@ def run_fixture(tmp_path_factory, name, args, outdir_arg='--paired-outdir'):
     basedir = tmp_path_factory.mktemp(name)
     run_partis(args + [outdir_arg, str(basedir / 'out')], str(basedir / 'partis.log'))
     return basedir / 'out'
-
-
-def paired_partition_args(extra_args, param_dir=PAIRED_PARAM_DIR):
-    return ['partition', '--paired-loci', '--paired-indir', PAIRED_SIMU_DIR, '--parameter-dir', str(param_dir), '--disjoint-groups'] + extra_args
 
 
 @pytest.fixture(scope='session')

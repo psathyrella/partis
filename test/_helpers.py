@@ -123,9 +123,16 @@ def logged_cmd(logfname):
         return logfile.readline().split()
 
 
+def manifest_fname(outdir, locus):
+    return '%s/%s' % (disjoint_dir(outdir, locus), dg.MANIFEST_FNAME)
+
+
 def locus_manifest(outdir, locus):
-    ddir = disjoint_dir(outdir, locus)
-    return ddir, dg.read_manifest('%s/%s' % (ddir, dg.MANIFEST_FNAME))
+    return disjoint_dir(outdir, locus), dg.read_manifest(manifest_fname(outdir, locus))
+
+
+def paired_partition_args(extra_args, param_dir=PAIRED_PARAM_DIR, indir=PAIRED_SIMU_DIR):
+    return ['partition', '--paired-loci', '--paired-indir', str(indir), '--parameter-dir', str(param_dir), '--disjoint-groups'] + extra_args
 
 
 def partition_fname(outdir, locus, single_chain=False):
