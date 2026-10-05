@@ -158,6 +158,8 @@ def run_simulation(args):
                 raise Exception('--parameter-dir (with --parameter-type \'%s\') doesn\'t exist: %s' % (utils.get_parameter_type(args, args.reco_parameter_dir), tpdir))
             input_gldir = tpdir + '/' + glutils.glfo_dir
     glfo = glutils.read_glfo(input_gldir, args.locus, only_genes=args.only_genes)
+    if args.rearrange_from_scratch:  # the germline set may contain genes that are fine for annotation, but that we can't rearrange (e.g. issue #337)
+        glutils.remove_genes_unusable_for_simulation(glfo, input_gldir, only_genes=args.only_genes, debug=args.debug)
 
     working_gldir = None  # if we generate a germline set and we're also going to run subprocesses, we need to write that glfo to disk so the subprocs can see it
     if not args.im_a_subproc and args.generate_germline_set:
