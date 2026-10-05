@@ -5333,9 +5333,12 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
                 print('       %s %s: subset-merged input exists, not rewriting (--overwrite to redo it)' % (color('yellow', 'warning'), locstr(ltmp)))
             else:  # counts already merged, so add just the sw cache
                 sub_swfs = subset_sw_cache_fnames()
-                print('       %s %s: subset-merged input exists but has no merged sw cache, merging %d per-subset caches into it' % (color('yellow', 'warning'), locstr(ltmp), len(sub_swfs)))
+                nocachestr = '       %s %s: subset-merged input exists but has no merged sw cache' % (wrnstr(), locstr(ltmp))
                 if len(sub_swfs) > 0:
+                    print('%s, merging %d per-subset caches into it' % (nocachestr, len(sub_swfs)))
                     merge_sw_caches(sub_swfs)
+                else:
+                    print('%s, and there are no per-subset caches to merge into it' % nocachestr)
             merged_loci.append(ltmp)
             continue
         sub_swfs = subset_sw_cache_fnames()

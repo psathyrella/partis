@@ -23,6 +23,7 @@ import yaml
 import csv
 import operator
 import glob
+import re
 from collections import defaultdict
 from pathlib import Path
 import shutil
@@ -150,9 +151,30 @@ def sw_cache_path(locus_pdir):
 # ----------------------------------------------------------------------------------------
 def sw_cache_input(locus_pdir):
     # the sw-cache file, or the dir holding the index when there is no merged file
-    if not os.path.exists(sw_cache_path(locus_pdir)) and os.path.exists(disjointgrouper.sw_cache_index_fname(locus_pdir)):
+    if os.path.exists(sw_cache_path(locus_pdir)):
+        return sw_cache_path(locus_pdir)
+    if os.path.exists(disjointgrouper.sw_cache_index_fname(locus_pdir)):
         return locus_pdir
-    return sw_cache_path(locus_pdir)
+    hashed_caches = [f for f in glob.glob('%s/sw-cache-*.yaml' % locus_pdir) if re.match(r'sw-cache-[0-9a-f]+\.yaml$', os.path.basename(f))]  # single-locus cache-parameters names its cache by input hash
+    hashstr = '' if len(hashed_caches) == 0 else ', but found %s (pass it with --sw-cachefname)' % ' '.join(hashed_caches)
+    raise Exception('no sw cache to group from in %s: neither %s nor %s exists%s' % (locus_pdir, disjointgrouper.SW_CACHE_FNAME, disjointgrouper.SW_CACHE_INDEX_FNAME, hashstr))
+
+# ----------------------------------------------------------------------------------------
+def locus_parameter_dir(parameter_dir, locus):
+    locus_pdir = '%s/%s' % (parameter_dir, locus)
+    if not os.path.exists(locus_pdir):  # single-locus parameter dir, which has no per-locus subdir
+        locus_pdir = parameter_dir
+    return locus_pdir
+
+# ----------------------------------------------------------------------------------------
+def ha_germline_dir(args, locus_pdir, locus):
+    # germline set dir for the HA jobs
+    if locus_pdir is None:
+        raise Exception('HA re-partition needs --parameter-dir')
+    gldir = '%s/%s' % (utils.parameter_type_subdir(args, locus_pdir), glutils.glfo_dir)
+    if not os.path.isdir('%s/%s' % (gldir, locus)):
+        raise Exception('HA re-partition needs germline sets in %s/%s, which does not exist' % (gldir, locus))
+    return gldir
 
 # ----------------------------------------------------------------------------------------
 def disjoint_dir_for(outdir, locus):
@@ -163,13 +185,12 @@ def disjoint_dir_for(outdir, locus):
 def disjoint_group_action(args):
     # standalone entry point for disjoint-group action (for running steps on separate batch systems)
     # --sw-cachefname: single file, colon-separated paths, or a dir holding per-subset caches
+    if args.sw_cachefname is None and args.parameter_dir is None:
+        raise Exception('\'create-disjoint-groups\' needs --parameter-dir (or --sw-cachefname) to find the sw cache to group from')
     if args.sw_cachefname is not None:
         sw_cache_paths = args.sw_cachefname.split(':') if ':' in args.sw_cachefname else args.sw_cachefname
     else:
-        locus_pdir = '%s/%s' % (args.parameter_dir, args.locus)
-        if not os.path.exists(locus_pdir):  # single-locus parameter dir, which has no per-locus subdir
-            locus_pdir = args.parameter_dir
-        sw_cache_paths = sw_cache_input(locus_pdir)
+        sw_cache_paths = sw_cache_input(locus_parameter_dir(args.parameter_dir, args.locus))
     if args.paired_outdir is None:
         raise Exception('--paired-outdir must be set')
     disjoint_dir = disjoint_dir_for(args.paired_outdir, args.locus)
@@ -222,7 +243,15 @@ def run_ha_repartition_jobs_action(args):
     # task list (one SLURM array task, or one internal bundle), in-process with glfo loaded
     # once for the whole slice. Appends per-cluster timing to ha-repartition-timing-<locus>.csv.
     disjoint_dir = _disjoint_locus_dir(args)
-    jobs = ha_repartition.read_task_list(ha_repartition.task_list_fname(disjoint_dir, args.locus))
+    if args.parameter_dir is not None:  # the per-cluster partitions need the locus dir too
+        args.parameter_dir = locus_parameter_dir(args.parameter_dir, args.locus)
+    gldir = ha_germline_dir(args, args.parameter_dir, args.locus)
+    task_list = ha_repartition.task_list_fname(disjoint_dir, args.locus)
+    if not os.path.exists(task_list):
+        raise Exception('HA task list %s does not exist (run create-ha-repartition-jobs first)' % task_list)
+    jobs = ha_repartition.read_task_list(task_list)
+    if args.job_start >= len(jobs):
+        print('  %s --job-start %d is past the end of the %d jobs in %s, nothing to run' % (utils.wrnstr(), args.job_start, len(jobs), task_list))
     stop = len(jobs) if args.job_count is None else args.job_start + args.job_count
     jobs = jobs[args.job_start : stop]
     # HA config (matches the per-cluster partition command): cluster fastas are data, no
@@ -231,7 +260,6 @@ def run_ha_repartition_jobs_action(args):
     args.random_seed = 0
     random.seed(0)
     numpy.random.seed(0)
-    gldir = utils.parameter_type_subdir(args, args.parameter_dir) + '/' + glutils.glfo_dir
     glfo = glutils.read_glfo(gldir, args.locus, only_genes=args.only_genes)
     timing_csv = '%s/ha-repartition-timing-%s.csv' % (disjoint_dir, args.locus)
     ha_repartition.run_jobs_in_process(jobs, args, glfo, timing_csv=timing_csv)
@@ -650,6 +678,9 @@ def subset_cache_parameters(args):
         input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
         sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
                                                 seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=args.no_pairing_info or not args.paired_loci, debug=True)
+        n_empty = len([s for s in sfo_lists if len(s) == 0])
+        if n_empty > 0:
+            raise Exception('%d of %d subsets are empty: --n-subsets %d is too large for the %d seqs in %s' % (n_empty, len(sfo_lists), args.n_subsets, len(input_info), infname))
         meta_keys = set(utils.input_metafile_keys.values())  # strip input_info to what the per-subset meta.yaml needs
         for uid, tline in input_info.items():
             input_info[uid] = {k : v for k, v in tline.items() if k in meta_keys or k == 'unique_ids'}
@@ -1665,6 +1696,31 @@ def run_all_loci(args, ig_or_tr='ig'):
         for ltmp in sloci():
             single_outfos['cpaths'][ltmp] = ClusterPath(partition=getattr(single_outfos['cpaths'][ltmp], pfcn)(), seed_unique_id=seedid(ltmp))
     # ----------------------------------------------------------------------------------------
+    def disjoint_skip_reason(ltmp):
+        # why <ltmp> has nothing to partition, as (reason, path), or None
+        ifn = getifn(ltmp)
+        if not os.path.exists(ifn) or os.stat(ifn).st_size == 0:
+            return ('input file missing' if not os.path.exists(ifn) else 'zero length input file', ifn)
+        if not os.path.isdir(getpdir(ltmp)):
+            return ('parameter dir missing', getpdir(ltmp))
+        return None
+    # ----------------------------------------------------------------------------------------
+    def check_disjoint_inputs():
+        # parameter dir checks for every locus, so a bad one fails before any grouping
+        runs_paired_merge = not (args.no_pairing_info or args.dry_run or args.ha_repartition or args.partition_refine)
+        for ltmp in sloci():
+            if disjoint_skip_reason(ltmp) is not None:
+                continue
+            if args.partition_refine:  # check up front for an incomplete parameter dir
+                import partis.partition_refinement as partition_refinement
+                if utils.has_d_gene(ltmp):
+                    partition_refinement.validate_length_tables(getpdir(ltmp))
+                partition_refinement.validate_mute_freq_tables(os.path.join(getpdir(ltmp), 'hmm', 'mute-freqs'))
+            if args.ha_repartition:
+                ha_germline_dir(args, getpdir(ltmp), ltmp)
+            if runs_paired_merge and not os.path.exists(sw_cache_path(getpdir(ltmp))):  # the paired merge's joint annotate needs a merged sw cache
+                disjointgrouper.check_no_sw_cache_index(getpdir(ltmp), reason='the paired merge after \'partition --disjoint-groups\' needs one: re-run merge-parameter-subsets without --no-merged-sw-cache, or partition single chain')
+    # ----------------------------------------------------------------------------------------
     def combine_inf_chains():
         print('%s chains' % utils.color('blue_bkg', 'combining'))
         sys.stdout.flush()
@@ -1828,18 +1884,16 @@ def run_all_loci(args, ig_or_tr='ig'):
     def run_disjoint_partition(ltmp):
         # run partition on a single locus using disjoint CDR3-length grouping: group by CDR3 length,
         # partition each group independently, concatenate results.
-        ifn = getifn(ltmp)
-        if not os.path.exists(ifn) or os.stat(ifn).st_size == 0:
-            print('  %s: %s, skipping disjoint partition (%s)' % (ltmp, 'input file missing' if not os.path.exists(ifn) else 'zero length input file', ifn))
-            return
-        if not os.path.isdir(getpdir(ltmp)):
-            print('  %s: parameter dir missing, skipping disjoint partition (%s)' % (ltmp, getpdir(ltmp)))
+        skip_reason = disjoint_skip_reason(ltmp)
+        if skip_reason is not None:
+            skipstr = '(expected with unpaired input)' if args.no_pairing_info else utils.wrnstr()  # unpaired input leaves the other loci empty
+            print('  %s %s: %s, skipping disjoint partition (%s)' % ((skipstr, ltmp) + skip_reason))
             return
         disjoint_dir = disjoint_dir_for(getodir(), ltmp)
         print('%s %s with disjoint groups:' % (utils.color('blue_bkg', 'partition'), utils.color('blue', ltmp)))
-        if args.partition_refine and utils.has_d_gene(ltmp):  # check up front for an incomplete parameter dir
-            import partis.partition_refinement as partition_refinement
-            partition_refinement.validate_length_tables(getpdir(ltmp))
+        if args.dry_run:  # grouping writes the manifest that later runs trust, so a dry-run stops here
+            print('    --dry-run: would group %s with parameter dir %s' % (ltmp, getpdir(ltmp)))
+            return
 
         # step 1: CDR3 grouping
         manifest_path = '%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME)
@@ -1991,6 +2045,8 @@ def run_all_loci(args, ig_or_tr='ig'):
         if args.action not in ['merge-paired-partitions', 'view-output']+ex_out_cfg_actions or (args.action in ex_out_cfg_actions and 'single' in args.existing_output_run_cfg):
             if args.seed_unique_id is not None and args.action == 'partition':
                 remove_unseeded_seqs()
+            if args.disjoint_groups and args.action == 'partition':
+                check_disjoint_inputs()
             for ltmp in sloci():
                 if args.disjoint_groups and args.action == 'partition':
                     run_disjoint_partition(ltmp)

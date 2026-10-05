@@ -90,6 +90,7 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
     clusters = _load_best_partition(partition_fname)
     cdir = os.path.join(workdir, 'clusters')
     repartitioned, n_split, n_kept = [], 0, 0
+    n_missing, n_uncovered = 0, 0
     for idx, cluster in enumerate(clusters):
         result = os.path.join(cdir, cluster_id(idx, cluster), 'partition.yaml')
         # existence is the per-cluster HA job's completion signal; a result that does not cover the
@@ -101,8 +102,13 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
                 n_split += 1 if len(subs) > 1 else 0
                 n_kept += 1 if len(subs) == 1 else 0
                 continue
+            n_uncovered += 1
+        elif len(cluster) >= min_cluster_size:
+            n_missing += 1
         repartitioned.append(cluster)
         n_kept += 1
+    if n_missing + n_uncovered > 0:
+        print('    %s HA results in %s: %d missing and %d not covering their cluster, so those clusters are kept whole' % (utils.wrnstr(), cdir, n_missing, n_uncovered))
     # write full output: synthesize each cluster's annotation from the persistent
     # partition-step annotations (full-length HMM naive_seq/input_seqs), not the sw-cache
     # (which stores SW-trimmed, variable-length seqs). partition-refine consumes these
@@ -182,11 +188,14 @@ def read_task_list(path):
     """Read a locus task list (written by prepare_all) into job dicts."""
     jobs = []
     with open(path) as f:
-        for line in f:
+        for iline, line in enumerate(f):
             line = line.rstrip('\n')
             if not line:
                 continue
-            cid, infname, outfname, n_seqs = line.split('\t')
+            fields = line.split('\t')
+            if len(fields) != 4 or not fields[3].isdigit():
+                raise Exception('malformed line %d in HA task list %s (want four tab separated fields, the last a seq count): %s' % (iline + 1, path, line))
+            cid, infname, outfname, n_seqs = fields
             jobs.append({'cluster_id': cid, 'infname': infname,
                          'outfname': outfname, 'n_seqs': int(n_seqs)})
     return jobs

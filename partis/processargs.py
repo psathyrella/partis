@@ -120,8 +120,16 @@ def process(args):
 
     if args.action == 'partition' and args.disjoint_groups and not args.paired_loci:
         auto_enable_paired_loci('--disjoint-groups')
+    if args.action in single_locus_actions and not any(a == '--locus' or a.startswith('--locus=') for a in sys.argv):  # the --locus default is for the multi-locus actions
+        raise Exception('\'%s\' runs on one locus, so --locus must be set explicitly' % args.action)
     if args.action in single_locus_actions and not args.paired_loci:  # turns on --paired-loci so --paired-outdir is allowed; --locus stays set
         auto_enable_paired_loci(args.action)
+    for hfarg in ['hfrac_min_seqs', 'hfrac_max_bin_size', 'hfrac_merge_factor']:
+        hfval = getattr(args, hfarg, None)
+        if hfval is not None and hfval < 0:
+            raise Exception('--%s must not be negative, but got %s' % (hfarg.replace('_', '-'), hfval))
+    if args.action == 'partition' and args.disjoint_groups and args.seed_unique_id is not None:  # grouping reads the whole sw cache, so the seed filter would be ignored
+        raise Exception('--seed-unique-id is not yet supported with \'partition --disjoint-groups\'')
     standalone_disjoint_actions = ['create-disjoint-groups', 'assemble-groups']
     if hasattr(args, 'hfrac') and args.hfrac and not getattr(args, 'disjoint_groups', False) and args.action not in standalone_disjoint_actions:
         raise Exception('--hfrac requires --disjoint-groups')
