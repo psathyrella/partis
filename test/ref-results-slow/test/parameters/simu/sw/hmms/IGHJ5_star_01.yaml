@@ -1,0 +1,966 @@
+!!python/object:partis.hmmwriter.HMM
+extras:
+  gene_prob: 0.0037209302325581397
+  overall_mute_freq: 0.05330697674418606
+  per_gene_mute_freq: 0.06614518011855906
+name: IGHJ5_star_01
+states:
+- !!python/object:partis.hmmwriter.State
+  emissions: null
+  extras: {}
+  name: init
+  transitions:
+    IGHJ5_star_01_0: 0.0030769230769230765
+    IGHJ5_star_01_1: 0.004307692307692307
+    IGHJ5_star_01_10: 0.0030769230769230765
+    IGHJ5_star_01_11: 0.0030769230769230765
+    IGHJ5_star_01_12: 0.0030769230769230765
+    IGHJ5_star_01_13: 0.0030769230769230765
+    IGHJ5_star_01_14: 0.0030769230769230765
+    IGHJ5_star_01_15: 0.0030769230769230765
+    IGHJ5_star_01_16: 0.0030769230769230765
+    IGHJ5_star_01_17: 0.0030769230769230765
+    IGHJ5_star_01_2: 0.005538461538461539
+    IGHJ5_star_01_3: 0.006769230769230769
+    IGHJ5_star_01_4: 0.008
+    IGHJ5_star_01_5: 0.00923076923076923
+    IGHJ5_star_01_6: 0.007384615384615383
+    IGHJ5_star_01_7: 0.005538461538461538
+    IGHJ5_star_01_8: 0.003692307692307691
+    IGHJ5_star_01_9: 0.0018461538461538452
+    insert_left_A: 0.14950869236583525
+    insert_left_C: 0.24442932728647015
+    insert_left_G: 0.3143159486016629
+    insert_left_T: 0.21174603174603174
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9338548198814409
+      C: 0.022048393372853022
+      G: 0.022048393372853022
+      T: 0.022048393372853022
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: insert_left_A
+  transitions:
+    IGHJ5_star_01_0: 0.007396449704142011
+    IGHJ5_star_01_1: 0.010355029585798814
+    IGHJ5_star_01_10: 0.007396449704142011
+    IGHJ5_star_01_11: 0.007396449704142011
+    IGHJ5_star_01_12: 0.007396449704142011
+    IGHJ5_star_01_13: 0.007396449704142011
+    IGHJ5_star_01_14: 0.007396449704142011
+    IGHJ5_star_01_15: 0.007396449704142011
+    IGHJ5_star_01_16: 0.007396449704142011
+    IGHJ5_star_01_17: 0.007396449704142011
+    IGHJ5_star_01_2: 0.013313609467455622
+    IGHJ5_star_01_3: 0.016272189349112422
+    IGHJ5_star_01_4: 0.01923076923076923
+    IGHJ5_star_01_5: 0.02218934911242603
+    IGHJ5_star_01_6: 0.017751479289940822
+    IGHJ5_star_01_7: 0.013313609467455618
+    IGHJ5_star_01_8: 0.00887573964497041
+    IGHJ5_star_01_9: 0.004437869822485205
+    insert_left_A: 0.13125763125763126
+    insert_left_C: 0.2145909645909646
+    insert_left_G: 0.27594627594627597
+    insert_left_T: 0.1858974358974359
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.022048393372853022
+      C: 0.9338548198814409
+      G: 0.022048393372853022
+      T: 0.022048393372853022
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: insert_left_C
+  transitions:
+    IGHJ5_star_01_0: 0.007396449704142011
+    IGHJ5_star_01_1: 0.010355029585798814
+    IGHJ5_star_01_10: 0.007396449704142011
+    IGHJ5_star_01_11: 0.007396449704142011
+    IGHJ5_star_01_12: 0.007396449704142011
+    IGHJ5_star_01_13: 0.007396449704142011
+    IGHJ5_star_01_14: 0.007396449704142011
+    IGHJ5_star_01_15: 0.007396449704142011
+    IGHJ5_star_01_16: 0.007396449704142011
+    IGHJ5_star_01_17: 0.007396449704142011
+    IGHJ5_star_01_2: 0.013313609467455622
+    IGHJ5_star_01_3: 0.016272189349112422
+    IGHJ5_star_01_4: 0.01923076923076923
+    IGHJ5_star_01_5: 0.02218934911242603
+    IGHJ5_star_01_6: 0.017751479289940822
+    IGHJ5_star_01_7: 0.013313609467455618
+    IGHJ5_star_01_8: 0.00887573964497041
+    IGHJ5_star_01_9: 0.004437869822485205
+    insert_left_A: 0.13125763125763126
+    insert_left_C: 0.2145909645909646
+    insert_left_G: 0.27594627594627597
+    insert_left_T: 0.1858974358974359
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.022048393372853022
+      C: 0.022048393372853022
+      G: 0.9338548198814409
+      T: 0.022048393372853022
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: insert_left_G
+  transitions:
+    IGHJ5_star_01_0: 0.007396449704142011
+    IGHJ5_star_01_1: 0.010355029585798814
+    IGHJ5_star_01_10: 0.007396449704142011
+    IGHJ5_star_01_11: 0.007396449704142011
+    IGHJ5_star_01_12: 0.007396449704142011
+    IGHJ5_star_01_13: 0.007396449704142011
+    IGHJ5_star_01_14: 0.007396449704142011
+    IGHJ5_star_01_15: 0.007396449704142011
+    IGHJ5_star_01_16: 0.007396449704142011
+    IGHJ5_star_01_17: 0.007396449704142011
+    IGHJ5_star_01_2: 0.013313609467455622
+    IGHJ5_star_01_3: 0.016272189349112422
+    IGHJ5_star_01_4: 0.01923076923076923
+    IGHJ5_star_01_5: 0.02218934911242603
+    IGHJ5_star_01_6: 0.017751479289940822
+    IGHJ5_star_01_7: 0.013313609467455618
+    IGHJ5_star_01_8: 0.00887573964497041
+    IGHJ5_star_01_9: 0.004437869822485205
+    insert_left_A: 0.13125763125763126
+    insert_left_C: 0.2145909645909646
+    insert_left_G: 0.27594627594627597
+    insert_left_T: 0.1858974358974359
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.022048393372853022
+      C: 0.022048393372853022
+      G: 0.022048393372853022
+      T: 0.9338548198814409
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: insert_left_T
+  transitions:
+    IGHJ5_star_01_0: 0.007396449704142011
+    IGHJ5_star_01_1: 0.010355029585798814
+    IGHJ5_star_01_10: 0.007396449704142011
+    IGHJ5_star_01_11: 0.007396449704142011
+    IGHJ5_star_01_12: 0.007396449704142011
+    IGHJ5_star_01_13: 0.007396449704142011
+    IGHJ5_star_01_14: 0.007396449704142011
+    IGHJ5_star_01_15: 0.007396449704142011
+    IGHJ5_star_01_16: 0.007396449704142011
+    IGHJ5_star_01_17: 0.007396449704142011
+    IGHJ5_star_01_2: 0.013313609467455622
+    IGHJ5_star_01_3: 0.016272189349112422
+    IGHJ5_star_01_4: 0.01923076923076923
+    IGHJ5_star_01_5: 0.02218934911242603
+    IGHJ5_star_01_6: 0.017751479289940822
+    IGHJ5_star_01_7: 0.013313609467455618
+    IGHJ5_star_01_8: 0.00887573964497041
+    IGHJ5_star_01_9: 0.004437869822485205
+    insert_left_A: 0.13125763125763126
+    insert_left_C: 0.2145909645909646
+    insert_left_G: 0.27594627594627597
+    insert_left_T: 0.1858974358974359
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9338548198814409
+      C: 0.02204839337285302
+      G: 0.02204839337285302
+      T: 0.02204839337285302
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHJ5_star_01_0
+  transitions:
+    IGHJ5_star_01_1: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.02183442331661347
+      C: 0.9344967300501595
+      G: 0.02183442331661347
+      T: 0.02183442331661347
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_1
+  transitions:
+    IGHJ5_star_01_2: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9351386402188783
+      C: 0.021620453260373918
+      G: 0.021620453260373918
+      T: 0.021620453260373918
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHJ5_star_01_2
+  transitions:
+    IGHJ5_star_01_3: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9357805503875969
+      C: 0.02140648320413437
+      G: 0.02140648320413437
+      T: 0.02140648320413437
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHJ5_star_01_3
+  transitions:
+    IGHJ5_star_01_4: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.02119251314789482
+      C: 0.9364224605563155
+      G: 0.02119251314789482
+      T: 0.02119251314789482
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_4
+  transitions:
+    IGHJ5_star_01_5: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.02097854309165527
+      C: 0.02097854309165527
+      G: 0.02097854309165527
+      T: 0.9370643707250342
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHJ5_star_01_5
+  transitions:
+    IGHJ5_star_01_6: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.024698433500531997
+      C: 0.024698433500531997
+      G: 0.925904699498404
+      T: 0.024698433500531997
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_6
+  transitions:
+    IGHJ5_star_01_7: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.025140106855145162
+      C: 0.025140106855145162
+      G: 0.9245796794345645
+      T: 0.025140106855145162
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_7
+  transitions:
+    IGHJ5_star_01_8: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.020336632922936623
+      C: 0.020336632922936623
+      G: 0.020336632922936623
+      T: 0.9389901012311901
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHJ5_star_01_8
+  transitions:
+    IGHJ5_star_01_9: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.02012266286669707
+      C: 0.02012266286669707
+      G: 0.02012266286669707
+      T: 0.9396320113999088
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHJ5_star_01_9
+  transitions:
+    IGHJ5_star_01_10: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01990869281045752
+      C: 0.9402739215686274
+      G: 0.01990869281045752
+      T: 0.01990869281045752
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_10
+  transitions:
+    IGHJ5_star_01_11: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01969472275421797
+      C: 0.01969472275421797
+      G: 0.940915831737346
+      T: 0.01969472275421797
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_11
+  transitions:
+    IGHJ5_star_01_12: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.917954579115367
+      C: 0.027348473628210974
+      G: 0.027348473628210974
+      T: 0.027348473628210974
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHJ5_star_01_12
+  transitions:
+    IGHJ5_star_01_13: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.019266782641738874
+      C: 0.9421996520747834
+      G: 0.019266782641738874
+      T: 0.019266782641738874
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_13
+  transitions:
+    IGHJ5_star_01_14: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.019052812585499318
+      C: 0.019052812585499318
+      G: 0.019052812585499318
+      T: 0.942841562243502
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHJ5_star_01_14
+  transitions:
+    IGHJ5_star_01_15: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.028673493692050467
+      C: 0.9139795189238487
+      G: 0.028673493692050467
+      T: 0.028673493692050467
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_15
+  transitions:
+    IGHJ5_star_01_16: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.02911516704666363
+      C: 0.9126544988600092
+      G: 0.02911516704666363
+      T: 0.02911516704666363
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_16
+  transitions:
+    IGHJ5_star_01_17: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.018410902416780672
+      C: 0.018410902416780672
+      G: 0.018410902416780672
+      T: 0.944767292749658
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHJ5_star_01_17
+  transitions:
+    IGHJ5_star_01_18: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01819693236054112
+      C: 0.01819693236054112
+      G: 0.9454092029183766
+      T: 0.01819693236054112
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_18
+  transitions:
+    IGHJ5_star_01_19: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.017982962304301568
+      C: 0.017982962304301568
+      G: 0.9460511130870953
+      T: 0.017982962304301568
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_19
+  transitions:
+    IGHJ5_star_01_20: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.01776899224806202
+      G: 0.946693023255814
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_20
+  transitions:
+    IGHJ5_star_01_21: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.01776899224806202
+      G: 0.946693023255814
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_21
+  transitions:
+    IGHJ5_star_01_22: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.03088186046511628
+      C: 0.9073544186046512
+      G: 0.03088186046511628
+      T: 0.03088186046511628
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_22
+  transitions:
+    IGHJ5_star_01_23: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.946693023255814
+      G: 0.01776899224806202
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_23
+  transitions:
+    IGHJ5_star_01_24: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.946693023255814
+      C: 0.01776899224806202
+      G: 0.01776899224806202
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHJ5_star_01_24
+  transitions:
+    IGHJ5_star_01_25: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.946693023255814
+      C: 0.00888449612403101
+      G: 0.03553798449612404
+      T: 0.00888449612403101
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHJ5_star_01_25
+  transitions:
+    IGHJ5_star_01_26: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.01776899224806202
+      G: 0.946693023255814
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_26
+  transitions:
+    IGHJ5_star_01_27: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.01776899224806202
+      G: 0.946693023255814
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_27
+  transitions:
+    IGHJ5_star_01_28: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.946693023255814
+      C: 0.01776899224806202
+      G: 0.01776899224806202
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHJ5_star_01_28
+  transitions:
+    IGHJ5_star_01_29: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9073544186046512
+      C: 0.03088186046511628
+      G: 0.03088186046511628
+      T: 0.03088186046511628
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHJ5_star_01_29
+  transitions:
+    IGHJ5_star_01_30: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.946693023255814
+      G: 0.01776899224806202
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_30
+  transitions:
+    IGHJ5_star_01_31: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.946693023255814
+      G: 0.01776899224806202
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_31
+  transitions:
+    IGHJ5_star_01_32: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.946693023255814
+      G: 0.01776899224806202
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_32
+  transitions:
+    IGHJ5_star_01_33: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.03088186046511628
+      C: 0.03088186046511628
+      G: 0.03088186046511628
+      T: 0.9073544186046512
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHJ5_star_01_33
+  transitions:
+    IGHJ5_star_01_34: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.01776899224806202
+      G: 0.946693023255814
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_34
+  transitions:
+    IGHJ5_star_01_35: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.01776899224806202
+      G: 0.946693023255814
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_35
+  transitions:
+    IGHJ5_star_01_36: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.01776899224806202
+      G: 0.01776899224806202
+      T: 0.946693023255814
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHJ5_star_01_36
+  transitions:
+    IGHJ5_star_01_37: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.946693023255814
+      G: 0.01776899224806202
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_37
+  transitions:
+    IGHJ5_star_01_38: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.946693023255814
+      C: 0.01776899224806202
+      G: 0.01776899224806202
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHJ5_star_01_38
+  transitions:
+    IGHJ5_star_01_39: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.03088186046511628
+      C: 0.9073544186046512
+      G: 0.03088186046511628
+      T: 0.03088186046511628
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_39
+  transitions:
+    IGHJ5_star_01_40: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.03088186046511628
+      C: 0.9073544186046512
+      G: 0.03088186046511628
+      T: 0.03088186046511628
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_40
+  transitions:
+    IGHJ5_star_01_41: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.01776899224806202
+      G: 0.946693023255814
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_41
+  transitions:
+    IGHJ5_star_01_42: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.03088186046511628
+      C: 0.03088186046511628
+      G: 0.03088186046511628
+      T: 0.9073544186046512
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHJ5_star_01_42
+  transitions:
+    IGHJ5_star_01_43: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.946693023255814
+      G: 0.01776899224806202
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_43
+  transitions:
+    IGHJ5_star_01_44: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.03088186046511628
+      C: 0.03088186046511628
+      G: 0.03088186046511628
+      T: 0.9073544186046512
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHJ5_star_01_44
+  transitions:
+    IGHJ5_star_01_45: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.03088186046511628
+      C: 0.9073544186046512
+      G: 0.03088186046511628
+      T: 0.03088186046511628
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_45
+  transitions:
+    IGHJ5_star_01_46: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.028161395348837208
+      C: 0.8873544186046511
+      G: 0.056322790697674416
+      T: 0.028161395348837208
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_46
+  transitions:
+    IGHJ5_star_01_47: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.01776899224806202
+      G: 0.01776899224806202
+      T: 0.946693023255814
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: T
+  name: IGHJ5_star_01_47
+  transitions:
+    IGHJ5_star_01_48: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.031770310077519376
+      C: 0.9046890697674419
+      G: 0.031770310077519376
+      T: 0.031770310077519376
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: C
+  name: IGHJ5_star_01_48
+  transitions:
+    IGHJ5_star_01_49: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.9046890697674419
+      C: 0.031770310077519376
+      G: 0.031770310077519376
+      T: 0.031770310077519376
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: A
+  name: IGHJ5_star_01_49
+  transitions:
+    IGHJ5_star_01_50: 1.0
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.01776899224806202
+      C: 0.01776899224806202
+      G: 0.946693023255814
+      T: 0.01776899224806202
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: G
+  name: IGHJ5_star_01_50
+  transitions:
+    end: 0.04
+    insert_right_N: 0.96
+- !!python/object:partis.hmmwriter.State
+  emissions:
+    probs:
+      A: 0.25
+      C: 0.25
+      G: 0.25
+      T: 0.25
+    track: nukes
+  extras:
+    ambiguous_char: N
+    ambiguous_emission_prob: 0.25
+    germline: N
+  name: insert_right_N
+  transitions:
+    end: 0.040000000000000036
+    insert_right_N: 0.96
+tracks:
+  nukes:
+  - A
+  - C
+  - G
+  - T
