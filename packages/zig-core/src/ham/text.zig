@@ -127,6 +127,44 @@ pub fn floatify(allocator: std.mem.Allocator, strlist: []const []const u8) ![]f6
     return result;
 }
 
+/// Prints a standardized error diagnostic when a file exceeds a size limit.
+/// Format matches: "error: <file_desc> '<path>' (<actual_size> bytes) exceeds maximum supported size (<max_bytes> bytes / <max_gb> GiB)"
+pub fn printFileTooBig(file_desc: []const u8, path: []const u8, actual_size: ?u64, max_bytes: u64) void {
+    if (actual_size) |sz| {
+        if (max_bytes >= 1024 * 1024 * 1024) {
+            std.debug.print("error: {s} '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
+                file_desc,
+                path,
+                sz,
+                max_bytes,
+                max_bytes / (1024 * 1024 * 1024),
+            });
+        } else {
+            std.debug.print("error: {s} '{s}' ({d} bytes) exceeds maximum supported size ({d} bytes)\n", .{
+                file_desc,
+                path,
+                sz,
+                max_bytes,
+            });
+        }
+    } else {
+        if (max_bytes >= 1024 * 1024 * 1024) {
+            std.debug.print("error: {s} '{s}' exceeds maximum supported size ({d} bytes / {d} GiB)\n", .{
+                file_desc,
+                path,
+                max_bytes,
+                max_bytes / (1024 * 1024 * 1024),
+            });
+        } else {
+            std.debug.print("error: {s} '{s}' exceeds maximum supported size ({d} bytes)\n", .{
+                file_desc,
+                path,
+                max_bytes,
+            });
+        }
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 test "splitString default delimiter" {
@@ -175,4 +213,10 @@ test "pythonSplit" {
     }
     try std.testing.expectEqual(@as(usize, 3), tokens.items.len);
     try std.testing.expectEqualStrings("foo", tokens.items[0]);
+}
+
+test "printFileTooBig formats without crashing" {
+    printFileTooBig("input file", "path/to/test.csv", 100, 50);
+    printFileTooBig("cache file", "path/to/cache.csv", 5 * 1024 * 1024 * 1024, 4 * 1024 * 1024 * 1024);
+    printFileTooBig("pipe", "path/to/stream", null, 4 * 1024 * 1024 * 1024);
 }
