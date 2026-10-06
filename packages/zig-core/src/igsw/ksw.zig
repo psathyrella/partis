@@ -60,10 +60,10 @@ pub const Kswr = extern struct {
 const g_defr = Kswr{};
 
 // KSW flags
-const KSW_XBYTE: c_int = 0x10000;
-const KSW_XSTOP: c_int = 0x20000;
-const KSW_XSUBO: c_int = 0x40000;
-const KSW_XSTART: c_int = 0x80000;
+pub const KSW_XBYTE: c_int = 0x10000;
+pub const KSW_XSTOP: c_int = 0x20000;
+pub const KSW_XSUBO: c_int = 0x40000;
+pub const KSW_XSTART: c_int = 0x80000;
 
 // ─── kswq_t internal struct ───────────────────────────────────────────────────
 //
@@ -687,40 +687,39 @@ pub export fn ksw_global(
     n_cigar_: ?*c_int,
     cigar_: ?*?[*]u32,
 ) callconv(.c) c_int {
+    if (n_cigar_) |p| p.* = 0;
+    if (cigar_) |p| p.* = null;
+    if (qlen < 0 or tlen < 0 or m <= 0 or w < 0) return 0;
+
     const qlen_u: usize = @intCast(qlen);
     const tlen_u: usize = @intCast(tlen);
     const mu: usize = @intCast(m);
     const gapoe: i32 = gapo + gape;
     const MINUS_INF: i32 = -0x40000000;
 
-    if (n_cigar_) |p| p.* = 0;
-    if (qlen_u == 0 or tlen_u == 0) return 0;
-
     const n_col: usize = if (@as(usize, @intCast(qlen)) < @as(usize, @intCast(2 * w + 1)))
         qlen_u
     else
         @intCast(2 * w + 1);
 
-    // z: backtrack matrix n_col * tlen
-    const z: [*]u8 = @ptrCast(std.c.malloc(n_col * tlen_u) orelse return 0);
+    // z: backtrack matrix n_col * tlen (ensure >= 1 byte to avoid implementation-defined malloc(0))
+    const z: [*]u8 = @ptrCast(std.c.malloc(@max(1, n_col * tlen_u)) orelse return 0);
     defer std.c.free(z);
     const Eh = extern struct { h: i32, e: i32 };
-    const qp: [*]i8 = @ptrCast(std.c.malloc(qlen_u * mu) orelse return 0);
+    const qp: [*]i8 = @ptrCast(std.c.malloc(@max(1, qlen_u * mu)) orelse return 0);
     defer std.c.free(qp);
     const eh: [*]Eh = @ptrCast(@alignCast(std.c.calloc(qlen_u + 1, @sizeOf(Eh)) orelse return 0));
     defer std.c.free(eh);
 
     // query profile
-    {
-        var k: usize = 0;
-        var ti: usize = 0;
-        while (k < mu) : (k += 1) {
-            const p: [*]const i8 = mat + k * mu;
-            var j: usize = 0;
-            while (j < qlen_u) : (j += 1) {
-                qp[ti] = p[query[j]];
-                ti += 1;
-            }
+    var k_prof: usize = 0;
+    var qp_i: usize = 0;
+    while (k_prof < mu) : (k_prof += 1) {
+        const p: [*]const i8 = mat + k_prof * mu;
+        var j: usize = 0;
+        while (j < qlen_u) : (j += 1) {
+            qp[qp_i] = p[query[j]];
+            qp_i += 1;
         }
     }
 
@@ -778,39 +777,39 @@ pub export fn ksw_global(
 
     const score = eh[qlen_u].h;
 
-    // backtrack
+    // traceback
     if (n_cigar_ != null and cigar_ != null) {
         var n_cigar: c_int = 0;
         var m_cigar: c_int = 0;
         var cigar: ?[*]u32 = null;
         var which: i32 = 0;
-        var ti: i32 = @intCast(tlen_u - 1);
-        var k: i32 = @intCast((if (ti + w + 1 < @as(i32, @intCast(qlen_u))) ti + w + 1 else @as(i32, @intCast(qlen_u))) - 1);
+        var ti: i32 = @as(i32, @intCast(tlen_u)) - 1;
+        var k: i32 = (if (ti + w + 1 < @as(i32, @intCast(qlen_u))) ti + w + 1 else @as(i32, @intCast(qlen_u))) - 1;
         while (ti >= 0 and k >= 0) {
             const beg_i: i32 = if (ti > w) ti - w else 0;
             const d = z[@as(usize, @intCast(ti)) * n_col + @as(usize, @intCast(k - beg_i))];
             which = (d >> @intCast(which * 2)) & 3;
+            // `orelse return 0` on OOM: pushCigar has already freed the
+            // partial cigar, and n_cigar_/cigar_ were zeroed on entry, so this
+            // matches the convention the three mallocs above use. C's
+            // push_cigar does not check at all and segfaults here instead.
             if (which == 0) {
-                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 0, 1);
+                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 0, 1) orelse return 0;
                 ti -= 1;
                 k -= 1;
             } else if (which == 1) {
-                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 2, 1);
+                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 2, 1) orelse return 0;
                 ti -= 1;
             } else {
-                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 1, 1);
+                cigar = pushCigar(&n_cigar, &m_cigar, cigar, 1, 1) orelse return 0;
                 k -= 1;
             }
         }
-        if (ti >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 2, @intCast(ti + 1));
-        if (k >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 1, @intCast(k + 1));
+        if (ti >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 2, @intCast(ti + 1)) orelse return 0;
+        if (k >= 0) cigar = pushCigar(&n_cigar, &m_cigar, cigar, 1, @intCast(k + 1)) orelse return 0;
         // reverse
-        var lo: usize = 0;
-        var hi: usize = @intCast(n_cigar - 1);
-        while (lo < hi) : ({ lo += 1; hi -= 1; }) {
-            const tmp = cigar.?[lo];
-            cigar.?[lo] = cigar.?[hi];
-            cigar.?[hi] = tmp;
+        if (n_cigar > 0) {
+            std.mem.reverse(u32, cigar.?[0..@intCast(n_cigar)]);
         }
         n_cigar_.?.* = n_cigar;
         cigar_.?.* = cigar;
@@ -819,12 +818,23 @@ pub export fn ksw_global(
     return @intCast(score);
 }
 
+/// Append `len` copies of `op` to the cigar, growing it as needed. Returns
+/// null on allocation failure, having freed `cigar` and left `n_cigar` /
+/// `m_cigar` untouched — callers must not use `cigar` afterwards.
 fn pushCigar(n_cigar: *c_int, m_cigar: *c_int, cigar: ?[*]u32, op: u32, len: u32) ?[*]u32 {
     if (n_cigar.* == 0 or op != (cigar.?[@intCast(n_cigar.* - 1)] & 0xf)) {
         var result = cigar;
         if (n_cigar.* == m_cigar.*) {
-            m_cigar.* = if (m_cigar.* != 0) m_cigar.* << 1 else 4;
-            result = @ptrCast(@alignCast(std.c.realloc(if (cigar) |p| @ptrCast(p) else null, @intCast(m_cigar.* * 4))));
+            const new_m = if (m_cigar.* != 0) m_cigar.* << 1 else 4;
+            const new_size = @as(usize, @intCast(new_m)) * @sizeOf(u32);
+            // realloc does not free its argument on failure, so we do: the
+            // caller's only reference to the old block is the `cigar` it is
+            // about to overwrite with our null.
+            result = @ptrCast(@alignCast(std.c.realloc(if (cigar) |p| @ptrCast(p) else null, new_size) orelse {
+                if (cigar) |p| std.c.free(p);
+                return null;
+            }));
+            m_cigar.* = new_m;
         }
         result.?[@intCast(n_cigar.*)] = len << 4 | op;
         n_cigar.* += 1;
