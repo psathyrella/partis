@@ -5185,7 +5185,6 @@ def subset_index_fname(basedir):
 # ----------------------------------------------------------------------------------------
 # written only once a subset job finishes, so a job that died partway is re-run
 SUBSET_COMPLETE_FNAME = 'subset-complete.yaml'
-LEGACY_SUBSET_COMPLETE_FNAME = 'cache-parameters-complete.yaml'  # markers written before the name was shared
 
 # ----------------------------------------------------------------------------------------
 def mark_subset_complete(sdir):
@@ -5194,7 +5193,7 @@ def mark_subset_complete(sdir):
 
 # ----------------------------------------------------------------------------------------
 def subset_is_marked_complete(sdir):
-    return any(os.path.exists('%s/%s' % (sdir, f)) for f in [SUBSET_COMPLETE_FNAME, LEGACY_SUBSET_COMPLETE_FNAME])
+    return os.path.exists('%s/%s' % (sdir, SUBSET_COMPLETE_FNAME))
 
 # ----------------------------------------------------------------------------------------
 SUBSET_INPUT_FNAME = 'input-seqs.fa'
@@ -5217,7 +5216,7 @@ def require_subsets_marked(sdirs, cstr):
     # every subset counts as done only if its own job wrote the marker
     unmarked = [d for d in sdirs if not subset_is_marked_complete(d)]
     if len(unmarked) > 0:
-        raise Exception('%s: %d of %d subsets have no completion marker %s, so their jobs did not finish (re-run them, or create the marker by hand if the outputs are known good): %s'
+        raise Exception('%s: %d of %d subsets have no completion marker %s (re-run them, or touch the marker if the outputs are good): %s'
                         % (cstr, len(unmarked), len(sdirs), SUBSET_COMPLETE_FNAME, ' '.join(unmarked)))
 
 # ----------------------------------------------------------------------------------------
@@ -5243,7 +5242,7 @@ def new_xxh3():
 def hash_and_count(fname, markers, block_size=XXH3_BLOCK_SIZE):
     # one streaming pass: the file's hash, and how many times <markers> occur in it
     hasher = new_xxh3()
-    overlap = max(len(m) for m in markers) - 1  # keep enough of each block to catch a marker split across two
+    overlap = max([len(m) for m in markers], default=1) - 1  # keep enough of each block to catch a marker split across two
     n_found, tail = 0, b''
     with open(fname, 'rb') as ifile:
         for block in iter(lambda: ifile.read(block_size), b''):
@@ -5253,6 +5252,10 @@ def hash_and_count(fname, markers, block_size=XXH3_BLOCK_SIZE):
                 n_found += buf.count(mrk, max(0, len(tail) - len(mrk) + 1))  # start past any match already counted within <tail>
             tail = buf[-overlap:] if overlap > 0 else b''
     return hasher.hexdigest(), n_found
+
+# ----------------------------------------------------------------------------------------
+def xxh3_file_hash(fname):
+    return hash_and_count(fname, [])[0]
 
 # ----------------------------------------------------------------------------------------
 def check_file_against_index(fname, expected_xxh3, expected_count, markers, cstr, unit='events'):
@@ -5274,27 +5277,23 @@ def load_index(ifn, cstr, required_keys):
     return index
 
 # ----------------------------------------------------------------------------------------
-def check_index_entries(index, ifn, cstr, items_key, count_key=None, hashes=None):
-    # <hashes>: 'required' if every entry must carry an xxh3, 'optional' if older entries without one are ok
+def check_index_entries(index, ifn, cstr, items_key, count_key=None):
+    # every entry must carry a well-formed xxh3
     fstr = '' if ifn is None else ' in %s' % ifn
     items = index[items_key]
     if count_key is not None and len(items) != index[count_key]:
         raise Exception('%s mismatch%s: %s %d does not equal the %d listed %s' % (cstr, fstr, count_key, index[count_key], len(items), items_key))
-    if hashes is None:
-        return
     n_with_xxh3 = sum('xxh3' in i for i in items)
-    if hashes == 'required' and n_with_xxh3 != len(items):
+    if n_with_xxh3 != len(items):
         raise Exception('%s mismatch%s: %d of %d %s have an xxh3 hash, expected all of them' % (cstr, fstr, n_with_xxh3, len(items), items_key))
-    if hashes == 'optional' and n_with_xxh3 not in (0, len(items)):
-        raise Exception('%s mismatch%s: %d of %d %s have an xxh3 hash, expected all or none' % (cstr, fstr, n_with_xxh3, len(items), items_key))
     for ifo in items:
-        if 'xxh3' in ifo and not re.match('^[0-9a-f]{32}$', ifo['xxh3']):
+        if not re.match('^[0-9a-f]{32}$', ifo['xxh3']):
             raise Exception('%s mismatch%s: %s has a malformed xxh3 hash %s' % (cstr, fstr, ifo['path'], ifo['xxh3']))
 
 # ----------------------------------------------------------------------------------------
 # paths are relative to the index's own dir
-def write_subset_index(basedir, subsets):  # subsets: ordered list of {path, input_fasta, n_input_sequences, xxh3}
-    index = {'n_subsets' : len(subsets), 'completion_markers' : True, 'subsets' : subsets}
+def write_subset_index(basedir, subsets, split_inputs):  # subsets: ordered list of {path, input_fasta, n_input_sequences, xxh3}
+    index = {'n_subsets' : len(subsets), 'split_inputs' : split_inputs, 'subsets' : subsets}
     ifn = subset_index_fname(basedir)
     mkdir(ifn, isfile=True)
     with open(ifn, 'w') as ifile:
@@ -5304,9 +5303,30 @@ def write_subset_index(basedir, subsets):  # subsets: ordered list of {path, inp
 # ----------------------------------------------------------------------------------------
 def read_subset_index(basedir):
     ifn = subset_index_fname(basedir)
-    index = load_index(ifn, 'subset index', ['n_subsets', 'subsets'])
-    check_index_entries(index, ifn, 'subset index', 'subsets', count_key='n_subsets', hashes='optional')  # optional: indexes from before the hash existed
+    index = load_index(ifn, 'subset index', ['n_subsets', 'split_inputs', 'subsets'])
+    check_index_entries(index, ifn, 'subset index', 'subsets', count_key='n_subsets')
     return index
+
+# ----------------------------------------------------------------------------------------
+def check_subset_inputs(basedir, isubs):
+    # compare each subset input fasta to its index entry
+    sfos = read_subset_index(basedir)['subsets']
+    for isub in isubs:
+        check_file_against_index('%s/%s' % (parameter_subset_root(basedir), sfos[isub]['input_fasta']), sfos[isub]['xxh3'], sfos[isub]['n_input_sequences'], FASTA_SEQ_MARKERS, 'subset input', unit='sequences')
+
+# ----------------------------------------------------------------------------------------
+def check_split_inputs(basedir, current):
+    # raise if <current> files or split args differ from the index
+    ifn = subset_index_fname(basedir)
+    recorded, diffs = read_subset_index(basedir)['split_inputs'], []
+    if [f['xxh3'] for f in recorded['files']] != [f['xxh3'] for f in current['files']]:  # paths may move, content may not
+        diffs.append('input files %s (xxh3 %s) but index has %s (xxh3 %s)' % (' '.join(f['path'] for f in current['files']), ' '.join(f['xxh3'] for f in current['files']),
+                                                                             ' '.join(f['path'] for f in recorded['files']), ' '.join(f['xxh3'] for f in recorded['files'])))
+    for key in sorted(set(recorded['args']) | set(current['args'])):
+        if recorded['args'].get(key) != current['args'].get(key):
+            diffs.append('--%s %s but index has %s' % (key.replace('_', '-'), current['args'].get(key), recorded['args'].get(key)))
+    if len(diffs) > 0:
+        raise Exception('subset index %s does not match this run\'s inputs (re-run in a new dir): %s' % (ifn, '; '.join(diffs)))
 
 # ----------------------------------------------------------------------------------------
 # merge parameter dirs corresponding to <n_subsets> subsets in <basedir> with str <substr>-<isub>
@@ -8283,7 +8303,7 @@ def multifile_index_path(fname):
     ifn = '%s/%s' % (multifile_dir(fname), disjointgrouper.MULTIFILE_INDEX_FNAME)
     if os.path.exists(fname):
         if os.path.exists(ifn):  # one of the two is stale, and nothing says which
-            raise Exception('output %s exists both as a single file and as a multifile dir %s, so one of them is stale (remove it)' % (fname, multifile_dir(fname)))
+            raise Exception('output %s exists both as a single file and as a multifile dir %s (remove the stale one)' % (fname, multifile_dir(fname)))
         return None
     return ifn
 

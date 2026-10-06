@@ -121,7 +121,7 @@ def process(args):
     if args.action == 'partition' and args.disjoint_groups and not args.paired_loci:
         auto_enable_paired_loci('--disjoint-groups')
     if args.action in single_locus_actions and not any(a == '--locus' or a.startswith('--locus=') for a in sys.argv):  # the --locus default is for the multi-locus actions
-        raise Exception('\'%s\' runs on one locus, so --locus must be set explicitly' % args.action)
+        raise Exception('\'%s\' needs --locus set explicitly' % args.action)
     if args.action in single_locus_actions and not args.paired_loci:  # turns on --paired-loci so --paired-outdir is allowed; --locus stays set
         auto_enable_paired_loci(args.action)
     for hfarg in ['hfrac_min_seqs', 'hfrac_max_bin_size', 'hfrac_merge_factor']:

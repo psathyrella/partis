@@ -112,6 +112,21 @@ def write_yaml(fname, data):
         yaml.dump(data, yfile, width=400, default_flow_style=False)
 
 
+def edit_yaml(fname, fcn):
+    # rewrite <fname> with fcn applied to its contents in place
+    data = read_yaml(fname)
+    fcn(data)
+    write_yaml(fname, data)
+
+
+def paired_chunked_args(basedir, indir=PAIRED_SIMU_DIR, extra_args=None):
+    return ['cache-parameters', '--paired-loci', '--paired-indir', str(indir), '--n-subsets', str(N_SUBSETS), '--paired-outdir', str(basedir)] + (extra_args or [])
+
+
+def merge_subsets_args(basedir, extra_args=None):
+    return ['merge-parameter-subsets', '--paired-loci', '--paired-outdir', str(basedir)] + (extra_args or [])
+
+
 def fixture_log(outdir):
     # log of the partis run that made a session fixture's <outdir>
     return outdir.parent / 'partis.log'

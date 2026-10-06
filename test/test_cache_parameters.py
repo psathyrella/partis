@@ -5,7 +5,7 @@ import shutil
 
 import pytest
 
-from _helpers import LOCI, MIN_ANNOTATED_FRAC, N_PROCS, N_SUBSETS, PAIRED_DATA_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, check_subsets_complete, copy_dir, fasta_uids, fixture_log, input_uids, read_log, run_partis, run_partis_fails, sw_cache_uids
+from _helpers import LOCI, MIN_ANNOTATED_FRAC, N_PROCS, N_SUBSETS, PAIRED_DATA_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, check_subsets_complete, copy_dir, fasta_uids, fixture_log, input_uids, merge_subsets_args, read_log, run_partis, run_partis_fails, sw_cache_uids
 from partis import utils
 from partis.disjointgrouper import SW_CACHE_FNAME, SW_CACHE_INDEX_FNAME
 
@@ -61,7 +61,7 @@ def test_merge_action_paired(tmp_path, chunked_param_dir):
     basedir = copy_dir(chunked_param_dir, tmp_path / 'out')
     for locus in LOCI:
         shutil.rmtree(str(basedir / 'parameters' / locus))
-    run_partis(['merge-parameter-subsets', '--paired-loci', '--paired-outdir', str(basedir)], str(tmp_path / 'merge.log'))
+    run_partis(merge_subsets_args(basedir), str(tmp_path / 'merge.log'))
     for locus in LOCI:
         assert sw_cache_uids(basedir / 'parameters' / locus) == input_uids(locus)
         assert os.path.isdir(basedir / 'parameters' / locus / 'hmm' / 'germline-sets')
@@ -96,7 +96,7 @@ def test_merged_hmms_rebuilt_from_counts(chunked_param_dir):
 @pytest.mark.parametrize('to_index', [True, False])
 def test_overwrite_remerge_switches_cache_form(tmp_path, chunked_param_dir, chunked_param_index_dir, to_index):
     basedir = copy_dir(chunked_param_dir if to_index else chunked_param_index_dir, tmp_path / 'out')
-    run_partis(['merge-parameter-subsets', '--paired-loci', '--paired-outdir', str(basedir), '--overwrite'] + (['--no-merged-sw-cache'] if to_index else []), str(tmp_path / 'merge.log'))
+    run_partis(merge_subsets_args(basedir, extra_args=['--overwrite'] + (['--no-merged-sw-cache'] if to_index else [])), str(tmp_path / 'merge.log'))
     for locus in LOCI:
         pdir = basedir / 'parameters' / locus
         assert (pdir / SW_CACHE_INDEX_FNAME).exists() == to_index
@@ -111,7 +111,7 @@ def test_symlinked_hmm_refused_on_remerge(tmp_path, chunked_param_dir):
     subset_model = '%s/parameters/igh/hmm/hmms/%s' % (utils.parameter_subset_dir(str(basedir), 0), os.path.basename(merged))
     os.remove(merged)
     os.symlink(subset_model, merged)
-    log = run_partis_fails(['merge-parameter-subsets', '--paired-loci', '--paired-outdir', str(basedir)], str(tmp_path / 'merge.log'))
+    log = run_partis_fails(merge_subsets_args(basedir), str(tmp_path / 'merge.log'))
     assert 'are symlinks from a pre-rebuild merge' in log
 
 

@@ -5,7 +5,7 @@ import shutil
 
 import pytest
 
-from _helpers import LOCI, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, copy_dir, disjoint_dir, fixture_log, locus_manifest, manifest_fname, paired_partition_args, read_log, run_partis, run_partis_fails
+from _helpers import LOCI, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, copy_dir, disjoint_dir, fixture_log, locus_manifest, manifest_fname, merge_subsets_args, paired_partition_args, read_log, run_partis, run_partis_fails
 from partis import disjointgrouper as dg
 from partis import ha_repartition
 from partis.processargs import single_locus_actions
@@ -20,7 +20,7 @@ def paired_disjoint_args(tmp_path, extra_args, **kwargs):
 @pytest.mark.parametrize('action', single_locus_actions)
 def test_single_locus_action_needs_locus(tmp_path, action):
     log = run_partis_fails([action, '--parameter-dir', PAIRED_PARAM_DIR, '--paired-outdir', str(tmp_path / 'out')], str(tmp_path / 'partis.log'))
-    assert '\'%s\' runs on one locus, so --locus must be set explicitly' % action in log
+    assert '\'%s\' needs --locus set explicitly' % action in log
 
 
 def test_single_locus_action_locus_with_equals(tmp_path):
@@ -56,7 +56,7 @@ def test_group_without_parameter_dir(tmp_path):
 def test_group_from_nonexistent_sw_cache(tmp_path):
     swfn = tmp_path / 'sw-cache.yaml'
     log = run_partis_fails(['create-disjoint-groups', '--locus', 'igh', '--sw-cachefname', str(swfn), '--paired-outdir', str(tmp_path / 'out')], str(tmp_path / 'partis.log'))
-    assert '1 of 1 sw cache files do not exist: %s' % swfn in log
+    assert 'sw cache file does not exist: %s' % swfn in log
 
 
 def test_group_from_moved_index(tmp_path, chunked_param_index_dir):
@@ -64,7 +64,7 @@ def test_group_from_moved_index(tmp_path, chunked_param_index_dir):
     pdir = tmp_path / 'moved'
     copy_dir(chunked_param_index_dir / 'parameters' / 'igh', pdir / 'igh')
     log = run_partis_fails(['create-disjoint-groups', '--locus', 'igh', '--parameter-dir', str(pdir), '--paired-outdir', str(tmp_path / 'out')], str(tmp_path / 'partis.log'))
-    assert 'sw cache files do not exist (listed in %s/igh/%s)' % (pdir, dg.SW_CACHE_INDEX_FNAME) in log
+    assert 'sw cache files listed in %s/igh/%s do not exist' % (pdir, dg.SW_CACHE_INDEX_FNAME) in log
 
 
 def test_group_from_dir_with_no_sw_cache(tmp_path):
@@ -95,7 +95,7 @@ def test_backfill_with_no_subset_caches(tmp_path, chunked_param_index_dir):
     for swfn in glob.glob('%s/parameters/*/%s' % (basedir, dg.SW_CACHE_INDEX_FNAME)) + glob.glob('%s/**/%s' % (basedir, dg.SW_CACHE_FNAME), recursive=True):
         os.remove(swfn)
     log = tmp_path / 'merge.log'
-    run_partis(['merge-parameter-subsets', '--paired-loci', '--paired-outdir', str(basedir)], str(log))
+    run_partis(merge_subsets_args(basedir), str(log))
     assert 'subset-merged input exists but has no merged sw cache, and there are no per-subset caches to merge into it' in read_log(str(log))
 
 

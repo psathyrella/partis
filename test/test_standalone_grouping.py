@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from _helpers import HFRAC_ARGS, PAIRED_PARAM_DIR, copy_dir, disjoint_dir, fasta_uids, input_uids, locus_manifest, output_partition_uids, partition_uids, read_yaml, run_partis, write_yaml
+from _helpers import HFRAC_ARGS, PAIRED_PARAM_DIR, copy_dir, disjoint_dir, edit_yaml, fasta_uids, input_uids, locus_manifest, output_partition_uids, partition_uids, read_yaml, run_partis
 from partis import disjointgrouper as dg
 
 # ----------------------------------------------------------------------------------------
@@ -111,10 +111,7 @@ def empty_group_partition(ddir, manifest):
 
 
 def rewrite_group(ddir, ginfo, fcn):
-    # rewrite one group's partition file after applying <fcn> to its contents
-    yinfo = read_group(ddir, ginfo)
-    fcn(yinfo)
-    write_yaml(group_ppath(ddir, ginfo), yinfo)
+    edit_yaml(group_ppath(ddir, ginfo), fcn)
 
 
 def read_group(ddir, ginfo):
@@ -167,9 +164,7 @@ def test_assemble_error_paths(tmp_path, plain_multifile_partition_dir, name, mut
     if mutate is None:
         os.remove(mfname)
     else:
-        manifest = read_yaml(mfname)  # unvalidated, since some mutations break the manifest on purpose
-        mutate(ddir, manifest)
-        write_yaml(mfname, manifest)
+        edit_yaml(mfname, lambda manifest: mutate(ddir, manifest))  # unvalidated, since some mutations break the manifest on purpose
     with pytest.raises(Exception, match=errstr):
         dg.assemble_groups('igh', ddir, str(tmp_path / 'assembled-igh.yaml'))
 
@@ -237,9 +232,10 @@ def test_pack_multifile_output_never_spans_cdr3_groups():
     assert [(c3, [p for _, p in glist]) for c3, glist in fspecs] == [(30, ['p0', 'p1']), (30, ['p2']), (42, ['p3', 'p4'])]
 
 
-def test_resolve_sw_cache_paths():
-    assert dg.resolve_sw_cache_paths(['a', 'b'], 'igh') == ['a', 'b']
-    assert dg.resolve_sw_cache_paths('x/sw-cache.yaml', 'igh') == ['x/sw-cache.yaml']
+def test_resolve_sw_cache_paths(tmp_path):
+    swfn = tmp_path / dg.SW_CACHE_FNAME
+    swfn.write_text('')
+    assert dg.resolve_sw_cache_paths(str(swfn)) == ([str(swfn)], [None])
 
 
 def test_read_vsearch_uc_with_centroids(tmp_path):

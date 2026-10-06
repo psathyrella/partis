@@ -7,8 +7,6 @@ import csv
 import json
 import shutil
 import collections
-import glob
-import re
 import multiprocessing
 
 from . import utils
@@ -564,13 +562,13 @@ def group_str(ginfo):
 def require_group_inputs(missing, n_groups, stagestr, prevstr):
     # <missing>: groups whose earlier-stage files are gone, so they would drop out of <stagestr>
     if len(missing) > 0:
-        raise Exception('%d of %d groups are missing their %s, so the earlier stage did not finish (run it first, then %s): %s'
+        raise Exception('%d of %d groups are missing their %s (run the earlier stage, then %s): %s'
                         % (len(missing), n_groups, prevstr, stagestr, ', '.join(group_str(g) for g in missing[:5])))
 
 # ----------------------------------------------------------------------------------------
 def check_group_partition_complete(ginfo, fname):
     # an existing group partition is skipped on re-run, so it has to be a finished one
-    estr = 'existing partition for %s is incomplete, so its partition job did not finish (delete it and re-run): %s' % (group_str(ginfo), fname)
+    estr = 'existing partition for %s is incomplete (delete it and re-run): %s' % (group_str(ginfo), fname)
     if os.path.getsize(fname) == 0:
         raise Exception('%s: empty file' % estr)
     try:
@@ -736,45 +734,28 @@ def validate_assembly(manifest, gpaths):
     return counts
 
 # ----------------------------------------------------------------------------------------
-def check_sw_cache_paths_exist(resolved_paths, sw_cache_paths):
-    # <sw_cache_paths> is what <resolved_paths> was resolved from, named in the error if it was a dir
-    missing = [p for p in resolved_paths if not os.path.exists(p)]
+def resolve_sw_cache_paths(sw_cache_path):
+    # sw cache files in subset order, and each one's index entry (None for a single file): <sw_cache_path> is one file, or a dir holding the index
+    if not os.path.isdir(sw_cache_path):
+        if not os.path.exists(sw_cache_path):
+            raise Exception('sw cache file does not exist: %s' % sw_cache_path)
+        return [sw_cache_path], [None]
+    index_path = sw_cache_index_fname(sw_cache_path)
+    if not os.path.exists(index_path):
+        raise Exception('--sw-cachefname %s is a dir with no %s' % (sw_cache_path, SW_CACHE_INDEX_FNAME))
+    utils.require_xxhash('checking sw caches against %s' % index_path)
+    entries = read_sw_cache_index(index_path)['sw_caches']
+    paths = ['%s/%s' % (os.path.dirname(os.path.abspath(index_path)), cfo['path']) for cfo in entries]
+    missing = [p for p in paths if not os.path.exists(p)]
     if len(missing) > 0:
-        srcstr = ' (listed in %s)' % sw_cache_index_fname(sw_cache_paths) if isinstance(sw_cache_paths, str) and os.path.isdir(sw_cache_paths) else ''
-        raise Exception('%d of %d sw cache files do not exist%s: %s' % (len(missing), len(resolved_paths), srcstr, ' '.join(missing)))
+        raise Exception('%d of %d sw cache files listed in %s do not exist: %s' % (len(missing), len(paths), index_path, ' '.join(missing)))
+    return paths, entries
 
 # ----------------------------------------------------------------------------------------
-def resolve_sw_cache_paths(sw_cache_paths, locus):
-    # <sw_cache_paths> as a list of files in subset order: one path, a list, or a dir holding the index or a parameter-subsets/ tree
-    if not isinstance(sw_cache_paths, str):
-        return list(sw_cache_paths)
-    if os.path.isdir(sw_cache_paths):
-        if os.path.exists('%s/%s' % (sw_cache_paths, SW_CACHE_INDEX_FNAME)):
-            return sw_cache_index_paths('%s/%s' % (sw_cache_paths, SW_CACHE_INDEX_FNAME))
-        patterns = ['%s/%s/subset-*/parameters/%s/%s' % (sw_cache_paths, utils.PARAMETER_SUBSET_DIRNAME, locus, SW_CACHE_FNAME),  # paired layout
-                    '%s/%s/subset-*/parameters/%s' % (sw_cache_paths, utils.PARAMETER_SUBSET_DIRNAME, SW_CACHE_FNAME)]  # single-locus layout, no locus dir
-        cpaths = []
-        for pattern in patterns:
-            cpaths = glob.glob(pattern)
-            if len(cpaths) > 0:
-                break
-        if len(cpaths) == 0:
-            raise Exception('--sw-cachefname is a directory (%s) but it holds neither %s nor any sw caches matching %s'
-                            % (sw_cache_paths, SW_CACHE_INDEX_FNAME, ' or '.join(patterns)))
-        def isubset(fn):
-            mtch = re.search(r'subset-([0-9]+)', fn)
-            if mtch is None:
-                raise Exception('couldn\'t get subset index from %s' % fn)
-            return int(mtch.group(1))
-        return sorted(cpaths, key=isubset)
-    return [sw_cache_paths]
-
-# ----------------------------------------------------------------------------------------
-def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, summary_path, expected=None, hfrac=False):
+def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, summary_path, expected, hfrac=False):
     # group one subset's sw cache by cdr3 length, writing its sw-cache fragments, its fasta fragments and its counts to <summary_path>
     # with <hfrac> the fasta fragments are naive seqs: _apply_hfrac writes sub-group fastas, the group-level one is never read
-    if expected is not None:
-        check_sw_cache_against_index(swpath, expected)
+    check_sw_cache_against_index(swpath, expected)
     _, tantn_list, _ = utils.read_yaml_output(swpath, dont_add_implicit_info=True)
     utils.update_gene_names_in_annotation_list(tantn_list, name_map)  # rename genes dropped by the union
     utils.check_annotation_glfo_consistency(glfo, tantn_list)
@@ -801,18 +782,15 @@ def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, su
         json.dump({'subset_counts' : subset_counts, 'subset_naive_counts' : subset_naive_counts, 'subset_failed' : subset_failed}, sfile)
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None, n_subset_workers=MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT):
+def create_cdr3_groups(locus, sw_cache_path, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None, n_subset_workers=MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
-    # <sw_cache_paths>: single path string or list of paths.
+    # <sw_cache_path>: one sw cache file, or a dir holding the sw cache index
     # <n_procs>: concurrent single-threaded vsearch jobs; defaults to available cpus.
     # <n_subset_workers>: per-subset caches read at once, capped at <n_procs>
     # multiple caches are grouped a bounded number of subsets at a time
-    resolved_paths = resolve_sw_cache_paths(sw_cache_paths, locus)
-    check_sw_cache_paths_exist(resolved_paths, sw_cache_paths)
-    index_expectations = sw_cache_index_expectations(sw_cache_paths, resolved_paths)
-    sw_cache_paths = resolved_paths
+    sw_cache_paths, index_entries = resolve_sw_cache_paths(sw_cache_path)
     multi_cache = len(sw_cache_paths) > 1
     n_procs = utils.n_available_cpus() if n_procs is None else max(1, n_procs)
 
@@ -835,6 +813,8 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
     if not multi_cache:
         # single sw cache: read once, process everything in memory (existing behavior)
         print('      reading sw cache for %s from %s' % (locus, sw_cache_paths[0]))
+        if index_entries[0] is not None:  # one-subset index
+            check_sw_cache_against_index(sw_cache_paths[0], index_entries[0])
         glfo, annotation_list, _ = utils.read_yaml_output(sw_cache_paths[0], dont_add_implicit_info=True)
         groups, n_failed = group_sequences_by_cdr3_length(annotation_list)
         n_seqs = sum(len(seqfos) for seqfos in groups.values()) + n_failed
@@ -870,9 +850,7 @@ def create_cdr3_groups(locus, sw_cache_paths, outdir, parameter_dir, hfrac=False
         summary_dir = '%s/subset-summaries' % outdir
         utils.mkdir(summary_dir)
         summary_paths = ['%s/subset%03d.json' % (summary_dir, isubset) for isubset in range(len(sw_cache_paths))]
-        if any(e is not None for e in index_expectations):
-            utils.require_xxhash('verifying per-subset sw caches against the index')
-        procs = [multiprocessing.Process(target=_process_one_subset_cache, name='subset-%d'%isubset, args=(isubset, swpath, locus, subset_name_maps[isubset], outdir, glfo, summary_paths[isubset], index_expectations[isubset], hfrac))
+        procs = [multiprocessing.Process(target=_process_one_subset_cache, name='subset-%d'%isubset, args=(isubset, swpath, locus, subset_name_maps[isubset], outdir, glfo, summary_paths[isubset], index_entries[isubset], hfrac))
                  for isubset, swpath in enumerate(sw_cache_paths)]
         utils.run_proc_functions(procs, n_procs=n_subset_workers)
 
@@ -982,14 +960,6 @@ def pack_multifile_output(gpaths, counts, max_seqs_per_file=MULTIFILE_MAX_SEQS_P
     return fspecs
 
 # ----------------------------------------------------------------------------------------
-def xxh3_file_hash(fname, block_size=utils.XXH3_BLOCK_SIZE):
-    hasher = utils.new_xxh3()
-    with open(fname, 'rb') as ifile:
-        for block in iter(lambda: ifile.read(block_size), b''):
-            hasher.update(block)
-    return hasher.hexdigest()
-
-# ----------------------------------------------------------------------------------------
 def hash_and_count_events(fname, block_size=utils.XXH3_BLOCK_SIZE):
     # sw-cache annotations hold one uid each, so events and sequences are the same count
     return utils.hash_and_count(fname, utils.SW_CACHE_EVENT_MARKERS, block_size=block_size)
@@ -1021,27 +991,8 @@ def write_sw_cache_index(locus, locus_pdir, sw_cache_paths):
 # ----------------------------------------------------------------------------------------
 def read_sw_cache_index(index_path):
     index = utils.load_index(index_path, 'sw cache index', ['locus', 'n_subsets', 'sw_caches'])
-    utils.check_index_entries(index, index_path, 'sw cache index', 'sw_caches', count_key='n_subsets', hashes='required')
+    utils.check_index_entries(index, index_path, 'sw cache index', 'sw_caches', count_key='n_subsets')
     return index
-
-# ----------------------------------------------------------------------------------------
-def sw_cache_index_paths(index_path):
-    # the per-subset caches, in index order, as stored (relative, with '..' unresolved)
-    idir = os.path.dirname(os.path.abspath(index_path))
-    return ['%s/%s' % (idir, cfo['path']) for cfo in read_sw_cache_index(index_path)['sw_caches']]
-
-# ----------------------------------------------------------------------------------------
-def sw_cache_index_expectations(sw_cache_paths, resolved_paths):
-    # the index's hash and count for each resolved path, or None for each when there is no index
-    none_list = [None for _ in resolved_paths]
-    if not isinstance(sw_cache_paths, str) or not os.path.isdir(sw_cache_paths):
-        return none_list
-    index_path = sw_cache_index_fname(sw_cache_paths)
-    if not os.path.exists(index_path):
-        return none_list
-    idir = os.path.dirname(os.path.abspath(index_path))
-    by_path = {os.path.abspath('%s/%s' % (idir, cfo['path'])) : cfo for cfo in read_sw_cache_index(index_path)['sw_caches']}
-    return [by_path.get(os.path.abspath(p)) for p in resolved_paths]
 
 # ----------------------------------------------------------------------------------------
 def check_sw_cache_against_index(swpath, expected):
@@ -1078,7 +1029,7 @@ def write_multifile_output(locus, manifest, gpaths, counts, outfname, max_seqs_p
             'sequence_count' : nseq,
             'cluster_count' : sum(c['cluster_count'] for c in gcounts),
             'largest_cluster_size' : max(c['largest_cluster_size'] for c in gcounts),
-            'xxh3' : xxh3_file_hash(fpath),
+            'xxh3' : utils.xxh3_file_hash(fpath),
         })
     if n_oversize > 0:
         print('      %s %d files are over the per-file cap: their groups hold an indivisible unit larger than it' % (utils.wrnstr(), n_oversize))
@@ -1127,7 +1078,7 @@ def validate_multifile_index(index, fname=None):
         raise Exception('multifile index mismatch%s: grouped %d + no cdr3 %d does not equal the sw cache count %d' % (fstr, ainfo['n_sequences_grouped'], ainfo['n_sequences_no_cdr3'], ainfo['n_sequences_in_sw_cache']))
     if ainfo['n_files'] < ainfo['n_cdr3_groups']:
         raise Exception('multifile index mismatch%s: %d files is fewer than the %d cdr3 groups they cover' % (fstr, ainfo['n_files'], ainfo['n_cdr3_groups']))
-    utils.check_index_entries(index, fname, 'multifile index', 'files', hashes='optional')
+    utils.check_index_entries(index, fname, 'multifile index', 'files')
 
 # ----------------------------------------------------------------------------------------
 def read_multifile_index(index_path):

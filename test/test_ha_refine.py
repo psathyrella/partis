@@ -4,7 +4,7 @@ import shutil
 
 import pytest
 
-from _helpers import LOCI, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, copy_dir, disjoint_dir, fixture_log, input_uids, locus_manifest, partition_fname, partition_uids, read_log, read_yaml, run_partis, run_partis_fails, write_yaml
+from _helpers import LOCI, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, copy_dir, disjoint_dir, edit_yaml, fixture_log, input_uids, locus_manifest, partition_fname, partition_uids, read_log, run_partis, run_partis_fails, write_yaml
 from partis import disjointgrouper as dg
 from partis import partition_refinement as prf
 
@@ -129,11 +129,11 @@ def test_truncated_partition_refused_as_refine_input(tmp_path, plain_multifile_p
     outdir = copy_dir(plain_multifile_partition_dir, tmp_path / 'out')
     ddir, manifest = locus_manifest(outdir, 'igh')
     spec = max(prf.group_specs(ddir, manifest['groups'], 'igh'), key=lambda s: s['group']['sequence_count'])
-    yinfo = read_yaml(spec['input'])
-    best = yinfo['partitions'][-1]['partition']  # a block yaml file cut at a line boundary loses the tail of this list
-    best[-1] = best[-1][:-1] if len(best[-1]) > 1 else None
-    yinfo['partitions'][-1]['partition'] = [c for c in best if c is not None]
-    write_yaml(spec['input'], yinfo)
+    def truncate(yinfo):
+        best = yinfo['partitions'][-1]['partition']  # a block yaml file cut at a line boundary loses the tail of this list
+        best[-1] = best[-1][:-1] if len(best[-1]) > 1 else None
+        yinfo['partitions'][-1]['partition'] = [c for c in best if c is not None]
+    edit_yaml(spec['input'], truncate)
     with pytest.raises(Exception, match='incomplete partition file'):
         prf.read_refine_inputs(spec['input'], spec['sw_cache'])
 
