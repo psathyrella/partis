@@ -1,4 +1,4 @@
-# disjoint-grouping test suite (make test), on every PR into the feature branch
+# disjoint-grouping test suite (make test), when a PR into the feature branch opens, and again when the run-suite label is added
 
 name: Disjoint-grouping tests
 
@@ -6,9 +6,15 @@ on:
   pull_request:
     branches:
       - disjoint-grouping
+    types: [opened, reopened, ready_for_review, labeled]  # not on every push
+
+concurrency:  # a newer run cancels an older one of the same kind; unrelated labels get their own group
+  group: suite-${{ github.event.pull_request.number }}-${{ github.event.label.name || 'pr' }}
+  cancel-in-progress: true
 
 jobs:
   suite:
+    if: github.event.action != 'labeled' || github.event.label.name == 'run-suite'
     name: ${{ matrix.backend }} backend
     runs-on: ubuntu-latest
     timeout-minutes: 60
