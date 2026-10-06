@@ -5,7 +5,7 @@ entries, or a frameshift). For a truncated v, extras.csv puts the cysteine at th
 get the wrong cdr3 length and are called nonproductive (issue #421).
 
 Genes whose codon is intact but mutated (e.g. IGHV1-38-4*01, cysteine TAT) are real germline sequences that partis annotates correctly, so they're not
-removed here. Whether non-functional genes belong in a germline set is a separate decision (see functionalities.csv and issue #421).
+removed here; the default sets drop them anyway, since they contain only functional genes (see remove-nonfunctional-genes.py).
 
 Genes in <extra_genes_to_remove> are removed as well, with the reason given there.
 

@@ -26,7 +26,10 @@ per-species changelog/ dirs). Review the output and every warning before committ
 New genes whose conserved codon can't be used (the sequence ends before it, or a v cysteine
 is out of frame) are left out of the merge and listed.
 
-After every merge, rewrite the functionality file (logging to changelog/ as above):
+After every merge, rewrite the functionality file and then remove non-functional genes
+(logging each to changelog/ as above):
+  ./data/germlines/write-functionalities.py --species <species> --write
+  ./data/germlines/remove-nonfunctional-genes.py --species <species> --write
   ./data/germlines/write-functionalities.py --species <species> --write
 
 ## Functionality and unusable genes (issue #421)
@@ -42,6 +45,11 @@ NOTE `imgt-download/human/` is a different, smaller IMGT download (F+ORF+in-fram
 
 `remove-unusable-genes.py` removes genes whose conserved codon can't be used (see its
 docstring); it was run on human and macaque in 2026-10 (see changelog/).
+
+The default human and macaque sets contain only functional (F) genes: `remove-nonfunctional-genes.py`
+removes ORF, P, and unknown-functionality genes (reasons in its docstring and in
+https://github.com/psathyrella/partis/issues/421#issuecomment-6007296922). To use non-functional
+genes, pass your own set with `--initial-germline-dir`.
 
 ---
 

@@ -9,7 +9,8 @@ Policy (see data/germlines/README.md and issue #396):
     remove-unusable-genes.py) are left out of the merge, and listed (issue #421).
   - Functionality (F/ORF/P) isn't a quality judgement either; it's recorded per
     gene in <species>/functionalities.csv, which has to be rewritten after every
-    merge with write-functionalities.py.
+    merge with write-functionalities.py. The default sets contain only F genes, so
+    after that run remove-nonfunctional-genes.py (see data/germlines/README.md).
   - The merge is always a UNION (glutils.get_merged_glfo): we never silently drop
     a gene we already had. Honoring an upstream removal is a separate, deliberate,
     documented decision -- not something this script does automatically.
@@ -160,7 +161,7 @@ def main():
     if not args.write:
         print('\n%s dry run (no --write): merged glfo not written' % utils.color('yellow', 'note'))
     else:
-        print('\n%s now rewrite the functionality file: ./data/germlines/write-functionalities.py --species %s --gldir %s --write' % (utils.color('yellow', 'note'), args.species, args.out_dir))
+        print('\n%s now rewrite the functionality file, and remove non-functional genes (see data/germlines/README.md): ./data/germlines/write-functionalities.py --species %s --gldir %s --write' % (utils.color('yellow', 'note'), args.species, args.out_dir))
     if any_warning:
         print('%s see the warnings above before committing this update' % utils.wrnstr())
 
