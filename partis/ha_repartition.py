@@ -99,7 +99,7 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
     cdir = os.path.join(workdir, 'clusters')
     missing = [cluster_id(i, c) for i, c in enumerate(clusters) if len(c) >= min_cluster_size and not os.path.exists(result_fname(cdir, i, c))]
     if len(missing) > 0:
-        raise Exception('%d HA results missing in %s, so their jobs did not finish (re-run run-ha-repartition-jobs for them): %s' % (len(missing), cdir, _id_str(missing)))
+        raise Exception('%d HA results missing in %s (re-run run-ha-repartition-jobs for them): %s' % (len(missing), cdir, _id_str(missing)))
     repartitioned, n_split, n_kept = [], 0, 0
     uncovered = []
     for idx, cluster in enumerate(clusters):

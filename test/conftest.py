@@ -2,12 +2,12 @@ import os
 
 import pytest
 
-from _helpers import HFRAC_ARGS, N_SUBSETS, PAIRED_DATA_DIR, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, paired_partition_args, run_partis
+from _helpers import HFRAC_ARGS, N_SUBSETS, PAIRED_DATA_DIR, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, paired_chunked_args, paired_partition_args, run_partis
 
 
 def run_chunked_cache_parameters(tmp_path_factory, name, extra_args):
     basedir = tmp_path_factory.mktemp(name)
-    run_partis(['cache-parameters', '--paired-loci', '--paired-indir', PAIRED_SIMU_DIR, '--n-subsets', str(N_SUBSETS), '--paired-outdir', str(basedir / 'out')] + extra_args, str(basedir / 'partis.log'))
+    run_partis(paired_chunked_args(basedir / 'out', extra_args=extra_args), str(basedir / 'partis.log'))
     return basedir / 'out'
 
 

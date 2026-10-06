@@ -4,14 +4,10 @@ import shutil
 
 import pytest
 
-from _helpers import HFRAC_ARGS, LOCI, N_SUBSETS, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, check_subsets_complete, copy_dir, group_stage_path, locus_manifest, paired_partition_args, partition_fname, read_log, read_yaml, run_partis, run_partis_fails, write_yaml
+from _helpers import HFRAC_ARGS, LOCI, N_SUBSETS, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, check_subsets_complete, copy_dir, edit_yaml, group_stage_path, locus_manifest, merge_subsets_args, paired_chunked_args, paired_partition_args, partition_fname, read_log, run_partis, run_partis_fails
 from partis import utils
 from partis import disjointgrouper as dg
 from partis import ha_repartition
-
-
-def paired_chunked_args(basedir):
-    return ['cache-parameters', '--paired-loci', '--paired-indir', PAIRED_SIMU_DIR, '--n-subsets', str(N_SUBSETS), '--paired-outdir', str(basedir)]
 
 
 def single_chunked_args(basedir):
@@ -27,9 +23,8 @@ def external_subset_args(form, sdir):
 
 
 def remove_markers(sdir):
-    for fname in [utils.SUBSET_COMPLETE_FNAME, utils.LEGACY_SUBSET_COMPLETE_FNAME]:
-        if os.path.exists('%s/%s' % (sdir, fname)):
-            os.remove('%s/%s' % (sdir, fname))
+    if os.path.exists('%s/%s' % (sdir, utils.SUBSET_COMPLETE_FNAME)):
+        os.remove('%s/%s' % (sdir, utils.SUBSET_COMPLETE_FNAME))
 
 
 # ----------------------------------------------------------------------------------------
@@ -67,24 +62,12 @@ def test_unmarked_subset_partition_reruns(tmp_path, subset_hfrac_dir):
     assert utils.subset_is_marked_complete(str(outdir / 'isub-0'))
 
 
-def test_legacy_subset_index_refused(tmp_path, chunked_param_dir):
-    basedir = copy_dir(chunked_param_dir, tmp_path / 'out')
-    index = read_yaml(utils.subset_index_fname(str(basedir)))
-    del index['completion_markers']
-    write_yaml(utils.subset_index_fname(str(basedir)), index)
-    for isub in range(N_SUBSETS):
-        remove_markers(utils.parameter_subset_dir(str(basedir), isub))
-    shutil.rmtree(str(basedir / 'parameters'))  # so the run gets as far as the subsets
-    log = run_partis_fails(paired_chunked_args(basedir), str(tmp_path / 'partis.log'))
-    assert 'predates completion markers, so whether its job finished is unknown' in log
-
-
 def test_merge_refuses_unmarked_subset(tmp_path, chunked_param_dir):
     basedir = copy_dir(chunked_param_dir, tmp_path / 'out')
     for locus in LOCI:  # unmerged, as after externally run subset jobs
         shutil.rmtree(str(basedir / 'parameters' / locus))
     remove_markers(utils.parameter_subset_dir(str(basedir), 1))
-    log = run_partis_fails(['merge-parameter-subsets', '--paired-loci', '--paired-outdir', str(basedir)], str(tmp_path / 'merge.log'))
+    log = run_partis_fails(merge_subsets_args(basedir), str(tmp_path / 'merge.log'))
     assert 'merge-parameter-subsets: 1 of %d subsets have no completion marker' % N_SUBSETS in log
     assert utils.parameter_subset_dir(str(basedir), 1) in log
 
@@ -103,7 +86,7 @@ def test_ha_jobs_need_vsearch_partition(tmp_path, ha_only_dir):
     outdir = copy_dir(ha_only_dir, tmp_path / 'out')
     group = remove_vsearch_partition(outdir)
     log = run_partis_fails(['create-ha-repartition-jobs', '--locus', 'igh', '--paired-outdir', str(outdir)], str(tmp_path / 'partis.log'))
-    assert 'are missing their vsearch partition or group sw cache, so the earlier stage did not finish' in log
+    assert 'are missing their vsearch partition or group sw cache (run the earlier stage' in log
     assert dg.group_str(group) in log
 
 
@@ -131,10 +114,10 @@ def test_ha_assemble_refuses_missing_result(tmp_path, ha_only_dir):
 # group partitions skipped on re-run
 
 def drop_first_cluster(fname):
-    yinfo = read_yaml(fname)
-    for ptn in yinfo['partitions']:
-        ptn['partition'] = ptn['partition'][1:]
-    write_yaml(fname, yinfo)
+    def fcn(yinfo):
+        for ptn in yinfo['partitions']:
+            ptn['partition'] = ptn['partition'][1:]
+    edit_yaml(fname, fcn)
 
 
 @pytest.mark.parametrize('damage', ['empty', 'dropped-cluster'])
