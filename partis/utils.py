@@ -3075,6 +3075,17 @@ def codon_unmutated(codon, seq, position, debug=False, extra_str=''):
     return True
 
 #----------------------------------------------------------------------------------------
+def conserved_codon_status(codon, seq, position):  # status of one germline gene's conserved codon (used e.g. to find genes we can't use)
+    """ return 'truncated' (sequence ends before the end of the codon), 'out-of-frame' (v only: codon isn't in frame with the start of the gene), 'mutated', or 'ok' """
+    if len(seq) < position + 3:
+        return 'truncated'
+    if codon == 'cyst' and not in_frame_germline_v(seq, position):
+        return 'out-of-frame'
+    if not codon_unmutated(codon, seq, position):
+        return 'mutated'
+    return 'ok'
+
+#----------------------------------------------------------------------------------------
 def in_frame_germline_v(seq, cyst_position):  # NOTE duplication with in_frame() (this is for when all we have is the germline v gene, whereas in_frame() is for when we have the whole rearrangement line)
     return cyst_position <= len(seq) - 3 and (cyst_position - count_gap_chars(seq, aligned_pos=cyst_position)) % 3 == 0
 

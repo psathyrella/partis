@@ -4,6 +4,13 @@
 Policy (see data/germlines/README.md and issue #396):
   - We do NOT judge the quality of individual genes here -- that is the job of
     whoever curated the set we downloaded. We just merge in what we downloaded.
+    We do check one thing that isn't about quality: new genes whose conserved
+    codon can't be used (sequence ends before it, or v out of frame -- see
+    remove-unusable-genes.py) are left out of the merge, and listed (issue #421).
+  - Functionality (F/ORF/P) isn't a quality judgement either; it's recorded per
+    gene in <species>/functionalities.csv, which has to be rewritten after every
+    merge with write-functionalities.py. The default sets contain only F genes, so
+    after that run remove-nonfunctional-genes.py (see data/germlines/README.md).
   - The merge is always a UNION (glutils.get_merged_glfo): we never silently drop
     a gene we already had. Honoring an upstream removal is a separate, deliberate,
     documented decision -- not something this script does automatically.
@@ -115,6 +122,10 @@ def main():
             print('  %s no new %s dir under %s (old set has %d %s genes that would be untouched)'
                   % (utils.wrnstr(), locus, args.new_dir, sum(len(old_glfo['seqs'][r]) for r in utils.regions), locus))
             continue
+        unusable_genes = glutils.remove_genes_with_bad_codons(new_glfo, statuses=['truncated', 'out-of-frame'])
+        if len(unusable_genes) > 0:
+            print('  %s leaving out %d new gene%s whose conserved codon can\'t be used (see remove-unusable-genes.py): %s'
+                  % (utils.wrnstr(), len(unusable_genes), utils.plural(len(unusable_genes)), '  '.join('%s (%s)' % (utils.color_gene(g), s) for g, s in unusable_genes.items())))
 
         for region in utils.regions:
             if region == 'd' and not utils.has_d_gene(locus):  # dummy d gene injected for loci without d -- nothing to report
@@ -149,6 +160,8 @@ def main():
 
     if not args.write:
         print('\n%s dry run (no --write): merged glfo not written' % utils.color('yellow', 'note'))
+    else:
+        print('\n%s now rewrite the functionality file, and remove non-functional genes (see data/germlines/README.md): ./data/germlines/write-functionalities.py --species %s --gldir %s --write' % (utils.color('yellow', 'note'), args.species, args.out_dir))
     if any_warning:
         print('%s see the warnings above before committing this update' % utils.wrnstr())
 
