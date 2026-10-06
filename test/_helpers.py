@@ -1,3 +1,4 @@
+import glob
 import os
 import re
 import shutil
@@ -139,7 +140,7 @@ def logged_cmd(logfname):
 
 
 def group_stage_path(ddir, ginfo, stage, locus):
-    return '%s/%s/%s' % (ddir, os.path.dirname(ginfo['fasta_path']), dg.stage_fname(stage, locus))
+    return dg.group_stage_path(ddir, dict(ginfo, locus=locus), stage)
 
 
 def manifest_fname(outdir, locus):
@@ -150,8 +151,14 @@ def locus_manifest(outdir, locus):
     return disjoint_dir(outdir, locus), dg.read_manifest(manifest_fname(outdir, locus))
 
 
-def paired_partition_args(extra_args, param_dir=PAIRED_PARAM_DIR, indir=PAIRED_SIMU_DIR):
-    return ['partition', '--paired-loci', '--paired-indir', str(indir), '--parameter-dir', str(param_dir), '--disjoint-groups'] + extra_args
+def paired_partition_args(extra_args, param_dir=PAIRED_PARAM_DIR, indir=PAIRED_SIMU_DIR, outdir=None):
+    return ['partition', '--paired-loci', '--paired-indir', str(indir), '--parameter-dir', str(param_dir), '--disjoint-groups'] + extra_args + ([] if outdir is None else ['--paired-outdir', str(outdir)])
+
+
+def group_cmds(outdir, locus):
+    # command lines of the per-group partition jobs
+    ddir, _ = locus_manifest(outdir, locus)
+    return [logged_cmd(f) for f in glob.glob('%s/groups/**/log' % ddir, recursive=True)]
 
 
 def partition_fname(outdir, locus, single_chain=False):

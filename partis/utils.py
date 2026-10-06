@@ -5258,6 +5258,16 @@ def xxh3_file_hash(fname):
     return hash_and_count(fname, [])[0]
 
 # ----------------------------------------------------------------------------------------
+def xxh3_dir_hash(dirname):
+    # one hash over every file under <dirname>, by relative path and content
+    hasher = new_xxh3()
+    for root, dnames, fnames in os.walk(dirname, followlinks=True):
+        dnames.sort()
+        for fname in sorted(fnames):
+            hasher.update(('%s %s\n' % (os.path.relpath('%s/%s' % (root, fname), dirname), xxh3_file_hash('%s/%s' % (root, fname)))).encode())
+    return hasher.hexdigest()
+
+# ----------------------------------------------------------------------------------------
 def check_file_against_index(fname, expected_xxh3, expected_count, markers, cstr, unit='events'):
     # compare a file's own hash and count to what the index recorded for it
     xxh3, n_found = hash_and_count(fname, markers)
@@ -5315,16 +5325,22 @@ def check_subset_inputs(basedir, isubs):
         check_file_against_index('%s/%s' % (parameter_subset_root(basedir), sfos[isub]['input_fasta']), sfos[isub]['xxh3'], sfos[isub]['n_input_sequences'], FASTA_SEQ_MARKERS, 'subset input', unit='sequences')
 
 # ----------------------------------------------------------------------------------------
+def input_diffs(recorded, current, source):
+    # differences between two {files, args} input records, <source> naming where <recorded> came from
+    diffs = []
+    if [f['xxh3'] for f in recorded['files']] != [f['xxh3'] for f in current['files']]:  # paths may move, content may not
+        diffs.append('input files %s (xxh3 %s) but %s has %s (xxh3 %s)' % (' '.join(f['path'] for f in current['files']), ' '.join(f['xxh3'] for f in current['files']), source,
+                                                                          ' '.join(f['path'] for f in recorded['files']), ' '.join(f['xxh3'] for f in recorded['files'])))
+    for key in sorted(set(recorded['args']) | set(current['args'])):
+        if recorded['args'].get(key) != current['args'].get(key):
+            diffs.append('--%s %s but %s has %s' % (key.replace('_', '-'), current['args'].get(key), source, recorded['args'].get(key)))
+    return diffs
+
+# ----------------------------------------------------------------------------------------
 def check_split_inputs(basedir, current):
     # raise if <current> files or split args differ from the index
     ifn = subset_index_fname(basedir)
-    recorded, diffs = read_subset_index(basedir)['split_inputs'], []
-    if [f['xxh3'] for f in recorded['files']] != [f['xxh3'] for f in current['files']]:  # paths may move, content may not
-        diffs.append('input files %s (xxh3 %s) but index has %s (xxh3 %s)' % (' '.join(f['path'] for f in current['files']), ' '.join(f['xxh3'] for f in current['files']),
-                                                                             ' '.join(f['path'] for f in recorded['files']), ' '.join(f['xxh3'] for f in recorded['files'])))
-    for key in sorted(set(recorded['args']) | set(current['args'])):
-        if recorded['args'].get(key) != current['args'].get(key):
-            diffs.append('--%s %s but index has %s' % (key.replace('_', '-'), current['args'].get(key), recorded['args'].get(key)))
+    diffs = input_diffs(read_subset_index(basedir)['split_inputs'], current, 'index')
     if len(diffs) > 0:
         raise Exception('subset index %s does not match this run\'s inputs (re-run in a new dir): %s' % (ifn, '; '.join(diffs)))
 

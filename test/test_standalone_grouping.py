@@ -190,12 +190,15 @@ def test_group_by_cdr3_length():
     assert groups[33][0]['naive_seq'] == 'MM'
 
 
+MANIFEST_INPUTS = {'files': [{'path': '/x/sw-cache.yaml', 'xxh3': 32 * '0'}], 'args': {'hfrac': True}}
+
+
 def manifest_groups(counts):
     return [{'group_id': i, 'cdr3_length': 30 + i, 'locus': 'igh', 'sequence_count': n, 'fasta_path': 'groups/cdr3-%d/igh.fa' % (30 + i)} for i, n in enumerate(counts)]
 
 
 def test_manifest_round_trip(tmp_path):
-    written = dg.write_manifest(manifest_groups([3, 4]), str(tmp_path), 'igh', 9, 2, parameter_dir='x', hfrac=True)
+    written = dg.write_manifest(manifest_groups([3, 4]), str(tmp_path), 'igh', 9, 2, MANIFEST_INPUTS, parameter_dir='x', hfrac=True)
     read = dg.read_manifest(str(tmp_path / dg.MANIFEST_FNAME))
     assert read == written
     assert read['grouping-info']['method'] == 'cdr3-length+hfrac'
@@ -203,7 +206,7 @@ def test_manifest_round_trip(tmp_path):
 
 @pytest.mark.parametrize('total_grouped, total_input, errstr', [(8, 9, 'sum of the 2 group counts'), (7, 10, 'does not equal total_input')])
 def test_validate_sequence_count_raises(tmp_path, total_grouped, total_input, errstr):
-    manifest = dg.write_manifest(manifest_groups([3, 4]), str(tmp_path), 'igh', 9, 2)
+    manifest = dg.write_manifest(manifest_groups([3, 4]), str(tmp_path), 'igh', 9, 2, MANIFEST_INPUTS)
     manifest['grouping-info'].update({'total_grouped_sequences': total_grouped, 'total_input_sequences': total_input})
     with pytest.raises(Exception, match=errstr):
         dg.validate_sequence_count(manifest)
@@ -212,8 +215,15 @@ def test_validate_sequence_count_raises(tmp_path, total_grouped, total_input, er
 def test_read_manifest_missing_group_key(tmp_path):
     groups = manifest_groups([3])
     del groups[0]['fasta_path']
-    dg.write_manifest(groups, str(tmp_path), 'igh', 3, 0)
+    dg.write_manifest(groups, str(tmp_path), 'igh', 3, 0, MANIFEST_INPUTS)
     with pytest.raises(Exception, match='missing required key \'fasta_path\''):
+        dg.read_manifest(str(tmp_path / dg.MANIFEST_FNAME))
+
+
+def test_read_manifest_missing_inputs(tmp_path):
+    dg.write_manifest(manifest_groups([3]), str(tmp_path), 'igh', 3, 0, MANIFEST_INPUTS)
+    edit_yaml(str(tmp_path / dg.MANIFEST_FNAME), lambda m: m['grouping-info'].pop('inputs'))
+    with pytest.raises(Exception, match='missing required key \'inputs\''):
         dg.read_manifest(str(tmp_path / dg.MANIFEST_FNAME))
 
 
