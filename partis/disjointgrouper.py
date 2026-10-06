@@ -14,6 +14,7 @@ from . import glutils
 
 MANIFEST_FNAME = 'manifest.yaml'
 MULTIFILE_INDEX_FNAME = 'index.yaml'
+MEAN_MFREQ_FNAME = 'all-mean-mute-freqs.csv'
 SW_CACHE_FNAME = 'sw-cache.yaml'
 SW_CACHE_INDEX_FNAME = 'sw-cache-index.yaml'  # written in place of sw-cache.yaml when the per-subset caches are not merged
 
@@ -491,8 +492,8 @@ def _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=None, mer
     return all_group_infos
 
 # ----------------------------------------------------------------------------------------
-def write_manifest(group_infos, outdir, locus, total_input, n_failed, parameter_dir=None, hfrac=False):
-    # write manifest yaml to outdir
+def write_manifest(group_infos, outdir, locus, total_input, n_failed, inputs, parameter_dir=None, hfrac=False):
+    # write manifest yaml to outdir; <inputs> from grouping_inputs()
     manifest = {
         'grouping-info' : {
             'method' : 'cdr3-length+hfrac' if hfrac else 'cdr3-length',
@@ -501,6 +502,7 @@ def write_manifest(group_infos, outdir, locus, total_input, n_failed, parameter_
             'total_grouped_sequences' : total_input - n_failed,
             'failed_sequences' : n_failed,
             'parameter_dir' : parameter_dir,
+            'inputs' : inputs,
         },
         'groups' : group_infos,
         'assembly' : {
@@ -530,6 +532,8 @@ def read_manifest(manifest_path):
     for required_key in ['grouping-info', 'groups', 'assembly']:
         if required_key not in manifest:
             raise Exception('missing required key \'%s\' in manifest %s' % (required_key, manifest_path))
+    if 'inputs' not in manifest['grouping-info']:
+        raise Exception('missing required key \'inputs\' in grouping-info in manifest %s' % manifest_path)
     for ginfo in manifest['groups']:
         for required_key in ['group_id', 'cdr3_length', 'locus', 'sequence_count', 'fasta_path']:
             if required_key not in ginfo:
@@ -622,6 +626,10 @@ PARTITION_PRECEDENCE = [STAGE_REFINE, STAGE_HAREP, STAGE_VSEARCH]
 def stage_fname(stage, locus):
     # the partition file <stage> writes for <locus>
     return '%s-%s.yaml' % (stage, locus)
+
+
+def group_stage_path(disjoint_dir, ginfo, stage):
+    return '%s/%s/%s' % (disjoint_dir, os.path.dirname(ginfo['fasta_path']), stage_fname(stage, ginfo['locus']))
 
 
 def discover_partition_path(ginfo, manifest_dir):
@@ -752,6 +760,66 @@ def resolve_sw_cache_paths(sw_cache_path):
     return paths, entries
 
 # ----------------------------------------------------------------------------------------
+def hfrac_mfreq_dir(parameter_dir, locus):
+    # get_mean_mfreq expects the dir containing all-mean-mute-freqs.csv
+    # try nested layout ({pdir}/{locus}/sw/) then flat layout ({pdir}/sw/)
+    for candidate in ['%s/%s/sw' % (parameter_dir, locus), '%s/%s/hmm' % (parameter_dir, locus),
+                      '%s/sw' % parameter_dir, '%s/hmm' % parameter_dir]:
+        if os.path.exists('%s/%s' % (candidate, MEAN_MFREQ_FNAME)):
+            return candidate
+    raise Exception('could not find %s in %s (checked {locus}/sw, {locus}/hmm, sw, hmm)' % (MEAN_MFREQ_FNAME, parameter_dir))
+
+# ----------------------------------------------------------------------------------------
+def grouping_inputs(sw_cache_path, parameter_dir, locus, locus_pdir, hfrac, hfrac_merge_factor, hfrac_max_bin_size, min_group_size):
+    # hashes of the files the unit reads plus the args that change the groups, compared on re-run
+    # <locus_pdir>: locus parameter dir whose hmm/ the later stages read (None to skip); <parameter_dir> is only read with <hfrac>
+    paths, entries = resolve_sw_cache_paths(sw_cache_path)
+    if entries[0] is None:
+        utils.require_xxhash('recording the sw cache hash in the manifest')
+        files = [{'path' : os.path.abspath(paths[0]), 'xxh3' : utils.xxh3_file_hash(paths[0])}]
+    else:  # index entries are checked against their files at grouping
+        files = [{'path' : os.path.abspath(p), 'xxh3' : e['xxh3']} for p, e in zip(paths, entries)]
+    if hfrac:  # sets the hfrac hamming bound
+        mfreq_fname = '%s/%s' % (hfrac_mfreq_dir(parameter_dir, locus), MEAN_MFREQ_FNAME)
+        files.append({'path' : os.path.abspath(mfreq_fname), 'xxh3' : utils.xxh3_file_hash(mfreq_fname)})
+    if locus_pdir is not None:
+        files.append({'path' : os.path.abspath('%s/hmm' % locus_pdir), 'xxh3' : utils.xxh3_dir_hash('%s/hmm' % locus_pdir)})
+    gargs = {'hfrac' : hfrac}
+    if hfrac:  # the knobs do nothing without it
+        gargs.update({'hfrac_merge_factor' : hfrac_merge_factor, 'hfrac_max_bin_size' : hfrac_max_bin_size, 'hfrac_min_seqs' : min_group_size})
+    return {'files' : files, 'args' : gargs}
+
+# ----------------------------------------------------------------------------------------
+def check_stages_requested(manifest, disjoint_dir, requested):
+    # raise if groups have output from a stage this run skips, since assembly would use it
+    found = collections.OrderedDict()
+    for ginfo in manifest['groups']:
+        for stage in [STAGE_HAREP, STAGE_REFINE]:
+            if stage not in requested and os.path.exists(group_stage_path(disjoint_dir, ginfo, stage)):
+                found[stage] = found.get(stage, 0) + 1
+    if len(found) > 0:
+        raise Exception('disjoint dir %s has output from stages not requested in this run (--overwrite to redo it, or use a new --paired-outdir): %s' % (disjoint_dir, ', '.join('%d groups with %s' % (n, s) for s, n in found.items())))
+
+# ----------------------------------------------------------------------------------------
+def prepare_disjoint_dir(disjoint_dir, inputs, overwrite, outputs=None):
+    # manifest to resume from, or None if the unit is to be grouped from scratch
+    # <outputs>: assembled outputs, also removed on <overwrite>
+    manifest_path = '%s/%s' % (disjoint_dir, MANIFEST_FNAME)
+    if overwrite or not os.path.exists(manifest_path):  # with no manifest, anything in the dir is from an unfinished grouping
+        stale = [disjoint_dir]
+        if overwrite:
+            stale += [f for ofn in (outputs or []) for f in [ofn, multifile_dir_path(ofn)]]
+        for fname in [f for f in stale if os.path.exists(f)]:
+            print('      removing %s' % fname)
+            shutil.rmtree(fname) if os.path.isdir(fname) else os.remove(fname)
+        return None
+    manifest = read_manifest(manifest_path)  # existence is the grouping step's completion signal (read_manifest checks its counts)
+    diffs = utils.input_diffs(manifest['grouping-info']['inputs'], inputs, 'manifest')
+    if len(diffs) > 0:
+        raise Exception('disjoint dir %s was grouped from different inputs (--overwrite to redo it, or use a new --paired-outdir): %s' % (disjoint_dir, '; '.join(diffs)))
+    return manifest
+
+# ----------------------------------------------------------------------------------------
 def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, summary_path, expected, hfrac=False):
     # group one subset's sw cache by cdr3 length, writing its sw-cache fragments, its fasta fragments and its counts to <summary_path>
     # with <hfrac> the fasta fragments are naive seqs: _apply_hfrac writes sub-group fastas, the group-level one is never read
@@ -782,11 +850,12 @@ def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, su
         json.dump({'subset_counts' : subset_counts, 'subset_naive_counts' : subset_naive_counts, 'subset_failed' : subset_failed}, sfile)
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_path, outdir, parameter_dir, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None, n_subset_workers=MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT):
+def create_cdr3_groups(locus, sw_cache_path, outdir, parameter_dir, inputs, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None, n_subset_workers=MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
     # <sw_cache_path>: one sw cache file, or a dir holding the sw cache index
+    # <inputs>: grouping_inputs() record, written to the manifest
     # <n_procs>: concurrent single-threaded vsearch jobs; defaults to available cpus.
     # <n_subset_workers>: per-subset caches read at once, capped at <n_procs>
     # multiple caches are grouped a bounded number of subsets at a time
@@ -797,17 +866,7 @@ def create_cdr3_groups(locus, sw_cache_path, outdir, parameter_dir, hfrac=False,
     # compute hi hamming bound for hfrac sub-grouping
     hi_bound = None
     if hfrac:
-        # get_mean_mfreq expects the dir containing all-mean-mute-freqs.csv
-        # try nested layout ({pdir}/{locus}/sw/) then flat layout ({pdir}/sw/)
-        mfreq_dir = None
-        for candidate in ['%s/%s/sw' % (parameter_dir, locus), '%s/%s/hmm' % (parameter_dir, locus),
-                          '%s/sw' % parameter_dir, '%s/hmm' % parameter_dir]:
-            if os.path.exists('%s/all-mean-mute-freqs.csv' % candidate):
-                mfreq_dir = candidate
-                break
-        if mfreq_dir is None:
-            raise Exception('could not find all-mean-mute-freqs.csv in %s (checked {locus}/sw, {locus}/hmm, sw, hmm)' % parameter_dir)
-        _, hi_bound = utils.get_naive_hamming_bounds('likelihood', mfreq_dir)
+        _, hi_bound = utils.get_naive_hamming_bounds('likelihood', hfrac_mfreq_dir(parameter_dir, locus))
         print('      hfrac sub-grouping enabled (hi bound: %.4f)' % hi_bound)
 
     if not multi_cache:
@@ -923,7 +982,7 @@ def create_cdr3_groups(locus, sw_cache_path, outdir, parameter_dir, hfrac=False,
         cw = max(len(str(g['cdr3_length'])) for g in group_infos)
         print('        cdr3 lengths : %s' % '  '.join('%*d' % (cw, g['cdr3_length']) for g in group_infos))
         print('        N seqs       : %s' % '  '.join('%*d' % (cw, g['sequence_count']) for g in group_infos))
-    manifest = write_manifest(group_infos, outdir, locus, n_seqs, n_failed, parameter_dir=parameter_dir, hfrac=hfrac)
+    manifest = write_manifest(group_infos, outdir, locus, n_seqs, n_failed, inputs, parameter_dir=parameter_dir, hfrac=hfrac)
     validate_sequence_count(manifest)
     return manifest
 

@@ -12,7 +12,7 @@ from partis.processargs import single_locus_actions
 
 
 def paired_disjoint_args(tmp_path, extra_args, **kwargs):
-    return paired_partition_args(extra_args + ['--paired-outdir', str(tmp_path / 'out')], **kwargs)
+    return paired_partition_args(extra_args, outdir=tmp_path / 'out', **kwargs)
 
 
 # ----------------------------------------------------------------------------------------

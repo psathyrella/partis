@@ -21,6 +21,15 @@ def test_triggers_only_on_prs_into_feature_branch():
     assert triggers['pull_request']['branches'] == ['disjoint-grouping']
 
 
+def test_runs_on_open_and_on_label_not_per_push():
+    wflow = load_workflow()
+    triggers = wflow.get('on', wflow.get(True))
+    assert set(triggers['pull_request']['types']) == {'opened', 'reopened', 'ready_for_review', 'labeled'}
+    assert wflow['jobs']['suite']['if'] == "github.event.action != 'labeled' || github.event.label.name == 'run-suite'"
+    assert wflow['concurrency']['cancel-in-progress'] is True
+    assert 'github.event.label.name' in wflow['concurrency']['group']
+
+
 def test_installs_partis_and_runs_whole_suite():
     cmds = run_cmds(load_workflow())
     assert any('pip install -e .' in cmd for cmd in cmds)  # builds the c++ and installs xxhash from setup.py

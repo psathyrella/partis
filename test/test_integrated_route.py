@@ -1,18 +1,12 @@
-import glob
 import os
 
 import pytest
 
-from _helpers import BACKEND, LOCI, UNPAIRED_IGH_FNAME, fasta_uids, fixture_log, input_uids, locus_manifest, logged_cmd, output_partition_uids, partition_fname, partition_uids, read_log, well_paired_uids
+from _helpers import BACKEND, LOCI, UNPAIRED_IGH_FNAME, fasta_uids, fixture_log, group_cmds, input_uids, locus_manifest, output_partition_uids, partition_fname, partition_uids, read_log, well_paired_uids
 from partis import disjointgrouper as dg
 
 # ----------------------------------------------------------------------------------------
 # partition --disjoint-groups, integrated route
-
-
-def group_cmds(outdir, locus):
-    ddir, _ = locus_manifest(outdir, locus)
-    return [logged_cmd(f) for f in glob.glob('%s/groups/**/log' % ddir, recursive=True)]
 
 
 @pytest.mark.parametrize('locus', LOCI)

@@ -25,7 +25,9 @@
     - [choosing antibodies](#choosing-antibodies)
   - [view-output](#view-output) print the partitions and/or annotations from an existing output file
   - [cache-parameters](#cache-parameters) write parameter values and HMM model files for later inference (runs automatically, if needed)
+    - [caching in subsets](#caching-in-subsets)
     - [germline sets](#germline-sets)
+  - [merge-parameter-subsets](#merge-parameter-subsets) merge the per-subset parameter dirs written by `cache-parameters --n-subsets --write-subsets-only`
   - [simulate](#simulate) make simulated sequences
   - [other topics](#other-topics)
     - [restricting to certain partitions or clusters](#restricting-to-certain-partitions-or-clusters)
@@ -114,6 +116,14 @@ Both defaults come from optimization runs at full scale, so the only reason to c
 Each sub-group is partitioned independently with vsearch clustering (`--naive-vsearch`/`--fast`), always, regardless of group size; `--no-naive-vsearch` overrides this if full likelihood clustering is genuinely wanted for a group.
 For running the individual steps separately (e.g. as independent batch jobs), see [`create-disjoint-groups`](#create-disjoint-groups) and [`assemble-groups`](#assemble-groups) below.
 
+Grouping, the per-group partitions, `--ha-repartition`, `--partition-refine` and the final assembly are treated as one unit per locus, in `<paired-outdir>/single-chain/disjoint-groups/<locus>/`.
+The manifest records what the unit reads: the hash of each SW cache file, one hash over the locus parameter directory's `hmm/` (read by the later stages), and with `--hfrac` the hash of the `all-mean-mute-freqs.csv` that sets its hamming bound; plus `--hfrac` and, with `--hfrac`, its `--hfrac-merge-factor`, `--hfrac-max-bin-size` and `--hfrac-min-seqs`.
+Re-running with the same inputs resumes the unit, skipping each stage that already finished, so an interrupted run is continued by re-running the same command.
+Re-running with different inputs (e.g. a changed SW cache, or `--hfrac` added or removed) raises an exception naming the directory and each difference; to redo the unit, either pass `--overwrite`, which removes the locus directory and its assembled single-chain output and starts again from grouping, or use a new `--paired-outdir`.
+A locus directory with no manifest is left over from a grouping that did not finish, and is removed before grouping again.
+A re-run that leaves out `--ha-repartition` or `--partition-refine` while groups still have that stage's output from an earlier run also raises, since the assembly would otherwise use that output.
+Other per-stage options are not recorded yet, so a re-run with, e.g., changed refinement options keeps the earlier results for groups that already finished.
+
 ##### HA re-partition and refinement
 
 With `--disjoint-groups`, every group is partitioned with the fast vsearch method (see [above](#disjoint-groups)), which trades some accuracy for speed.
@@ -192,12 +202,14 @@ Since normal annotation, unlike partitioning, is easily split up into independen
 
 Split sequences for a single locus into disjoint CDR3 length groups, writing per-group FASTAs, per-group SW cache subsets, and a manifest to the output directory.
 Requires `--locus` and `--parameter-dir` (which must already contain an SW cache from a prior `cache-parameters` run).
-`--sw-cachefname` can point to a single SW cache file, a colon-separated list of files (e.g. from running cache-parameters independently on each part of a split input), or a parent directory holding the per-chunk output dirs, in which case the caches are found at `<dir>/chunk<i>-out/parameters/<locus>/sw-cache.yaml` and used in numerical chunk order.
-When running `cache-parameters` independently on unpaired data for this purpose, pass `--paired-loci --no-pairing-info` so the parameter directory layout is compatible with downstream functions.
-At scale, merge only HMM parameters across parts externally, and pass the per-part SW caches to `--sw-cachefname` as a list (or parent directory) rather than merging them into one file.
+By default it groups from the locus's `sw-cache.yaml`, or, if the parameter directory has no merged SW cache, from the per-subset caches listed in its `sw-cache-index.yaml` (written by [`cache-parameters --n-subsets --no-merged-sw-cache`](#caching-in-subsets)).
+`--sw-cachefname` overrides this with either a single SW cache file or a directory holding `sw-cache-index.yaml`; each cache listed in an index is checked against the hash and sequence count recorded for it before it is read.
+When running `cache-parameters` on unpaired data for this purpose, pass `--paired-loci --no-pairing-info` so the parameter directory layout is compatible with downstream functions.
+At scale, use `--no-merged-sw-cache` rather than merging the per-subset caches into one file, which may not fit in memory.
 The grouping step itself unions the germline sets of all the SW caches it reads, and writes every per-group cache against that union, so the groups all use one set of gene labels.
 It does not re-derive gene calls: each sequence keeps whatever gene SW assigned to it against its own part's germline set, so if you want calls made against a single germline set you have to merge the parameter directories before running SW.
 This is the standalone version of the grouping step in `--disjoint-groups` (see [above](#disjoint-groups)), intended for workflows where each step is submitted as a separate batch job.
+Re-runs follow the same rules as the integrated step: the same inputs skip grouping, different inputs raise, and `--overwrite` removes the locus directory and groups again.
 
 All six standalone disjoint-grouping actions below take one `--locus` and use `--paired-outdir` for the disjoint-groups root, the same flag and directory layout (`<paired-outdir>/single-chain/disjoint-groups/<locus>/`) the integrated `--disjoint-groups` pipeline uses. `--paired-loci` gets turned on automatically to satisfy `--paired-outdir`'s own validation, but `--locus` is preserved (unlike the integrated path, where it is nulled and the loci come from the data). `--workdir` keeps its normal meaning (scratch) and is not used for this.
 
@@ -281,7 +293,7 @@ The counts are checked when the index is written and again when it's read, so yo
 To read one back, pass the directory, its `index.yaml`, or the `--outfname` path, to anything that takes a partis output file, e.g. `bin/parse-output.py`.
 This concatenates all the files, so it uses as much memory as a merged output would; read the files listed in the index one at a time to avoid that.
 You can't rewrite one in place, so actions that update an existing output file, e.g. `get-selection-metrics --add-selection-metrics-to-outfname`, refuse a multifile input.
-For the same reason `--overwrite` does not overwrite one: a re-run whose output went multifile tells you to remove the directory by hand.
+For the same reason `--overwrite` does not overwrite one: a re-run whose output went multifile tells you to remove the directory by hand. The exception is `partition --disjoint-groups --overwrite`, which removes it along with the rest of the [disjoint-groups unit](#disjoint-groups).
 
 ### create-ha-repartition-jobs
 
@@ -320,7 +332,7 @@ Run [refinement](#ha-re-partition-and-refinement) on a slice of the disjoint gro
 It refines each group's HA re-partition (or the vsearch partition, if the HA step was not run) in-process and writes a refined partition per group; reassemble the results with [`assemble-groups`](#assemble-groups).
 Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and `--paired-outdir`.
 If partition files are not recorded in the manifest (e.g. when partition was run as standalone batch jobs), they are auto-discovered in the group directories.
-Groups whose refined output already exists are skipped unless `--overwrite` is set, so an interrupted run can be resumed by re-running the same command.
+Groups whose refined output already exists are skipped, so an interrupted run can be resumed by re-running the same command.
 This is the standalone version of the refinement step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.
 
 ```
@@ -442,6 +454,35 @@ By default these smith-waterman annotations are written to a yaml file in `--par
 These defaults should ensure that with typical workflows, smith-waterman only runs once.
 If however, you're doing less typical things (running on a subset of sequences in the file), if you want smith-waterman results to be cached you'll need to specify `--sw-cachefname` explicitly, and it'll write it if it doesn't exist, and read from it if it does.
 
+#### caching in subsets
+
+On large samples, `--n-subsets <n>` bounds the memory of parameter caching: the input is split into `n` subsets (with paired input, unless `--no-pairing-info` is set, the sequences from each droplet stay together), parameters are cached on each subset separately, and the per-subset parameters are then merged into the usual parameter directory (`<paired-outdir>/parameters/<locus>/` with `--paired-loci`, otherwise `--parameter-dir`).
+Each subset job takes 8 procs, with as many running at once as `--n-procs` allows (see `--n-max-procs`).
+It needs the `xxhash` python package.
+
+The subsets are written to `parameter-subsets/subset-<i>/` (in `--paired-outdir`, or in `--parameter-dir` for a single locus), along with an index, `parameter-subsets/subset-index.yaml`, that records the hash of each subset's input file and what the split was made from: the hashes of the input files, plus `--n-max-queries`, `--n-random-queries`, `--queries-to-include`, `--seed-unique-id`, `--droplet-id-separators` and `--droplet-id-indices`.
+Each subset job writes `subset-complete.yaml` in its subset directory when it finishes.
+Re-running the same command skips the finished subsets, and re-runs the others after checking their input files against the index.
+A re-run whose input files, split arguments or `--n-subsets` differ from the index raises an exception, so use a new output directory instead.
+
+`--write-subsets-only` writes the subset input files and the index, then exits, so that you can run each subset as a separate batch job and merge them afterwards with [`merge-parameter-subsets`](#merge-parameter-subsets).
+Each job is a normal `cache-parameters` run on one subset's `input-seqs.fa`, with that subset's directory as its output:
+
+```
+partis cache-parameters --paired-loci --paired-indir in/ --paired-outdir out/ --n-subsets 10 --write-subsets-only
+# then one job for each i in 0..9 (--input-metafnames only if the subset dir has a meta.yaml):
+partis cache-parameters --paired-loci --infname out/parameter-subsets/subset-<i>/input-seqs.fa \
+  --input-metafnames out/parameter-subsets/subset-<i>/meta.yaml --paired-outdir out/parameter-subsets/subset-<i>
+partis merge-parameter-subsets --paired-loci --paired-outdir out/
+```
+
+For a single locus, the per-subset job instead takes `--parameter-dir <dir>/parameter-subsets/subset-<i>/parameters` and `--sw-cachefname <dir>/parameter-subsets/subset-<i>/parameters/sw-cache.yaml`.
+
+By default the per-subset SW caches are merged into one `sw-cache.yaml` per locus.
+With `--no-merged-sw-cache` (on `cache-parameters --n-subsets` or on `merge-parameter-subsets`) they are not merged, and `sw-cache-index.yaml` is written in its place, listing each per-subset cache with its hash and sequence count.
+Only disjoint grouping ([`--disjoint-groups`](#disjoint-groups) and [`create-disjoint-groups`](#create-disjoint-groups)) reads the index; any other action that needs an SW cache raises an exception rather than re-running Smith-Waterman.
+This avoids writing, and later reading, one cache file that may not fit in memory, so it is the choice for loci with more sequences than `--multifile-min-seqs`, and the merge prints a warning when the choice looks wrong for a locus's size.
+
 #### germline sets
 By default partis infers a germline set for each sample during parameter caching, using as a starting point the germline sets in `data/germlines/<--species>` (see also data/germlines/README.md).
 The resulting per-sample germline sets are written both to the output yaml file (if you've set `--outfname`), and to `<--parameter-dir>/hmm/germline-sets` (as three fasta files and a meta-info csv).
@@ -497,6 +538,19 @@ cf-germlines.py data/germlines/human data/germlines/macaque | less -RS
 ```
 and display a rundown of alleles in common and unique to each set, as well as aligning them against the nearest allele in the other set:
 ![cf-germlines](images/cf-germlines.jpg)
+
+### merge-parameter-subsets
+
+Merge the per-subset parameter directories written by [`cache-parameters --n-subsets --write-subsets-only`](#caching-in-subsets) into one parameter directory, once every subset job has finished.
+Requires `--paired-outdir` (or `--parameter-dir` and `--locus`, without `--paired-loci`), the same one passed to `cache-parameters`.
+It refuses to merge if any subset has no `subset-complete.yaml`, or if any subset's input file no longer matches the hash in the index.
+The count tables are summed and the germline sets unioned, and the HMM model files are rebuilt from the summed counts.
+A locus whose merged parameters already exist is not rewritten unless `--overwrite` is set.
+`--no-merged-sw-cache` works as it does for `cache-parameters` (see [above](#caching-in-subsets)).
+
+```
+partis merge-parameter-subsets --paired-loci --paired-outdir out/
+```
 
 ### simulate
 
