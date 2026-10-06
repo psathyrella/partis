@@ -1923,10 +1923,10 @@ def bundle_marker_fname(disjoint_dir, job_start):
 
 def group_specs(disjoint_dir, groups, locus):
     """Per-group refine I/O paths. Refine runs on the HA re-partition if it exists,
-    else the vsearch partition; output is partition-refine-<locus>.yaml. Only groups
-    whose input partition and sw-cache exist are returned."""
+    else the vsearch partition; output is partition-refine-<locus>.yaml. Raises if any group
+    is missing its input partition or sw-cache (array slices index into the returned list)."""
     from partis import disjointgrouper
-    specs = []
+    specs, missing = [], []
     n_harep = n_vsearch = 0
     for group in groups:
         fasta_dir = os.path.dirname(group['fasta_path'])
@@ -1935,6 +1935,7 @@ def group_specs(disjoint_dir, groups, locus):
         sw = '%s/%s/%s' % (disjoint_dir, fasta_dir, disjointgrouper.group_sw_cache_fname(locus))
         inp = harep_p if os.path.exists(harep_p) else vsearch_p  # existence is the ha-repartition completion signal
         if not (os.path.exists(inp) and os.path.exists(sw)):
+            missing.append(group)
             continue
         if inp == harep_p:
             n_harep += 1
@@ -1944,6 +1945,7 @@ def group_specs(disjoint_dir, groups, locus):
         specs.append({'group': group, 'input': inp, 'sw_cache': sw,
                       'refined_out': '%s/%s' % (disjoint_dir, refined_rel),
                       'refined_rel': refined_rel})
+    disjointgrouper.require_group_inputs(missing, len(groups), 'partition-refine', 'input partition (ha-repartition or vsearch) or group sw cache')
     if n_vsearch > 0:  # any vsearch input means ha-repartition did not run
         from partis import utils
         print('  %s refine input: %d groups from ha-repartition, %d from vsearch (run ha-repartition first to refine its output)'

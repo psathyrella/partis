@@ -634,7 +634,7 @@ def subset_cache_parameters(args):
         return utils.parameter_subset_dir(base, isub)
     # ----------------------------------------------------------------------------------------
     def input_fn(isub):
-        return '%s/input-seqs.fa' % sdir(isub)
+        return '%s/%s' % (sdir(isub), utils.SUBSET_INPUT_FNAME)
     # ----------------------------------------------------------------------------------------
     def cached_loci(isub):
         return [l for l in subset_loci(args) if os.path.exists('%s/hmm/germline-sets' % param_locus_dir(args, subset_pdir(args, isub), l))]
@@ -642,9 +642,9 @@ def subset_cache_parameters(args):
     def subset_is_cached(isub, completion_markers):
         if utils.subset_is_marked_complete(sdir(isub)):
             return True
-        if completion_markers:  # a missing marker means the job didn't finish
-            return False
-        return len(cached_loci(isub)) > 0  # subsets from before the markers existed
+        if not completion_markers and len(cached_loci(isub)) > 0:  # subsets from before the markers existed
+            raise Exception('subset %s has parameters but its index %s predates completion markers, so whether its job finished is unknown (re-run in a new dir)' % (sdir(isub), utils.subset_index_fname(base)))
+        return False  # a missing marker means the job did not finish
     # ----------------------------------------------------------------------------------------
     def get_cmd(isub, n_procs):
         clist = copy.deepcopy(sys.argv)
@@ -723,12 +723,10 @@ def subset_cache_parameters(args):
             return
         print('    running %d subset jobs (%d concurrent, %d procs each):' % (len(cmdfos), n_jobs, n_procs))
         statuses = utils.run_cmds(cmdfos, n_max_procs=n_jobs, debug='write', allow_failure=True)
-        for isub, status in zip(isubs, statuses):
-            if status == 'ok':
-                utils.mark_subset_complete(sdir(isub))
         failed = [i for i, s in zip(isubs, statuses) if s != 'ok']
         if len(failed) > 0:
             raise Exception('%d of %d subset jobs failed (subsets %s)' % (len(failed), len(isubs), ' '.join(str(i) for i in failed)))
+        utils.require_subsets_marked([sdir(i) for i in isubs], 'cache-parameters')  # each job writes its own marker
     # ----------------------------------------------------------------------------------------
     inputs_preexisting = os.path.exists(utils.subset_index_fname(base))
     if inputs_preexisting:
@@ -779,6 +777,7 @@ def merge_parameter_subsets(args):
         utils.require_xxhash('--no-merged-sw-cache')
     base = parameter_subset_base(args)
     n_subsets = utils.read_subset_index(base)['n_subsets']
+    utils.require_subsets_marked([utils.parameter_subset_dir(base, i) for i in range(n_subsets)], 'merge-parameter-subsets')
     def subdfn(isub): return subset_pdir(args, isub)
     warn_on_sw_cache_choice(args, subdfn, n_subsets)
     utils.merge_parameter_dirs(base, subdfn, n_subsets, args, ig_or_tr=args.ig_or_tr, skip_sw_merge=args.no_merged_sw_cache,
@@ -810,18 +809,13 @@ def subset_partition(args):
         return '%s/isub-%d' % (args.paired_outdir, igroup)
     # ----------------------------------------------------------------------------------------
     def input_fn(indir):
-        return '%s/input-seqs.fa' % indir
+        return '%s/%s' % (indir, utils.SUBSET_INPUT_FNAME)
     # ----------------------------------------------------------------------------------------
     def ptnfn(bdir, ltmp, lpair=None):
         return paircluster.paired_fn(bdir, ltmp, lpair=lpair, actstr='partition', suffix='.yaml')
     # ----------------------------------------------------------------------------------------
-    def subset_is_done(isub):
-        if utils.subset_is_marked_complete(subdir(isub)):
-            return True
-        if any(utils.subset_is_marked_complete(subdir(i)) for i in range(args.n_subsets)):
-            return False  # this run writes markers, so a subset without one did not finish
-        # subsets from before the markers existed: if e.g. keeping all unpaired seqs, we may only have an output file for one locus, hence the any() (yes this means it won't rerun if it crashes partway through writing the three files)
-        return any(os.path.exists(ptnfn(subdir(isub), 'ig'+l)) for l in 'hkl')
+    def subset_is_done(isub):  # a subset from before the markers existed has none either, so it is re-run too
+        return utils.subset_is_marked_complete(subdir(isub))
     # ----------------------------------------------------------------------------------------
     def get_cmd(infname, outdir, merged_odir=None, n_procs=None):
         clist = copy.deepcopy(sys.argv)
@@ -872,6 +866,8 @@ def subset_partition(args):
             if subset_is_done(isub):
                 print('    isub-%s output exists, skipping: %s' % (isub, ptnfn(subdir(isub), 'igh')))
             else:
+                if any(os.path.exists(ptnfn(subdir(isub), 'ig'+l)) for l in 'hkl'):
+                    print('    %s %s has partition output but no completion marker %s, so re-running it' % (utils.wrnstr(), subdir(isub), utils.SUBSET_COMPLETE_FNAME))
                 isubs.append(isub)
         if len(isubs) == 0:
             return
@@ -895,8 +891,7 @@ def subset_partition(args):
             else:
                 print('    running %d subset jobs (%d concurrent, %d procs each):' % (len(cmdfos), n_jobs, n_procs))
                 utils.run_cmds(cmdfos, n_max_procs=n_jobs, debug='write')  # raises if any job failed, so everything left finished
-                for isub in isubs:
-                    utils.mark_subset_complete(subdir(isub))
+                utils.require_subsets_marked([subdir(i) for i in isubs], args.action)  # each job writes its own marker
     # ----------------------------------------------------------------------------------------
     def merge_subset_files():
         # NOTE it would be nice to merge duplicates in here (from --collapse-duplicate-sequences, but jeez it seems like it'll be a bit fiddly to implement it
@@ -1917,6 +1912,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             partition_path = '%s/%s' % (disjoint_dir, partition_rel_path)
             ginfo['partition_path'] = partition_rel_path
             if os.path.exists(partition_path):  # existence is this group's partition completion signal
+                disjointgrouper.check_group_partition_complete(ginfo, partition_path)
                 print('    group %d (cdr3 %d): partition exists, skipping' % (ginfo['group_id'], ginfo['cdr3_length']))
                 continue
             fasta_path = '%s/%s' % (disjoint_dir, fasta_rel)
@@ -2571,6 +2567,9 @@ random.seed(args.random_seed)
 numpy.random.seed(args.random_seed)
 start = time.time()
 args.func(args)
+subset_dir = utils.subset_job_dir(args)
+if subset_dir is not None and not args.dry_run:  # each subset job marks itself, so one crash does not unmark its whole batch
+    utils.mark_subset_complete(subset_dir)
 total_time = time.time() - start
 print('      total time: %.1f' % total_time)
 from partis import partitiondriver

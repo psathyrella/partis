@@ -49,6 +49,10 @@ def cluster_id(idx, cluster):
     return 'cluster-%06d-size-%d' % (idx, len(cluster))
 
 
+def result_fname(cdir, idx, cluster):  # existence is the per-cluster HA job's completion signal
+    return os.path.join(cdir, cluster_id(idx, cluster), 'partition.yaml')
+
+
 def prepare(partition_fname, fasta_fname, workdir, min_cluster_size=3):
     """Write a per-cluster FASTA for every vsearch cluster >= min_cluster_size, plus a
     task_list.txt (infname, outfname, n_seqs per line) for external array runs. Returns
@@ -74,11 +78,15 @@ def prepare(partition_fname, fasta_fname, workdir, min_cluster_size=3):
         if n_written != len(cluster):
             print('    warning: ha-repartition prepare wrote %d/%d cluster seqs to %s (rest missing from input fasta)' % (n_written, len(cluster), infa))
         jobs.append({'cluster_id': cid, 'infname': infa,
-                     'outfname': os.path.join(d, 'partition.yaml'), 'n_seqs': len(cluster)})
+                     'outfname': result_fname(cdir, idx, cluster), 'n_seqs': len(cluster)})
     with open(os.path.join(workdir, 'task_list.txt'), 'w') as f:
         for j in jobs:
             f.write('%s\t%s\t%d\n' % (j['infname'], j['outfname'], j['n_seqs']))
     return jobs
+
+
+def _id_str(cids, n_max=20):
+    return ' '.join(cids[:n_max]) + (' (and %d more)' % (len(cids) - n_max) if len(cids) > n_max else '')
 
 
 def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_size=3):
@@ -89,26 +97,26 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
     from partis import utils, partition_refinement, disjointgrouper
     clusters = _load_best_partition(partition_fname)
     cdir = os.path.join(workdir, 'clusters')
+    missing = [cluster_id(i, c) for i, c in enumerate(clusters) if len(c) >= min_cluster_size and not os.path.exists(result_fname(cdir, i, c))]
+    if len(missing) > 0:
+        raise Exception('%d HA results missing in %s, so their jobs did not finish (re-run run-ha-repartition-jobs for them): %s' % (len(missing), cdir, _id_str(missing)))
     repartitioned, n_split, n_kept = [], 0, 0
-    n_missing, n_uncovered = 0, 0
+    uncovered = []
     for idx, cluster in enumerate(clusters):
-        result = os.path.join(cdir, cluster_id(idx, cluster), 'partition.yaml')
-        # existence is the per-cluster HA job's completion signal; a result that does not cover the
-        # cluster is rejected below, so a half-written one keeps the cluster whole rather than losing uids
-        if len(cluster) >= min_cluster_size and os.path.exists(result):
+        result = result_fname(cdir, idx, cluster)
+        # a result not covering its cluster keeps the cluster whole, so no uids are lost
+        if len(cluster) >= min_cluster_size:
             subs = _load_best_partition(result)
             if subs and set().union(*subs) == set(cluster):
                 repartitioned.extend(subs)
                 n_split += 1 if len(subs) > 1 else 0
                 n_kept += 1 if len(subs) == 1 else 0
                 continue
-            n_uncovered += 1
-        elif len(cluster) >= min_cluster_size:
-            n_missing += 1
+            uncovered.append(cluster_id(idx, cluster))
         repartitioned.append(cluster)
         n_kept += 1
-    if n_missing + n_uncovered > 0:
-        print('    %s HA results in %s: %d missing and %d not covering their cluster, so those clusters are kept whole' % (utils.wrnstr(), cdir, n_missing, n_uncovered))
+    if len(uncovered) > 0:
+        print('    %s HA results in %s: %d not covering their cluster, so those clusters are kept whole: %s' % (utils.wrnstr(), cdir, len(uncovered), _id_str(uncovered)))
     # write full output: synthesize each cluster's annotation from the persistent
     # partition-step annotations (full-length HMM naive_seq/input_seqs), not the sw-cache
     # (which stores SW-trimmed, variable-length seqs). partition-refine consumes these
@@ -146,13 +154,12 @@ def _group_spec(disjoint_dir, group, locus):
 
 
 def group_specs(disjoint_dir, groups, locus):
-    """Per-group HA re-partition path bundles for every group whose vsearch partition and
-    sw-cache exist (the groups HA re-partition can run on)."""
-    specs = []
-    for group in groups:
-        spec = _group_spec(disjoint_dir, group, locus)
-        if os.path.exists(spec['vsearch']) and os.path.exists(spec['sw_cache']):
-            specs.append(spec)
+    """Per-group HA re-partition path bundles. Raises if any group is missing its vsearch
+    partition or sw-cache."""
+    from partis import disjointgrouper
+    specs = [_group_spec(disjoint_dir, g, locus) for g in groups]
+    missing = [s['group'] for s in specs if not (os.path.exists(s['vsearch']) and os.path.exists(s['sw_cache']))]
+    disjointgrouper.require_group_inputs(missing, len(groups), 'ha-repartition', 'vsearch partition or group sw cache')
     return specs
 
 
