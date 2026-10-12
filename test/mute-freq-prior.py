@@ -4,7 +4,7 @@
 # mutation frequency, held within the per-position bounds, rather than a fixed 0.1. Copies the test
 # parameter dir (only as a source of well-formed input files), replaces one gene's per-position counts
 # and the sample-wide mean with chosen values, and builds that gene's HmmWriter, so it takes a few
-# seconds and doesn't need binaries.
+# seconds and doesn't need binaries. Also checks that the light chain dummy d keeps its fixed 0.1.
 #   ./test/mute-freq-prior.py
 from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
@@ -25,6 +25,9 @@ from partis import utils
 LOCUS = 'igh'
 GENE = 'IGHV3-23*01'
 SOURCE_PDIR = partis_dir + '/test/ref-results/test/parameters/data/hmm'
+LIGHT_LOCUS = 'igk'
+LIGHT_SOURCE_PDIR = partis_dir + '/test/paired/ref-results/test/parameters/data/igk/hmm'
+DUMMY_D_MUTE_FREQ = 0.1  # what the dummy d has always had
 MIN_OBS = 20  # default --min-observations-per-gene
 THIN_POSITIONS = list(range(100, 120))  # one observation, no mutations
 MISSING_POSITIONS = list(range(120, 140))  # no row in the counts file
@@ -48,6 +51,10 @@ def write_counts(pdir, germline_seq, sample_mute_freq):
                 obs = n_obs - n_mutated if nuke == gl_nuke else (n_mutated if nuke == mut_nuke else 0)
                 row.update({nuke : obs / float(n_obs), nuke+'_obs' : obs, nuke+'_lo_err' : 0., nuke+'_hi_err' : 0.})
             writer.writerow(row)
+    write_sample_mean(pdir, sample_mute_freq)
+
+# ----------------------------------------------------------------------------------------
+def write_sample_mean(pdir, sample_mute_freq):
     # sample-wide mean: one bin holding everything, centred on <sample_mute_freq>, so Hist.get_mean() returns that value
     half = 0.5 * sample_mute_freq
     with open('%s/all-mean-mute-freqs.csv' % pdir, utils.csv_wmode()) as hfile:
@@ -66,6 +73,19 @@ def build_writer(sample_mute_freq):
         write_counts(pdir, glfo['seqs']['v'][GENE], sample_mute_freq)
         args = argparse.Namespace(locus=LOCUS, min_observations_per_gene=MIN_OBS, allow_conserved_codon_deletion=False, no_per_base_mfreqs=False)
         return hmmwriter.HmmWriter(pdir, workdir + '/hmms', GENE, glfo, args)
+    finally:
+        shutil.rmtree(workdir)
+
+# ----------------------------------------------------------------------------------------
+def build_dummy_d_writer(sample_mute_freq):  # light chain dummy d, whose single base isn't a real germline position
+    workdir = tempfile.mkdtemp(prefix='mute-freq-prior-')
+    try:
+        pdir = workdir + '/hmm'
+        shutil.copytree(LIGHT_SOURCE_PDIR, pdir)
+        write_sample_mean(pdir, sample_mute_freq)
+        glfo = glutils.read_glfo(pdir + '/germline-sets', LIGHT_LOCUS)
+        args = argparse.Namespace(locus=LIGHT_LOCUS, min_observations_per_gene=MIN_OBS, allow_conserved_codon_deletion=False, no_per_base_mfreqs=False)
+        return hmmwriter.HmmWriter(pdir, workdir + '/hmms', glutils.dummy_d_genes[LIGHT_LOCUS], glfo, args)
     finally:
         shutil.rmtree(workdir)
 
@@ -97,6 +117,13 @@ def run_tests():
                             'min %.5f max %.5f' % (min(well_covered), max(well_covered))))
         passed.append(check('hmm still records the unclamped sample mean', abs(writer.hmm.extras['overall_mute_freq'] - sample_mute_freq) < utils.eps,
                             '%.5f' % writer.hmm.extras['overall_mute_freq']))
+
+    # the light chain dummy d keeps its fixed value, since its single base is a placeholder, not something the sample's mean describes
+    print('  light chain dummy d (%s):' % glutils.dummy_d_genes[LIGHT_LOCUS])
+    for sample_mute_freq in [0.001, 0.005, 0.05, 0.2, 0.5]:
+        writer = build_dummy_d_writer(sample_mute_freq)
+        passed.append(check('sample mean %.3f: dummy d stays at %.2f' % (sample_mute_freq, DUMMY_D_MUTE_FREQ), abs(writer.mute_freqs[0] - DUMMY_D_MUTE_FREQ) < utils.eps,
+                            '%.5f' % writer.mute_freqs[0]))
 
     print('  %d/%d checks passed' % (sum(passed), len(passed)))
     return all(passed)
