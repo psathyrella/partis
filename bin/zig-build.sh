@@ -2,7 +2,7 @@
 # Build the in-tree Zig backend (drop-in replacements for bcrham and ig-sw).
 #
 # Usage:
-#   bin/zig-build.sh [mode | options] [zig-target] [search-prefix]
+#   bin/zig-build.sh [options | mode]
 #
 # Modes:
 #   --release-fast (default), --release-safe, --debug, --release-small
@@ -20,9 +20,6 @@ if [[ -n "${CONDA_PREFIX:-}" ]]; then
     PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -Fv "$CONDA_PREFIX" | paste -sd: -)
     export PATH
 fi
-
-ZIG_TARGET=""
-ZIG_SEARCH_PREFIX=""
 
 ZIG_VERSION="0.15.2"
 PARTIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -73,24 +70,12 @@ while [[ $# -gt 0 ]]; do
             echo "  --debug, debug, Debug               Unoptimized debug build with full tracking"
             echo "  --release-small, small              Optimized for binary size"
             echo ""
-            echo "Positional args: [zig-target] [search-prefix]"
-            echo ""
             echo "Environment variables:"
             echo "  PARTIS_ZIG_OPTIMIZE=ReleaseSafe $0"
             exit 0
             ;;
-        -*)
+        *)
             EXTRA_ARGS+=("$1")
-            shift
-            ;;
-        *)  # positional: zig target, then search prefix
-            if [[ -z "$ZIG_TARGET" ]]; then
-                ZIG_TARGET="$1"
-            elif [[ -z "$ZIG_SEARCH_PREFIX" ]]; then
-                ZIG_SEARCH_PREFIX="$1"
-            else
-                EXTRA_ARGS+=("$1")
-            fi
             shift
             ;;
     esac
@@ -149,15 +134,7 @@ fi
 
 export PARTIS_DIR
 echo "==> Building partis-zig-core (mode: $OPTIMIZE)..."
-BUILD_ARGS=(-Doptimize="$OPTIMIZE")
-if [[ -n "$ZIG_TARGET" ]]; then
-    echo "==> Targeting: $ZIG_TARGET"
-    BUILD_ARGS+=(-Dtarget="$ZIG_TARGET")
-fi
-if [[ -n "$ZIG_SEARCH_PREFIX" ]]; then
-    BUILD_ARGS+=(--search-prefix "$ZIG_SEARCH_PREFIX")
-fi
-(cd "$ZIG_CORE_DIR" && "$ZIG" build "${BUILD_ARGS[@]}" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}")
+(cd "$ZIG_CORE_DIR" && "$ZIG" build -Doptimize="$OPTIMIZE" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}")
 
 if [[ ! -x "$ZIG_EXE_FINAL" || ! -x "$ZIG_IGSW_EXE_FINAL" ]]; then
     echo "ERROR: build succeeded but executable not found at $ZIG_EXE_FINAL or $ZIG_IGSW_EXE_FINAL" >&2

@@ -1,4 +1,5 @@
 export PATH := $(if $(wildcard .venv/bin),$(CURDIR)/.venv/bin:$(PATH),$(PATH))
+.DEFAULT_GOAL := all
 
 PIPELINE_TESTS ?= $(wildcard test/test_*_pipeline.sh)
 
