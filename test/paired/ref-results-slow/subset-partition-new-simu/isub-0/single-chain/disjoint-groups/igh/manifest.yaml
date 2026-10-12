@@ -2,10 +2,19 @@ assembly:
   merged_output_path: test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/partition-igh.yaml
   status: merged
   validation:
+    gene_lists_consistent: true
     sequence_count_preserved: true
     uids_unique: true
 grouping-info:
   failed_sequences: 0
+  inputs:
+    args:
+      hfrac: false
+    files:
+    - path: /partis-dev/test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igh/sw-cache.yaml
+      xxh3: c76cab1ff511fd3188792f43e5a9efcf
+    - path: /partis-dev/test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igh/hmm
+      xxh3: 5f846bffbb266dab8e4243810716635b
   locus: igh
   method: cdr3-length
   parameter_dir: test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igh
@@ -59,76 +68,82 @@ groups:
   group_id: 7
   locus: igh
   partition_path: groups/cdr3-49/partition-igh.yaml
-  sequence_count: 3
-- cdr3_length: 51
-  fasta_path: groups/cdr3-51/igh.fa
+  sequence_count: 2
+- cdr3_length: 50
+  fasta_path: groups/cdr3-50/igh.fa
   group_id: 8
   locus: igh
+  partition_path: groups/cdr3-50/partition-igh.yaml
+  sequence_count: 1
+- cdr3_length: 51
+  fasta_path: groups/cdr3-51/igh.fa
+  group_id: 9
+  locus: igh
   partition_path: groups/cdr3-51/partition-igh.yaml
-  sequence_count: 83
+  sequence_count: 82
 - cdr3_length: 54
   fasta_path: groups/cdr3-54/igh.fa
-  group_id: 9
+  group_id: 10
   locus: igh
   partition_path: groups/cdr3-54/partition-igh.yaml
   sequence_count: 34
 - cdr3_length: 57
   fasta_path: groups/cdr3-57/igh.fa
-  group_id: 10
+  group_id: 11
   locus: igh
   partition_path: groups/cdr3-57/partition-igh.yaml
   sequence_count: 5
 - cdr3_length: 60
   fasta_path: groups/cdr3-60/igh.fa
-  group_id: 11
+  group_id: 12
   locus: igh
   partition_path: groups/cdr3-60/partition-igh.yaml
-  sequence_count: 34
+  sequence_count: 35
 - cdr3_length: 62
   fasta_path: groups/cdr3-62/igh.fa
-  group_id: 12
+  group_id: 13
   locus: igh
   partition_path: groups/cdr3-62/partition-igh.yaml
   sequence_count: 1
 - cdr3_length: 63
   fasta_path: groups/cdr3-63/igh.fa
-  group_id: 13
+  group_id: 14
   locus: igh
   partition_path: groups/cdr3-63/partition-igh.yaml
   sequence_count: 7
 - cdr3_length: 66
   fasta_path: groups/cdr3-66/igh.fa
-  group_id: 14
+  group_id: 15
   locus: igh
   partition_path: groups/cdr3-66/partition-igh.yaml
   sequence_count: 31
 - cdr3_length: 69
   fasta_path: groups/cdr3-69/igh.fa
-  group_id: 15
-  locus: igh
-  partition_path: groups/cdr3-69/partition-igh.yaml
-  sequence_count: 18
-- cdr3_length: 72
-  fasta_path: groups/cdr3-72/igh.fa
   group_id: 16
   locus: igh
+  partition_path: groups/cdr3-69/partition-igh.yaml
+  sequence_count: 17
+- cdr3_length: 72
+  fasta_path: groups/cdr3-72/igh.fa
+  group_id: 17
+  locus: igh
   partition_path: groups/cdr3-72/partition-igh.yaml
-  sequence_count: 21
+  sequence_count: 22
 - cdr3_length: 79
   fasta_path: groups/cdr3-79/igh.fa
-  group_id: 17
+  group_id: 18
   locus: igh
   partition_path: groups/cdr3-79/partition-igh.yaml
   sequence_count: 1
 - cdr3_length: 81
   fasta_path: groups/cdr3-81/igh.fa
-  group_id: 18
+  group_id: 19
   locus: igh
   partition_path: groups/cdr3-81/partition-igh.yaml
   sequence_count: 16
 - cdr3_length: 84
   fasta_path: groups/cdr3-84/igh.fa
-  group_id: 19
+  group_id: 20
   locus: igh
   partition_path: groups/cdr3-84/partition-igh.yaml
   sequence_count: 4

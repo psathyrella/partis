@@ -1,6 +1,6 @@
-[91mrun[0m /partis-dev/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 4 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-31/igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-31/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-31/sw-cache-igk.yaml --naive-vsearch
+[91mrun[0m /partis-dev/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 2 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-31/igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-31/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-31/sw-cache-igk.yaml --naive-vsearch
   --input-metafnames: added meta info for 1 sequences from test/paired/new-results-slow/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
-  note: reducing N procs to the number of seqs 4 --> 1
+  note: reducing N procs to the number of seqs 2 --> 1
 partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igk/hmm)
 smith-waterman
   vsearch: 1 / 1 v annotations (0 failed) with 1 v gene in 0.1 sec
@@ -18,5 +18,6 @@ getting annotations for final partition
       calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
     reading output
         read 1 hmm output lines with 1 sequences in 1 events  (0 failures)
-      hmm step time: 0.1
+      hmm step time: 0.2
       total time: 0.4
+      bcrham time: 0.3 (77.6% of total, 2 calls)

@@ -1,4 +1,4 @@
-[91mrun[0m /partis-dev/bin/partis partition --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 4 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-0/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igh/groups/cdr3-66/igh.fa --outfname test/paired/new-results/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igh/groups/cdr3-66/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-0/parameters/igh --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igh/groups/cdr3-66/sw-cache-igh.yaml --naive-vsearch
+[91mrun[0m /partis-dev/bin/partis partition --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 2 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-0/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igh/groups/cdr3-66/igh.fa --outfname test/paired/new-results/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igh/groups/cdr3-66/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-0/parameters/igh --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igh/groups/cdr3-66/sw-cache-igh.yaml --naive-vsearch
   --input-metafnames: added meta info for 4 sequences from test/paired/new-results/subset-partition-new-simu/isub-0/meta.yaml: loci paired-uids
 partitioning     (with test/paired/new-results/subset-partition-new-simu/isub-0/parameters/igh/hmm)
 smith-waterman
@@ -10,12 +10,13 @@ smith-waterman
 hmm
   caching all 4 naive sequences (0.2s)
          collapsed 4 sequences (4 initial naive seqs/clusters) into 4 unique naive sequences over 1 cdr3 lengths (0.0 sec)
-    using hfrac bound for vsearch 0.018
+    using hfrac bound for vsearch 0.016
     running vsearch 1 times (once for each cdr3 length class): . 
       vsearch time: 0.1
 getting annotations for final partition
       calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
     reading output
         read 2 hmm output lines with 4 sequences in 2 events  (0 failures)
-      hmm step time: 0.1
+      hmm step time: 0.2
       total time: 0.5
+      bcrham time: 0.3 (47.0% of total, 2 calls)

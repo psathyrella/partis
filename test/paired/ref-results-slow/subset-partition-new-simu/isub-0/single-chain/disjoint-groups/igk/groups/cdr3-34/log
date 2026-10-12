@@ -1,6 +1,5 @@
-[91mrun[0m /partis-dev/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 4 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-0/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-34/igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-34/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igk --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-34/sw-cache-igk.yaml --naive-vsearch
+[91mrun[0m /partis-dev/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 2 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-0/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-34/igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-34/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igk --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-34/sw-cache-igk.yaml --naive-vsearch
   --input-metafnames: added meta info for 2 sequences from test/paired/new-results-slow/subset-partition-new-simu/isub-0/meta.yaml: loci paired-uids
-  note: reducing N procs to the number of seqs 4 --> 2
 partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igk/hmm)
 smith-waterman
   vsearch: 2 / 2 v annotations (0 failed) with 2 v genes in 0.1 sec
@@ -19,4 +18,5 @@ getting annotations for final partition
     reading output
         read 2 hmm output lines with 2 sequences in 2 events  (0 failures)
       hmm step time: 0.2
-      total time: 0.6
+      total time: 0.5
+      bcrham time: 0.2 (46.3% of total, 2 calls)
