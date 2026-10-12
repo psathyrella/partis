@@ -147,7 +147,7 @@ def plot_mds(n_components, pcvals, plotdir, basepltname, labels=None, partition=
             print('  %s more clusters/labels %d than colors %d' % (utils.wrnstr(), len(partition), len(clrlist)))
         color_map = {uid : clrlist[iclust%len(clrlist)] for iclust in range(len(partition)) for uid in partition[iclust]}  # just for coloring the plot
     elif color_scale_vals is not None:  # map with a number for each sequence (e.g. number of mutations) that we use to make a new color scale
-        cmap = plt.cm.get_cmap(cmapstr) #'Blues') #viridis plt.cm.Blues  # 'Blues'
+        cmap = plt.get_cmap(cmapstr) #'Blues') #viridis plt.cm.Blues  # 'Blues'
         all_vals = [v for k, v in color_scale_vals.items() if k != '_naive']
         norm = plotting.get_color_norm(all_vals)
         color_map = {uid : cmap(norm(color_scale_vals[uid])) for uid in pcvals if uid in color_scale_vals}
