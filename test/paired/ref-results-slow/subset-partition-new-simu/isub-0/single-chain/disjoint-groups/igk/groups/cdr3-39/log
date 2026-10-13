@@ -1,4 +1,4 @@
-[91mrun[0m /partis-dev/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 4 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-0/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-39/igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-39/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igk --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-39/sw-cache-igk.yaml --naive-vsearch
+[91mrun[0m /partis-dev/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 2 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-0/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-39/igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-39/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igk --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/disjoint-groups/igk/groups/cdr3-39/sw-cache-igk.yaml --naive-vsearch
   --input-metafnames: added meta info for 26 sequences from test/paired/new-results-slow/subset-partition-new-simu/isub-0/meta.yaml: loci paired-uids
 partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igk/hmm)
 smith-waterman
@@ -8,13 +8,14 @@ smith-waterman
       kept 2 (0.077) unproductive
         water time: 0.0
 hmm
-  caching all 26 naive sequences (0.3s)
+  caching all 26 naive sequences (0.2s)
          collapsed 26 sequences (26 initial naive seqs/clusters) into 6 unique naive sequences over 1 cdr3 lengths (0.0 sec)
     using hfrac bound for vsearch 0.012
     running vsearch 1 times (once for each cdr3 length class): . 
       vsearch time: 0.1
 getting annotations for final partition
       calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
-  subcluster annotating 3 clusters with steps:  (0.3s) (0.2s) (0.1s) 
+  subcluster annotating 3 clusters with steps:  (0.2s) (0.2s) (0.2s) 
     subcluster annotation time 0.6
-      total time: 1.2
+      total time: 1.0
+      bcrham time: 0.6 (62.5% of total, 4 calls)

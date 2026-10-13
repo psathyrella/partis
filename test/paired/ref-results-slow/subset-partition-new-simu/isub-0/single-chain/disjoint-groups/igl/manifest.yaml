@@ -2,10 +2,19 @@ assembly:
   merged_output_path: test/paired/new-results-slow/subset-partition-new-simu/isub-0/single-chain/partition-igl.yaml
   status: merged
   validation:
+    gene_lists_consistent: true
     sequence_count_preserved: true
     uids_unique: true
 grouping-info:
   failed_sequences: 0
+  inputs:
+    args:
+      hfrac: false
+    files:
+    - path: /partis-dev/test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igl/sw-cache.yaml
+      xxh3: ec2bda49917b3f2ed6f3461d426db476
+    - path: /partis-dev/test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igl/hmm
+      xxh3: 4ee10ead489902f7c9c4387143b906e4
   locus: igl
   method: cdr3-length
   parameter_dir: test/paired/new-results-slow/subset-partition-new-simu/isub-0/parameters/igl
@@ -41,22 +50,28 @@ groups:
   group_id: 4
   locus: igl
   partition_path: groups/cdr3-33/partition-igl.yaml
-  sequence_count: 46
+  sequence_count: 45
+- cdr3_length: 34
+  fasta_path: groups/cdr3-34/igl.fa
+  group_id: 5
+  locus: igl
+  partition_path: groups/cdr3-34/partition-igl.yaml
+  sequence_count: 1
 - cdr3_length: 35
   fasta_path: groups/cdr3-35/igl.fa
-  group_id: 5
+  group_id: 6
   locus: igl
   partition_path: groups/cdr3-35/partition-igl.yaml
   sequence_count: 1
 - cdr3_length: 36
   fasta_path: groups/cdr3-36/igl.fa
-  group_id: 6
+  group_id: 7
   locus: igl
   partition_path: groups/cdr3-36/partition-igl.yaml
   sequence_count: 25
 - cdr3_length: 39
   fasta_path: groups/cdr3-39/igl.fa
-  group_id: 7
+  group_id: 8
   locus: igl
   partition_path: groups/cdr3-39/partition-igl.yaml
   sequence_count: 56

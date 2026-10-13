@@ -5,8 +5,19 @@ Nucleotide distances: Jukes-Cantor Joins: balanced Support: SH-like 1000
 Search: Normal +NNI +SPR (2 rounds range 10) +ML-NNI opt-each=1
 TopHits: 1.00*sqrtN close=default refresh=0.80
 ML Model: Generalized Time-Reversible, CAT approximation with 20 rate categories
-Ignored unknown character X (seen 6 times)
-Initial topology in 0.00 seconds
-Refining topology: 0 rounds ME-NNIs, 2 rounds ME-SPRs, 0 rounds ML-NNIs
-Total branch-length 0.000 after 0.00 sec
-Total time: 0.01 seconds Unique: 1/11 Bad splits: 0/0
+Ignored unknown character X (seen 63 times)
+Initial topology in 0.01 seconds
+Refining topology: 11 rounds ME-NNIs, 2 rounds ME-SPRs, 6 rounds ML-NNIs
+Total branch-length 0.031 after 0.01 sec
+ML-NNI round 1: LogLk = -581.810 NNIs 1 max delta 0.00 Time 0.01
+GTR Frequencies: 0.2161 0.2509 0.3121 0.2209
+GTR rates(ac ag at cg ct gt) 1.9144 0.5091 0.7090 0.8831 1.2508 1.0000
+Switched to using 20 rate categories (CAT approximation)
+Rate categories were divided by 0.630 so that average rate = 1.0
+CAT-based log-likelihoods may not be comparable across runs
+Use -gamma for approximate but comparable Gamma(20) log-likelihoods
+ML-NNI round 2: LogLk = -573.741 NNIs 2 max delta 0.00 Time 0.03
+Turning off heuristics for final round of ML NNIs (converged)
+ML-NNI round 3: LogLk = -573.741 NNIs 0 max delta 0.00 Time 0.03 (final)
+Optimize all lengths: LogLk = -573.741 Time 0.03
+Total time: 0.04 seconds Unique: 7/11 Bad splits: 0/4

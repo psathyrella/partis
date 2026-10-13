@@ -7,6 +7,7 @@ import sys
 
 from . import glutils
 from . import utils
+from .hist import Hist
 from io import open
 
 # ----------------------------------------------------------------------------------------
@@ -74,6 +75,9 @@ def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it woul
     if debug:
         print('    reading mute freqs from %s for %d gene%s: %s' % (indir, len(approved_genes), utils.plural(len(approved_genes)), utils.color_genes(approved_genes)))
 
+    # cap for the zero-count substitution below (see the comment there)
+    overall_mute_freq = Hist(fname=indir + '/all-mean-mute-freqs.csv').get_mean()
+
     # add an observation for each position, for each gene where we observed that position NOTE this would be more sensible if they were aligned first
     observed_freqs = {}
     for gene in approved_genes:
@@ -90,7 +94,18 @@ def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it woul
                 assert freq >= 0.0 and lo_err >= 0.0 and hi_err >= 0.0  # you just can't be too careful
 
                 if freq < utils.eps or abs(1.0 - freq) < utils.eps:  # if <freq> too close to 0 or 1, replace it with the midpoint of its uncertainty band
-                    freq = 0.5 * (lo_err + hi_err)
+                    # ...but never above the sample's overall mutation frequency: at zero observed
+                    # mutations lo_err is 0, so the midpoint is half the upper confidence bound, which
+                    # goes as ~1.2/n. On near-unmutated (naive) data the measured freq is zero at
+                    # essentially every position, so without this cap a gene's mute freqs -- and hence
+                    # its per_gene_mute_freq -- are set by how many sequences were annotated rather than
+                    # by the sequences. Measured on human igk: a rare allele lands at 2-3.5x the 0.01
+                    # lower bound in a 50k sample and exactly 1.0x in a 1.02M one, and the hmm then
+                    # treats an exact match to that allele as unlikely and hands its sequences to a
+                    # common sibling, each picking up one spurious mutation where the two differ.
+                    # A position with zero observed mutations should not be modelled as mutating more
+                    # often than the average position in the same sample.
+                    freq = min(0.5 * (lo_err + hi_err), overall_mute_freq)
 
                 if pos not in observed_freqs:
                     observed_freqs[pos] = []

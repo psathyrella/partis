@@ -2,10 +2,19 @@ assembly:
   merged_output_path: test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/partition-igl.yaml
   status: merged
   validation:
+    gene_lists_consistent: true
     sequence_count_preserved: true
     uids_unique: true
 grouping-info:
   failed_sequences: 0
+  inputs:
+    args:
+      hfrac: false
+    files:
+    - path: /partis-dev/test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
+      xxh3: db12d56f836498e5d2be8697db1c1a64
+    - path: /partis-dev/test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igl/hmm
+      xxh3: d8cad117b8aab01ad3787d64b013e83c
   locus: igl
   method: cdr3-length
   parameter_dir: test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igl

@@ -1,4 +1,4 @@
-[91mrun[0m /partis-dev/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 4 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-39/igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-39/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-39/sw-cache-igk.yaml --naive-vsearch
+[91mrun[0m /partis-dev/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 2 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-39/igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-39/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/isub-1/single-chain/disjoint-groups/igk/groups/cdr3-39/sw-cache-igk.yaml --naive-vsearch
   --input-metafnames: added meta info for 17 sequences from test/paired/new-results-slow/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
 partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/isub-1/parameters/igk/hmm)
 smith-waterman
@@ -17,4 +17,5 @@ getting annotations for final partition
       calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
   subcluster annotating 3 clusters with steps:  (0.2s) (0.2s) 
     subcluster annotation time 0.4
-      total time: 0.7
+      total time: 0.8
+      bcrham time: 0.5 (59.3% of total, 3 calls)

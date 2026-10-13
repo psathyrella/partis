@@ -528,6 +528,10 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
             statstr = ' (%s %s)' % ('0-bin' if htmp.bin_labels[1]=='' else htmp.bin_labels[1], floatstr(htmp.bin_contents[1]))
         elif stats is not None and stats != '':  # damnit, I ended up with both of the damn things as possible defaults
             raise Exception('unexpected stats str \'%s\'' % stats)
+        if statstr is not None and len(hists) > 1:  # for single hists it's done below
+            if print_stats:
+                print('    %12s %20s %s' % (htmp.title, plotname, statstr))
+            htmp.title += ' ' + statstr
         markersize = None
         if markersizes is not None:
             imark = ih if len(markersizes) > 1 else 0
@@ -581,10 +585,10 @@ def draw_no_root(hist, log='', plotdir=None, plotname='', more_hists=None, scale
         tmptitle = plotconfig.plot_titles[plotname]
     else:
         tmptitle = hist.title  # hm, maybe shouldn't be hist.title? I think that's usually supposed to be the legend
-    if statstr is not None:
+    if statstr is not None and len(hists) == 1:
         tmptitle += statstr
         if print_stats:
-            print('    %s %s' % (plotname, statstr))
+            print('    %20s %s' % (plotname, statstr))
 
     if xtitle is not None:
         tmpxtitle = xtitle
@@ -1221,7 +1225,7 @@ def plot_adj_mi_and_co(plotname, plotvals, mut_mult, plotdir, valname, xvar, tit
 
 # ----------------------------------------------------------------------------------------
 # NOTE can use get_leg_entries()
-def plot_legend_only(leg_entries, plotdir, plotname, ax=None, title=None, n_digits=None):
+def plot_legend_only(leg_entries, plotdir, plotname, ax=None, title=None, n_digits=None, sort=True):
     lfn = plotdir+'/'+plotname+'.svg'
     if leg_entries is None:
         assert ax is not None
@@ -1231,15 +1235,20 @@ def plot_legend_only(leg_entries, plotdir, plotname, ax=None, title=None, n_digi
         return lfn
     max_label_len = max(len(str(l)) for l in leg_entries)
     figlegend = plt.figure(figsize=(2 + max_label_len / 12., 2 + len(leg_entries) / 4.))
+    tmp_fig = None
     if ax is None:
-        fig, ax = mpl_init()
-        for tlab, lfo in sorted((str(l), fo) for l, fo in leg_entries.items()):  # have to convert labels to str in case e.g. one of them's None
+        tmp_fig, ax = mpl_init()
+        items = sorted((str(l), fo) for l, fo in leg_entries.items()) if sort else ((str(l), fo) for l, fo in leg_entries.items())  # have to convert labels to str in case e.g. one of them's None
+        for tlab, lfo in items:
             if n_digits is not None and tlab is not None:
                 tlab = utils.round_to_n_digits(float(tlab), 2)
             ax.plot([None], [None], label=str(tlab), color=lfo['color'], linewidth=lfo.get('linewidth', 5), linestyle=lfo.get('linestyle', '-'), alpha=lfo.get('alpha', 0.6))  # str() is to convert None to 'None', otherwise it doesn't show up
         handles, labels = ax.get_legend_handles_labels()
     figlegend.legend(handles, labels, loc='center', title=title)
     figlegend.savefig(lfn)
+    plt.close(figlegend)
+    if tmp_fig is not None:
+        plt.close(tmp_fig)
     return lfn
 
 # ----------------------------------------------------------------------------------------
@@ -1420,7 +1429,7 @@ def plot_cluster_similarity_matrix(plotdir, plotname, meth1, partition1, meth2, 
 
     fig, ax = mpl_init()
     data = numpy.array(smatrix)
-    cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
+    cmap = plt.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
     heatmap = ax.pcolormesh(data, cmap=cmap, vmin=0., vmax=1.)
     cbar = plt.colorbar(heatmap, label='overlap / %s size' % iscn_denominator.replace('min', 'smaller').replace('max', 'larger'), pad=0.09)
@@ -1505,7 +1514,7 @@ def plot_smatrix(plotdir, plotname, xydicts=None, xylists=None, kfcn=None, n_max
             print('')
 
     fig, ax = mpl_init()
-    cmap = plt.cm.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
+    cmap = plt.get_cmap('viridis') #Blues  #cm.get_cmap('jet')
     cmap.set_under('w')
     smtx_min = min([v for r in smatrix for v in r])
     vmin = min(0., smtx_min) if float_vals else 0.5
@@ -1548,7 +1557,7 @@ def make_html(plotdir, n_columns=3, extension='svg', fnames=None, title='', bgco
              '<tr>']
 
     def add_newline(lines, header=None):
-        if new_table_each_row:
+        if new_table_each_row or header is not None:
             endlines, startlines = ['</tr>', '</table>'], ['<table>', '<tr>']
         else:
             endlines, startlines = ['</tr>'], ['<tr>']
@@ -1619,7 +1628,7 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None,
     xmin, xmax = -0.3, xmax
     fig, ax = mpl_init()
 
-    ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=15, linewidth=2, marker='.')  #, title='position ' + str(position))
+    ax.errorbar(values['n_mutelist'], values['freqs'], yerr=values['errs'], markersize=15, linewidth=2, alpha=0.7, marker='.', zorder=2)  #, title='position ' + str(position))
 
     if fitfos is not None:  # fitted lines
         colors = {'prefo' : 'red', 'postfo' : 'red', 'onefo' : 'green'}
@@ -1627,7 +1636,15 @@ def make_allele_finding_plot(plotdir, gene, position, values, xmax, fitfos=None,
             if fitfos[ftype]['xvals'] is None:  # not really sure why this happens... probably zero-point fits?
                 continue
             linevals = [fitfos[ftype]['slope']*x + fitfos[ftype]['y_icpt'] for x in fitfos[ftype]['xvals']]
-            ax.plot(fitfos[ftype]['xvals'], linevals, color=colors[ftype])
+            ax.plot(fitfos[ftype]['xvals'], linevals, color=colors[ftype], linewidth=3, alpha=0.7, zorder=3)
+
+    if fitfos is not None:
+        one_resid = fitfos['onefo']['residuals_over_ndof']
+        two_resid = fitfos.get('twofo', {}).get('residuals_over_ndof', 0.)
+        resid_str = 'residuals / ndof\none piece: %.1f\ntwo piece: %.1f' % (one_resid, two_resid)
+        ax.text(0.97, 0.85, resid_str,
+                transform=ax.transAxes, fontsize=15, verticalalignment='top', horizontalalignment='right',
+                bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
 
     ax.plot([xmin, xmax], [0, 0], linestyle='dashed', alpha=0.5, color='black')
     ymax = max(values['freqs']) + max(values['errs'])
