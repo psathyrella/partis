@@ -52,7 +52,7 @@ def functionality_fname(species=None, gldir=None):  # _not_ generally present (b
 csv_headers = ['gene', 'cyst_position', 'tryp_position', 'phen_position', 'aligned_seq']
 
 imgt_info_indices = ('accession-number', 'gene', 'species', 'functionality', 'region')  # , '', '', '', '', '', '', '', '', '', '', '', '')  # here we ignore a bunch of ones at the end that we either don't care about, are blank, or sometimes aren't there
-separators = ['()', '[]']  # not actually sure what the parentheses and brackets mean
+separators = ['()', '[]']  # not actually sure what the parentheses and brackets mean UPDATE imgt: () = functionality known only from rearranged genomic dna or cdna, [] = from genomic dna not known to be germline or rearranged (https://www.imgt.org/IMGTScientificChart/SequenceDescription/IMGTfunctionality.html)
 possible_functionalities = ['F', 'ORF', 'P']
 def strip_functionality(funcstr):
     return funcstr.strip(''.join(separators))
@@ -149,12 +149,13 @@ def check_a_bunch_of_codons(codon, seqons, extra_str='', debug=False):  # seqons
     n_total, n_ok, n_too_short, n_bad_codons, n_out_of_frame = 0, 0, 0, 0, 0
     for seq, pos in seqons:
         n_total += 1
-        if len(seq) < pos + 3:
+        status = utils.conserved_codon_status(codon, seq, pos)
+        if status == 'truncated':
             n_too_short += 1
-        elif not utils.codon_unmutated(codon, seq, pos):
-            n_bad_codons += 1
-        elif codon == 'cyst' and not utils.in_frame_germline_v(seq, pos):
+        elif status == 'out-of-frame':
             n_out_of_frame += 1
+        elif status == 'mutated':
+            n_bad_codons += 1
         else:
             n_ok += 1
 
@@ -680,7 +681,7 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
     if debug:
         print('  read %s' % '  '.join([('%s: %d' % (r, len(glfo['seqs'][r]))) for r in utils.regions]))
 
-    if remove_orfs:  # shouldn't need this any more (ended up removing 'em from the default glfos), but I don't feel like removing it at the moment
+    if remove_orfs:  # shouldn't need this any more (ended up removing 'em from the default glfos), but I don't feel like removing it at the moment UPDATE they were removed in 2018, but ORF/P genes came back into the default glfos in 2023 and 2026 (see issue #421). NOTE this looks genes up by name in the human functionality file, which only makes sense for the default human glfo
         orfs_removed = {r : [] for r in utils.regions}
         assert len(glfo['functionalities']) == 0
         func_info = {}  # keep them in a spaerate dict so it's easier to loop over the genes in the glfo (to ensure they're all in the functionality file)
@@ -693,10 +694,12 @@ def read_glfo(gldir, locus, only_genes=None, skip_pseudogenes=True, skip_orfs=Tr
                 func_info[gene] = 'F'
             if gene not in func_info:
                 raise Exception('no func info for %s' % utils.color_gene(gene))
-            if func_info[gene] == 'ORF':
+            if func_info[gene] in ['ORF', 'P']:  # P: the functionality file now covers every gene in the default glfo, including pseudogenes
                 remove_gene(glfo, gene)
                 orfs_removed[utils.get_region(gene)].append(gene)
                 continue
+            if func_info[gene] == '':  # unknown functionality (see data/germlines/write-functionalities.py): keep it
+                func_info[gene] = 'F'
             assert func_info[gene] == 'F'  # should've already removed all the pseudogenes (and there shouldn't be any other functionality)
             glfo['functionalities'][gene] = func_info[gene]
         if len([ors for ors in orfs_removed.values()]) > 0:
@@ -922,20 +925,69 @@ def restrict_to_observed_genes(glfo, parameter_dir, debug=False):  # remove from
     restrict_to_genes(glfo, only_genes, debug=debug)
 
 # ----------------------------------------------------------------------------------------
+bad_codon_statuses = ['truncated', 'out-of-frame', 'mutated']  # see utils.conserved_codon_status()
+def get_genes_with_bad_codons(glfo, statuses=None, regions=None):
+    """ return OrderedDict {gene : status} for genes in <regions> (default: all regions with conserved codons) whose conserved codon status is in <statuses> (default: all bad statuses) """
+    if statuses is None:
+        statuses = bad_codon_statuses
+    bad_genes = OrderedDict()
+    for region, codon in utils.conserved_codons[glfo['locus']].items():
+        if regions is not None and region not in regions:
+            continue
+        for gene, seq in glfo['seqs'][region].items():
+            status = utils.conserved_codon_status(codon, seq, glfo[codon + '-positions'][gene])
+            if status in statuses:
+                bad_genes[gene] = status
+    return bad_genes
+
+# ----------------------------------------------------------------------------------------
+def remove_genes_with_bad_codons(glfo, statuses=None, regions=None, debug=False):
+    """ remove genes whose conserved codon status is in <statuses> (see get_genes_with_bad_codons()), and return {gene : status} for the removed genes """
+    bad_genes = get_genes_with_bad_codons(glfo, statuses=statuses, regions=regions)
+    remove_genes(glfo, list(bad_genes), debug=debug)
+    if debug:
+        status_counts = {s : list(bad_genes.values()).count(s) for s in bad_codon_statuses}
+        print('  removed %d gene%s with bad conserved codons (%s)' % (len(bad_genes), utils.plural(len(bad_genes)), ', '.join('%d %s' % (n, s) for s, n in status_counts.items() if n > 0)))
+    return bad_genes
+
+# ----------------------------------------------------------------------------------------
+functionality_headers = ['gene', 'functionality', 'source', 'seq']  # columns in <gldir>/functionalities.csv, as written by data/germlines/write-functionalities.py
+def read_functionalities(gldir, glfo):
+    """ read functionalities ('F', 'ORF', 'P', or '' for unknown) from <gldir>/functionalities.csv, if it exists, and return {gene : functionality} for genes in <glfo>.
+    A gene's functionality is only used if its sequence in the file matches its sequence in <glfo> (a name says nothing about a sequence, e.g. if someone modified the germline set). """
+    fname = '%s/functionalities.csv' % gldir
+    if not os.path.exists(fname):
+        return {}
+    with open(fname) as ffile:
+        reader = csv.DictReader(ffile)
+        if 'seq' not in reader.fieldnames:  # e.g. the old (2018) human file, which had only gene and functionality
+            print('  %s no \'seq\' column in functionality file %s, so ignoring it' % (utils.wrnstr(), fname))
+            return {}
+        file_info = {line['gene'] : line for line in reader}
+    functionalities = {}
+    for region in utils.regions:
+        for gene, seq in glfo['seqs'][region].items():
+            if gene in file_info and file_info[gene]['seq'] == seq:
+                functionalities[gene] = file_info[gene]['functionality']
+    return functionalities
+
+# ----------------------------------------------------------------------------------------
+def remove_genes_unusable_for_simulation(glfo, gldir, only_genes=None, debug=False):
+    """ remove genes that simulation can't (or shouldn't) rearrange from scratch: those with a bad conserved codon (rearranging them either fails or
+    gets retried forever), and those with known functionality other than F (from <gldir>/functionalities.csv, if it exists). Genes in <only_genes> are
+    exempt from the functionality check, since the user asked for them explicitly. """
+    bad_codon_genes = remove_genes_with_bad_codons(glfo)
+    functionalities = read_functionalities(gldir, glfo)
+    nonfunctional_genes = [g for g, f in functionalities.items() if f not in ['F', ''] and (only_genes is None or g not in only_genes) and g in glfo['seqs'][utils.get_region(g)]]
+    remove_genes(glfo, nonfunctional_genes)
+    if len(bad_codon_genes) + len(nonfunctional_genes) > 0:
+        print('  not simulating %d gene%s with bad conserved codons%s and %d with functionality other than F%s' % (len(bad_codon_genes), utils.plural(len(bad_codon_genes)), (' (%s)' % utils.color_genes(list(bad_codon_genes))) if debug else '',
+                                                                                                                len(nonfunctional_genes), (' (%s)' % utils.color_genes(nonfunctional_genes)) if debug else ''))
+
+# ----------------------------------------------------------------------------------------
 def remove_v_genes_with_bad_cysteines(glfo, debug=False):
-    prelength = len(glfo['seqs']['v'])
-    n_mutated, n_out_of_frame = 0, 0
-    for gene in glfo['seqs']['v'].keys():  # have to use a copy of the keys, since we modify the dict in the loop
-        mutated = not utils.codon_unmutated('cyst', glfo['seqs']['v'][gene], glfo['cyst-positions'][gene])
-        in_frame = utils.in_frame_germline_v(glfo['seqs']['v'][gene], glfo['cyst-positions'][gene])
-        if mutated:
-            n_mutated += 1
-        if not in_frame:
-            n_out_of_frame += 1
-        if mutated or not in_frame:
-            remove_gene(glfo, gene, debug=debug)
-    if True:  # debug:
-        print('  removed %d / %d v genes with bad cysteines (%d mutated, %d out of frame)' % (prelength - len(glfo['seqs']['v']), len(glfo['seqs']['v']), n_mutated, n_out_of_frame))
+    bad_genes = remove_genes_with_bad_codons(glfo, regions=['v'])
+    print('  removed %d / %d v genes with bad cysteines (%d mutated, %d out of frame, %d truncated)' % (len(bad_genes), len(glfo['seqs']['v']) + len(bad_genes), list(bad_genes.values()).count('mutated'), list(bad_genes.values()).count('out-of-frame'), list(bad_genes.values()).count('truncated')))
 
 # ----------------------------------------------------------------------------------------
 def remove_genes(glfo, genes, debug=False):
