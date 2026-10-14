@@ -599,6 +599,9 @@ def process(args):
         args.dont_remove_unlikely_alleles = True
         args.allele_cluster = False
         args.dont_find_new_alleles = True
+        if any(f > 0 for f in args.min_allele_prevalence_fractions.values()):
+            print('  --leave-default-germline: setting --min-allele-prevalence-fraction to 0 (was %s), so no alleles are removed for low prevalence' % ' '.join('%s %.2g' % (r, f) for r, f in args.min_allele_prevalence_fractions.items()))
+        args.min_allele_prevalence_fractions = {r : 0. for r in utils.regions}
 
     if args.action not in actions_not_requiring_input and [args.infname, args.paired_indir].count(None) == 2:
         if args.paired_loci:
