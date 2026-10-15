@@ -112,6 +112,15 @@ jobs:
         python -m pip install --upgrade pip
         PARTIS_BACKEND=${{ matrix.backend }} python -m pip install -e . -v
 
+    # packages/{ham,ig-sw} are not otherwise needed by a zig build; they are
+    # checked out here only so the sync checks have something to compare the
+    # vendored copies against (without them, every check skips and passes).
+    - name: Verify vendored C sources match their submodules
+      if: matrix.os == 'ubuntu-latest' && matrix.backend == 'zig'
+      run: |
+        git submodule update --init packages/ham packages/ig-sw
+        bin/zig-build.sh --test
+
     - name: Test partis help
       run: partis ${{ matrix.backend == 'zig' && '--zig' || '' }} --help
 
