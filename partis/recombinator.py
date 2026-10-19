@@ -186,7 +186,8 @@ class Recombinator(object):
         """
         if self.args.debug:
             print('combine (seed %d)' % irandom)
-        numpy.random.seed(irandom)
+        irandom = irandom % 2**64  # event seeds are 64 bit (see utils.event_seed()), and retries add to them
+        numpy.random.seed([irandom % 2**32, irandom >> 32])  # numpy's legacy seeding only takes 32-bit words
         random.seed(irandom)
 
         reco_event = RecombinationEvent(self.glfo)
@@ -881,7 +882,7 @@ class Recombinator(object):
             print('    regional heights:  %s' % ('   '.join(['%s %.3f' % (r, mheight * self.treeinfo['branch-length-ratios'][r]) for r in utils.regions])))
 
         cmdfos = []
-        self.prepare_bppseqgen(cmdfos, reco_event, seed=irandom)
+        self.prepare_bppseqgen(cmdfos, reco_event, seed=irandom % 2**63)  # bppseqgen reads its seed as a (signed 64-bit) long
         assert len(cmdfos) == 1  # used to be one cmd for each region
 
         start = time.time()

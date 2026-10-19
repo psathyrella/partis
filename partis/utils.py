@@ -1742,6 +1742,10 @@ def hashint(instr, max_int=2**31):  # max random seed val is 32, so reduce by 1 
     return int(get_hash(instr), base=16) % max_int
 
 # ----------------------------------------------------------------------------------------
+def event_seed(random_seed, ievt):  # 64-bit seed for simulation event <ievt>: hashing (rather than adding to <random_seed>) keeps different --random-seed values independent, and 64 bits (rather than drawing int32s) keeps events within a run from sharing a seed (see #430 and #367)
+    return hashint('%d %d' % (random_seed, ievt), max_int=2**64)
+
+# ----------------------------------------------------------------------------------------
 # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
 def choose_new_uid(potential_names, used_names, initial_length=1, n_initial_names=None, available_chars=string.ascii_lowercase, repeat_chars=False, shuffle=False, dont_extend=False):
     # NOTE only need to set <initial_length> for the first call -- after that if you're reusing the same <potential_names> and <used_names> there's no need (but it's ok to set it every time, as long as it has the same value)
