@@ -6,6 +6,8 @@
 #
 # Modes:
 #   --release-fast (default), --release-safe, --debug, --release-small
+#   --test   run the zig unit tests and vendored-source sync checks instead
+#            of building the binaries
 #
 # Or set environment variable:
 #   PARTIS_ZIG_OPTIMIZE=ReleaseSafe bin/zig-build.sh
@@ -21,6 +23,7 @@ ZIG_EXE_FINAL="$ZIG_CORE_DIR/zig-out/bin/partis-zig-core"
 ZIG_IGSW_EXE_FINAL="$ZIG_CORE_DIR/zig-out/bin/partis-zig-igsw"
 
 OPTIMIZE="${PARTIS_ZIG_OPTIMIZE:-${ZIG_OPTIMIZE:-ReleaseFast}}"
+RUN_TESTS=false
 EXTRA_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -39,6 +42,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --release-small|small|ReleaseSmall)
             OPTIMIZE="ReleaseSmall"
+            shift
+            ;;
+        --test|test)
+            RUN_TESTS=true
             shift
             ;;
         -Doptimize)
@@ -63,6 +70,9 @@ while [[ $# -gt 0 ]]; do
             echo "  --debug, debug, Debug               Unoptimized debug build with full tracking"
             echo "  --release-small, small              Optimized for binary size"
             echo ""
+            echo "Other:"
+            echo "  --test, test                        Run unit tests + vendored-source sync checks"
+            echo ""
             echo "Environment variables:"
             echo "  PARTIS_ZIG_OPTIMIZE=ReleaseSafe $0"
             exit 0
@@ -74,7 +84,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-echo "==> Building Zig backend in: $ZIG_CORE_DIR"
+echo "==> Zig backend dir: $ZIG_CORE_DIR"
 
 # ── 1. Ensure Zig is available ──────────────────────────────────────────────
 
@@ -123,9 +133,20 @@ else
     echo "==> Using Zig: $ZIG ($($ZIG version))"
 fi
 
-# ── 2. Build ─────────────────────────────────────────────────────────────────
+# ── 2. Build or test ────────────────────────────────────────────────────────
 
 export PARTIS_DIR
+
+if [[ "$RUN_TESTS" == true ]]; then
+    # Unit tests plus the vendored-source sync checks (issue #403). The sync
+    # checks skip whichever of packages/{ham,ig-sw} isn't checked out, so
+    # `git submodule update --init packages/ham packages/ig-sw` first if you
+    # want them to actually compare anything.
+    echo "==> Running unit tests and vendored-source sync checks..."
+    (cd "$ZIG_CORE_DIR" && "$ZIG" build test verify-sync "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}")
+    exit 0
+fi
+
 echo "==> Building partis-zig-core (mode: $OPTIMIZE)..."
 (cd "$ZIG_CORE_DIR" && "$ZIG" build -Doptimize="$OPTIMIZE" "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}")
 
