@@ -404,6 +404,8 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def run(self, args):
         if not args.dry_run:
+            if os.path.exists(self.logfname) and os.path.getsize(self.logfname) > 0:  # keep the previous run's log (e.g. if it failed) rather than truncating it (only one generation, since numbered copies would pile up in new-results)
+                os.rename(self.logfname, self.logfname + '.prev')
             open(self.logfname, 'w').close()
 
         os.environ['PYTHONHASHSEED'] = '0'  # turn off hash seed randomization for repeatable results
@@ -464,6 +466,7 @@ class Tester(object):
                 # print err  # this just says it exited with code != 0
                 print('  log tail: %s' % self.logfname)
                 print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
+                print('  full log, including the output of nested partis processes (where the actual error usually is, above the tail): %s' % self.logfname)
                 sys.exit(1)  # raise Exception('exited with error')
             self.run_times[name] = time.time() - start  # seconds
 
