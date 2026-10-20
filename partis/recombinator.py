@@ -186,7 +186,7 @@ class Recombinator(object):
         """
         if self.args.debug:
             print('combine (seed %d)' % irandom)
-        irandom = irandom % 2**64  # event seeds are 64 bit (see utils.event_seed()), and retries add to them
+        irandom = irandom % 2**64  # event seeds are 64 bit (see utils.event_seed()), and retries add to them (which can't land on another event's seed in practice, since itry < self.n_max_tries is tiny compared to the 64-bit space)
         numpy.random.seed([irandom % 2**32, irandom >> 32])  # numpy's legacy seeding only takes 32-bit words
         random.seed(irandom)
 

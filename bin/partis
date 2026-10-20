@@ -102,7 +102,7 @@ def run_simulation(args):
             clist[0] = find_cmd(clist[0])
             utils.replace_in_arglist(clist, '--n-procs', '1')
             clist.append('--im-a-subproc')
-            utils.replace_in_arglist(clist, '--random-seed', str(utils.hashint('%d %d' % (args.random_seed, iproc))))  # hash rather than add, since otherwise sub proc i of seed s is the same as sub proc i-1 of seed s+1 (#430)
+            utils.replace_in_arglist(clist, '--random-seed', str(utils.hashint('%d %d' % (args.random_seed, iproc))))  # hash rather than add, since otherwise sub proc i of seed s is the same as sub proc i-1 of seed s+1 (#430). NOTE has to stay below 2**31 (hashint()'s default), since the sub proc passes it unsplit to numpy.random.seed() (so it can't be utils.event_seed())
             utils.replace_in_arglist(clist, '--workdir', get_workdir(iproc))
             utils.replace_in_arglist(clist, '--outfname', get_outfname(iproc))
             utils.replace_in_arglist(clist, '--n-sim-events', str(n_sub_events))
