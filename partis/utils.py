@@ -1742,6 +1742,10 @@ def hashint(instr, max_int=2**31):  # max random seed val is 32, so reduce by 1 
     return int(get_hash(instr), base=16) % max_int
 
 # ----------------------------------------------------------------------------------------
+def event_seed(random_seed, ievt):  # 64-bit seed for simulation event <ievt>: hashing (rather than adding to <random_seed>) keeps different --random-seed values independent, and 64 bits (rather than drawing int32s) keeps events within a run from sharing a seed (see #430 and #367)
+    return hashint('%d %d' % (random_seed, ievt), max_int=2**64)
+
+# ----------------------------------------------------------------------------------------
 # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
 def choose_new_uid(potential_names, used_names, initial_length=1, n_initial_names=None, available_chars=string.ascii_lowercase, repeat_chars=False, shuffle=False, dont_extend=False):
     # NOTE only need to set <initial_length> for the first call -- after that if you're reusing the same <potential_names> and <used_names> there's no need (but it's ok to set it every time, as long as it has the same value)
@@ -4841,7 +4845,7 @@ def re_pad_hmm_seqs(input_antn_list, input_glfo, sw_info, sw_glfo, debug=False):
         sw_ldist, sw_rdist = [get_single_entry(list(set(l))) for l in [sw_ldists, sw_rdists]]
         ia_ldist, ia_rdist = get_pad_parameters(iatn, input_glfo)  # they should all be the same, so can use 0 (?)
         leftpad, rightpad = sw_ldist - ia_ldist, sw_rdist - ia_rdist
-        if leftpad == 0 and rpad == 0:
+        if leftpad == 0 and rightpad == 0:
             print('    %s lengths don\'t match when re-padding hmm seqs, but padding parameters are the same (will probably crash just below)' % wrnstr())
         else:
             re_pad_atn(leftpad, rightpad, iatn, input_glfo, debug=debug)

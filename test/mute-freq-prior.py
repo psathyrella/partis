@@ -15,7 +15,7 @@ import shutil
 import sys
 import tempfile
 
-partis_dir = os.path.dirname(os.path.abspath(__file__)).replace('/test', '')
+partis_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(1, partis_dir)
 from partis import glutils
 from partis import fraction_uncertainty
