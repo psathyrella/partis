@@ -2,9 +2,9 @@
 
 One partis SHM parameter dir per locus (`igh/`, `igk/`, `igl/`), for simulating with per-position, per-base mutation when you don't have a parameter dir from your own data:
 
-    partis simulate --rearrange-from-scratch --shm-parameter-dir <partis>/data/recombinator/scratch-parameters/<locus> --mutation-multiplier <m> ...
+    partis simulate --rearrange-from-scratch --mutation-multiplier <m> ...
 
-Rearrangement then comes from scratch, and mutation from these tables. The tables give:
+With `--rearrange-from-scratch` and neither `--shm-parameter-dir` nor `--mutate-from-scratch`, partis uses these by default, picking the dir for the locus. Rearrangement then comes from scratch, and mutation from these tables. The tables give:
 - each position's rate and the distribution of bases it mutates to (`hmm/mute-freqs/<gene>.csv`);
 - how many sequences each gene's numbers came from (`hmm/{v,d,j}_gene-probs.csv`);
 - the distribution of mutation levels across families (`hmm/*-mean-{mute-freqs,n-muted}.csv`).

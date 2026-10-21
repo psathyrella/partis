@@ -507,6 +507,9 @@ def process(args):
             raise Exception('doesn\'t make sense to set both --mutate-from-scratch and --shm-parameter-dir')
         if args.reco_parameter_dir is None and not args.rearrange_from_scratch:
             raise Exception('have to either set --rearrange-from-scratch or --reco-parameter-dir (or --simulate-from-scratch)')
+        if args.rearrange_from_scratch and args.shm_parameter_dir is None and not args.mutate_from_scratch:  # default to the pooled shm parameters that come with partis (see data/recombinator/scratch-parameters/README.md)
+            args.shm_parameter_dir = '%s/data/recombinator/scratch-parameters%s' % (utils.get_partis_dir(), '' if args.locus is None else '/' + args.locus)  # with --paired-loci the main proc has no locus, but each locus's subproc sets its own
+            print('  note: using pooled shm parameters from %s (set --shm-parameter-dir or --mutate-from-scratch to override)' % args.shm_parameter_dir)
         if args.shm_parameter_dir is None and not args.mutate_from_scratch:
             raise Exception('have to either set --mutate-from-scratch or --shm-parameter-dir (or --simulate-from-scratch)')
 
