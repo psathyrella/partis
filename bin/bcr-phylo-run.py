@@ -77,7 +77,7 @@ def lpairs():
 def rearrange():
     if utils.output_exists(args, naive_fname('igh'), outlabel='naive simu', offset=4):  # just look for the merged igh file, since it's about the last to be written (and both paired subdirs may not be there)
         return
-    cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0.0001 --n-leaves 1 --constant-number-of-leaves'  # tends to get in infinite loop if you actually pass 0. (yes, I should fix this)
+    cmd = './bin/partis simulate --simulate-from-scratch --mutation-multiplier 0 --n-leaves 1 --constant-number-of-leaves'  # unmutated naive sequences, which bcr-phylo then mutates
     cmd += ' --debug %d --random-seed %d --n-sim-events %d' % (int(args.debug), args.seed, args.n_sim_events if not args.restrict_to_single_naive_seq else 1)
     if args.paired_loci:
         cmd += ' --paired-loci --paired-outdir %s' % spath('naive')
