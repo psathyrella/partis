@@ -17,8 +17,6 @@ parser.add_argument('--loci', default='igh:igk:igl')
 parser.add_argument('--max-seqs', type=int, default=1000000, help='stop adding samples once a locus has this many (weighted) sequences')
 parser.add_argument('--max-seqs-per-sample', type=int, default=10000, help='scale down the counts of any sample larger than this, so it contributes as if it had this many sequences (so many individuals contribute, rather than a few very deep ones)')
 parser.add_argument('--min-mean-mute-freq', type=float, default=0.02, help='skip samples whose mean mutation frequency is below this (mostly naive)')
-parser.add_argument('--max-allele-like-frac', type=float, default=0.4, help='drop a sample\'s counts at any position where one non-germline base has more than this fraction of that sample\'s observations there, since that\'s more likely an allele the sample\'s germline inference missed than SHM (real SHM per-position rates rarely reach this, whereas a missed allele gives about 0.5 or 1)')
-parser.add_argument('--min-obs-for-allele-check', type=int, default=10, help='only apply --max-allele-like-frac at positions with at least this many observations in the sample')
 parser.add_argument('--random-seed', type=int, default=1)
 parser.add_argument('--germline-dir', default=partis_dir + '/data/germlines/human')
 args = parser.parse_args()
@@ -81,17 +79,10 @@ def pool_locus(locus, samples):
                 n_skipped['mute-freqs'] += 1
                 continue
             gcounts = counts.setdefault(gene, {})
-            gl_seq = default_glfo['seqs'][utils.get_region(gene)][gene]
             for line in csv.DictReader(open(fn)):
-                pos = int(line['position'])
-                obs = {n : int(line[n + '_obs']) for n in utils.nukes}
-                total = sum(obs.values())
-                if total >= args.min_obs_for_allele_check and pos < len(gl_seq) and gl_seq[pos] in utils.nukes and max(c for n, c in obs.items() if n != gl_seq[pos]) > args.max_allele_like_frac * total:
-                    n_skipped['allele-like sample positions'] += 1
-                    continue
-                pcounts = gcounts.setdefault(pos, collections.Counter())
+                pcounts = gcounts.setdefault(int(line['position']), collections.Counter())
                 for nuke in utils.nukes:
-                    pcounts[nuke] += sfo['weight'] * obs[nuke]
+                    pcounts[nuke] += sfo['weight'] * int(line[nuke + '_obs'])
         for hfn in hist_fnames:
             if not os.path.exists('%s/%s' % (sfo['hdir'], hfn)):
                 continue
