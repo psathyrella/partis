@@ -867,7 +867,7 @@ class Recombinator(object):
         reco_event.set_tree(chosen_treestr)  # leaf names are still just like t<n>
         if self.args.mutation_multiplier is not None:
             reco_event.tree.scale_edges(self.args.mutation_multiplier)
-        if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # no mutation, so skip bppseqgen (which fails with zero-length trees) and give every leaf the unmutated naive sequence
+        if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # no mutation, so skip bppseqgen (which fails with zero-length trees) and give every leaf the unmutated naive sequence (this also skips shm indels, so --indel-frequency has no effect)
             n_leaves = treeutils.get_n_leaves(reco_event.tree)
             reco_event.final_seqs = [reco_event.recombined_seq for _ in range(n_leaves)]
             reco_event.leaf_names = ['t%d' % (i + 1) for i in range(n_leaves)]  # same leaf naming as read_bppseqgen_output()
