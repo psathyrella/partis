@@ -326,6 +326,7 @@ Default simulation requires some additional [installation steps](install.md#simu
 There are two main partis-only simulation modes (with options for running hybrids between the two), plus you can combine partis with the [bcr-phylo](http://dx.doi.org/10.3389/fimmu.2018.02451) package (which is included with partis, although you may need to run `git submodule update`):
   1. you pass it an inferred parameter directory with `--parameter-dir` (e.g. `test/reference-results/test/parameters/simu`) and it mimics the sample from which those parameters were inferred
   2. simulate from scratch with no input from you, using a variety of plausible heuristics to choose genes, deletion lengths, shm targeting, etc. Example: `partis simulate --simulate-from-scratch --outfname simu.yaml --n-sim-events 3 --debug 1`
+     - a hybrid: to get realistic per-position, per-base mutation without a sample of your own, rearrange from scratch and take mutation from the pooled public-data tables that come with partis: `partis simulate --rearrange-from-scratch --shm-parameter-dir <partis>/data/recombinator/scratch-parameters/<locus> ...` (one dir each for igh, igk and igl; see the README there)
   3. partis simulates a naive rearrangement, then passes it to bcr-phylo for mutation (as used in the [selection metric paper](https://doi.org/10.1371/journal.pcbi.1008391))
 
 Using 1. is generally preferred over 2., since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire.
@@ -409,7 +410,7 @@ In order to deviate more profoundly from the template data sample (or to use no 
 | `--rearrange-from-scratch`        |  Don't use an existing parameter directory for rearrangement-level parameters, and instead make up some plausible stuff from scratch. Have to also set --shm-parameter-dir.
 | `--mutate-from-scratch`           |  Don't use an existing parameter directory for shm-level (mutation) parameters, and instead make up stuff from scratch (by default this means shm rate varies over positions and sequences, but is the same for all regions). Have to also set --reco-parameter-dir.
 | `--simulate-from-scratch`         |  same as setting both --rearrange-from-scratch and --mutate-from-scratch
-| `--shm-parameter-dir`             |  parameter directory from which to retrieve shm-level info when --rearrange-from-scratch is set (to set germline info, use --initial-germline-dir).
+| `--shm-parameter-dir`             |  parameter directory from which to retrieve shm-level info when --rearrange-from-scratch is set (to set germline info, use --initial-germline-dir). partis includes pooled parameter dirs for igh, igk and igl in data/recombinator/scratch-parameters/<locus>.
 | `--reco-parameter-dir`            |  parameter directory from which to retrieve rearrangement-level info when --mutate-from-scratch is set (to set germline info, use --initial-germline-dir).
 | `--scratch-mute-freq`             |  shm rate used by --mutate-from-scratch
 | `--flat-mute-freq`                |  use the same shm rate (--scratch-mute-freq) for all positions (in practice it's not that much flatter than the Gamma that is used by default --mutate-from-scratch). For use with --mutate-from-scratch.
