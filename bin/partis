@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
+import os
+import sys
+if os.environ.get('PYTHONHASHSEED') is None:  # python randomizes string hashing in each new process, so the iteration order of sets (and of some dicts), and anything chosen at random from them, differs between runs, and --random-seed wouldn't reproduce a run. So rerun ourselves with a fixed hash seed (subprocesses inherit it).
+    os.execve(sys.executable, [sys.executable] + sys.argv, dict(os.environ, PYTHONHASHSEED='0'))
 import argparse
 import copy
 import time
