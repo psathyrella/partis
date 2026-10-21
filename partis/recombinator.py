@@ -849,14 +849,6 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom, i_choose_tree=None):
-        if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # some of the stuff below fails if mut mult is actually 0.
-            reco_event.final_seqs.append(reco_event.recombined_seq)  # set final sequnce in reco_event
-            reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
-            # reco_event.setline(irandom)  # doesn't work
-            if self.args.rearrange_from_scratch:
-                print('  %s not setting reco_event.line, which may cause a crash. If you\'re setting --mutation-multiplier to exactly zero you can fix this by setting it to arbitrary very small value e.g. 0.00000001 (sorry)' % utils.wrnstr())
-            return
-
         # When generating trees, each tree's number of leaves and total depth are chosen from the specified distributions (a.t.m., by default n-leaves is from a geometric/zipf, and depth is from data)
         # This chosen depth corresponds to the sequence-wide mutation frequency (the newick trees have branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j))
         # In order to account for varying mutation rates in v, d, and j we also get the repertoire-wide ratio of mutation freqs for each region from treegenerator
@@ -875,6 +867,14 @@ class Recombinator(object):
         reco_event.set_tree(chosen_treestr)  # leaf names are still just like t<n>
         if self.args.mutation_multiplier is not None:
             reco_event.tree.scale_edges(self.args.mutation_multiplier)
+        if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # no mutation, so skip bppseqgen (which fails with zero-length trees) and give every leaf the unmutated naive sequence
+            n_leaves = treeutils.get_n_leaves(reco_event.tree)
+            reco_event.final_seqs = [reco_event.recombined_seq for _ in range(n_leaves)]
+            reco_event.leaf_names = ['t%d' % (i + 1) for i in range(n_leaves)]  # same leaf naming as read_bppseqgen_output()
+            reco_event.final_codon_positions = [copy.deepcopy(reco_event.post_erosion_codon_positions) for _ in range(n_leaves)]
+            reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(n_leaves)]
+            reco_event.setline(irandom)
+            return
 
         if self.args.debug:
             mheight = treeutils.get_mean_leaf_height(tree=reco_event.tree)

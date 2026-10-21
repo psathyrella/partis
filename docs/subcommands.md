@@ -369,7 +369,7 @@ This is an incomplete list, and is not always up to date, so for better informat
 
 | option                           | description
 |----------------------------------|-----------------------------------------------------------------
-| `--mutation-multiplier <factor>` | multiply the observed SHM rate by `<factor>`
+| `--mutation-multiplier <factor>` | multiply the observed SHM rate by `<factor>` (0 for no mutation, i.e. every sequence in a family is its naive sequence)
 | `--mimic-data-read-length`       | by default the simulation creates reads that extend through all of V and J. This tells it, instead, to truncate on the 5' and 3' ends according to the lengths/frequencies seen in the template data sample.
 | `--paired-loci`                  | simulate paired heavy and light chain sequences details [here](paired-loci.md#simulation).
 | `--mean-cells-per-droplet <mean>`| simulates the effect of multiple cells per droplet in 10x single-cell data: draw the number of cells per droplet from a geometric distribution with this mean value
