@@ -55,6 +55,7 @@ const TrellisEntry = struct {
 /// needs so it doesn't have to scan every cached kset (#438). Keys are
 /// only ever added to `by_kset`, never removed, so each index holds the
 /// minimum over all keys added so far. Only the index for `region` is kept.
+/// Write only through `put`, or the indexes go stale.
 const GeneScores = struct {
     region: Region,
     by_kset: std.AutoHashMapUnmanaged(KSet, f64) = .{},
@@ -107,7 +108,7 @@ const GeneScores = struct {
 /// improvement is in the noise.
 ///
 /// Pointer-stability invariants (load-bearing):
-///   - `initCache(gene)` is the only site that grows
+///   - `initCache(gene, region)` is the only site that grows
 ///     `scratch_cachefo` / `paths` / `scores`. It runs immediately
 ///     above the cache build at the top of each gene-block iteration.
 ///   - Within one gene-block iteration, the outer string-keyed maps
@@ -1524,4 +1525,42 @@ test "DPHandler: parseStateIndex" {
     try std.testing.expectEqual(@as(?usize, 42), parseStateIndex("IGHV3-15_star_01_42"));
     try std.testing.expectEqual(@as(?usize, 0), parseStateIndex("IGHV3-15_star_01_0"));
     try std.testing.expectEqual(@as(?usize, null), parseStateIndex("insert_left_A"));
+}
+
+/// The pre-#438 `findPartialCacheMatch` scan, kept as the reference the
+/// `GeneScores` indexes must agree with.
+fn scanPartialCacheMatch(gene_scores: *const GeneScores, kset: KSet) KSet {
+    if (gene_scores.by_kset.get(kset) != null) return kset;
+    var best: ?KSet = null;
+    var it = gene_scores.by_kset.keyIterator();
+    while (it.next()) |k| {
+        const match = switch (gene_scores.region) {
+            .v => k.v == kset.v,
+            .j => k.v + k.d == kset.v + kset.d,
+            .d => false,
+        };
+        if (match and (best == null or KSet.lessThan({}, k.*, best.?))) best = k.*;
+    }
+    return best orelse KSet{ .v = 0, .d = 0 };
+}
+
+test "DPHandler: findPartialCacheMatch indexes agree with linear scan" {
+    const a = std.testing.allocator;
+    var handler: DPHandler = undefined;
+    var prng = std.Random.DefaultPrng.init(1);
+    const rand = prng.random();
+    for ([_]Region{ .v, .d, .j }) |region| {
+        var gs = GeneScores{ .region = region };
+        defer gs.deinit(a);
+        // Random insertion order, with repeats (overwrites), over a small grid
+        // so that most queries have several candidate matches.
+        for (0..300) |_| {
+            const kset = KSet{ .v = rand.intRangeAtMost(usize, 1, 12), .d = rand.intRangeAtMost(usize, 1, 12) };
+            try gs.put(a, kset, rand.float(f64));
+            for (1..16) |v| for (1..16) |d| {
+                const q = KSet{ .v = v, .d = d };
+                try std.testing.expectEqual(scanPartialCacheMatch(&gs, q), handler.findPartialCacheMatch(&gs, q));
+            };
+        }
+    }
 }
