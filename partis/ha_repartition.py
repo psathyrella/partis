@@ -91,9 +91,9 @@ def _id_str(cids, n_max=20):
 
 def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_size=3):
     """Merge per-cluster HA results over the vsearch partition and write full partis
-    output. A cluster >= min_cluster_size with an HA result whose sub-clusters account
-    for all its uids is replaced by those sub-clusters; otherwise it is kept as-is
-    (conservative: never drop uids). Returns (repartitioned, n_split, n_kept)."""
+    output. A cluster >= min_cluster_size whose HA result holds only its own uids is
+    replaced by the result's sub-clusters, and uids missing from the result are dropped;
+    otherwise it is kept as-is. Returns (repartitioned, n_split, n_kept)."""
     from partis import utils, partition_refinement, disjointgrouper
     clusters = _load_best_partition(partition_fname)
     cdir = os.path.join(workdir, 'clusters')
@@ -101,13 +101,18 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
     if len(missing) > 0:
         raise Exception('%d HA results missing in %s (re-run run-ha-repartition-jobs for them): %s' % (len(missing), cdir, _id_str(missing)))
     repartitioned, n_split, n_kept = [], 0, 0
-    uncovered = []
+    uncovered, short, n_dropped = [], [], 0
     for idx, cluster in enumerate(clusters):
         result = result_fname(cdir, idx, cluster)
-        # a result not covering its cluster keeps the cluster whole, so no uids are lost
+        # foreign uids keep the cluster whole; missing uids failed HA annotation, so drop them
         if len(cluster) >= min_cluster_size:
             subs = _load_best_partition(result)
-            if subs and set().union(*subs) == set(cluster):
+            sub_uids = set().union(*subs) if subs else set()
+            if subs and sub_uids <= set(cluster):
+                missed = [u for u in cluster if u not in sub_uids]
+                if len(missed) > 0:
+                    short.append('%s (%d)' % (cluster_id(idx, cluster), len(missed)))
+                    n_dropped += len(missed)
                 repartitioned.extend(subs)
                 n_split += 1 if len(subs) > 1 else 0
                 n_kept += 1 if len(subs) == 1 else 0
@@ -115,6 +120,8 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
             uncovered.append(cluster_id(idx, cluster))
         repartitioned.append(cluster)
         n_kept += 1
+    if len(short) > 0:
+        print('    %s HA results in %s: %d with missing uids, dropped %d uids that failed HA annotation: %s' % (utils.wrnstr(), cdir, len(short), n_dropped, _id_str(short)))
     if len(uncovered) > 0:
         print('    %s HA results in %s: %d not covering their cluster, so those clusters are kept whole: %s' % (utils.wrnstr(), cdir, len(uncovered), _id_str(uncovered)))
     # write full output: synthesize each cluster's annotation from the persistent

@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 import re
 import shutil
@@ -213,3 +214,30 @@ def test_ha_assemble_with_short_result(tmp_path, ha_only_dir):
     run_partis(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(log))
     counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) not covering their cluster, so those clusters are kept whole: cluster-', read_log(str(log)))]
     assert sum(counts) == 1
+
+
+def test_ha_assemble_with_missing_uid(tmp_path, ha_only_dir):
+    outdir = copy_dir(ha_only_dir, tmp_path / 'out')
+    ddir, manifest = locus_manifest(outdir, 'igh')
+    specs = ha_repartition.group_specs(ddir, manifest['groups'], 'igh')
+    for spec in specs:  # so assemble redoes every group
+        os.remove(spec['harep_out'])
+    results = sorted(glob.glob('%s/**/clusters/*/partition.yaml' % ddir, recursive=True))
+    with open(results[0]) as f:
+        rjs = json.load(f)
+    last = rjs['partitions'][-1]['partition']
+    big = max(last, key=len)
+    assert len(big) > 1
+    dropped = big.pop()  # remove one uid from the result
+    with open(results[0], 'w') as f:
+        json.dump(rjs, f)
+    log = tmp_path / 'partis.log'
+    run_partis(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(log))
+    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) with missing uids, dropped 1 uids that failed HA annotation', read_log(str(log)))]
+    assert sum(counts) == 1
+    assert 'not covering their cluster' not in read_log(str(log))
+    out_uids = set()
+    for spec in specs:
+        with open(spec['harep_out']) as f:
+            out_uids |= set(u for c in json.load(f)['partitions'][-1]['partition'] for u in c)
+    assert dropped not in out_uids
