@@ -241,3 +241,36 @@ def test_ha_assemble_with_missing_uid(tmp_path, ha_only_dir):
         with open(spec['harep_out']) as f:
             out_uids |= set(u for c in json.load(f)['partitions'][-1]['partition'] for u in c)
     assert dropped not in out_uids
+
+
+def test_ha_plan_bundles():
+    jobs = [{'cluster_id': str(i), 'n_collapsed': u, 'n_procs': 8 if u >= 500 else 1} for i, u in enumerate([10, 600, 40, 900, 20, 30])]
+    ordered, bundles = ha_repartition.plan_bundles(jobs, 2)
+    assert [j['n_collapsed'] for j in ordered[:2]] == [900, 600]
+    assert bundles[:2] == [(0, 1, 8), (1, 1, 8)]
+    assert all(n_procs == 1 for _, _, n_procs in bundles[2:])
+    assert sum(count for _, count, _ in bundles) == len(jobs)
+    assert sorted(j['cluster_id'] for j in ordered) == sorted(j['cluster_id'] for j in jobs)
+
+
+def test_ha_prepare_multiproc_tier(tmp_path, ha_only_dir):
+    outdir = copy_dir(ha_only_dir, tmp_path / 'out')
+    ddir, manifest = locus_manifest(outdir, 'igh')
+    for spec in ha_repartition.group_specs(ddir, manifest['groups'], 'igh'):
+        os.remove(spec['harep_out'])
+    # confirm half the candidates, so both outcomes of the confirmation are covered
+    confirmed = []
+    def count_collapsed(candidates):
+        confirmed.extend(j['cluster_id'] for j in candidates[::2])
+        return {j['cluster_id']: (2 if j['cluster_id'] in confirmed else 1) for j in candidates}
+    _, jobs, bundles = ha_repartition.prepare_all(ddir, manifest['groups'], 'igh', 4, count_collapsed=count_collapsed, multiproc_min_collapsed=2)
+    multi = [j for j in jobs if j['n_procs'] > 1]
+    assert len(multi) > 0 and sorted(j['cluster_id'] for j in multi) == sorted(confirmed)
+    assert jobs[:len(multi)] == multi
+    assert bundles == ha_repartition.read_bundle_list(ha_repartition.bundle_list_fname(ddir, 'igh'))
+    assert ha_repartition.read_task_list(ha_repartition.task_list_fname(ddir, 'igh')) == jobs
+    lddir, lmanifest = locus_manifest(outdir, 'igk')
+    for spec in ha_repartition.group_specs(lddir, lmanifest['groups'], 'igk'):
+        os.remove(spec['harep_out'])
+    _, light_jobs, _ = ha_repartition.prepare_all(lddir, lmanifest['groups'], 'igk', 4, multiproc_min_collapsed=2)
+    assert len(light_jobs) > 0 and all(j['n_procs'] == 1 for j in light_jobs)

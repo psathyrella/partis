@@ -85,7 +85,7 @@ def remove_vsearch_partition(outdir, locus='igh'):
 def test_ha_jobs_need_vsearch_partition(tmp_path, ha_only_dir):
     outdir = copy_dir(ha_only_dir, tmp_path / 'out')
     group = remove_vsearch_partition(outdir)
-    log = run_partis_fails(['create-ha-repartition-jobs', '--locus', 'igh', '--paired-outdir', str(outdir)], str(tmp_path / 'partis.log'))
+    log = run_partis_fails(['create-ha-repartition-jobs', '--locus', 'igh', '--parameter-dir', os.path.join(PAIRED_PARAM_DIR, 'igh'), '--paired-outdir', str(outdir)], str(tmp_path / 'partis.log'))
     assert 'are missing their vsearch partition or group sw cache (run the earlier stage' in log
     assert dg.group_str(group) in log
 

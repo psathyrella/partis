@@ -141,7 +141,10 @@ The steps are always applied in the order vsearch, then `--ha-repartition`, then
 Both flags require `--disjoint-groups`.
 Their output is single-chain only: when either is set on paired data, partis does not run the final paired combine, and [`merge-paired-partitions`](#merge-paired-partitions) refuses refined input.
 To get paired clusters, re-run `partition` without these flags.
-The per-cluster HA and per-group refine runs are single-proc and are bundled into processes scaled to the job's cpu allocation (each loading germline info once, then looping over its work), independent of `--n-max-procs` (which governs the per-group partition jobs).
+The per-cluster HA and per-group refine runs are bundled into processes scaled to the job's cpu allocation (each loading germline info once, then looping over its work), independent of `--n-max-procs` (which governs the per-group partition jobs).
+These runs are single-proc, except that a heavy chain cluster with at least 500 distinct naive sequences after HA's collapse of identical naive sequences runs HA on 8 procs, alone in its own bundle; these bundles run first.
+The candidates are the clusters with at least 500 distinct naive sequences in the group's sw cache, and each is confirmed by running HA's sw and naive sequence steps on it when the jobs are created.
+The single-proc HA clusters are bundled largest first, balancing the estimated cost (distinct naive sequences to the power 1.7) across bundles.
 For running these steps as independent batch jobs, see [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), [`run-ha-repartition-jobs`](#run-ha-repartition-jobs), [`assemble-ha-repartition`](#assemble-ha-repartition), and [`run-partition-refine-jobs`](#run-partition-refine-jobs) below.
 
 ##### limit maximum cluster size
@@ -298,17 +301,17 @@ For the same reason `--overwrite` does not overwrite one: a re-run whose output 
 
 ### create-ha-repartition-jobs
 
-Write the per-cluster inputs for [HA re-partition](#ha-re-partition-and-refinement) for a single locus: for every vsearch cluster of at least three sequences it writes a per-cluster FASTA, plus a task list enumerating all the per-cluster jobs.
-Requires `--locus` and `--paired-outdir` (the disjoint-groups root produced by [`create-disjoint-groups`](#create-disjoint-groups)).
+Write the per-cluster inputs for [HA re-partition](#ha-re-partition-and-refinement) for a single locus: for every vsearch cluster of at least three sequences it writes a per-cluster FASTA, plus a task list `ha-repartition-task-list-<locus>.txt` enumerating all the per-cluster jobs (cluster id, input, output, sequence count, distinct naive sequence count, number of procs) in bundle order, and a bundle list `ha-repartition-bundles-<locus>.txt` (first job, job count, number of procs per bundle).
+Requires `--locus`, `--parameter-dir` (the locus-level parameter directory) and `--paired-outdir` (the disjoint-groups root produced by [`create-disjoint-groups`](#create-disjoint-groups)).
 This is the standalone version of the HA re-partition setup, intended for workflows where each step is submitted as a separate batch job.
 
 ```
-partis create-ha-repartition-jobs --locus igh --paired-outdir out/
+partis create-ha-repartition-jobs --locus igh --parameter-dir params/igh --paired-outdir out/
 ```
 
 ### run-ha-repartition-jobs
 
-Run HA re-partition on a slice of the task list written by [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), selected with `--job-start` and `--job-count`, so each batch (array) task handles one contiguous block of clusters.
+Run HA re-partition on a slice of the task list written by [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), selected with `--job-start` and `--job-count`, so each batch (array) task handles one contiguous block of clusters; taking the slices from the bundle list gives each task one bundle, and a multi-proc bundle needs that many cpus.
 Each invocation loads germline info once and clusters its assigned vsearch clusters in-process (the same code path as the integrated `--ha-repartition`), and appends per-cluster timing to `ha-repartition-timing-<locus>.csv`.
 Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and `--paired-outdir`.
 
