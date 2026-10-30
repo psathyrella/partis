@@ -548,6 +548,7 @@ MERGE_MIN_MEMBERS = 2  # members the smaller fragment of an accepted pair needs
 MERGE_NULL_PAIRS_PER_CANDIDATE, MERGE_NULL_PAIRS_MIN, MERGE_NULL_PAIRS_MAX = 10, 20000, 200000  # null sample size, for cdf resolution
 MERGE_NULL_MIN_SAMPLE = 100  # fewer null pairs than this: no cutoff, so the group abstains from merging
 MERGE_NULL_SEED = 1
+MERGE_NULL_TRIES_PER_PAIR = 50  # draws per wanted null pair before a small group stops trying
 
 
 def binomial_sf(k, n, f):
@@ -639,7 +640,7 @@ class _MergeEvidence(object):
         weights = [len(buckets[k]) * (len(buckets[k]) - 1) for k in keys]
         rng = random.Random(MERGE_NULL_SEED)
         out, n_tries, seen = [], 0, set()
-        while keys and len(out) < n_target and n_tries < 50 * n_target:
+        while keys and len(out) < n_target and n_tries < MERGE_NULL_TRIES_PER_PAIR * n_target:
             n_tries += 1
             a, b = rng.sample(buckets[rng.choices(keys, weights)[0]], 2)
             if len(self.frags[a]) == 1 and len(self.frags[b]) == 1:  # the proposer never offers singleton pairs
@@ -703,6 +704,162 @@ def naive_pairs_below(oh, mask, idx_a, idx_b, threshold, symmetric, chunk_size=2
                 yield (ia, ib) if ia < ib else (ib, ia)
 
 
+def _bucket_merge_candidates(frags, uid_sw_naives, uid_to_muts_with_base, uid_rearr_features, naive_threshold,
+                             skip_singleton_merge, counts):
+    """Fragment pairs of one cdr3 bucket with naives within <naive_threshold> that pass the junction
+    guard and both carry mutations, as local index pairs. <counts> tallies the pairs dropped at each
+    step. Returns (frag_naives, frag_vdjs, frag_fps, pairs)."""
+    frag_naives = [get_fragment_naive(f, uid_sw_naives) for f in frags]
+    frag_juncs = [get_fragment_junction(f, uid_rearr_features) for f in frags]
+    frag_vdjs = [get_fragment_vdj(f, uid_rearr_features) for f in frags]
+    frag_fps = [get_cluster_fingerprint(f, uid_to_muts_with_base) for f in frags]
+    frag_sizes = [len(f) for f in frags]
+    cands, examined = [], set()
+
+    # group fragments by naive to reduce comparisons
+    naive_to_frags = defaultdict(list)
+    for i, naive in enumerate(frag_naives):
+        if naive is not None:
+            naive_to_frags[naive].append(i)
+
+    def junction_verdict(i, j):
+        # '' to pass, 'block' to reject on a junction mismatch, 'rescue' when a shared vdj with
+        # overlapping calls on both sides overrides that mismatch
+        ji, jj = frag_juncs[i], frag_juncs[j]
+        if ji is None or jj is None or ji == jj:
+            return ''
+        if (frag_vdjs[i] is not None and frag_vdjs[i] == frag_vdjs[j] and min(frag_sizes[i], frag_sizes[j]) >= MERGE_MIN_MEMBERS
+                and junction_calls_overlap(frags[i], frags[j], ji, jj, uid_rearr_features)):
+            return 'rescue'
+        return 'block'
+
+    def examine(i, j):
+        # one naive-similar fragment pair through the junction guard, kept as a candidate if both sides carry mutations
+        if (i, j) in examined:
+            return
+        examined.add((i, j))
+        # skip singleton-singleton merges: both survived vsearch+HA
+        # as singletons, likely true singletons not fragments
+        if skip_singleton_merge and frag_sizes[i] == 1 and frag_sizes[j] == 1:
+            counts['skipped_singleton'] += 1
+            return
+        counts['naive_candidates'] += 1
+        verdict = junction_verdict(i, j)
+        if verdict == 'block':
+            counts['rejected_junction'] += 1
+            return
+        if verdict == 'rescue':
+            counts['vdj_override'] += 1
+        if frag_fps[i][1] == 0 or frag_fps[j][1] == 0:
+            counts['rejected_insufficient'] += 1
+            return
+        cands.append((i, j))
+
+    # within same-naive bucket: always naive-similar
+    for naive_seq, indices in naive_to_frags.items():
+        for ii in range(len(indices)):
+            for jj in range(ii + 1, len(indices)):
+                examine(indices[ii], indices[jj])
+
+    # cross-bucket: vectorized pairwise hamming to find near-match naives
+    unique_naives = list(naive_to_frags.keys())
+    if len(unique_naives) >= 2:
+        seq_len = len(unique_naives[0])
+        same_len = [n for n in unique_naives if len(n) == seq_len]
+        diff_len = [n for n in unique_naives if len(n) != seq_len]
+
+        if len(same_len) >= 2:
+            arr = np.frombuffer(''.join(same_len).encode(), dtype=np.uint8).reshape(len(same_len), seq_len)
+            oh, mask = onehot_naives(arr, ord('N'))
+
+            def examine_naive_pair(ni_idx, nj_idx):
+                for i in naive_to_frags[same_len[ni_idx]]:
+                    for j in naive_to_frags[same_len[nj_idx]]:
+                        examine(min(i, j), max(i, j))
+
+            # only pairs that could survive the junction guard get a distance: same key, either
+            # side missing a key, or a shared vdj triple where the rescue is live
+            naive_keys, wildcard = [], []
+            key_groups, vdj_groups = defaultdict(list), defaultdict(list)
+            for idx, naive_seq in enumerate(same_len):
+                keys, vdjs = set(), set()
+                for i in naive_to_frags[naive_seq]:
+                    if frag_juncs[i] is None:
+                        keys = None
+                        break
+                    keys.add(frag_juncs[i])
+                    if frag_vdjs[i] is not None and frag_sizes[i] >= MERGE_MIN_MEMBERS:
+                        vdjs.add(frag_vdjs[i])
+                naive_keys.append(keys)
+                if keys is None:
+                    wildcard.append(idx)
+                else:
+                    for key in keys:
+                        key_groups[key].append(idx)
+                    for vdj in vdjs:
+                        vdj_groups[vdj].append(idx)
+
+            for group in key_groups.values():
+                if len(group) >= 2:
+                    for ni_idx, nj_idx in naive_pairs_below(oh, mask, group, group, naive_threshold, True):
+                        examine_naive_pair(ni_idx, nj_idx)
+            # a keyless naive passes the guard against anything, so it needs all of same_len
+            if len(wildcard) > 0:
+                keyed = [idx for idx in range(len(same_len)) if naive_keys[idx] is not None]
+                for ni_idx, nj_idx in naive_pairs_below(oh, mask, wildcard, wildcard, naive_threshold, True):
+                    examine_naive_pair(ni_idx, nj_idx)
+                if len(keyed) > 0:
+                    for ni_idx, nj_idx in naive_pairs_below(oh, mask, wildcard, keyed, naive_threshold, False):
+                        examine_naive_pair(ni_idx, nj_idx)
+            # rescue-eligible pairs, minus the same-key ones already done above
+            for group in vdj_groups.values():
+                if len(group) >= 2:
+                    for ni_idx, nj_idx in naive_pairs_below(oh, mask, group, group, naive_threshold, True):
+                        if len(naive_keys[ni_idx] & naive_keys[nj_idx]) > 0:
+                            continue
+                        examine_naive_pair(ni_idx, nj_idx)
+
+        # handle different-length naives with Python fallback (rare)
+        for n1 in diff_len:
+            for n2_seq in unique_naives:
+                if n2_seq <= n1:
+                    continue
+                if len(n2_seq) != len(n1):  # never compared, so never merged: count so it is not silent
+                    counts['skipped_difflen'] += 1
+                    continue
+                if hamming_frac(n1, n2_seq) > naive_threshold:
+                    continue
+                for i in naive_to_frags[n1]:
+                    for j in naive_to_frags[n2_seq]:
+                        examine(min(i, j), max(i, j))
+    return frag_naives, frag_vdjs, frag_fps, cands
+
+
+def _accept_merge_pairs(buckets, evidence, cutoff):
+    """Union each bucket's pairs at or below <cutoff> whose smaller fragment has MERGE_MIN_MEMBERS.
+    Returns (merged partition, n accepted, n rejected on p-value, n rejected on min members)."""
+    merged_partition = []
+    n_accepted, n_rejected_pvalue, n_rejected_min_members = 0, 0, 0
+    for frags, offset, pairs in buckets:
+        if offset is None:
+            merged_partition.extend(frags)
+            continue
+        find, union = _union_find(len(frags))
+        for i, j in pairs:
+            if cutoff is None or evidence.pvalue(offset + i, offset + j) > cutoff:
+                n_rejected_pvalue += 1
+            elif min(len(frags[i]), len(frags[j])) < MERGE_MIN_MEMBERS:
+                n_rejected_min_members += 1
+            else:
+                union(i, j)
+                n_accepted += 1
+        components = defaultdict(list)
+        for i in range(len(frags)):
+            components[find(i)].extend(frags[i])
+        merged_partition.extend(components.values())
+    return merged_partition, n_accepted, n_rejected_pvalue, n_rejected_min_members
+
+
 def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                               uid_to_muts_with_base, naive_threshold,
                               skip_singleton_merge=False, uid_rearr_features=None,
@@ -743,12 +900,7 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                 break
         cdr3_frags[cdr3_len].append(cluster)
 
-    n_naive_candidates = 0
-    n_rejected_insufficient = 0
-    n_rejected_junction = 0
-    n_vdj_override = 0
-    n_skipped_singleton = 0
-    n_skipped_difflen = 0
+    counts = defaultdict(int)
 
     uid_freq_cache = {}
     param_dir_counts = {}
@@ -765,137 +917,13 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
         if len(frags) < 2:
             buckets.append((frags, None, None))
             continue
-
-        frag_naives = [get_fragment_naive(f, uid_sw_naives) for f in frags]
-        frag_juncs = [get_fragment_junction(f, uid_rearr_features) for f in frags]
-        frag_vdjs = [get_fragment_vdj(f, uid_rearr_features) for f in frags]
-        frag_fps = [get_cluster_fingerprint(f, uid_to_muts_with_base) for f in frags]
-        frag_sizes = [len(f) for f in frags]
-        offset = len(pool_frags)
+        frag_naives, frag_vdjs, frag_fps, cands = _bucket_merge_candidates(
+            frags, uid_sw_naives, uid_to_muts_with_base, uid_rearr_features, naive_threshold, skip_singleton_merge, counts)
+        buckets.append((frags, len(pool_frags), cands))
         pool_frags.extend(frags)
         pool_fps.extend(frag_fps)
         pool_naives.extend(frag_naives)
         pool_vdjs.extend(frag_vdjs)
-        cands, examined = [], set()
-
-        # group fragments by naive to reduce comparisons
-        naive_to_frags = defaultdict(list)
-        for i, naive in enumerate(frag_naives):
-            if naive is not None:
-                naive_to_frags[naive].append(i)
-
-        def junction_verdict(i, j):
-            # '' to pass, 'block' to reject on a junction mismatch, 'rescue' when a shared vdj with
-            # overlapping calls on both sides overrides that mismatch
-            ji, jj = frag_juncs[i], frag_juncs[j]
-            if ji is None or jj is None or ji == jj:
-                return ''
-            if (frag_vdjs[i] is not None and frag_vdjs[i] == frag_vdjs[j] and min(frag_sizes[i], frag_sizes[j]) >= MERGE_MIN_MEMBERS
-                    and junction_calls_overlap(frags[i], frags[j], ji, jj, uid_rearr_features)):
-                return 'rescue'
-            return 'block'
-
-        def examine(i, j):
-            # one naive-similar fragment pair through the junction guard, kept as a candidate if both sides carry mutations
-            nonlocal n_naive_candidates, n_rejected_insufficient, n_rejected_junction, n_vdj_override, n_skipped_singleton
-            if (i, j) in examined:
-                return
-            examined.add((i, j))
-            # skip singleton-singleton merges: both survived vsearch+HA
-            # as singletons, likely true singletons not fragments
-            if skip_singleton_merge and frag_sizes[i] == 1 and frag_sizes[j] == 1:
-                n_skipped_singleton += 1
-                return
-            n_naive_candidates += 1
-            verdict = junction_verdict(i, j)
-            if verdict == 'block':
-                n_rejected_junction += 1
-                return
-            if verdict == 'rescue':
-                n_vdj_override += 1
-            if frag_fps[i][1] == 0 or frag_fps[j][1] == 0:
-                n_rejected_insufficient += 1
-                return
-            cands.append((i, j))
-
-        # within same-naive bucket: always naive-similar
-        for naive_seq, indices in naive_to_frags.items():
-            for ii in range(len(indices)):
-                for jj in range(ii + 1, len(indices)):
-                    examine(indices[ii], indices[jj])
-
-        # cross-bucket: vectorized pairwise hamming to find near-match naives
-        unique_naives = list(naive_to_frags.keys())
-        if len(unique_naives) >= 2:
-            seq_len = len(unique_naives[0])
-            same_len = [n for n in unique_naives if len(n) == seq_len]
-            diff_len = [n for n in unique_naives if len(n) != seq_len]
-
-            if len(same_len) >= 2:
-                arr = np.frombuffer(''.join(same_len).encode(), dtype=np.uint8).reshape(len(same_len), seq_len)
-                oh, mask = onehot_naives(arr, ord('N'))
-
-                def examine_naive_pair(ni_idx, nj_idx):
-                    for i in naive_to_frags[same_len[ni_idx]]:
-                        for j in naive_to_frags[same_len[nj_idx]]:
-                            examine(min(i, j), max(i, j))
-
-                # only pairs that could survive the junction guard get a distance: same key, either
-                # side missing a key, or a shared vdj triple where the rescue is live
-                naive_keys, wildcard = [], []
-                key_groups, vdj_groups = defaultdict(list), defaultdict(list)
-                for idx, naive_seq in enumerate(same_len):
-                    keys, vdjs = set(), set()
-                    for i in naive_to_frags[naive_seq]:
-                        if frag_juncs[i] is None:
-                            keys = None
-                            break
-                        keys.add(frag_juncs[i])
-                        if frag_vdjs[i] is not None and frag_sizes[i] >= MERGE_MIN_MEMBERS:
-                            vdjs.add(frag_vdjs[i])
-                    naive_keys.append(keys)
-                    if keys is None:
-                        wildcard.append(idx)
-                    else:
-                        for key in keys:
-                            key_groups[key].append(idx)
-                        for vdj in vdjs:
-                            vdj_groups[vdj].append(idx)
-
-                for group in key_groups.values():
-                    if len(group) >= 2:
-                        for ni_idx, nj_idx in naive_pairs_below(oh, mask, group, group, naive_threshold, True):
-                            examine_naive_pair(ni_idx, nj_idx)
-                # a keyless naive passes the guard against anything, so it needs all of same_len
-                if len(wildcard) > 0:
-                    keyed = [idx for idx in range(len(same_len)) if naive_keys[idx] is not None]
-                    for ni_idx, nj_idx in naive_pairs_below(oh, mask, wildcard, wildcard, naive_threshold, True):
-                        examine_naive_pair(ni_idx, nj_idx)
-                    if len(keyed) > 0:
-                        for ni_idx, nj_idx in naive_pairs_below(oh, mask, wildcard, keyed, naive_threshold, False):
-                            examine_naive_pair(ni_idx, nj_idx)
-                # rescue-eligible pairs, minus the same-key ones already done above
-                for group in vdj_groups.values():
-                    if len(group) >= 2:
-                        for ni_idx, nj_idx in naive_pairs_below(oh, mask, group, group, naive_threshold, True):
-                            if len(naive_keys[ni_idx] & naive_keys[nj_idx]) > 0:
-                                continue
-                            examine_naive_pair(ni_idx, nj_idx)
-
-            # handle different-length naives with Python fallback (rare)
-            for n1 in diff_len:
-                for n2_seq in unique_naives:
-                    if n2_seq <= n1:
-                        continue
-                    if len(n2_seq) != len(n1):  # never compared, so never merged: count so it is not silent
-                        n_skipped_difflen += 1
-                        continue
-                    if hamming_frac(n1, n2_seq) > naive_threshold:
-                        continue
-                    for i in naive_to_frags[n1]:
-                        for j in naive_to_frags[n2_seq]:
-                            examine(min(i, j), max(i, j))
-        buckets.append((frags, offset, cands))
 
     evidence = _MergeEvidence(pool_frags, pool_fps, uid_to_muts_with_base, get_uid_freqs, sum(len(c) for c in split_partition))
     cand_ps = [evidence.pvalue(offset + i, offset + j) for _, offset, pairs in buckets if offset is not None for i, j in pairs]
@@ -903,33 +931,15 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     null_ps = evidence.sample_null(n_null, pool_naives, pool_vdjs, naive_threshold)
     cutoff, rule = merge_fdr_cutoff(cand_ps, null_ps)
 
-    merged_partition = []
-    n_accepted, n_rejected_pvalue, n_rejected_min_members = 0, 0, 0
-    for frags, offset, pairs in buckets:
-        if offset is None:
-            merged_partition.extend(frags)
-            continue
-        find, union = _union_find(len(frags))
-        for i, j in pairs:
-            if cutoff is None or evidence.pvalue(offset + i, offset + j) > cutoff:
-                n_rejected_pvalue += 1
-            elif min(len(frags[i]), len(frags[j])) < MERGE_MIN_MEMBERS:
-                n_rejected_min_members += 1
-            else:
-                union(i, j)
-                n_accepted += 1
-        components = defaultdict(list)
-        for i in range(len(frags)):
-            components[find(i)].extend(frags[i])
-        merged_partition.extend(components.values())
+    merged_partition, n_accepted, n_rejected_pvalue, n_rejected_min_members = _accept_merge_pairs(buckets, evidence, cutoff)
 
     n_merges = len(split_partition) - len(merged_partition)
-    skip_label = ', %d skipped (singleton-singleton)' % n_skipped_singleton if n_skipped_singleton > 0 else ''
-    skip_label += ', %d skipped (naive length mismatch)' % n_skipped_difflen if n_skipped_difflen > 0 else ''
-    junc_label = ', %d rejected (junction)' % n_rejected_junction if n_rejected_junction > 0 else ''
-    junc_label += ', %d rescued (vdj)' % n_vdj_override if n_vdj_override > 0 else ''
+    skip_label = ', %d skipped (singleton-singleton)' % counts['skipped_singleton'] if counts['skipped_singleton'] > 0 else ''
+    skip_label += ', %d skipped (naive length mismatch)' % counts['skipped_difflen'] if counts['skipped_difflen'] > 0 else ''
+    junc_label = ', %d rejected (junction)' % counts['rejected_junction'] if counts['rejected_junction'] > 0 else ''
+    junc_label += ', %d rescued (vdj)' % counts['vdj_override'] if counts['vdj_override'] > 0 else ''
     print('  naive-similarity merge: %d naive candidates, %d rejected (insufficient signal)%s%s' % (
-        n_naive_candidates, n_rejected_insufficient, junc_label, skip_label))
+        counts['naive_candidates'], counts['rejected_insufficient'], junc_label, skip_label))
     print('  p-value cutoff %s (%s, %d candidate pairs, %d null pairs): %d accepted, %d rejected (p-value), %d rejected (min members)' % (
         '%.3g' % cutoff if cutoff is not None else 'none', rule, len(cand_ps), len(null_ps), n_accepted, n_rejected_pvalue, n_rejected_min_members))
     print('  %d merges, %d -> %d clusters' % (n_merges, len(split_partition), len(merged_partition)))

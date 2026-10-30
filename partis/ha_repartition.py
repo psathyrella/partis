@@ -16,8 +16,11 @@ Per-cluster HA is a single keep-or-split decision with no between-cluster compar
 so there is no max-cluster-size guard; min_cluster_size defaults to 3 (singletons and
 pairs cannot be improved by HA).
 """
+import collections
 import json
 import os
+
+Bundle = collections.namedtuple('Bundle', 'job_start job_count n_procs')  # one contiguous task-list slice
 
 
 def read_fasta(path):
@@ -205,7 +208,8 @@ def prepare_all(disjoint_dir, groups, locus, n_bundles, count_collapsed=None, mi
     bundle order, and a bundle list (job_start, job_count, n_procs per line). Groups whose
     HA re-partition already exists emit no jobs. A multi-proc candidate (sw naive count
     >= multiproc_min_collapsed) keeps n_procs > 1 only if count_collapsed(candidates),
-    which returns {cluster_id: HA collapsed count}, confirms it. Returns (specs, jobs, bundles)."""
+    which returns HA's collapsed count per candidate in order, confirms it (with count_collapsed
+    None the sw count stands unconfirmed). Returns (specs, jobs, bundles)."""
     if locus != 'igh':  # multi-proc HA is validated on heavy chain only
         multiproc_min_collapsed = None
     specs = group_specs(disjoint_dir, groups, locus)
@@ -217,18 +221,17 @@ def prepare_all(disjoint_dir, groups, locus, n_bundles, count_collapsed=None, mi
                                min_cluster_size=min_cluster_size, multiproc_min_collapsed=multiproc_min_collapsed)
         all_jobs.extend(spec['jobs'])
     candidates = [j for j in all_jobs if j['n_procs'] > 1]
-    if len(candidates) > 0:  # candidates by sw naive count, confirmed by HA's own collapse
-        counts = count_collapsed(candidates)
-        for job in candidates:
-            job['n_collapsed'] = counts[job['cluster_id']]
+    if len(candidates) > 0 and count_collapsed is not None:  # candidates by sw naive count, confirmed by HA's own collapse
+        for job, n_collapsed in zip(candidates, count_collapsed(candidates)):
+            job['n_collapsed'] = n_collapsed
             if job['n_collapsed'] < multiproc_min_collapsed:
                 job['n_procs'] = 1
         print('    %d of %d HA multi-proc candidates confirmed (at least %d naive seqs after HA\'s collapse)' % (sum(j['n_procs'] > 1 for j in candidates), len(candidates), multiproc_min_collapsed))
     all_jobs, bundles = plan_bundles(all_jobs, n_bundles)
     write_task_list(disjoint_dir, locus, all_jobs)
     with open(bundle_list_fname(disjoint_dir, locus), 'w') as f:
-        for start, count, n_procs in bundles:
-            f.write('%d\t%d\t%d\n' % (start, count, n_procs))
+        for b in bundles:
+            f.write('%d\t%d\t%d\n' % b)
     return specs, all_jobs, bundles
 
 
@@ -261,46 +264,56 @@ def plan_bundles(jobs, n_bundles):
     job_count, n_procs)])."""
     multi = sorted([j for j in jobs if j['n_procs'] > 1], key=lambda j: -j['n_collapsed'])
     single, single_bundles = lpt_bundles([j for j in jobs if j['n_procs'] == 1], n_bundles)
-    bundles = [(i, 1, j['n_procs']) for i, j in enumerate(multi)]
-    bundles += [(len(multi) + start, count, 1) for start, count in single_bundles]
+    bundles = [Bundle(i, 1, j['n_procs']) for i, j in enumerate(multi)]
+    bundles += [Bundle(len(multi) + start, count, 1) for start, count in single_bundles]
     return multi + single, bundles
 
 
 def read_bundle_list(path):
     with open(path) as f:
-        return [tuple(int(v) for v in line.split('\t')) for line in f if line.strip()]
+        return [Bundle(*(int(v) for v in line.split('\t'))) for line in f if line.strip()]
 
 
-def _ha_collapsed_count(job, args, glfo):
-    # run HA's sw and naive seq caching steps on one cluster, then its collapse
-    import copy
+def seed_all(seed):
     import random
     import numpy
-    from partis import seqfileopener, utils
+    random.seed(seed)
+    numpy.random.seed(seed)
+
+
+def _cluster_driver(job, args, glfo, outfname, workdir, n_procs):
+    # PartitionDriver on one cluster's fasta, reseeded so its result does not depend on bundling or order
+    import copy
+    from partis import seqfileopener
     from partis.partitiondriver import PartitionDriver
     a = copy.copy(args)
-    a.infname, a.outfname = job['infname'], None
-    a.workdir = '%s/ha-collapse-%s' % (args.workdir, job['cluster_id'])
-    random.seed(args.random_seed)  # same seed as the cluster's HA job
-    numpy.random.seed(args.random_seed)
+    a.infname, a.outfname, a.workdir, a.n_procs = job['infname'], outfname, workdir, n_procs
+    seed_all(args.random_seed)
     input_info, reco_info, _ = seqfileopener.read_sequence_file(job['infname'], True, args=a, quiet=True)
-    parter = PartitionDriver(a, glfo, input_info, None, reco_info)
-    parter.current_action = 'partition'
-    parter.run_waterer(look_for_cachefile=False, write_cachefile=False, count_parameters=False)
-    if len(parter.sw_info['queries']) == 0:
-        return job['cluster_id'], 0
-    parter.run_hmm('viterbi', parter.sub_param_dir, precache_all_naive_seqs=True)
-    n_collapsed = len(utils.collapse_naive_seqs(parter.synth_sw_info(parter.sw_info['queries']), split_by_cdr3=True))
-    parter.clean()
-    return job['cluster_id'], n_collapsed
+    return PartitionDriver(a, glfo, input_info, None, reco_info)
+
+
+def _ha_collapsed_count(ijob, job, args, glfo):
+    # run HA's sw and naive seq caching steps on one cluster, then its collapse
+    from partis import utils
+    parter = _cluster_driver(job, args, glfo, None, '%s/ha-collapse-%d' % (args.workdir, ijob), args.n_procs)
+    try:
+        parter.current_action = 'partition'
+        parter.run_waterer(look_for_cachefile=False, write_cachefile=False, count_parameters=False)
+        if len(parter.sw_info['queries']) == 0:
+            return 0
+        parter.run_hmm('viterbi', parter.sub_param_dir, precache_all_naive_seqs=True)
+        return len(utils.collapse_naive_seqs(parter.synth_sw_info(parter.sw_info['queries']), split_by_cdr3=True))
+    finally:
+        parter.clean()
 
 
 def count_ha_collapsed(jobs, args, glfo, n_procs):
-    """HA's collapsed count (clusters of identical hmm naive seqs) for each job, n_procs jobs
-    at a time. Returns {cluster_id: count}."""
+    """HA's collapsed count (clusters of identical hmm naive seqs) for each job, in job order,
+    n_procs jobs at a time."""
     import multiprocessing
     with multiprocessing.get_context('fork').Pool(max(1, min(n_procs, len(jobs)))) as pool:
-        return dict(pool.starmap(_ha_collapsed_count, [(j, args, glfo) for j in jobs]))
+        return pool.starmap(_ha_collapsed_count, [(i, j, args, glfo) for i, j in enumerate(jobs)])
 
 
 def read_task_list(path):
@@ -327,28 +340,15 @@ def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
     difference from a per-cluster subprocess is that Python/import/glfo startup is paid
     once for the whole batch instead of once per cluster (the dominant per-cluster cost
     at these sizes). Returns (cluster_id, n_seqs, wall_sec) timing rows."""
-    import copy
     import time
     import csv as _csv
-    import random
-    import numpy
-    from partis import seqfileopener
-    from partis.partitiondriver import PartitionDriver
     base_workdir = args.workdir
     rows = []
     for i, job in enumerate(jobs):
         if os.path.exists(job['outfname']):  # existence is this cluster's completion signal
             continue
-        a = copy.copy(args)
-        a.infname = job['infname']
-        a.outfname = job['outfname']
-        a.workdir = '%s/ha-work-%d' % (base_workdir, i)
-        a.n_procs = job['n_procs']
-        random.seed(args.random_seed)  # reseed per cluster, so its result does not depend on bundling or order
-        numpy.random.seed(args.random_seed)
-        input_info, reco_info, _ = seqfileopener.read_sequence_file(job['infname'], True, args=a, quiet=True)
         t0 = time.time()
-        parter = PartitionDriver(a, glfo, input_info, None, reco_info)
+        parter = _cluster_driver(job, args, glfo, job['outfname'], '%s/ha-work-%d' % (base_workdir, i), job['n_procs'])
         parter.run(['partition'])
         parter.clean()
         rows.append((job['cluster_id'], job['n_seqs'], round(time.time() - t0, 3)))

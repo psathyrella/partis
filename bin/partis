@@ -87,7 +87,7 @@ def single_proc_concurrency(args):
 
 # ----------------------------------------------------------------------------------------
 SUBSET_TARGET_PROCS = 8  # procs per subset job
-HAREP_BUNDLES_PER_PROC = 8  # HA bundles per concurrency slot
+HAREP_BUNDLES_PER_PROC = 8  # HA bundles per concurrency slot, more than one for load balance
 
 # ----------------------------------------------------------------------------------------
 def job_proc_allocation(args, target_procs_per_job=None, n_queued=None, dbgstr='group'):
@@ -250,8 +250,7 @@ def ha_job_config(args):
     gldir = ha_germline_dir(args, args.parameter_dir, args.locus)
     args.is_data, args.refuse_to_cache_parameters, args.naive_vsearch, args.n_procs = True, True, False, 1
     args.random_seed = 0
-    random.seed(0)
-    numpy.random.seed(0)
+    ha_repartition.seed_all(args.random_seed)
     return glutils.read_glfo(gldir, args.locus, only_genes=args.only_genes)
 
 # ----------------------------------------------------------------------------------------
@@ -1965,12 +1964,15 @@ def run_all_loci(args, ig_or_tr='ig'):
         # Repoints partition_path to the re-partitioned partition.
         if args.ha_repartition:
             ha_concurrency = single_proc_concurrency(args)
-            # run as the standalone action, so both paths plan jobs the same way
-            cmd = build_single_locus_cmd('create-ha-repartition-jobs', ltmp, args, parameter_dir=getpdir(ltmp), extra_args=['--paired-outdir', getodir()])
-            utils.run_cmds([{'cmd_str' : cmd, 'outfname' : ha_repartition.bundle_list_fname(disjoint_dir, ltmp), 'workdir' : '%s/ha-repartition-create-work' % disjoint_dir}], debug='write')
-            harep_specs = ha_repartition.group_specs(disjoint_dir, manifest['groups'], ltmp)
-            harep_jobs = ha_repartition.read_task_list(ha_repartition.task_list_fname(disjoint_dir, ltmp))
-            bundles = ha_repartition.read_bundle_list(ha_repartition.bundle_list_fname(disjoint_dir, ltmp))
+            if args.dry_run:  # plan in-process on the sw count, so no HA runs to confirm the multi-proc tier
+                harep_specs, harep_jobs, bundles = ha_repartition.prepare_all(disjoint_dir, manifest['groups'], ltmp, ha_concurrency * HAREP_BUNDLES_PER_PROC)
+            else:
+                # run as the standalone action, so both paths plan jobs the same way
+                cmd = build_single_locus_cmd('create-ha-repartition-jobs', ltmp, args, parameter_dir=getpdir(ltmp), extra_args=['--paired-outdir', getodir()])
+                utils.run_cmds([{'cmd_str' : cmd, 'outfname' : ha_repartition.bundle_list_fname(disjoint_dir, ltmp), 'workdir' : '%s/ha-repartition-create-work' % disjoint_dir}], debug='write')
+                harep_specs = ha_repartition.group_specs(disjoint_dir, manifest['groups'], ltmp)
+                harep_jobs = ha_repartition.read_task_list(ha_repartition.task_list_fname(disjoint_dir, ltmp))
+                bundles = ha_repartition.read_bundle_list(ha_repartition.bundle_list_fname(disjoint_dir, ltmp))
             n_todo = sum(1 for j in harep_jobs if not os.path.exists(j['outfname']))  # existence is each cluster's completion signal
             ha_cmdfos = {}
             for start, count, n_bundle_procs in bundles:

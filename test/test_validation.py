@@ -244,10 +244,11 @@ def test_ha_assemble_with_missing_uid(tmp_path, ha_only_dir):
 
 
 def test_ha_plan_bundles():
-    jobs = [{'cluster_id': str(i), 'n_collapsed': u, 'n_procs': 8 if u >= 500 else 1} for i, u in enumerate([10, 600, 40, 900, 20, 30])]
+    big, n_multi = ha_repartition.HA_MULTIPROC_MIN_COLLAPSED, ha_repartition.HA_MULTIPROC_N_PROCS
+    jobs = [{'cluster_id': str(i), 'n_collapsed': u, 'n_procs': n_multi if u >= big else 1} for i, u in enumerate([10, big + 100, 40, big + 400, 20, 30])]
     ordered, bundles = ha_repartition.plan_bundles(jobs, 2)
-    assert [j['n_collapsed'] for j in ordered[:2]] == [900, 600]
-    assert bundles[:2] == [(0, 1, 8), (1, 1, 8)]
+    assert [j['n_collapsed'] for j in ordered[:2]] == [big + 400, big + 100]
+    assert bundles[:2] == [(0, 1, n_multi), (1, 1, n_multi)]
     assert all(n_procs == 1 for _, _, n_procs in bundles[2:])
     assert sum(count for _, count, _ in bundles) == len(jobs)
     assert sorted(j['cluster_id'] for j in ordered) == sorted(j['cluster_id'] for j in jobs)
@@ -262,7 +263,7 @@ def test_ha_prepare_multiproc_tier(tmp_path, ha_only_dir):
     confirmed = []
     def count_collapsed(candidates):
         confirmed.extend(j['cluster_id'] for j in candidates[::2])
-        return {j['cluster_id']: (2 if j['cluster_id'] in confirmed else 1) for j in candidates}
+        return [2 if j['cluster_id'] in confirmed else 1 for j in candidates]
     _, jobs, bundles = ha_repartition.prepare_all(ddir, manifest['groups'], 'igh', 4, count_collapsed=count_collapsed, multiproc_min_collapsed=2)
     multi = [j for j in jobs if j['n_procs'] > 1]
     assert len(multi) > 0 and sorted(j['cluster_id'] for j in multi) == sorted(confirmed)
@@ -274,3 +275,11 @@ def test_ha_prepare_multiproc_tier(tmp_path, ha_only_dir):
         os.remove(spec['harep_out'])
     _, light_jobs, _ = ha_repartition.prepare_all(lddir, lmanifest['groups'], 'igk', 4, multiproc_min_collapsed=2)
     assert len(light_jobs) > 0 and all(j['n_procs'] == 1 for j in light_jobs)
+
+
+@pytest.mark.parametrize('k, n, f', [(0, 5, .1), (1, 5, .1), (3, 10, .05), (5, 10, .3), (20, 40, .2), (2, 3, .9), (7, 7, .5), (60, 200, .1)])
+def test_binomial_sf_matches_scipy(k, n, f):
+    from scipy.stats import binom
+    from partis.partition_refinement import binomial_sf
+    want = 1. if k <= n * f else binom.sf(k - 1, n, f)  # binomial_sf returns 1 at or below the mean
+    assert binomial_sf(k, n, f) == pytest.approx(want, rel=1e-9, abs=1e-300)
