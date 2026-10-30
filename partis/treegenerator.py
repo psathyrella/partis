@@ -78,7 +78,7 @@ class TreeGenerator(object):
                 freq = hist.get_bin_centers()[ibin]
                 lengths.append(self.convert_observed_changes_to_branch_length(float(freq)))
                 probs.append(hist.bin_contents[ibin])
-            self.branch_lengths[mtype] = {'mean' : hist.get_mean(), 'lengths' : lengths, 'probs' : probs}
+            self.branch_lengths[mtype] = {'mean' : hist.get_mean(ignore_overflows=True), 'lengths' : lengths, 'probs' : probs}  # have to ignore overflows, since normalize() didn't touch them (so e.g. 27 raw overflow counts would outweigh the normalized regular bins)
 
             if not utils.is_normed(probs):
                 raise Exception('not normalized %f' % check_sum)
