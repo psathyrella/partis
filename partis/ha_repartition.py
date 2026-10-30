@@ -5,7 +5,7 @@ both in-process (driven by run_cmds) and as external array jobs.
 
   prepare(): for every vsearch cluster >= min_cluster_size, write a per-cluster FASTA
              and a task list (external array orchestration).
-  run_jobs_in_process(): run HA (`partis partition --no-indels`, no --fast, so bcrham
+  run_jobs_in_process(): run HA (`partis partition`, no --fast, so bcrham
              decides keep-or-split) on each cluster, reusing one pre-loaded glfo.
   assemble(): merge the per-cluster HA results over the vsearch partition (re-partitioned
              clusters replaced by their HA sub-clusters, others kept) and write a full

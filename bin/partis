@@ -244,12 +244,11 @@ def _disjoint_locus_dir(args):
 
 # ----------------------------------------------------------------------------------------
 def ha_job_config(args):
-    # HA config (matches the per-cluster partition command): cluster fastas are data, no
-    # indels, no parameter caching, plain HA (not vsearch), fixed seed. Returns the glfo.
+    # set args for the per-cluster HA runs, return glfo
     if args.parameter_dir is not None:  # the per-cluster partitions need the locus dir too
         args.parameter_dir = locus_parameter_dir(args.parameter_dir, args.locus)
     gldir = ha_germline_dir(args, args.parameter_dir, args.locus)
-    args.is_data, args.no_indels, args.refuse_to_cache_parameters, args.naive_vsearch, args.n_procs = True, True, True, False, 1
+    args.is_data, args.refuse_to_cache_parameters, args.naive_vsearch, args.n_procs = True, True, False, 1
     args.random_seed = 0
     random.seed(0)
     numpy.random.seed(0)
