@@ -1,6 +1,6 @@
-partis partition --dont-write-git-info --paired-loci --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results/subset-partition-new-simu/isub-1 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/input-seqs.fa
+partis partition --dont-write-git-info --paired-loci --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --paired-outdir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/input-seqs.fa
   note: found 'paired-uids' in --input-metafnames, so not extracting pairing info
-[91mrun[0m split-loci.py test/paired/new-results/subset-partition-new-simu/isub-1/input-seqs.fa --outdir test/paired/new-results/subset-partition-new-simu/isub-1 --input-metafname test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml
+[91mrun[0m split-loci.py /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/input-seqs.fa --outdir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1 --input-metafname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml
   --input-metafnames: added meta info for 61 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
     read pairing info for 61 seqs from input meta file
     read loci for 61 sequences from input meta file (so not running vsearch)
@@ -20,7 +20,7 @@ totals: igh 32 igk 18 igl 11
        [92ml[0m       5   0.45   [94mh[0m
                4   0.36   [94mh[0m [94mh[0m [95mk[0m
                2   0.18   [94mh[0m [92ml[0m
-writing to test/paired/new-results/subset-partition-new-simu/isub-1/
+writing to /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/
   igh: 32 to isub-1/igh.fa
   igk: 18 to isub-1/igk.fa
   igl: 11 to isub-1/igl.fa
@@ -31,10 +31,10 @@ writing to paired subdirs
     igh+igl:
       igh: 14 / 32 to igh+igl/igh.fa
       igl: 11 / 11 to igh+igl/igl.fa
-  missing 3 locus parameter dirs (igh igk igl), so caching a new set of parameters before running action 'partition':  test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl
+  missing 3 locus parameter dirs (igh igk igl), so caching a new set of parameters before running action 'partition':  /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl
 [44mcache-parameters[0m [94migh[0m:
-[91mrun[0m partis cache-parameters --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igh.fa --crash-on-duplicate-uids --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
-  --input-metafnames: added meta info for 32 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
+[91mrun[0m partis cache-parameters --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh.fa --crash-on-duplicate-uids --parameter-dir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
+  --input-metafnames: added meta info for 32 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
 caching parameters
   vsearch: 32 / 32 v annotations (0 failed) with 9 v genes in 0.0 sec
     keeping 6 / 433 v genes
@@ -46,29 +46,29 @@ smith-waterman  (new-allele fitting)
       kept 14 (0.438) unproductive
     water time: 0.1  (ig-sw 0.0  processing 0.0)
 smith-waterman  (writing parameters)
-  vsearch: 32 / 32 v annotations (0 failed) with 6 v genes in 0.0 sec
+  vsearch: 32 / 32 v annotations (0 failed) with 6 v genes in 0.1 sec
     running 10 procs for 32 seqs
     running 11 procs for 2 seqs
       info for 32 / 32 = 1.000   (removed: 0 failed)
       kept 14 (0.438) unproductive
-        writing sw results to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
-    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw (0.5 sec)
-    water time: 0.7  (ig-sw 0.6  processing 0.0)
+        writing sw results to /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
+    writing parameters to /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw (0.5 sec)
+    water time: 0.6  (ig-sw 0.5  processing 0.0)
   writing hmms     removed 80 genes from glfo (leaving v 6  d 11  j 4)
 (0.1 sec)
 hmm
     reading output
         read 32 hmm output lines with 32 sequences in 32 events  (0 failures)
-    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/hmm (0.5 sec)
-         infra time: 0.6
-      hmm step time: 0.8
+    writing parameters to /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/hmm (0.4 sec)
+         infra time: 0.5
+      hmm step time: 0.7
   writing hmms     removed 1  genes from glfo (leaving v 6  d 10  j 4)
 (0.2 sec)
-      total time: 2.2
-      bcrham time: 0.2 (9.9% of total, 1 calls)
+      total time: 2.1
+      bcrham time: 0.2 (10.0% of total, 1 calls)
 [44mcache-parameters[0m [94migk[0m:
-[91mrun[0m partis cache-parameters --locus igk --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igk.fa --crash-on-duplicate-uids --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
-  --input-metafnames: added meta info for 18 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
+[91mrun[0m partis cache-parameters --locus igk --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igk.fa --crash-on-duplicate-uids --parameter-dir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
+  --input-metafnames: added meta info for 18 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
 caching parameters
   vsearch: 18 / 18 v annotations (0 failed) with 8 v genes in 0.0 sec
     keeping 5 / 186 v genes
@@ -83,24 +83,24 @@ smith-waterman  (writing parameters)
     running 10 procs for 18 seqs
       info for 18 / 18 = 1.000   (removed: 0 failed)
       kept 3 (0.167) unproductive
-        writing sw results to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
-    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw (0.4 sec)
-    water time: 0.6  (ig-sw 0.5  processing 0.0)
+        writing sw results to /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
+    writing parameters to /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw (0.4 sec)
+    water time: 0.5  (ig-sw 0.5  processing 0.0)
   writing hmms     removed 13 genes from glfo (leaving v 5  d 1  j 5)
 (0.1 sec)
 hmm
     reading output
         read 18 hmm output lines with 18 sequences in 18 events  (0 failures)
-    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/hmm (0.4 sec)
+    writing parameters to /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/hmm (0.4 sec)
          infra time: 0.4
       hmm step time: 0.5
   writing hmms     removed 0  genes from glfo (leaving v 5  d 1  j 5)
 (0.1 sec)
       total time: 1.5
-      bcrham time: 0.1 (6.8% of total, 1 calls)
+      bcrham time: 0.1 (7.3% of total, 1 calls)
 [44mcache-parameters[0m [94migl[0m:
-[91mrun[0m partis cache-parameters --locus igl --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igl.fa --crash-on-duplicate-uids --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
-  --input-metafnames: added meta info for 11 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
+[91mrun[0m partis cache-parameters --locus igl --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igl.fa --crash-on-duplicate-uids --parameter-dir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl --sw-cachefname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
+  --input-metafnames: added meta info for 11 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
 caching parameters
   vsearch: 11 / 11 v annotations (0 failed) with 3 v genes in 0.0 sec
     keeping 2 / 441 v genes
@@ -117,28 +117,28 @@ smith-waterman  (writing parameters)
     running 11 procs for 1 seq
       info for 11 / 11 = 1.000   (removed: 0 failed)
       kept 3 (0.273) unproductive
-        writing sw results to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
-    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw (0.2 sec)
-    water time: 0.4  (ig-sw 0.3  processing 0.0)
+        writing sw results to /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
+    writing parameters to /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw (0.2 sec)
+    water time: 0.3  (ig-sw 0.3  processing 0.0)
   writing hmms     removed 31 genes from glfo (leaving v 2  d 1  j 1)
 (0.1 sec)
 hmm
     reading output
         read 11 hmm output lines with 11 sequences in 11 events  (0 failures)
-    writing parameters to test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/hmm (0.2 sec)
+    writing parameters to /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/hmm (0.1 sec)
          infra time: 0.2
       hmm step time: 0.3
   writing hmms     removed 0  genes from glfo (leaving v 2  d 1  j 1)
 (0.1 sec)
-      total time: 1.2
-      bcrham time: 0.1 (6.8% of total, 1 calls)
+      total time: 1.1
+      bcrham time: 0.1 (7.2% of total, 1 calls)
 [44mpartition[0m [94migh[0m:
-[91mrun[0m partis partition --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igh.fa --outfname test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
-  --input-metafnames: added meta info for 32 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
-partitioning     (with test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/hmm)
+[91mrun[0m partis partition --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh.fa --outfname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
+  --input-metafnames: added meta info for 32 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
+partitioning     (with /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/hmm)
 smith-waterman
   vsearch: 32 / 32 v annotations (0 failed) with 6 v genes in 0.1 sec
-        reading sw results from test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
+        reading sw results from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
       info for 32 / 32 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 14 (0.438) unproductive
         water time: 0.0
@@ -146,24 +146,24 @@ hmm
   caching all 32 naive sequences (0.2s)
     collapsed 32 queries into 17 clusters with identical naive seqs (0.0 sec)
   17 clusters with 10 procs (0.1s)
-   17 clusters with 7 procs (0.2s)
-   17 clusters with 5 procs (0.2s)
-   16 clusters with 3 procs (0.3s)
+   17 clusters with 7 procs (0.1s)
+   17 clusters with 5 procs (0.1s)
+   16 clusters with 3 procs (0.2s)
    15 clusters with 2 procs (0.2s)
    14 clusters with 1 proc (0.4s)
-       partition loop time: 1.2
+       partition loop time: 1.1
 getting annotations for final partition
   subcluster annotating 11 clusters with steps:  (0.2s) (0.1s) 
     subcluster annotation time 0.4
-      total time: 1.9
-      bcrham time: 1.5 (78.7% of total, 9 calls)
+      total time: 1.8
+      bcrham time: 1.4 (77.5% of total, 9 calls)
 [44mpartition[0m [94migk[0m:
-[91mrun[0m partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igk.fa --outfname test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
-  --input-metafnames: added meta info for 18 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
-partitioning     (with test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/hmm)
+[91mrun[0m partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igk.fa --outfname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
+  --input-metafnames: added meta info for 18 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
+partitioning     (with /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/hmm)
 smith-waterman
   vsearch: 18 / 18 v annotations (0 failed) with 5 v genes in 0.1 sec
-        reading sw results from test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
+        reading sw results from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
       info for 18 / 18 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 3 (0.167) unproductive
         water time: 0.0
@@ -179,16 +179,16 @@ hmm
        partition loop time: 0.7
 getting annotations for final partition
   subcluster annotating 6 clusters with steps:  (0.1s) (0.1s) 
-    subcluster annotation time 0.3
+    subcluster annotation time 0.2
       total time: 1.1
-      bcrham time: 0.8 (69.2% of total, 8 calls)
+      bcrham time: 0.8 (70.2% of total, 8 calls)
 [44mpartition[0m [94migl[0m:
-[91mrun[0m partis partition --locus igl --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igl.fa --outfname test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/partition-igl.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
-  --input-metafnames: added meta info for 11 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
-partitioning     (with test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/hmm)
+[91mrun[0m partis partition --locus igl --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igl.fa --outfname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/single-chain/partition-igl.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl --sw-cachefname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
+  --input-metafnames: added meta info for 11 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml: loci paired-uids
+partitioning     (with /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/hmm)
 smith-waterman
   vsearch: 11 / 11 v annotations (0 failed) with 2 v genes in 0.1 sec
-        reading sw results from test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
+        reading sw results from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
       info for 11 / 11 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 3 (0.273) unproductive
         water time: 0.0
@@ -204,7 +204,7 @@ getting annotations for final partition
   subcluster annotating 3 clusters with steps:  (0.1s) (0.1s) 
     subcluster annotation time 0.2
       total time: 0.6
-      bcrham time: 0.4 (65.0% of total, 6 calls)
+      bcrham time: 0.4 (65.3% of total, 6 calls)
 [44mcombining[0m chains
 cleaning pair info for 61 seqs
      synchronized/fixed 0 pairs where one had no pair info after cleaning: [94mh[0m 0  [95mk[0m 0  [92ml[0m 0
@@ -225,13 +225,13 @@ cleaning pair info for 61 seqs
   merge time 0.0
   need to get annotations for 2/6 joint igh clusters
 [44mannotate[0m [94migh+igk[0m:[94m igh[0m
-[91mrun[0m partis annotate --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/meta-igh.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/input-seqs-igh.fa --outfname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml --ignore-sw-pair-info --input-partition-fname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igh-only-partition.yaml
-  --input-metafnames: added meta info for 17 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/meta-igh.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 17 sequences in 6 clusters from test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igh-only-partition.yaml
-annotating    (with test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/hmm)
+[91mrun[0m partis annotate --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/meta-igh.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/input-seqs-igh.fa --outfname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml --ignore-sw-pair-info --input-partition-fname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igh-only-partition.yaml
+  --input-metafnames: added meta info for 17 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/meta-igh.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 17 sequences in 6 clusters from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igh-only-partition.yaml
+annotating    (with /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/hmm)
 smith-waterman
   vsearch: 17 / 17 v annotations (0 failed) with 4 v genes in 0.1 sec
-        reading sw results from test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
+        reading sw results from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
       info for 17 / 17 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 11 (0.647) unproductive
         water time: 0.0
@@ -239,24 +239,24 @@ hmm
   subcluster annotating 6 clusters with steps:  (0.1s) (0.1s) 
     subcluster annotation time 0.3
       total time: 0.4
-      bcrham time: 0.2 (62.5% of total, 2 calls)
+      bcrham time: 0.2 (65.0% of total, 2 calls)
   need to get annotations for 3/6 joint igk clusters
 [44mannotate[0m [94migh+igk[0m:[94m igk[0m
-[91mrun[0m partis annotate --locus igk --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/meta-igk.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/input-seqs-igk.fa --outfname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml --ignore-sw-pair-info --input-partition-fname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igk-only-partition.yaml
-  --input-metafnames: added meta info for 17 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/meta-igk.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 17 sequences in 6 clusters from test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igk-only-partition.yaml
-annotating    (with test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/hmm)
+[91mrun[0m partis annotate --locus igk --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/meta-igk.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/input-seqs-igk.fa --outfname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igk.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk --sw-cachefname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml --ignore-sw-pair-info --input-partition-fname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igk-only-partition.yaml
+  --input-metafnames: added meta info for 17 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/meta-igk.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 17 sequences in 6 clusters from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igk/partition-igk-only-partition.yaml
+annotating    (with /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/hmm)
 smith-waterman
   vsearch: 17 / 17 v annotations (0 failed) with 5 v genes in 0.1 sec
-        reading sw results from test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
+        reading sw results from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igk/sw-cache.yaml
       info for 17 / 17 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 3 (0.176) unproductive
         water time: 0.0
 hmm
   subcluster annotating 6 clusters with steps:  (0.1s) (0.1s) 
-    subcluster annotation time 0.3
+    subcluster annotation time 0.2
       total time: 0.3
-      bcrham time: 0.2 (54.2% of total, 2 calls)
+      bcrham time: 0.1 (50.1% of total, 2 calls)
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
     removing badly + unpaired seqs:  kept 5 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 4  [92ml[0m 1
             note: discarding unpaired seqs in families with no (well-)paired seqs (i.e. families that are all either unpaired or paired to the other/wrong light chain), rather than keeping track of them to re-add later
@@ -274,30 +274,30 @@ hmm
   merge time 0.0
   need to get annotations for 3/4 joint igh clusters
 [44mannotate[0m [94migh+igl[0m:[94m igh[0m
-[91mrun[0m partis annotate --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/meta-igh.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/input-seqs-igh.fa --outfname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml --ignore-sw-pair-info --input-partition-fname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igh-only-partition.yaml
-  --input-metafnames: added meta info for 13 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/meta-igh.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 13 sequences in 4 clusters from test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igh-only-partition.yaml
-annotating    (with test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/hmm)
+[91mrun[0m partis annotate --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/meta-igh.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/input-seqs-igh.fa --outfname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igh.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh --sw-cachefname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml --ignore-sw-pair-info --input-partition-fname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igh-only-partition.yaml
+  --input-metafnames: added meta info for 13 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/meta-igh.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 13 sequences in 4 clusters from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igh-only-partition.yaml
+annotating    (with /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/hmm)
 smith-waterman
-  vsearch: 13 / 13 v annotations (0 failed) with 3 v genes in 0.1 sec
-        reading sw results from test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
+  vsearch: 13 / 13 v annotations (0 failed) with 3 v genes in 0.0 sec
+        reading sw results from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igh/sw-cache.yaml
       info for 13 / 13 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 3 (0.231) unproductive
         water time: 0.0
 hmm
   subcluster annotating 4 clusters with steps:  (0.1s) (0.1s) 
-    subcluster annotation time 0.3
-      total time: 0.4
-      bcrham time: 0.2 (64.7% of total, 2 calls)
+    subcluster annotation time 0.2
+      total time: 0.3
+      bcrham time: 0.2 (62.4% of total, 2 calls)
   need to get annotations for 4/4 joint igl clusters
 [44mannotate[0m [94migh+igl[0m:[94m igl[0m
-[91mrun[0m partis annotate --locus igl --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/meta-igl.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/input-seqs-igl.fa --outfname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igl.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl --sw-cachefname test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml --ignore-sw-pair-info --input-partition-fname test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igl-only-partition.yaml
-  --input-metafnames: added meta info for 10 sequences from test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/meta-igl.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 10 sequences in 4 clusters from test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igl-only-partition.yaml
-annotating    (with test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/hmm)
+[91mrun[0m partis annotate --locus igl --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --input-metafnames /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/meta-igl.yaml --infname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/input-seqs-igl.fa --outfname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igl.yaml --crash-on-duplicate-uids --refuse-to-cache-parameters --parameter-dir /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl --sw-cachefname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml --ignore-sw-pair-info --input-partition-fname /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igl-only-partition.yaml
+  --input-metafnames: added meta info for 10 sequences from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/meta-igl.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 10 sequences in 4 clusters from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/igh+igl/partition-igl-only-partition.yaml
+annotating    (with /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/hmm)
 smith-waterman
-  vsearch: 10 / 10 v annotations (0 failed) with 2 v genes in 0.0 sec
-        reading sw results from test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
+  vsearch: 10 / 10 v annotations (0 failed) with 2 v genes in 0.1 sec
+        reading sw results from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/parameters/igl/sw-cache.yaml
       info for 10 / 10 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 2 (0.200) unproductive
         water time: 0.0
@@ -305,8 +305,8 @@ hmm
   subcluster annotating 4 clusters with steps:  (0.1s) (0.1s) 
     subcluster annotation time 0.2
       total time: 0.3
-      bcrham time: 0.2 (63.1% of total, 2 calls)
-  --input-metafnames: no meta info added from test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml
+      bcrham time: 0.2 (60.4% of total, 2 calls)
+  --input-metafnames: no meta info added from /tmp/dralph/partis-main/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml
   concatenating heavy chain loci:
       [94mh[0m starting with 6 annotations (17 seqs)
       [93mwarning[0m genes in glfo but not referenced in any annotation:    v: [95mh[0m[91mv[0m[95m1[0m[95m-69[0m[93m01_g165a[0m   d: [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
@@ -320,4 +320,4 @@ hmm
         [94mh[0m   11 --> 10   [91m-1[0m
         [95mk[0m    6 --> 6   
         [92ml[0m    3 --> 4    [91m+1[0m
-      total time: 23.4
+      total time: 22.3
