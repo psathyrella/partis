@@ -29,7 +29,7 @@ import random
 import struct
 import tempfile
 import time
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import numpy as np
 
 
@@ -545,10 +545,14 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
 MERGE_FDR_TARGET = 0.05  # error rate the per-group p-value cutoff is held to
 MERGE_CONSENSUS_ALPHA = 0.05  # per-entry binomial tail a consensus entry must clear against its own frequency
 MERGE_MIN_MEMBERS = 2  # members the smaller fragment of an accepted pair needs
-MERGE_NULL_PAIRS_PER_CANDIDATE, MERGE_NULL_PAIRS_MIN, MERGE_NULL_PAIRS_MAX = 10, 20000, 200000  # null sample size, for cdf resolution
+MERGE_NULL_PAIRS_PER_CANDIDATE = 10  # null pairs drawn per candidate pair, for cdf resolution
+MERGE_NULL_PAIRS_MIN = 20000  # null sample size floor
+MERGE_NULL_PAIRS_MAX = 200000  # null sample size cap, a runtime bound
 MERGE_NULL_MIN_SAMPLE = 100  # fewer null pairs than this: no cutoff, so the group abstains from merging
 MERGE_NULL_SEED = 1
 MERGE_NULL_TRIES_PER_PAIR = 50  # draws per wanted null pair before a small group stops trying
+MERGE_COUNT_KEYS = ('skipped_singleton', 'naive_candidates', 'rejected_junction', 'vdj_override', 'rejected_insufficient', 'skipped_difflen')  # merge proposal tallies
+MergeTally = namedtuple('MergeTally', 'n_accepted n_rejected_pvalue n_rejected_min_members')
 
 
 def binomial_sf(k, n, f):
@@ -564,7 +568,7 @@ def binomial_sf(k, n, f):
     for i in range(k, n + 1):
         t = math.exp(math.lgamma(n + 1) - math.lgamma(i + 1) - math.lgamma(n - i + 1) + i * lf + (n - i) * lq)
         tot += t
-        if t < tot * 1e-12:
+        if t < tot * 1e-12:  # terms only shrink past the mean, which k is above
             break
     return min(1., tot)
 
@@ -621,6 +625,7 @@ class _MergeEvidence(object):
         return muts, freqs, obs
 
     def pvalue(self, i, j):
+        i, j = min(i, j), max(i, j)  # one cache entry per pair, whichever order the null draws it in
         if (i, j) not in self.pair_p:
             (ma, fa, oa), (mb, fb, ob) = self.cons[i], self.cons[j]
             fa = {k: max(fa.get(k, NO_GERMLINE_FREQ), self.group_rate.get(k, 0.0)) for k in ma.items()}
@@ -648,7 +653,7 @@ class _MergeEvidence(object):
             if frozenset((a, b)) in seen:  # distinct pairs only, so a small group cannot fill the null with one pair
                 continue
             seen.add(frozenset((a, b)))
-            if len(naives[a]) != len(naives[b]) or hamming_frac(naives[a], naives[b]) <= naive_threshold:
+            if hamming_frac(naives[a], naives[b]) <= naive_threshold:  # buckets already match naive length
                 continue
             out.append(self.pvalue(a, b))
         return out
@@ -656,7 +661,8 @@ class _MergeEvidence(object):
 
 def merge_fdr_cutoff(cand_ps, null_ps):
     """(cutoff, rule): the loosest candidate p at which the candidates at or below it hold
-    MERGE_FDR_TARGET against the null cdf, floored at 1 / (n_null + 1). None abstains."""
+    MERGE_FDR_TARGET against the null cdf, floored at 1 / (n_null + 1). None abstains.
+    Uses the empirical null cdf, unlike _fdr_cutoff, which extrapolates a fitted null tail."""
     if len(null_ps) < MERGE_NULL_MIN_SAMPLE:
         return None, 'null sample too small'
     cand, nps = sorted(cand_ps), sorted(null_ps)
@@ -777,27 +783,7 @@ def _bucket_merge_candidates(frags, uid_sw_naives, uid_to_muts_with_base, uid_re
                     for j in naive_to_frags[same_len[nj_idx]]:
                         examine(min(i, j), max(i, j))
 
-            # only pairs that could survive the junction guard get a distance: same key, either
-            # side missing a key, or a shared vdj triple where the rescue is live
-            naive_keys, wildcard = [], []
-            key_groups, vdj_groups = defaultdict(list), defaultdict(list)
-            for idx, naive_seq in enumerate(same_len):
-                keys, vdjs = set(), set()
-                for i in naive_to_frags[naive_seq]:
-                    if frag_juncs[i] is None:
-                        keys = None
-                        break
-                    keys.add(frag_juncs[i])
-                    if frag_vdjs[i] is not None and frag_sizes[i] >= MERGE_MIN_MEMBERS:
-                        vdjs.add(frag_vdjs[i])
-                naive_keys.append(keys)
-                if keys is None:
-                    wildcard.append(idx)
-                else:
-                    for key in keys:
-                        key_groups[key].append(idx)
-                    for vdj in vdjs:
-                        vdj_groups[vdj].append(idx)
+            naive_keys, wildcard, key_groups, vdj_groups = _junction_groups(same_len, naive_to_frags, frag_juncs, frag_vdjs, frag_sizes)
 
             for group in key_groups.values():
                 if len(group) >= 2:
@@ -835,9 +821,36 @@ def _bucket_merge_candidates(frags, uid_sw_naives, uid_to_muts_with_base, uid_re
     return frag_naives, frag_vdjs, frag_fps, cands
 
 
+def _junction_groups(same_len, naive_to_frags, frag_juncs, frag_vdjs, frag_sizes):
+    """Group the naives in <same_len> by index so only pairs that could survive the junction guard
+    get a distance: same junction key, either side missing a key (wildcard), or a shared vdj triple
+    where the rescue is live. Returns (keys per naive, None if any fragment lacks one; wildcard
+    indices; indices by key; indices by vdj)."""
+    naive_keys, wildcard = [], []
+    key_groups, vdj_groups = defaultdict(list), defaultdict(list)
+    for idx, naive_seq in enumerate(same_len):
+        keys, vdjs = set(), set()
+        for i in naive_to_frags[naive_seq]:
+            if frag_juncs[i] is None:
+                keys = None
+                break
+            keys.add(frag_juncs[i])
+            if frag_vdjs[i] is not None and frag_sizes[i] >= MERGE_MIN_MEMBERS:
+                vdjs.add(frag_vdjs[i])
+        naive_keys.append(keys)
+        if keys is None:
+            wildcard.append(idx)
+        else:
+            for key in keys:
+                key_groups[key].append(idx)
+            for vdj in vdjs:
+                vdj_groups[vdj].append(idx)
+    return naive_keys, wildcard, key_groups, vdj_groups
+
+
 def _accept_merge_pairs(buckets, evidence, cutoff):
     """Union each bucket's pairs at or below <cutoff> whose smaller fragment has MERGE_MIN_MEMBERS.
-    Returns (merged partition, n accepted, n rejected on p-value, n rejected on min members)."""
+    A bucket with offset None has no pairs and passes through. Returns (merged partition, MergeTally)."""
     merged_partition = []
     n_accepted, n_rejected_pvalue, n_rejected_min_members = 0, 0, 0
     for frags, offset, pairs in buckets:
@@ -857,7 +870,7 @@ def _accept_merge_pairs(buckets, evidence, cutoff):
         for i in range(len(frags)):
             components[find(i)].extend(frags[i])
         merged_partition.extend(components.values())
-    return merged_partition, n_accepted, n_rejected_pvalue, n_rejected_min_members
+    return merged_partition, MergeTally(n_accepted, n_rejected_pvalue, n_rejected_min_members)
 
 
 def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
@@ -873,9 +886,11 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     fragment's member calls. Each remaining pair gets a shared-descent p-value between the two
     fragments' consensus mutations. The cutoff is the loosest p at which accepted pairs hold
     MERGE_FDR_TARGET against a null of same-v, same-length fragment pairs whose naives are too far
-    apart to be proposed. The group rate, null and cutoff are per refine group; a refine group
-    whose null is too small, or where no p meets the target, merges nothing. Accepted pairs also
-    need MERGE_MIN_MEMBERS in the smaller fragment.
+    apart to be proposed. The group rate, null and cutoff are per refine group, pooled over its cdr3
+    buckets with at least two fragments; a refine group whose null is too small, or where no p
+    meets the target, merges nothing. Accepted pairs also need MERGE_MIN_MEMBERS in the smaller
+    fragment; the cutoff counts every candidate pair, including those, which keeps it conservative
+    for the pairs that can merge.
 
     Naive distances are computed only within groups that could survive the junction guard, and as a
     matrix product rather than elementwise.
@@ -900,7 +915,7 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
                 break
         cdr3_frags[cdr3_len].append(cluster)
 
-    counts = defaultdict(int)
+    counts = dict.fromkeys(MERGE_COUNT_KEYS, 0)
 
     uid_freq_cache = {}
     param_dir_counts = {}
@@ -931,7 +946,7 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     null_ps = evidence.sample_null(n_null, pool_naives, pool_vdjs, naive_threshold)
     cutoff, rule = merge_fdr_cutoff(cand_ps, null_ps)
 
-    merged_partition, n_accepted, n_rejected_pvalue, n_rejected_min_members = _accept_merge_pairs(buckets, evidence, cutoff)
+    merged_partition, tally = _accept_merge_pairs(buckets, evidence, cutoff)
 
     n_merges = len(split_partition) - len(merged_partition)
     skip_label = ', %d skipped (singleton-singleton)' % counts['skipped_singleton'] if counts['skipped_singleton'] > 0 else ''
@@ -940,8 +955,9 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     junc_label += ', %d rescued (vdj)' % counts['vdj_override'] if counts['vdj_override'] > 0 else ''
     print('  naive-similarity merge: %d naive candidates, %d rejected (insufficient signal)%s%s' % (
         counts['naive_candidates'], counts['rejected_insufficient'], junc_label, skip_label))
-    print('  p-value cutoff %s (%s, %d candidate pairs, %d null pairs): %d accepted, %d rejected (p-value), %d rejected (min members)' % (
-        '%.3g' % cutoff if cutoff is not None else 'none', rule, len(cand_ps), len(null_ps), n_accepted, n_rejected_pvalue, n_rejected_min_members))
+    print('  p-value cutoff %s (%s, %d candidate pairs, %d null pairs): %d accepted, %d %s, %d rejected (min members)' % (
+        '%.3g' % cutoff if cutoff is not None else 'none', rule, len(cand_ps), len(null_ps), tally.n_accepted, tally.n_rejected_pvalue,
+        'rejected (p-value)' if cutoff is not None else 'abstained (no cutoff)', tally.n_rejected_min_members))
     print('  %d merges, %d -> %d clusters' % (n_merges, len(split_partition), len(merged_partition)))
     n_gene_missing = param_dir_counts.get('gene_missing_from_glfo', 0)
     n_no_antn = param_dir_counts.get('no_antn', 0)

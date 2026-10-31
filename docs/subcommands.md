@@ -145,6 +145,7 @@ The per-cluster HA and per-group refine runs are bundled into processes scaled t
 These runs are single-proc, except that a heavy chain cluster with at least 500 distinct naive sequences after HA's collapse of identical naive sequences runs HA on 8 procs, alone in its own bundle; these bundles run first.
 The candidates are the clusters with at least 500 distinct naive sequences in the group's sw cache, and each is confirmed by running HA's sw and naive sequence steps on it when the jobs are created.
 The single-proc HA clusters are bundled largest first, balancing the estimated cost (distinct naive sequences to the power 1.7) across bundles.
+The 500, 8 and 1.7 are `HA_MULTIPROC_MIN_COLLAPSED`, `HA_MULTIPROC_N_PROCS` and `HA_COST_EXPONENT` in `partis/ha_repartition.py`.
 For running these steps as independent batch jobs, see [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), [`run-ha-repartition-jobs`](#run-ha-repartition-jobs), [`assemble-ha-repartition`](#assemble-ha-repartition), and [`run-partition-refine-jobs`](#run-partition-refine-jobs) below.
 
 ##### limit maximum cluster size

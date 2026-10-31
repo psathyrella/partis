@@ -5,10 +5,12 @@ import re
 import shutil
 
 import pytest
+from scipy.stats import binom
 
 from _helpers import LOCI, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, copy_dir, disjoint_dir, fixture_log, locus_manifest, manifest_fname, merge_subsets_args, paired_partition_args, read_log, run_partis, run_partis_fails
 from partis import disjointgrouper as dg
 from partis import ha_repartition
+from partis.partition_refinement import binomial_sf
 from partis.processargs import single_locus_actions
 
 
@@ -212,7 +214,7 @@ def test_ha_assemble_with_short_result(tmp_path, ha_only_dir):
     shutil.copy(results[0], results[1])  # cluster 1's result now holds cluster 0's uids
     log = tmp_path / 'partis.log'
     run_partis(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(log))
-    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) not covering their cluster, so those clusters are kept whole: cluster-', read_log(str(log)))]
+    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) with foreign uids or missing over [0-9]+% of their cluster, so those clusters are kept whole: cluster-', read_log(str(log)))]
     assert sum(counts) == 1
 
 
@@ -233,14 +235,57 @@ def test_ha_assemble_with_missing_uid(tmp_path, ha_only_dir):
         json.dump(rjs, f)
     log = tmp_path / 'partis.log'
     run_partis(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(log))
-    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) with missing uids, dropped 1 uids that failed HA annotation', read_log(str(log)))]
+    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) with missing uids, dropped [0-9]+ uids that failed HA annotation', read_log(str(log)))]
     assert sum(counts) == 1
-    assert 'not covering their cluster' not in read_log(str(log))
+    assert 'so those clusters are kept whole' not in read_log(str(log))
     out_uids = set()
     for spec in specs:
         with open(spec['harep_out']) as f:
             out_uids |= set(u for c in json.load(f)['partitions'][-1]['partition'] for u in c)
     assert dropped not in out_uids
+
+
+def test_ha_assemble_keeps_cluster_missing_most_uids(tmp_path, ha_only_dir):
+    outdir = copy_dir(ha_only_dir, tmp_path / 'out')
+    ddir, manifest = locus_manifest(outdir, 'igh')
+    specs = ha_repartition.group_specs(ddir, manifest['groups'], 'igh')
+    for spec in specs:  # so assemble redoes every group
+        os.remove(spec['harep_out'])
+    results = sorted(glob.glob('%s/**/clusters/*/partition.yaml' % ddir, recursive=True))
+    with open(results[0]) as f:
+        rjs = json.load(f)
+    all_uids = [u for c in rjs['partitions'][-1]['partition'] for u in c]
+    assert len(all_uids) >= 3
+    rjs['partitions'][-1]['partition'] = [all_uids[:1]]  # result keeps one uid of its cluster
+    with open(results[0], 'w') as f:
+        json.dump(rjs, f)
+    log = tmp_path / 'partis.log'
+    run_partis(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(log))
+    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) with foreign uids or missing over [0-9]+% of their cluster, so those clusters are kept whole: cluster-', read_log(str(log)))]
+    assert sum(counts) == 1
+    out_uids = set()
+    for spec in specs:
+        with open(spec['harep_out']) as f:
+            out_uids |= set(u for c in json.load(f)['partitions'][-1]['partition'] for u in c)
+    assert set(all_uids) <= out_uids
+
+
+def test_ha_prepare_plan_markers(tmp_path, ha_only_dir):
+    outdir = copy_dir(ha_only_dir, tmp_path / 'out')
+    ddir, manifest = locus_manifest(outdir, 'igh')
+    for spec in ha_repartition.group_specs(ddir, manifest['groups'], 'igh'):
+        os.remove(spec['harep_out'])
+    for fname in [ha_repartition.task_list_fname(ddir, 'igh'), ha_repartition.bundle_list_fname(ddir, 'igh')] + glob.glob(ha_repartition.bundle_marker_fname(ddir, '*')):
+        if os.path.exists(fname):
+            os.remove(fname)
+    stale = ha_repartition.bundle_marker_fname(ddir, 12345)
+    open(stale, 'w').close()
+    ha_repartition.prepare_all(ddir, manifest['groups'], 'igh', 4, write_plan=False)
+    assert os.path.exists(stale)
+    assert not os.path.exists(ha_repartition.bundle_list_fname(ddir, 'igh')) and not os.path.exists(ha_repartition.task_list_fname(ddir, 'igh'))
+    ha_repartition.prepare_all(ddir, manifest['groups'], 'igh', 4)
+    assert not os.path.exists(stale)
+    assert os.path.exists(ha_repartition.bundle_list_fname(ddir, 'igh'))
 
 
 def test_ha_plan_bundles():
@@ -279,7 +324,5 @@ def test_ha_prepare_multiproc_tier(tmp_path, ha_only_dir):
 
 @pytest.mark.parametrize('k, n, f', [(0, 5, .1), (1, 5, .1), (3, 10, .05), (5, 10, .3), (20, 40, .2), (2, 3, .9), (7, 7, .5), (60, 200, .1)])
 def test_binomial_sf_matches_scipy(k, n, f):
-    from scipy.stats import binom
-    from partis.partition_refinement import binomial_sf
     want = 1. if k <= n * f else binom.sf(k - 1, n, f)  # binomial_sf returns 1 at or below the mean
     assert binomial_sf(k, n, f) == pytest.approx(want, rel=1e-9, abs=1e-300)
