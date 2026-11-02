@@ -964,6 +964,8 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def print_validation_values(self):  # the point of having this separate from the previous function is that it's run after you've simulated lots of different events (unlike everything else in this class, the validation values aggregate over different events)
         print('  input tree height vs output mut frac (means over leaves/seqs) averaged over %d events:' % len(self.validation_values['heights']['all']['in']))
+        if len(self.validation_values['heights']['all']['in']) == 0:  # e.g. with --mutation-multiplier 0, which skips bppseqgen (and these checks)
+            return
         print('             in      out       diff    std err   std dev')
         for vtype in ['all'] + utils.regions:
             vvals = self.validation_values['heights'][vtype]
