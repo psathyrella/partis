@@ -546,6 +546,7 @@ def get_single_entry(tl, errmsg=None):  # adding this very late, so there's a lo
 # j      53.6    48   62
 # cdr3   52.2    23   96  (from test/ output)
 # all   378.2   348  420
+mute_freq_sum_fname = 'mute-freq-sums.csv'  # in parameter dirs' hmm/: for each region, the sum of each sequence's exact mutation fraction, and the number of sequences (written by mutefreqer, read by paramutils.read_mean_mute_freq())
 typical_lengths = {
     'v' : 297,
     'd' : 26,

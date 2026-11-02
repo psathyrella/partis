@@ -5,7 +5,7 @@
 import argparse, csv, glob, os, random, sys, collections
 partis_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(1, partis_dir)
-from partis import utils, glutils, fraction_uncertainty
+from partis import utils, glutils, fraction_uncertainty, paramutils
 from partis.hist import Hist
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -60,6 +60,7 @@ def pool_locus(locus, samples):
     counts = {}  # counts[gene][position][nuke]
     gene_counts = {r : collections.Counter() for r in utils.regions}
     hists = {}
+    mf_sums = {r : {'sum' : 0., 'n_seqs' : 0.} for r in ['all'] + utils.regions}  # weighted sums of each sample's mean mutation fraction (for utils.mute_freq_sum_fname)
     n_skipped = collections.Counter()
     for sfo in samples:
         glfo = glutils.read_glfo(sfo['hdir'] + '/germline-sets', locus)
@@ -87,13 +88,26 @@ def pool_locus(locus, samples):
             if not os.path.exists('%s/%s' % (sfo['hdir'], hfn)):
                 continue
             hist = Hist(fname='%s/%s' % (sfo['hdir'], hfn))
-            hist.bin_contents = [c * sfo['weight'] * sfo['n_seqs'] for c in hist.bin_contents]  # they're written normalized, so weight each sample by its (capped) number of sequences
+            hist.normalize(include_overflows=True)  # mutefreqer writes the n-muted hists as raw counts, but the mute-freqs ones normalized
+            hist.bin_contents = [c * sfo['weight'] * sfo['n_seqs'] for c in hist.bin_contents]  # weight each sample by its (capped) number of sequences
             if hfn not in hists:
                 hists[hfn] = hist
             elif hists[hfn].low_edges != hist.low_edges:
                 n_skipped['hist with different binning'] += 1
             else:
                 hists[hfn].add(hist)
+        for region in mf_sums:
+            nmfn = '%s/%s-mean-n-muted.csv' % (sfo['hdir'], region)
+            if not os.path.exists(nmfn):
+                n_skipped['mean mute freq'] += 1
+                continue
+            nmhist = Hist(fname=nmfn)
+            mean_mfreq = 0. if nmhist.get_mean() == 0 else paramutils.read_mean_mute_freq(sfo['hdir'], region, n_muted_hist=nmhist)  # zero mutations (e.g. light chain d)
+            if mean_mfreq is None:
+                n_skipped['mean mute freq'] += 1
+                continue
+            mf_sums[region]['sum'] += sfo['weight'] * sfo['n_seqs'] * mean_mfreq
+            mf_sums[region]['n_seqs'] += sfo['weight'] * sfo['n_seqs']
 
     odir = '%s/%s/hmm' % (args.outdir, locus)
     utils.prep_dir(odir + '/mute-freqs', wildlings=['*.csv'])
@@ -123,6 +137,11 @@ def pool_locus(locus, samples):
     for hfn, hist in hists.items():
         hist.normalize()
         hist.write('%s/%s' % (odir, hfn))
+    with open('%s/%s' % (odir, utils.mute_freq_sum_fname), utils.csv_wmode()) as ofile:  # same format as mutefreqer.write()
+        writer = csv.DictWriter(ofile, ['region', 'sum', 'n_seqs'])
+        writer.writeheader()
+        for region, sfo in mf_sums.items():
+            writer.writerow({'region' : region, 'sum' : '%.6g' % sfo['sum'], 'n_seqs' : int(round(sfo['n_seqs']))})
     glutils.write_glfo(odir + '/' + glutils.glfo_dir, default_glfo)
     with open('%s/%s/samples.csv' % (args.outdir, locus), utils.csv_wmode()) as sfile:
         writer = csv.DictWriter(sfile, ['dataset', 'sample', 'n_seqs', 'weight', 'mean_mute_freq', 'source'])

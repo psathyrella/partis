@@ -14,6 +14,7 @@ from .hist import Hist
 from . import hutils
 from . import utils
 from . import treeutils
+from . import paramutils
 from io import open
 
 # ----------------------------------------------------------------------------------------
@@ -36,6 +37,20 @@ class TreeGenerator(object):
         # NOTE this helps, but is not sufficient, because the mutation rate is super dominated by a relative few very highly mutated positions
         argument = max(1e-2, 1. - (4./3)* mute_freq)  # HACK arbitrarily cut it off at 0.01 (only affects the very small fraction with mute_freq higher than about 0.75)
         return -(3./4) * math.log(argument)
+
+    #----------------------------------------------------------------------------------------
+    def get_n_muted_length(self, mtype, n_muted_hist):
+        # length by which to divide the number of mutations in <n_muted_hist> to get the fraction of positions mutated: the ratio of the mean number of mutations to the mean fraction mutated in the parameter dir, so it reflects the sequences that were actually counted (locus, read coverage, ambiguous bases, erosion).
+        # Fall back to utils.typical_lengths (heavy chain, full length) if there's no mutation (in which case the length doesn't matter), or the mean fraction can't be determined.
+        mean_n = n_muted_hist.get_mean()
+        mean_freq = paramutils.read_mean_mute_freq(self.parameter_dir, mtype, n_muted_hist=n_muted_hist) if mean_n > 0 else None
+        if mean_freq is None or mean_freq == 0:
+            length = utils.typical_lengths[mtype]
+        else:
+            length = mean_n / mean_freq
+        if self.args.debug:
+            print('      %4s: dividing n mutated by length %.1f%s' % (mtype, length, ' (typical length)' if mean_freq is None or mean_freq == 0 else ''))
+        return length
 
     #----------------------------------------------------------------------------------------
     def get_mute_hist(self, mtype):
@@ -61,7 +76,7 @@ class TreeGenerator(object):
             def gfn(mstr): return  '%s/%s-mean-%s.csv' % (self.parameter_dir, mtype, mstr)
             if os.path.exists(gfn('n-muted')):  # we used to only write the mute-freqs one, but using that causes bin width issues with very unmutated samples, so now we use n-muted if possible
                 hist = Hist(fname=gfn('n-muted'))
-                hist.low_edges = [float(e) / utils.typical_lengths[mtype] for e in hist.low_edges]
+                hist.low_edges = [float(e) / self.get_n_muted_length(mtype, hist) for e in hist.low_edges]
             else:
                 hist = Hist(fname=gfn('mute-freqs'))
 

@@ -32,6 +32,7 @@ class MuteFreqer(object):
         self.mean_n_muted = {n : Hist(nmaxes[n] + 1, -0.5, nmaxes[n] + 0.5, xtitle='n mutated', ytitle='counts', title='full seq' if n == 'all' else n.upper())
                              for n in ['all', 'cdr3'] + utils.regions}
         self.per_gene_mean_rates = {}
+        self.mute_freq_sums = {n : {'sum' : 0., 'n_seqs' : 0} for n in ['all'] + utils.regions}  # sum of each sequence's exact mutation fraction (the mean_rates hists' bins are too wide to give an accurate mean for barely-mutated samples, and the mean_n_muted hists don't know the sequence lengths)
 
         self.mekey = self.args.meta_info_key_to_color if self.args is not None else None
         if self.mekey is not None:
@@ -47,6 +48,8 @@ class MuteFreqer(object):
         freq, n_muted = utils.get_mutation_rate_and_n_muted(info, iseq)
         self.mean_rates['all'].fill(freq)  # mean freq over whole sequence (excluding insertions)
         self.mean_n_muted['all'].fill(n_muted)
+        self.mute_freq_sums['all']['sum'] += freq
+        self.mute_freq_sums['all']['n_seqs'] += 1
         if self.mekey is not None and self.mekey in info:
             meval = info[self.mekey][iseq]
             for hkey, tval in zip(['mean-n-muted', 'mean-rates'], [n_muted, freq]):
@@ -63,6 +66,8 @@ class MuteFreqer(object):
             regional_freq, regional_n_muted  = utils.get_mutation_rate_and_n_muted(info, iseq, restrict_to_region=region)
             self.mean_rates[region].fill(regional_freq)  # per-region mean freq
             self.mean_n_muted[region].fill(regional_n_muted)
+            self.mute_freq_sums[region]['sum'] += regional_freq
+            self.mute_freq_sums[region]['n_seqs'] += 1
 
             # then do per-gene and per-gene-per-position freqs
             gene = info[region + '_gene']
@@ -239,3 +244,8 @@ class MuteFreqer(object):
         for region in utils.regions:
             self.mean_rates[region].write(ofcn('mute-freqs', region))
             self.mean_n_muted[region].write(ofcn('n-muted', region))
+        with open('%s/%s' % (base_outdir, utils.mute_freq_sum_fname), utils.csv_wmode()) as sfile:  # read with paramutils.read_mean_mute_freq()
+            writer = csv.DictWriter(sfile, ['region', 'sum', 'n_seqs'])
+            writer.writeheader()
+            for region, sfo in self.mute_freq_sums.items():
+                writer.writerow({'region' : region, 'sum' : sfo['sum'], 'n_seqs' : sfo['n_seqs']})
