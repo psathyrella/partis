@@ -378,7 +378,7 @@ class Tester(object):
             for subd in ['', '/*+*/partition-*']:
                 for tmeth in ['fasttree', 'iqtree']:
                     for ftp in ['fasttree.out', 'log*', 'input-seqs.fa']:
-                        tfns += glob.glob('%s%s/%s/iclust-*/%s' % (self.opath('partition-new-simu', st='new'), subd, tmeth, ftp))
+                        tfns += glob.glob('%s%s/%s/iclust-*/%s' % (utils.getprefix(self.opath('partition-new-simu', st='new')), subd, tmeth, ftp))  # strip the .yaml suffix that opath() adds for single chain, since the tree inference dirs are next to the output file
             for ffn in [f for f in tfns if os.path.exists(f)]:
                 rm_file(ffn)
         if len(files_to_rm) > 0:
