@@ -734,7 +734,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for tstr in ['', 'reco-', 'shm-']:  # deal with simulation {,reco,shm}-parameter dir stuff
                     argstr = '--%sparameter-dir' % tstr
                     if utils.is_in_arglist(clist, argstr) > 0:
-                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))  # the trees aren't really associated with the locus if we're generating trees, but we just use it to get the mutation rate (and maybe that doesn't really get used?)  # NOTE this will use the heavy chain parameter dir and ignore the light chain one, which I think is ok (it's just used for tree scaling, and it would be better to eventually have different scaling for light chain, but it should be fine)
+                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))  # the trees aren't really associated with the locus if we're generating trees, and this uses the heavy chain parameter dir for both heavy and light. That's fine, since it's only used for the n-leaf distribution: generate-trees uses a fixed depth, and each locus's simulation then rescales each tree to a depth from its own parameter dir (see treegenerator.generate_trees_depth)
             if tmpaction == 'generate-trees':
                 utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
                 utils.remove_from_arglist(clist, '--n-sim-events', has_arg=True)
