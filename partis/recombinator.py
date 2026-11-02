@@ -80,9 +80,8 @@ class Recombinator(object):
             self.treeinfo = json.load(treefile)
         os.remove(self.treefname)
 
-        # because when writing bppseqgen input we carefully adjust the per-base rates based on the germline base (so that the prob to go from germline to germline is zero, i.e. we're not at equilibrium) bppseqgen makes too many mutations (since it assumes we're at equilibrium/assumes the rate matrix and initial state are uncorrelated)
-        # we correct for this by multiplying by this heuristic factor, although andy has some corrections that we could calculate, see data/recombinator/andy-bpp-per-base-correction.txt
-        self.per_base_mutation_multiplier = 0.6
+        # with per-base mutation, bppseqgen would make too many mutations, since it normalizes each site's model assuming equilibrium, whereas every site starts at its naive base (and we set the naive base's per-base freq to ~zero). We used to correct for this with a heuristic factor of 0.6 on the whole tree, but now correct each site separately in write_mute_freqs() (see #436, and andy's corrections in data/recombinator/andy-bpp-per-base-correction.txt), then scale each event's tree to give the requested mutation level in get_tree_scale()
+        self.n_capped_events = 0  # number of events whose requested mutation level was higher than we can reach (see get_tree_scale())
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
         self.validation_values['bpp-times'] = []
@@ -673,6 +672,14 @@ class Recombinator(object):
             final_total += final_freqs[inuke]
         assert utils.is_normed(final_total / float(len(final_seq)))
 
+        # <final_freqs> are now the speeds at which we want each site to leave its naive base. But bppseqgen normalizes each site's model so its mean rate is 1 *at equilibrium*, whereas each site starts at its naive base, which it leaves faster than this by (1 - pi_naive) / (1 - sum(pi^2)) (where pi is the site's per-base freqs), i.e. faster the more concentrated pi is (see #436).
+        # So we divide each site's rate by its factor before writing it (this has to happen after the normalization above, so that the region ratios and insertion rates are unchanged).
+        written_rates = final_freqs
+        naive_pis = None
+        if not self.args.no_per_base_mutation:
+            naive_pis = [per_base_freqs['final'][i].get(final_seq[i], 0.) for i in range(len(final_seq))]
+            written_rates = [final_freqs[i] * (1. - sum(pf**2 for pf in per_base_freqs['final'][i].values())) / (1. - naive_pis[i]) for i in range(len(final_seq))]
+
         # write the input file for bppseqgen, one base per line
         with open(reco_seq_fname, 'w') as reco_seq_file:
             # NOTE really not sure why this doesn't really [seems to require an "extra" column] work with csv DictWriter, but it doesn't -- bppseqgen barfs (I think maybe it expects a different newline character? don't feel like working it out)
@@ -683,24 +690,45 @@ class Recombinator(object):
             for inuke in range(len(final_seq)):
                 linestr = final_seq[inuke]
                 if not self.args.mutate_from_scratch:
-                    linestr += '\t%f' % final_freqs[inuke]
+                    linestr += ('\t%f' if self.args.no_per_base_mutation else '\t%.8f') % written_rates[inuke]  # dividing by the per-base factor can make some rates pretty small
                 reco_seq_file.write(linestr + '\n')
         if debug:
             print('    wrote %d positions%s to %s' % (len(final_seq), '' if self.args.mutate_from_scratch else ' with per-position rates', reco_seq_fname))
 
+        return final_freqs, naive_pis
+
+    # ----------------------------------------------------------------------------------------
+    def get_tree_scale(self, tree, site_speeds, naive_pis, max_fraction_of_reachable=0.99):
+        # Return the factor by which to scale <tree> so that the expected fraction of mutated positions in its leaves equals its mean leaf height (i.e. the requested mutation level).
+        # A site that leaves its naive base with speed r, and whose naive base has per-base freq p (so a fraction ~p of subsequent mutations go back to it), is off its naive base after time t with probability (1 - p) * (1 - exp(-r t / (1 - p))).
+        # This is less than r*t, since a site can't be counted as mutated twice, and the difference gets bigger as the mutation level gets higher and the more the speeds vary between sites.
+        heights = numpy.array(list(treeutils.get_leaf_depths(tree).values()))
+        target = numpy.mean(heights)
+        if target == 0:  # e.g. families drawn from the zero-mutation bin
+            return 1.
+        speeds, offvals = numpy.array(site_speeds), 1. - numpy.array(naive_pis)
+        def expected_fraction(scale):
+            return numpy.mean(offvals[:, None] * -numpy.expm1(-numpy.outer(speeds / offvals, heights * scale)))
+        max_reachable = numpy.mean(offvals * (speeds > 0))  # sites with zero speed (e.g. conserved codons) can never mutate
+        if target > max_fraction_of_reachable * max_reachable:
+            target = max_fraction_of_reachable * max_reachable
+            self.n_capped_events += 1
+        lo, hi = 0., 1.
+        while expected_fraction(hi) < target:
+            lo, hi = hi, 2 * hi
+        for _ in range(100):
+            mid = 0.5 * (lo + hi)
+            if expected_fraction(mid) < target:
+                lo = mid
+            else:
+                hi = mid
+            if hi - lo < 1e-9 * hi:
+                break
+        return 0.5 * (lo + hi)
+
     # ----------------------------------------------------------------------------------------
     def prepare_bppseqgen(self, cmdfos, reco_event, seed):
         """ write input files and get command line options necessary to run bppseqgen on <seq> (which is a part of the full query sequence) """
-        tmptree = copy.deepcopy(reco_event.tree)  # we really don't want to modify the tree in the event
-        if not self.args.no_per_base_mutation:
-            if self.args.debug:
-                print('      rescaling tree by %.2f to account for non-equilibrium per-base mutation' % self.per_base_mutation_multiplier)
-            tmptree.scale_edges(self.per_base_mutation_multiplier)
-        for node in tmptree.preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
-            node.taxon = None
-        chosen_tree = tmptree.as_string(schema='newick').strip()
-        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_leaf_height(treestr=chosen_tree))  # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen; see https://github.com/BioPP/bppsuite/issues/3)
-
         workdir = self.workdir + '/bpp'
         treefname = workdir + '/tree.tre'
         reco_seq_fname = workdir + '/start-seq.txt'
@@ -708,10 +736,21 @@ class Recombinator(object):
         workfnames = [reco_seq_fname, treefname]
 
         os.makedirs(workdir)
+        per_base_freqs = {} if not self.args.no_per_base_mutation else None
+        site_speeds, naive_pis = self.write_mute_freqs(reco_event, reco_seq_fname, per_base_freqs=per_base_freqs)
+
+        tmptree = copy.deepcopy(reco_event.tree)  # we really don't want to modify the tree in the event (so the tree we write to output keeps its meaning: its height is the requested mutation level)
+        if not self.args.no_per_base_mutation:
+            tree_scale = self.get_tree_scale(tmptree, site_speeds, naive_pis)
+            if self.args.debug:
+                print('      rescaling tree by %.3f so the expected fraction of mutated positions matches the requested mutation level' % tree_scale)
+            tmptree.scale_edges(tree_scale)
+        for node in tmptree.preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
+            node.taxon = None
+        chosen_tree = tmptree.as_string(schema='newick').strip()
+        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_leaf_height(treestr=chosen_tree))  # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen; see https://github.com/BioPP/bppsuite/issues/3)
         with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
-        per_base_freqs = {} if not self.args.no_per_base_mutation else None
-        self.write_mute_freqs(reco_event, reco_seq_fname, per_base_freqs=per_base_freqs)
 
         bpp_path = '%s/packages/%s' % (self.args.partis_dir, 'bpp-newlik/_build' if not self.args.no_per_base_mutation else 'bpp')
         bpp_binary = '%s/bin/bppseqgen' % bpp_path
@@ -745,7 +784,7 @@ class Recombinator(object):
                 plines += ['process1 = Homogeneous(model=model1, tree=1, rate=1)']  # not really sure what the rate does here
                 plines += ['simul1 = Single(process=%d, output.sequence.file=%s)' % (len(full_seq) + 1, leaf_seq_fname)]
             else:  # default: per-position read from parameter file
-                # NOTE/TODO this successfully gets us per-base mutation rates, but the overall mutation isn't right -- the more asymmetric the rates to the four bases, the higher the tree depth bppseqgen gives back. Not sure why yet
+                # NOTE the more asymmetric the rates to the four bases, the faster bppseqgen mutates a site away from its naive base, which we correct for in write_mute_freqs() (see #436)
                 # updating bio++ to (mostly) newlik branch, maybe roughly the same as v2.4.0?
                 # https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!msg/biopp-devel-forum/cX-Q9aks7CA/mW1uQfCy-nUJ
                 # general philosophy here: download + compile a specific version of bio++, test it *thoroughly* to make sure it's doing *exactly* the mutation we need, and then only allow use of that specific version (this probably screws people on other operating systems, or at least they'll have to recompile)

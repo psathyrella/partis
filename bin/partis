@@ -190,6 +190,8 @@ def run_simulation(args):
             events.append(event)
         if args.check_tree_depths or args.debug:
             reco.print_validation_values()
+        if reco.n_capped_events > 0:
+            print('  %s requested mutation level was higher than can be reached for %d / %d events, so they got the highest reachable level (see recombinator.get_tree_scale())' % (utils.wrnstr(), reco.n_capped_events, n_events))
         utils.write_annotations(outfname, glfo, events, utils.add_lists(list(utils.simulation_headers), args.extra_annotation_columns), synth_single_seqs=utils.getsuffix(outfname) == '.csv', use_pyyaml=args.write_full_yaml_output, dont_write_git_info=args.dont_write_git_info)  # keep writing the csv as single-sequence lines, just for backwards compatibility (now trying to switch to synthesizing single seq lines when reading) NOTE list() cast is terrible, but somehow I've ended up with some of the headers as lists and some as tuples, and I can't track down all the stuff necessary to synchronize them a.t.m.
         print('    made %d event%s with %d seqs in %.1fs (%.1fs of which was running bppseqgen)' % (len(events), utils.plural(len(events)), sum(len(l['unique_ids']) for l in events), time.time()-start, sum(reco.validation_values['bpp-times'])))
 
