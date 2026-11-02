@@ -31,6 +31,13 @@ The color-coded output tells you if either results or time required have changed
 Right now there's a few differences that need to be updated in the test framework (e.g. time required is larger than in the ref results because the ref times required need to be updated for changing a default option).
 Some files also differ in the parameter and simulation dirs, and need updating.
 
+### updating ref results
+
+Ref results never go in a PR branch. A bust touches over a thousand files, more than GitHub's diff page will load, and the `linguist-generated` marking in `.gitattributes` only collapses them, it doesn't stop them loading. So:
+1. Regenerate the refs with `partis-test.py --bust-cache` and check them with `partis-test.py --run-all`, but keep the result as a separate test/-only commit that stays local.
+2. Push only the code commits to the PR branch. The PR body says that ref results change, and why.
+3. After the PR merges, rebase the ref commit onto main, rerun `--run-all` if anything else changed main in the meantime, and push it straight to main as its own commit ("update ref results"). Then fast-forward dev.
+
 
 ## notes
 
