@@ -5,7 +5,7 @@
 import argparse, csv, glob, os, random, sys, collections
 partis_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(1, partis_dir)
-from partis import utils, glutils, fraction_uncertainty, paramutils
+from partis import utils, glutils, fraction_uncertainty
 from partis.hist import Hist
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -102,7 +102,7 @@ def pool_locus(locus, samples):
                 n_skipped['mean mute freq'] += 1
                 continue
             nmhist = Hist(fname=nmfn)
-            mean_mfreq = 0. if nmhist.get_mean() == 0 else paramutils.read_mean_mute_freq(sfo['hdir'], region, n_muted_hist=nmhist)  # zero mutations (e.g. light chain d)
+            mean_mfreq = 0. if nmhist.get_mean() == 0 else utils.get_mean_mfreq(sfo['hdir'], region=region, exact=True, n_muted_hist=nmhist)  # zero mutations (e.g. light chain d)
             if mean_mfreq is None:
                 n_skipped['mean mute freq'] += 1
                 continue

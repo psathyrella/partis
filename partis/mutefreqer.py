@@ -244,7 +244,7 @@ class MuteFreqer(object):
         for region in utils.regions:
             self.mean_rates[region].write(ofcn('mute-freqs', region))
             self.mean_n_muted[region].write(ofcn('n-muted', region))
-        with open('%s/%s' % (base_outdir, utils.mute_freq_sum_fname), utils.csv_wmode()) as sfile:  # read with paramutils.read_mean_mute_freq()
+        with open('%s/%s' % (base_outdir, utils.mute_freq_sum_fname), utils.csv_wmode()) as sfile:  # read with utils.get_mean_mfreq()
             writer = csv.DictWriter(sfile, ['region', 'sum', 'n_seqs'])
             writer.writeheader()
             for region, sfo in self.mute_freq_sums.items():

@@ -3,7 +3,6 @@ from __future__ import print_function
 import os
 import csv
 import operator
-import copy
 import sys
 
 from . import glutils
@@ -60,40 +59,6 @@ def read_mute_counts(indir, gene, locus, extra_genes=None, debug=False):  # NOTE
         if observed_counts is not None:  # HACK this just uses the first one that's there (in the vast majority of cases it'll just be <gene> -- i think the only way it can be missing is if you hard code a specific gene (e.g. in bin/test-germline-inference.py) and it isn't in the parameter directory you passed
             break
     return observed_counts  # raw per-{ACGT} counts for each position, summed over genes ("raw" as in not a weighted average over a bunch of genes as in read_mute_freqs_with_weights())
-
-# ----------------------------------------------------------------------------------------
-def read_mean_mute_freq(indir, region, n_muted_hist=None, debug=False):
-    # Return the mean over sequences of the fraction of positions mutated in <region> ('all' for the whole sequence), or None if it can't be determined.
-    # Exact if mutefreqer wrote utils.mute_freq_sum_fname. Older parameter dirs only have the <region>-mean-mute-freqs.csv hist, whose first bin (0 to 0.01) counts each of its sequences at the bin center, which for barely-mutated samples is several times too high. So for these we replace that bin's contribution with the mean fraction of the sequences in <n_muted_hist> (the <region>-mean-n-muted.csv hist) that would fall in it, using the length implied by the means, and iterate.
-    sfn = '%s/%s' % (indir, utils.mute_freq_sum_fname)
-    if os.path.exists(sfn):
-        with open(sfn) as sfile:
-            for line in csv.DictReader(sfile):
-                if line['region'] == region:
-                    return float(line['sum']) / int(line['n_seqs']) if int(line['n_seqs']) > 0 else None
-    mfname = '%s/%s-mean-mute-freqs.csv' % (indir, region)
-    if not os.path.exists(mfname) or n_muted_hist is None:
-        return None
-    mfhist = Hist(fname=mfname)
-    mfhist.normalize(include_overflows=True)
-    nmhist = copy.deepcopy(n_muted_hist)
-    nmhist.normalize(include_overflows=True)
-    mean_n = nmhist.get_mean()
-    first_bin_width = mfhist.binwidth(1)
-    rest_contribution = sum(mfhist.bin_contents[ib] * mfhist.get_bin_centers()[ib] for ib in range(2, mfhist.n_bins + 2))  # everything above the first bin (including overflows)
-    if mean_n == 0 or rest_contribution == 0:  # if nothing is above the first bin, every length is equally consistent with the hists, so we can't tell
-        return None
-    length = mean_n / mfhist.get_mean()
-    for _ in range(100):
-        nm_centers = nmhist.get_bin_centers()
-        first_bin_contribution = sum(nmhist.bin_contents[ib] * nm_centers[ib] / length for ib in range(nmhist.n_bins + 2) if nm_centers[ib] / length < first_bin_width)
-        new_length = mean_n / (first_bin_contribution + rest_contribution)
-        if abs(new_length - length) < 1e-6 * length:
-            break
-        length = new_length
-    if debug:
-        print('    %s: mean mute freq %.4f from %s (uncorrected %.4f)' % (region, mean_n / length, mfname, mfhist.get_mean()))
-    return mean_n / length
 
 # ----------------------------------------------------------------------------------------
 def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it would be nice to eventually align the genes before combining

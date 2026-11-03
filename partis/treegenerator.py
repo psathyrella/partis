@@ -14,7 +14,6 @@ from .hist import Hist
 from . import hutils
 from . import utils
 from . import treeutils
-from . import paramutils
 from io import open
 
 # ----------------------------------------------------------------------------------------
@@ -43,7 +42,7 @@ class TreeGenerator(object):
         # length by which to divide the number of mutations in <n_muted_hist> to get the fraction of positions mutated: the ratio of the mean number of mutations to the mean fraction mutated in the parameter dir, so it reflects the sequences that were actually counted (locus, read coverage, ambiguous bases, erosion).
         # Fall back to utils.typical_lengths (heavy chain, full length) if there's no mutation (in which case the length doesn't matter), or the mean fraction can't be determined.
         mean_n = n_muted_hist.get_mean()
-        mean_freq = paramutils.read_mean_mute_freq(self.parameter_dir, mtype, n_muted_hist=n_muted_hist) if mean_n > 0 else None
+        mean_freq = utils.get_mean_mfreq(self.parameter_dir, region=mtype, exact=True, n_muted_hist=n_muted_hist) if mean_n > 0 else None
         if mean_freq is None or mean_freq == 0:
             length = utils.typical_lengths[mtype]
         else:
