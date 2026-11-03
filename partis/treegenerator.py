@@ -23,6 +23,7 @@ class TreeGenerator(object):
         self.parameter_dir = parameter_dir
         self.n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
         self.n_leaf_hist = None
+        self.generate_trees_depth = 0.1  # depth of trees written with --generate-trees: they're only read back with --input-simulation-treefname, which replaces each tree's depth (read_input_tree_file()), so this only affects their shape, which for TreeSim's rates is the same for any depth up to ~0.15. Using a drawn depth instead would give zero-depth trees for unmutated bins, which can't be rescaled
 
         self.set_branch_lengths()  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         self.init_n_leaves()
@@ -191,7 +192,7 @@ class TreeGenerator(object):
         cmd_lines += ['set.seed(' + str(seed)+ ')']
         for itree in range(self.args.n_trees):
             n_leaves = self.choose_n_leaves()
-            age = self.choose_full_sequence_branch_length()
+            age = self.choose_full_sequence_branch_length() if not self.args.generate_trees else self.generate_trees_depth
             ages.append(age)
             if n_leaves == 1:  # add singleton trees by hand
                 treestrs.append('t1:%f;' % age)
@@ -240,6 +241,7 @@ class TreeGenerator(object):
             print('  reading trees from %s' % self.args.input_simulation_treefname)
         utils.simplerun('cp %s %s' % (self.args.input_simulation_treefname, outfname), debug=False)
         ages, treestrs = [], []
+        n_zero_depth = 0
         with open(outfname) as treefile:
             for line in treefile:
                 tstr = line.strip()
@@ -251,6 +253,8 @@ class TreeGenerator(object):
                 old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
                 treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
                 age = self.choose_full_sequence_branch_length()
+                if age > 0 and treeutils.get_mean_leaf_height(tree=dtree) == 0:  # all branch lengths are zero, so rescale_tree() can't give it a nonzero depth
+                    n_zero_depth += 1
                 if self.args.debug > 1:  # it's easier to keep this debug line separate up here than make a tmp variable to keep track of the old height
                     print('    input tree %d (rescaled depth %.3f --> %.3f):' % (len(ages), treeutils.get_mean_leaf_height(tree=dtree), age))
                 treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
@@ -258,6 +262,8 @@ class TreeGenerator(object):
                 treestrs.append(dtree.as_string(schema='newick').strip())
                 if self.args.debug > 1:
                     print(utils.pad_lines(treeutils.get_ascii_tree(dtree)))
+        if n_zero_depth > 0:
+            print('  %s %d input tree%s from %s had zero depth (all branch lengths zero), so can\'t be rescaled, and their families will be unmutated' % (utils.wrnstr(), n_zero_depth, utils.plural(n_zero_depth), self.args.input_simulation_treefname))
         if any(a > 1. for a in ages):  # maybe it's ok to change this to a warning? seems to be working
             # raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
             print('  %s read tree[s] with depth[s] greater than 1. from %s (see comment in choose_full_sequence_branch_length()): %s' % (utils.color('yellow', 'warning'), self.args.input_simulation_treefname, ' '.join('%.2f'%a for a in sorted(ages, reverse=True))))
