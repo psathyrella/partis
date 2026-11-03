@@ -85,6 +85,7 @@ class Recombinator(object):
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
         self.validation_values['bpp-times'] = []
+        self.validation_values['share-factors'] = []  # see get_share_factor()
 
         self.heavy_chain_events = heavy_chain_events
 
@@ -583,6 +584,8 @@ class Recombinator(object):
             if pbcounts is None:
                 pbcounts = {n : def_count(n) for n in utils.nukes}
             pbcounts = {n : def_count(n, count=c) for n, c in pbcounts.items()}  # add pseudocounts (NOTE this is quite a bit less involved than in hmmwriter.py process_mutation_info() and get_emission_prob())
+            if self.args.shm_target_spread != 1:  # scale how concentrated the target distribution is: 0 gives even targets, 1 the parameter dir's, more than 1 more concentrated (the naive base count is 0 here, and stays 0)
+                pbcounts = {n : c**self.args.shm_target_spread if n != naive_base else c for n, c in pbcounts.items()}
             pbcounts = {n : min_count(c, sum(pbcounts.values())) for n, c in pbcounts.items()}  # make sure none of them are too small
             tmptot = sum(pbcounts.values())
             pbcounts = {n : pbcounts[n] / float(tmptot) for n, c in pbcounts.items()}
@@ -609,6 +612,7 @@ class Recombinator(object):
                 cposlist = list(range(cpos, cpos + 3))
 
             # NOTE <inuke> is position/index in the *eroded* sequence that we're dealing with, while <position> is in the uneroded germline gene
+            missing_inukes, conserved_inukes = set(), set()  # positions not in the parameter dir, and conserved codon positions (only used for --shm-rate-spread)
             for inuke in range(len(rseq)):  # append a freq for each nuke
                 position = inuke + all_erosions[region + '_5p']
                 freq = 0.0
@@ -616,12 +620,18 @@ class Recombinator(object):
                     freq = mute_freqs[position]
                 else:
                     freq = mute_freqs['overall_mean']
+                    missing_inukes.add(inuke)
                 if cposlist is not None and position in cposlist:  # set freq for conserved codons to zero
                     freq = 0.0
+                    conserved_inukes.add(inuke)
                 rfreqs[region].append(freq)
                 rtotals[region] += freq
                 if not self.args.no_per_base_mutation:
                     per_base_freqs[region].append(get_pbfreqs(rseq[inuke], pbcounts=mute_counts.get(position), inuke=inuke, rgene=rgene))
+
+            if self.args.shm_rate_spread != 1:  # scale how much rates vary between positions within the region: rate goes as mute_freq^a, so 0 gives flat rates, 1 the parameter dir's, more than 1 more variation (region ratios are applied below, so aren't affected)
+                rfreqs[region] = self.apply_rate_spread(rfreqs[region], missing_inukes, conserved_inukes)
+                rtotals[region] = sum(rfreqs[region])
 
             # normalize to the number of sites in this region, i.e. so an average site is given value 1.0 (I'm not sure that this really needs to be done, but it might not be exactly normalized before this)
             assert rtotals[region] != 0.0
@@ -698,6 +708,24 @@ class Recombinator(object):
         return final_freqs, naive_pis
 
     # ----------------------------------------------------------------------------------------
+    def apply_rate_spread(self, freqs, missing_inds, conserved_inds):  # see --shm-rate-spread
+        # positions in the parameter dir get mute_freq^a. Missing ones get the mean of those (rather than overall_mean^a, which by Jensen's inequality would drift low for a > 1 and high for a < 1), and conserved codons stay at 0
+        tvals = {i : f**self.args.shm_rate_spread for i, f in enumerate(freqs) if i not in missing_inds and i not in conserved_inds}
+        fill_val = numpy.mean(list(tvals.values())) if len(tvals) > 0 else 1.
+        return [0. if i in conserved_inds else tvals.get(i, fill_val) for i in range(len(freqs))]
+
+    # ----------------------------------------------------------------------------------------
+    def get_share_factor(self, site_speeds, naive_pis, site_pbfreqs, naive_seq, tree_scale, heights):
+        # chance that two unrelated sequences of this family's rearrangement carry the same (position, base) mutation, relative to flat rates and even targets (so 1 means no more sharing than with no structure at all).
+        # Uses each position's expected fraction mutated at the scaled tree's mean leaf height (so includes saturation), times its target distribution over the three non-naive bases
+        offvals = 1. - numpy.array(naive_pis)
+        mfracs = offvals * -numpy.expm1(-numpy.array(site_speeds) * tree_scale * numpy.mean(heights) / offvals)
+        if sum(mfracs) == 0:
+            return None
+        share = sum((mf * pbf[b] / (1. - pbf.get(nb, 0.)))**2 for mf, pbf, nb in zip(mfracs, site_pbfreqs, naive_seq) for b in utils.nukes if b != nb)
+        return share / (len(mfracs) * numpy.mean(mfracs)**2 / 3.)
+
+    # ----------------------------------------------------------------------------------------
     def get_tree_scale(self, tree, site_speeds, naive_pis, max_fraction_of_reachable=0.99):
         # Return the factor by which to scale <tree> so that the expected fraction of mutated positions in its leaves equals its mean leaf height (i.e. the requested mutation level).
         # A site that leaves its naive base with speed r, and whose naive base has per-base freq p (so a fraction ~p of subsequent mutations go back to it), is off its naive base after time t with probability (1 - p) * (1 - exp(-r t / (1 - p))).
@@ -744,6 +772,10 @@ class Recombinator(object):
             tree_scale = self.get_tree_scale(tmptree, site_speeds, naive_pis)
             if self.args.debug:
                 print('      rescaling tree by %.3f so the expected fraction of mutated positions matches the requested mutation level' % tree_scale)
+            if self.args.shm_rate_spread != 1 or self.args.shm_target_spread != 1 or self.args.check_tree_depths:
+                sfactor = self.get_share_factor(site_speeds, naive_pis, per_base_freqs['final'], reco_event.recombined_seq, tree_scale, list(treeutils.get_leaf_depths(tmptree).values()))
+                if sfactor is not None:
+                    self.validation_values['share-factors'].append(sfactor)
             tmptree.scale_edges(tree_scale)
         for node in tmptree.preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
             node.taxon = None
