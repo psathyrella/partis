@@ -1,8 +1,8 @@
 !!python/object:partis.hmmwriter.HMM
 extras:
-  gene_prob: 0.06015037593984962
-  overall_mute_freq: 0.01018796992481203
-  per_gene_mute_freq: 0.015107191054559484
+  gene_prob: 0.125
+  overall_mute_freq: 0.01802631578947369
+  per_gene_mute_freq: 0.027798751686909588
 name: IGLJ3-1_star_01_i0t_t2g
 states:
 - !!python/object:partis.hmmwriter.State
@@ -10,26 +10,26 @@ states:
   extras: {}
   name: init
   transitions:
-    IGLJ3-1_star_01_i0t_t2g_0: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_1: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_2: 0.3684210526315789
-    IGLJ3-1_star_01_i0t_t2g_3: 0.18421052631578946
-    IGLJ3-1_star_01_i0t_t2g_4: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_5: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_6: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_7: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_8: 0.046052631578947366
-    insert_left_A: 0.0260989010989011
-    insert_left_C: 0.050824175824175824
-    insert_left_G: 0.028846153846153848
-    insert_left_T: 0.019230769230769232
+    IGLJ3-1_star_01_i0t_t2g_0: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_1: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_2: 0.4788732394366197
+    IGLJ3-1_star_01_i0t_t2g_3: 0.23943661971830985
+    IGLJ3-1_star_01_i0t_t2g_4: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_5: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_6: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_7: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_8: 0.025203854707190512
+    insert_left_A: 0.010741138560687433
+    insert_left_C: 0.05800214822771213
+    insert_left_G: 0.03651987110633727
+    insert_left_T: 0.0
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.9848928089454405
-      C: 0.005035730351519828
-      G: 0.005035730351519828
-      T: 0.005035730351519828
+      A: 0.9722012483130904
+      C: 0.009266250562303196
+      G: 0.009266250562303196
+      T: 0.009266250562303196
     track: nukes
   extras:
     ambiguous_char: N
@@ -37,26 +37,26 @@ states:
     germline: A
   name: insert_left_A
   transitions:
-    IGLJ3-1_star_01_i0t_t2g_0: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_1: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_2: 0.3684210526315789
-    IGLJ3-1_star_01_i0t_t2g_3: 0.18421052631578946
-    IGLJ3-1_star_01_i0t_t2g_4: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_5: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_6: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_7: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_8: 0.046052631578947366
-    insert_left_A: 0.0260989010989011
-    insert_left_C: 0.050824175824175824
-    insert_left_G: 0.028846153846153848
-    insert_left_T: 0.019230769230769232
+    IGLJ3-1_star_01_i0t_t2g_0: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_1: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_2: 0.4788732394366197
+    IGLJ3-1_star_01_i0t_t2g_3: 0.23943661971830985
+    IGLJ3-1_star_01_i0t_t2g_4: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_5: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_6: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_7: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_8: 0.025203854707190512
+    insert_left_A: 0.010741138560687433
+    insert_left_C: 0.05800214822771213
+    insert_left_G: 0.03651987110633727
+    insert_left_T: 0.0
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.005035730351519828
-      C: 0.9848928089454405
-      G: 0.005035730351519828
-      T: 0.005035730351519828
+      A: 0.009266250562303196
+      C: 0.9722012483130904
+      G: 0.009266250562303196
+      T: 0.009266250562303196
     track: nukes
   extras:
     ambiguous_char: N
@@ -64,26 +64,26 @@ states:
     germline: C
   name: insert_left_C
   transitions:
-    IGLJ3-1_star_01_i0t_t2g_0: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_1: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_2: 0.3684210526315789
-    IGLJ3-1_star_01_i0t_t2g_3: 0.18421052631578946
-    IGLJ3-1_star_01_i0t_t2g_4: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_5: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_6: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_7: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_8: 0.046052631578947366
-    insert_left_A: 0.0260989010989011
-    insert_left_C: 0.050824175824175824
-    insert_left_G: 0.028846153846153848
-    insert_left_T: 0.019230769230769232
+    IGLJ3-1_star_01_i0t_t2g_0: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_1: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_2: 0.4788732394366197
+    IGLJ3-1_star_01_i0t_t2g_3: 0.23943661971830985
+    IGLJ3-1_star_01_i0t_t2g_4: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_5: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_6: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_7: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_8: 0.025203854707190512
+    insert_left_A: 0.010741138560687433
+    insert_left_C: 0.05800214822771213
+    insert_left_G: 0.03651987110633727
+    insert_left_T: 0.0
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.005035730351519828
-      C: 0.005035730351519828
-      G: 0.9848928089454405
-      T: 0.005035730351519828
+      A: 0.009266250562303196
+      C: 0.009266250562303196
+      G: 0.9722012483130904
+      T: 0.009266250562303196
     track: nukes
   extras:
     ambiguous_char: N
@@ -91,26 +91,26 @@ states:
     germline: G
   name: insert_left_G
   transitions:
-    IGLJ3-1_star_01_i0t_t2g_0: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_1: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_2: 0.3684210526315789
-    IGLJ3-1_star_01_i0t_t2g_3: 0.18421052631578946
-    IGLJ3-1_star_01_i0t_t2g_4: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_5: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_6: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_7: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_8: 0.046052631578947366
-    insert_left_A: 0.0260989010989011
-    insert_left_C: 0.050824175824175824
-    insert_left_G: 0.028846153846153848
-    insert_left_T: 0.019230769230769232
+    IGLJ3-1_star_01_i0t_t2g_0: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_1: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_2: 0.4788732394366197
+    IGLJ3-1_star_01_i0t_t2g_3: 0.23943661971830985
+    IGLJ3-1_star_01_i0t_t2g_4: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_5: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_6: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_7: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_8: 0.025203854707190512
+    insert_left_A: 0.010741138560687433
+    insert_left_C: 0.05800214822771213
+    insert_left_G: 0.03651987110633727
+    insert_left_T: 0.0
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.005035730351519828
-      C: 0.005035730351519828
-      G: 0.005035730351519828
-      T: 0.9848928089454405
+      A: 0.009266250562303196
+      C: 0.009266250562303196
+      G: 0.009266250562303196
+      T: 0.9722012483130904
     track: nukes
   extras:
     ambiguous_char: N
@@ -118,26 +118,26 @@ states:
     germline: T
   name: insert_left_T
   transitions:
-    IGLJ3-1_star_01_i0t_t2g_0: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_1: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_2: 0.3684210526315789
-    IGLJ3-1_star_01_i0t_t2g_3: 0.18421052631578946
-    IGLJ3-1_star_01_i0t_t2g_4: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_5: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_6: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_7: 0.046052631578947366
-    IGLJ3-1_star_01_i0t_t2g_8: 0.046052631578947366
-    insert_left_A: 0.0260989010989011
-    insert_left_C: 0.050824175824175824
-    insert_left_G: 0.028846153846153848
-    insert_left_T: 0.019230769230769232
+    IGLJ3-1_star_01_i0t_t2g_0: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_1: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_2: 0.4788732394366197
+    IGLJ3-1_star_01_i0t_t2g_3: 0.23943661971830985
+    IGLJ3-1_star_01_i0t_t2g_4: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_5: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_6: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_7: 0.025203854707190512
+    IGLJ3-1_star_01_i0t_t2g_8: 0.025203854707190512
+    insert_left_A: 0.010741138560687433
+    insert_left_C: 0.05800214822771213
+    insert_left_G: 0.03651987110633727
+    insert_left_T: 0.0
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0050357303515198275
-      C: 0.0050357303515198275
-      G: 0.0050357303515198275
-      T: 0.9848928089454405
+      A: 0.009266250562303196
+      C: 0.009266250562303196
+      G: 0.009266250562303196
+      T: 0.9722012483130904
     track: nukes
   extras:
     ambiguous_char: N
@@ -149,10 +149,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.004953743332690703
-      C: 0.004953743332690703
-      G: 0.004953743332690703
-      T: 0.9851387700019278
+      A: 0.009103376630679264
+      C: 0.009103376630679264
+      G: 0.009103376630679264
+      T: 0.9726898701079623
     track: nukes
   extras:
     ambiguous_char: N
@@ -164,10 +164,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.004871756313861579
-      C: 0.004871756313861579
-      G: 0.9853847310584153
-      T: 0.004871756313861579
+      A: 0.008940502699055332
+      C: 0.008940502699055332
+      G: 0.973178491902834
+      T: 0.008940502699055332
     track: nukes
   extras:
     ambiguous_char: N
@@ -179,10 +179,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.004789769295032454
-      C: 0.004789769295032454
-      G: 0.9856306921149026
-      T: 0.004789769295032454
+      A: 0.008777628767431402
+      C: 0.008777628767431402
+      G: 0.9736671136977058
+      T: 0.008777628767431402
     track: nukes
   extras:
     ambiguous_char: N
@@ -194,10 +194,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.004707782276203332
-      C: 0.004707782276203332
-      G: 0.9858766531713901
-      T: 0.004707782276203332
+      A: 0.008614754835807469
+      C: 0.008614754835807469
+      G: 0.9741557354925776
+      T: 0.008614754835807469
     track: nukes
   extras:
     ambiguous_char: N
@@ -209,10 +209,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.004625795257374207
-      C: 0.004625795257374207
-      G: 0.9861226142278774
-      T: 0.004625795257374207
+      A: 0.008451880904183537
+      C: 0.008451880904183537
+      G: 0.9746443572874494
+      T: 0.008451880904183537
     track: nukes
   extras:
     ambiguous_char: N
@@ -224,10 +224,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.004543808238545083
-      C: 0.004543808238545083
-      G: 0.004543808238545083
-      T: 0.9863685752843647
+      A: 0.008289006972559606
+      C: 0.008289006972559606
+      G: 0.008289006972559606
+      T: 0.9751329790823212
     track: nukes
   extras:
     ambiguous_char: N
@@ -239,10 +239,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0044618212197159585
-      C: 0.0044618212197159585
-      G: 0.9866145363408522
-      T: 0.0044618212197159585
+      A: 0.008126133040935672
+      C: 0.008126133040935672
+      G: 0.975621600877193
+      T: 0.008126133040935672
     track: nukes
   extras:
     ambiguous_char: N
@@ -254,10 +254,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.004379834200886834
-      C: 0.004379834200886834
-      G: 0.004379834200886834
-      T: 0.9868604973973395
+      A: 0.007963259109311742
+      C: 0.007963259109311742
+      G: 0.007963259109311742
+      T: 0.9761102226720648
     track: nukes
   extras:
     ambiguous_char: N
@@ -269,10 +269,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0042978471820577105
-      C: 0.0042978471820577105
-      G: 0.0042978471820577105
-      T: 0.9871064584538268
+      A: 0.007800385177687811
+      C: 0.007800385177687811
+      G: 0.007800385177687811
+      T: 0.9765988444669366
     track: nukes
   extras:
     ambiguous_char: N
@@ -284,10 +284,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.004215860163228586
-      C: 0.9873524195103143
-      G: 0.004215860163228586
-      T: 0.004215860163228586
+      A: 0.007637511246063879
+      C: 0.9770874662618083
+      G: 0.007637511246063879
+      T: 0.007637511246063879
     track: nukes
   extras:
     ambiguous_char: N
@@ -299,10 +299,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.004133873144399462
-      C: 0.004133873144399462
-      G: 0.9875983805668016
-      T: 0.004133873144399462
+      A: 0.013501720647773281
+      C: 0.013501720647773281
+      G: 0.9594948380566801
+      T: 0.013501720647773281
     track: nukes
   extras:
     ambiguous_char: N
@@ -314,10 +314,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.004051886125570337
-      C: 0.004051886125570337
-      G: 0.9878443416232889
-      T: 0.004051886125570337
+      A: 0.007311763382816016
+      C: 0.007311763382816016
+      G: 0.9780647098515519
+      T: 0.007311763382816016
     track: nukes
   extras:
     ambiguous_char: N
@@ -329,10 +329,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.003969899106741213
-      C: 0.9880903026797764
-      G: 0.003969899106741213
-      T: 0.003969899106741213
+      A: 0.007148889451192084
+      C: 0.9785533316464238
+      G: 0.007148889451192084
+      T: 0.007148889451192084
     track: nukes
   extras:
     ambiguous_char: N
@@ -344,10 +344,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0038879120879120885
-      C: 0.0038879120879120885
-      G: 0.9883362637362637
-      T: 0.0038879120879120885
+      A: 0.006986015519568152
+      C: 0.006986015519568152
+      G: 0.9790419534412955
+      T: 0.006986015519568152
     track: nukes
   extras:
     ambiguous_char: N
@@ -359,10 +359,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.003805925069082965
-      C: 0.003805925069082965
-      G: 0.9885822247927512
-      T: 0.003805925069082965
+      A: 0.006823141587944222
+      C: 0.006823141587944222
+      G: 0.9795305752361674
+      T: 0.006823141587944222
     track: nukes
   extras:
     ambiguous_char: N
@@ -374,10 +374,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.9888281858492385
-      C: 0.0037239380502538406
-      G: 0.0037239380502538406
-      T: 0.0037239380502538406
+      A: 0.9800191970310391
+      C: 0.006660267656320289
+      G: 0.006660267656320289
+      T: 0.006660267656320289
     track: nukes
   extras:
     ambiguous_char: N
@@ -389,10 +389,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.003641951031424716
-      C: 0.003641951031424716
-      G: 0.9890741469057258
-      T: 0.003641951031424716
+      A: 0.006497393724696357
+      C: 0.006497393724696357
+      G: 0.9805078188259109
+      T: 0.006497393724696357
     track: nukes
   extras:
     ambiguous_char: N
@@ -404,10 +404,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0035599640125955918
-      C: 0.0035599640125955918
-      G: 0.9893201079622133
-      T: 0.0035599640125955918
+      A: 0.006334519793072426
+      C: 0.006334519793072426
+      G: 0.9809964406207827
+      T: 0.006334519793072426
     track: nukes
   extras:
     ambiguous_char: N
@@ -419,10 +419,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.003477976993766468
-      C: 0.003477976993766468
-      G: 0.9895660690187006
-      T: 0.003477976993766468
+      A: 0.006171645861448494
+      C: 0.006171645861448494
+      G: 0.9814850624156545
+      T: 0.006171645861448494
     track: nukes
   extras:
     ambiguous_char: N
@@ -434,10 +434,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.9898120300751879
-      C: 0.0033959899749373434
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.9819736842105263
+      C: 0.006008771929824562
+      G: 0.006008771929824562
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -449,10 +449,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.9898120300751879
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.006008771929824562
+      C: 0.9819736842105263
+      G: 0.006008771929824562
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -464,10 +464,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.9898120300751879
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.006008771929824562
+      C: 0.9819736842105263
+      G: 0.006008771929824562
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -479,10 +479,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.8938872180451127
-      C: 0.053056390977443614
-      G: 0.026528195488721807
-      T: 0.026528195488721807
+      A: 0.9819736842105263
+      C: 0.006008771929824562
+      G: 0.006008771929824562
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -494,10 +494,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.9898120300751879
-      C: 0.0033959899749373434
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.9819736842105263
+      C: 0.006008771929824562
+      G: 0.006008771929824562
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -509,10 +509,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.026528195488721807
-      C: 0.053056390977443614
-      G: 0.8938872180451127
-      T: 0.026528195488721807
+      A: 0.006008771929824562
+      C: 0.006008771929824562
+      G: 0.9819736842105263
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -524,10 +524,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.9898120300751879
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.016967105263157894
+      C: 0.9490986842105263
+      G: 0.016967105263157894
+      T: 0.016967105263157894
     track: nukes
   extras:
     ambiguous_char: N
@@ -539,10 +539,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.0033959899749373434
-      G: 0.0033959899749373434
-      T: 0.9898120300751879
+      A: 0.006008771929824562
+      C: 0.006008771929824562
+      G: 0.006008771929824562
+      T: 0.9819736842105263
     track: nukes
   extras:
     ambiguous_char: N
@@ -554,10 +554,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.0033959899749373434
-      G: 0.9898120300751879
-      T: 0.0033959899749373434
+      A: 0.006008771929824562
+      C: 0.006008771929824562
+      G: 0.9819736842105263
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -569,10 +569,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.9898120300751879
-      C: 0.0033959899749373434
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.9819736842105263
+      C: 0.006008771929824562
+      G: 0.006008771929824562
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -584,10 +584,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.9898120300751879
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.006008771929824562
+      C: 0.9819736842105263
+      G: 0.006008771929824562
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -599,10 +599,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.9898120300751879
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.006008771929824562
+      C: 0.9819736842105263
+      G: 0.006008771929824562
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -614,10 +614,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.0033959899749373434
-      G: 0.9898120300751879
-      T: 0.0033959899749373434
+      A: 0.006008771929824562
+      C: 0.006008771929824562
+      G: 0.9819736842105263
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -629,10 +629,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.0033959899749373434
-      G: 0.0033959899749373434
-      T: 0.9898120300751879
+      A: 0.006008771929824562
+      C: 0.006008771929824562
+      G: 0.006008771929824562
+      T: 0.9819736842105263
     track: nukes
   extras:
     ambiguous_char: N
@@ -644,10 +644,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.9898120300751879
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.027783442982456136
+      C: 0.6665986842105264
+      G: 0.027783442982456136
+      T: 0.27783442982456136
     track: nukes
   extras:
     ambiguous_char: N
@@ -659,10 +659,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.9898120300751879
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.006008771929824562
+      C: 0.9819736842105263
+      G: 0.006008771929824562
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -674,10 +674,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.0033959899749373434
-      G: 0.0033959899749373434
-      T: 0.9898120300751879
+      A: 0.006008771929824562
+      C: 0.006008771929824562
+      G: 0.006008771929824562
+      T: 0.9819736842105263
     track: nukes
   extras:
     ambiguous_char: N
@@ -689,10 +689,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.9898120300751879
-      C: 0.0033959899749373434
-      G: 0.0033959899749373434
-      T: 0.0033959899749373434
+      A: 0.9819736842105263
+      C: 0.006008771929824562
+      G: 0.006008771929824562
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
@@ -704,10 +704,10 @@ states:
 - !!python/object:partis.hmmwriter.State
   emissions:
     probs:
-      A: 0.0033959899749373434
-      C: 0.0033959899749373434
-      G: 0.9898120300751879
-      T: 0.0033959899749373434
+      A: 0.006008771929824562
+      C: 0.006008771929824562
+      G: 0.9819736842105263
+      T: 0.006008771929824562
     track: nukes
   extras:
     ambiguous_char: N
