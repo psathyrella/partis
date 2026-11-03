@@ -546,6 +546,7 @@ def get_single_entry(tl, errmsg=None):  # adding this very late, so there's a lo
 # j      53.6    48   62
 # cdr3   52.2    23   96  (from test/ output)
 # all   378.2   348  420
+mute_freq_sum_fname = 'mute-freq-sums.csv'  # in parameter dirs' hmm/: for each region, the sum of each sequence's exact mutation fraction, and the number of sequences (written by mutefreqer, read by get_mean_mfreq())
 typical_lengths = {
     'v' : 297,
     'd' : 26,
@@ -5254,7 +5255,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
         mean_mut_fns = ['%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
         mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
-        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
+        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine (if you add the n-muted hists here, you also need to sum mute_freq_sum_fname over subsets rather than linking one subset's, since otherwise get_mean_mfreq(exact=True) would give that one subset's mean)
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         def gpfn(dname, l, r): return '%s/parameters/%s/hmm/%s_gene-probs.csv' % (dname, l, r)
         for isub in range(n_subsets):
@@ -6961,10 +6962,47 @@ def intexterpolate(x1, y1, x2, y2, x):
     return m * x + b
 
 # ----------------------------------------------------------------------------------------
-def get_mean_mfreq(parameter_dir):
+def get_mean_mfreq(parameter_dir, region='all', exact=False, n_muted_hist=None, debug=False):
+    # Return the mean over sequences of the fraction of positions mutated in <region> ('all' for the whole sequence).
+    # By default this is the mean of the <region>-mean-mute-freqs.csv hist, whose first bin (0 to 0.01) counts each of its sequences at the bin center, which for barely-mutated samples is several times too high.
+    # If <exact> is set (so far only for simulation, since changing the default would change e.g. clustering thresholds in get_naive_hamming_bounds()), instead return the exact mean if mutefreqer wrote mute_freq_sum_fname, and otherwise (older parameter dirs) estimate it by replacing the first bin's contribution with the mean fraction of the sequences in <n_muted_hist> (the <region>-mean-n-muted.csv hist) that would fall in it, using the length implied by the means, and iterating. Returns None if it can't be determined.
     from .hist import Hist
-    mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
-    return mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
+    mfname = '%s/%s-mean-mute-freqs.csv' % (parameter_dir, region)
+    if not exact:
+        mutehist = Hist(fname=mfname)
+        return mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
+    sfn = '%s/%s' % (parameter_dir, mute_freq_sum_fname)
+    if os.path.exists(sfn):
+        with open(sfn) as sfile:
+            for line in csv.DictReader(sfile):
+                if line['region'] == region:
+                    return float(line['sum']) / int(line['n_seqs']) if int(line['n_seqs']) > 0 else None
+    if not os.path.exists(mfname) or n_muted_hist is None:
+        return None
+    mfhist = Hist(fname=mfname)
+    mfhist.normalize(include_overflows=True)
+    nmhist = copy.deepcopy(n_muted_hist)
+    nmhist.normalize(include_overflows=True)
+    mean_n = nmhist.get_mean()
+    first_bin_width = mfhist.binwidth(1)
+    rest_contribution = sum(mfhist.bin_contents[ib] * mfhist.get_bin_centers()[ib] for ib in range(2, mfhist.n_bins + 2))  # everything above the first bin (including overflows)
+    if mean_n == 0 or rest_contribution == 0:  # if nothing is above the first bin, every length is equally consistent with the hists, so we can't tell
+        return None
+    length = mean_n / mfhist.get_mean()
+    nm_centers = nmhist.get_bin_centers()
+    converged = False
+    for _ in range(100):
+        first_bin_contribution = sum(nmhist.bin_contents[ib] * nm_centers[ib] / length for ib in range(1, nmhist.n_bins + 2) if nm_centers[ib] / length < first_bin_width)  # skip the underflow bin
+        new_length = mean_n / (first_bin_contribution + rest_contribution)
+        if abs(new_length - length) < 1e-6 * length:
+            converged = True
+            break
+        length = new_length
+    if not converged:
+        print('  %s mean mute freq estimate for %s in %s didn\'t converge (using length %.1f)' % (wrnstr(), region, parameter_dir, length))
+    if debug:
+        print('    %s: mean mute freq %.4f from %s (uncorrected %.4f)' % (region, mean_n / length, mfname, mfhist.get_mean()))
+    return mean_n / length
 
 # ----------------------------------------------------------------------------------------
 def get_naive_hamming_bounds(partition_method, parameter_dir=None, overall_mute_freq=None):  # parameterize the relationship between mutation frequency and naive sequence inaccuracy
