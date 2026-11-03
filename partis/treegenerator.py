@@ -75,7 +75,8 @@ class TreeGenerator(object):
             def gfn(mstr): return  '%s/%s-mean-%s.csv' % (self.parameter_dir, mtype, mstr)
             if os.path.exists(gfn('n-muted')):  # we used to only write the mute-freqs one, but using that causes bin width issues with very unmutated samples, so now we use n-muted if possible
                 hist = Hist(fname=gfn('n-muted'))
-                hist.low_edges = [float(e) / self.get_n_muted_length(mtype, hist) for e in hist.low_edges]
+                length = self.get_n_muted_length(mtype, hist)
+                hist.low_edges = [float(e) / length for e in hist.low_edges]
             else:
                 hist = Hist(fname=gfn('mute-freqs'))
 

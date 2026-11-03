@@ -99,12 +99,12 @@ def pool_locus(locus, samples):
         for region in mf_sums:
             nmfn = '%s/%s-mean-n-muted.csv' % (sfo['hdir'], region)
             if not os.path.exists(nmfn):
-                n_skipped['mean mute freq'] += 1
+                n_skipped['mean mute freq (no n-muted hist)'] += 1
                 continue
             nmhist = Hist(fname=nmfn)
             mean_mfreq = 0. if nmhist.get_mean() == 0 else utils.get_mean_mfreq(sfo['hdir'], region=region, exact=True, n_muted_hist=nmhist)  # zero mutations (e.g. light chain d)
             if mean_mfreq is None:
-                n_skipped['mean mute freq'] += 1
+                n_skipped['mean mute freq (undeterminable)'] += 1
                 continue
             mf_sums[region]['sum'] += sfo['weight'] * sfo['n_seqs'] * mean_mfreq
             mf_sums[region]['n_seqs'] += sfo['weight'] * sfo['n_seqs']

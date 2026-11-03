@@ -5255,7 +5255,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
         mean_mut_fns = ['%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
         mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
-        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine
+        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine (if you add the n-muted hists here, you also need to sum mute_freq_sum_fname over subsets rather than linking one subset's, since otherwise get_mean_mfreq(exact=True) would give that one subset's mean)
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         def gpfn(dname, l, r): return '%s/parameters/%s/hmm/%s_gene-probs.csv' % (dname, l, r)
         for isub in range(n_subsets):
@@ -6989,13 +6989,17 @@ def get_mean_mfreq(parameter_dir, region='all', exact=False, n_muted_hist=None, 
     if mean_n == 0 or rest_contribution == 0:  # if nothing is above the first bin, every length is equally consistent with the hists, so we can't tell
         return None
     length = mean_n / mfhist.get_mean()
+    nm_centers = nmhist.get_bin_centers()
+    converged = False
     for _ in range(100):
-        nm_centers = nmhist.get_bin_centers()
-        first_bin_contribution = sum(nmhist.bin_contents[ib] * nm_centers[ib] / length for ib in range(nmhist.n_bins + 2) if nm_centers[ib] / length < first_bin_width)
+        first_bin_contribution = sum(nmhist.bin_contents[ib] * nm_centers[ib] / length for ib in range(1, nmhist.n_bins + 2) if nm_centers[ib] / length < first_bin_width)  # skip the underflow bin
         new_length = mean_n / (first_bin_contribution + rest_contribution)
         if abs(new_length - length) < 1e-6 * length:
+            converged = True
             break
         length = new_length
+    if not converged:
+        print('  %s mean mute freq estimate for %s in %s didn\'t converge (using length %.1f)' % (wrnstr(), region, parameter_dir, length))
     if debug:
         print('    %s: mean mute freq %.4f from %s (uncorrected %.4f)' % (region, mean_n / length, mfname, mfhist.get_mean()))
     return mean_n / length
