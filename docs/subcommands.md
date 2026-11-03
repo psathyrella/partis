@@ -312,7 +312,7 @@ partis create-ha-repartition-jobs --locus igh --parameter-dir params/igh --paire
 
 ### run-ha-repartition-jobs
 
-Run HA re-partition on a slice of the task list written by [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), selected with `--job-start` and `--job-count`, so each batch (array) task handles one contiguous block of clusters; taking the slices from the bundle list gives each task one bundle, and a multi-proc bundle needs that many cpus.
+Run HA re-partition on a slice of the task list written by [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), selected with `--job-start` and `--job-count`, so each batch (array) task handles one contiguous block of clusters; taking the slices from the bundle list gives each task one bundle, and a multi-proc bundle needs that many cpus (it stops with an error on fewer).
 Each invocation loads germline info once and clusters its assigned vsearch clusters in-process (the same code path as the integrated `--ha-repartition`), and appends per-cluster timing to `ha-repartition-timing-<locus>.csv`.
 Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and `--paired-outdir`.
 
@@ -323,7 +323,7 @@ partis run-ha-repartition-jobs --locus igh --parameter-dir params/igh \
 
 ### assemble-ha-repartition
 
-Merge the per-cluster HA results into per-group re-partitioned partitions for a single locus (each over-merged cluster is replaced by its split; all others are kept unchanged).
+Merge the per-cluster HA results into per-group re-partitioned partitions for a single locus (each over-merged cluster is replaced by its split; all others are kept unchanged). A sequence missing from its cluster's HA result is kept as a singleton, and a result holding sequences from outside its cluster stops assemble with an error.
 Requires `--locus` and `--paired-outdir`.
 Run this once all [`run-ha-repartition-jobs`](#run-ha-repartition-jobs) tasks have finished.
 

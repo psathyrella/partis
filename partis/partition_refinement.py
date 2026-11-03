@@ -31,6 +31,7 @@ import tempfile
 import time
 from collections import defaultdict, namedtuple
 import numpy as np
+from scipy.special import bdtrc
 
 
 def load_hmm_naives(hmm_annotation_path, sw_naives=None):
@@ -555,24 +556,6 @@ MERGE_COUNT_KEYS = ('skipped_singleton', 'naive_candidates', 'rejected_junction'
 MergeTally = namedtuple('MergeTally', 'n_accepted n_rejected_pvalue n_rejected_min_members')
 
 
-def binomial_sf(k, n, f):
-    """P(X >= k) for X ~ Binomial(n, f), 1 at or below the mean."""
-    if k <= 0:
-        return 1.
-    if f <= 0.:
-        return 0.
-    if f >= 1. or k <= n * f:
-        return 1.
-    lf, lq = math.log(f), math.log1p(-f)
-    tot = 0.
-    for i in range(k, n + 1):
-        t = math.exp(math.lgamma(n + 1) - math.lgamma(i + 1) - math.lgamma(n - i + 1) + i * lf + (n - i) * lq)
-        tot += t
-        if t < tot * 1e-12:  # terms only shrink past the mean, which k is above
-            break
-    return min(1., tot)
-
-
 def junction_calls_overlap(a, b, ja, jb, uid_rearr_features):
     """True if each fragment's modal junction call is among the other fragment's member calls."""
     calls = [{(uid_rearr_features[u].get('v_3p_del'), uid_rearr_features[u].get('j_5p_del')) for u in f if u in uid_rearr_features}
@@ -616,7 +599,7 @@ class _MergeEvidence(object):
                 continue
             fu, ou = self.get_uid_freqs(mutation_carrier(frag, pos, base, self.muts))
             f = fu.get((pos, base), NO_GERMLINE_FREQ)
-            if binomial_sf(bases[base], n_w, f) >= MERGE_CONSENSUS_ALPHA:
+            if bdtrc(bases[base] - 1, n_w, f) >= MERGE_CONSENSUS_ALPHA:  # P(X >= count), X ~ Binomial(n_w, f)
                 continue
             muts[pos] = base
             freqs[(pos, base)] = f

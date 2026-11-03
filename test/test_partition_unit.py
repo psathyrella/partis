@@ -77,7 +77,7 @@ def test_dir_hash(tmp_path):
 def test_overwrite_redoes_unit(hfrac_partition_dir, tmp_path):
     outdir = copy_dir(hfrac_partition_dir, tmp_path / 'out')
     ddir, manifest = locus_manifest(outdir, 'igh')
-    stale = [group_stage_path(ddir, manifest['groups'][0], dg.STAGE_REFINE, 'igh'), ha_repartition.bundle_marker_fname(ddir, 0), prf.bundle_marker_fname(ddir, 0)]
+    stale = [group_stage_path(ddir, manifest['groups'][0], dg.STAGE_REFINE, 'igh'), ha_repartition.bundle_marker_fname(ddir, 'oldplan', 0), prf.bundle_marker_fname(ddir, 0)]
     for fname in stale:
         open(fname, 'w').close()
     run_partis(paired_partition_args(['--overwrite'], outdir=outdir), str(tmp_path / 'rerun.log'))
@@ -147,3 +147,46 @@ def test_overwrite_refused_on_refine_jobs(tmp_path):
 def test_rerun_refine_needs_partition_refine(tmp_path):
     logstr = run_partis_fails(paired_partition_args(['--rerun-refine'], outdir=tmp_path), str(tmp_path / 'rerun.log'))
     assert '--rerun-refine requires --partition-refine' in logstr
+
+
+def test_merge_fdr_cutoff():
+    null = [i / 1000. for i in range(1, 1000)]
+    assert prf.merge_fdr_cutoff([1e-10], null[:prf.MERGE_NULL_MIN_SAMPLE - 1]) == (None, 'null sample too small')
+    assert prf.merge_fdr_cutoff([1e-10] * 20 + [0.5] * 80, null) == (1e-10, 'fdr')
+    assert prf.merge_fdr_cutoff([0.5] * 100, null) == (None, 'no candidate p meets the fdr target')
+
+
+class _FakeEvidence(object):
+    # what sample_null reads, with a p-value that encodes its pair
+    def __init__(self, frags):
+        self.frags, self.fps = frags, [({}, 1) for _ in frags]
+    def pvalue(self, i, j):
+        return 10 * min(i, j) + max(i, j)
+
+
+def test_sample_null_pairs():
+    frags = [['a1', 'a2'], ['b'], ['c'], ['d1', 'd2'], ['e1', 'e2']]
+    naives = ['AAAAAAAAAA', 'CCCCCCCCCC', 'GGGGGGGGGG', 'AAAAAAAAAA', 'TTTTTTTTTT']
+    vdjs = [('v1', 'd', 'j')] * 4 + [('v2', 'd', 'j')]
+    out = prf._MergeEvidence.sample_null(_FakeEvidence(frags), 100, naives, vdjs, 0.1)
+    # same v and length only, no singleton pair (1, 2), no pair within the threshold (0, 3), each pair once
+    assert sorted(out) == [1, 2, 13, 23]
+
+
+def test_merge_evidence_discounts_entries_every_fragment_carries():
+    common, n_frags, n_seqs = (1, 'A'), 20, 40
+    shared = [(5, 'T'), (8, 'G'), (12, 'C')]  # fragments 0 and 1 also share these
+    muts, frags = {}, []
+    for ifrag in range(n_frags):
+        own = shared if ifrag < 2 else [(20 + ifrag, 'T')]
+        uids = ['f%d-%d' % (ifrag, k) for k in range(2)]
+        for uid in uids:
+            muts[uid] = dict([common] + own)
+        frags.append(uids)
+    fps = [prf.get_cluster_fingerprint(f, muts) for f in frags]
+    def get_uid_freqs(uid):
+        return {k: 0.01 for k in muts[uid].items()}, {}
+    ev = prf._MergeEvidence(frags, fps, muts, get_uid_freqs, n_seqs)
+    assert ev.group_rate[common] == 1.
+    assert ev.pvalue(1, 0) == ev.pvalue(0, 1)
+    assert ev.pvalue(0, 1) < prf.MERGE_FDR_TARGET < ev.pvalue(2, 3)

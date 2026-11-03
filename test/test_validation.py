@@ -1,16 +1,18 @@
+import argparse
 import glob
 import json
 import os
 import re
+import runpy
 import shutil
+import sys
 
 import pytest
-from scipy.stats import binom
 
-from _helpers import LOCI, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, copy_dir, disjoint_dir, fixture_log, locus_manifest, manifest_fname, merge_subsets_args, paired_partition_args, read_log, run_partis, run_partis_fails
+from _helpers import BACKEND, LOCI, N_PROCS, PAIRED_PARAM_DIR, REPO_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, copy_dir, disjoint_dir, fixture_log, locus_manifest, manifest_fname, merge_subsets_args, paired_partition_args, read_log, run_partis, run_partis_fails
 from partis import disjointgrouper as dg
 from partis import ha_repartition
-from partis.partition_refinement import binomial_sf
+from partis import clusterpath
 from partis.processargs import single_locus_actions
 
 
@@ -212,10 +214,8 @@ def test_ha_assemble_with_short_result(tmp_path, ha_only_dir):
     results = sorted(glob.glob('%s/**/clusters/*/partition.yaml' % ddir, recursive=True))
     assert len(results) >= 2
     shutil.copy(results[0], results[1])  # cluster 1's result now holds cluster 0's uids
-    log = tmp_path / 'partis.log'
-    run_partis(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(log))
-    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) with foreign uids or missing over [0-9]+% of their cluster, so those clusters are kept whole: cluster-', read_log(str(log)))]
-    assert sum(counts) == 1
+    log = run_partis_fails(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(tmp_path / 'partis.log'))
+    assert re.search(r'1 HA results in \S+ are empty or hold uids from outside their cluster', log)
 
 
 def test_ha_assemble_with_missing_uid(tmp_path, ha_only_dir):
@@ -235,17 +235,16 @@ def test_ha_assemble_with_missing_uid(tmp_path, ha_only_dir):
         json.dump(rjs, f)
     log = tmp_path / 'partis.log'
     run_partis(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(log))
-    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) with missing uids, dropped [0-9]+ uids that failed HA annotation', read_log(str(log)))]
+    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) miss some of their cluster\'s uids, kept 1 of them as singletons', read_log(str(log)))]
     assert sum(counts) == 1
-    assert 'so those clusters are kept whole' not in read_log(str(log))
-    out_uids = set()
+    out_clusters = []
     for spec in specs:
         with open(spec['harep_out']) as f:
-            out_uids |= set(u for c in json.load(f)['partitions'][-1]['partition'] for u in c)
-    assert dropped not in out_uids
+            out_clusters += json.load(f)['partitions'][-1]['partition']
+    assert [dropped] in out_clusters
 
 
-def test_ha_assemble_keeps_cluster_missing_most_uids(tmp_path, ha_only_dir):
+def test_ha_assemble_singletons_for_missing_most_uids(tmp_path, ha_only_dir):
     outdir = copy_dir(ha_only_dir, tmp_path / 'out')
     ddir, manifest = locus_manifest(outdir, 'igh')
     specs = ha_repartition.group_specs(ddir, manifest['groups'], 'igh')
@@ -261,13 +260,12 @@ def test_ha_assemble_keeps_cluster_missing_most_uids(tmp_path, ha_only_dir):
         json.dump(rjs, f)
     log = tmp_path / 'partis.log'
     run_partis(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(log))
-    counts = [int(n) for n in re.findall(r'warning HA results in \S+: ([0-9]+) with foreign uids or missing over [0-9]+% of their cluster, so those clusters are kept whole: cluster-', read_log(str(log)))]
-    assert sum(counts) == 1
-    out_uids = set()
+    assert re.search(r'warning HA results in \S+: 1 miss some of their cluster\'s uids, kept [0-9]+ of them as singletons', read_log(str(log)))
+    out_clusters = []
     for spec in specs:
         with open(spec['harep_out']) as f:
-            out_uids |= set(u for c in json.load(f)['partitions'][-1]['partition'] for u in c)
-    assert set(all_uids) <= out_uids
+            out_clusters += json.load(f)['partitions'][-1]['partition']
+    assert all([u] in out_clusters for u in all_uids)
 
 
 def test_ha_prepare_plan_markers(tmp_path, ha_only_dir):
@@ -275,10 +273,10 @@ def test_ha_prepare_plan_markers(tmp_path, ha_only_dir):
     ddir, manifest = locus_manifest(outdir, 'igh')
     for spec in ha_repartition.group_specs(ddir, manifest['groups'], 'igh'):
         os.remove(spec['harep_out'])
-    for fname in [ha_repartition.task_list_fname(ddir, 'igh'), ha_repartition.bundle_list_fname(ddir, 'igh')] + glob.glob(ha_repartition.bundle_marker_fname(ddir, '*')):
+    for fname in [ha_repartition.task_list_fname(ddir, 'igh'), ha_repartition.bundle_list_fname(ddir, 'igh')] + glob.glob(ha_repartition.bundle_marker_fname(ddir, '*', '*')):
         if os.path.exists(fname):
             os.remove(fname)
-    stale = ha_repartition.bundle_marker_fname(ddir, 12345)
+    stale = ha_repartition.bundle_marker_fname(ddir, 'oldplan', 12345)
     open(stale, 'w').close()
     ha_repartition.prepare_all(ddir, manifest['groups'], 'igh', 4, write_plan=False)
     assert os.path.exists(stale)
@@ -304,6 +302,8 @@ def test_ha_prepare_multiproc_tier(tmp_path, ha_only_dir):
     ddir, manifest = locus_manifest(outdir, 'igh')
     for spec in ha_repartition.group_specs(ddir, manifest['groups'], 'igh'):
         os.remove(spec['harep_out'])
+    for fname in glob.glob('%s/**/clusters/*/partition.yaml' % ddir, recursive=True):  # finished clusters skip the confirmation
+        os.remove(fname)
     # confirm half the candidates, so both outcomes of the confirmation are covered
     confirmed = []
     def count_collapsed(candidates):
@@ -313,7 +313,7 @@ def test_ha_prepare_multiproc_tier(tmp_path, ha_only_dir):
     multi = [j for j in jobs if j['n_procs'] > 1]
     assert len(multi) > 0 and sorted(j['cluster_id'] for j in multi) == sorted(confirmed)
     assert jobs[:len(multi)] == multi
-    assert bundles == ha_repartition.read_bundle_list(ha_repartition.bundle_list_fname(ddir, 'igh'))
+    assert bundles == ha_repartition.read_bundle_list(ha_repartition.bundle_list_fname(ddir, 'igh'), len(jobs))
     assert ha_repartition.read_task_list(ha_repartition.task_list_fname(ddir, 'igh')) == jobs
     lddir, lmanifest = locus_manifest(outdir, 'igk')
     for spec in ha_repartition.group_specs(lddir, lmanifest['groups'], 'igk'):
@@ -322,7 +322,81 @@ def test_ha_prepare_multiproc_tier(tmp_path, ha_only_dir):
     assert len(light_jobs) > 0 and all(j['n_procs'] == 1 for j in light_jobs)
 
 
-@pytest.mark.parametrize('k, n, f', [(0, 5, .1), (1, 5, .1), (3, 10, .05), (5, 10, .3), (20, 40, .2), (2, 3, .9), (7, 7, .5), (60, 200, .1)])
-def test_binomial_sf_matches_scipy(k, n, f):
-    want = 1. if k <= n * f else binom.sf(k - 1, n, f)  # binomial_sf returns 1 at or below the mean
-    assert binomial_sf(k, n, f) == pytest.approx(want, rel=1e-9, abs=1e-300)
+def test_ha_confirm_skips_finished_candidates(tmp_path, ha_only_dir):
+    outdir = copy_dir(ha_only_dir, tmp_path / 'out')
+    ddir, manifest = locus_manifest(outdir, 'igh')
+    for spec in ha_repartition.group_specs(ddir, manifest['groups'], 'igh'):
+        os.remove(spec['harep_out'])
+    asked = []
+    def count_collapsed(candidates):
+        asked.extend(j['outfname'] for j in candidates)
+        return [2] * len(candidates)
+    _, jobs, _ = ha_repartition.prepare_all(ddir, manifest['groups'], 'igh', 4, count_collapsed=count_collapsed, multiproc_min_collapsed=2)
+    multi = [j for j in jobs if j['n_procs'] > 1]
+    assert len(multi) >= 2 and all(os.path.exists(j['outfname']) for j in multi)  # the fixture ran every cluster
+    os.remove(multi[0]['outfname'])
+    asked.clear()
+    ha_repartition.prepare_all(ddir, manifest['groups'], 'igh', 4, count_collapsed=count_collapsed, multiproc_min_collapsed=2)
+    assert asked == [multi[0]['outfname']]
+
+
+def test_ha_bundle_list_must_cover_task_list(tmp_path):
+    path = str(tmp_path / 'bundles.txt')
+    with open(path, 'w') as f:
+        f.write('0\t2\t8\n2\t3\t1\n')
+    assert ha_repartition.read_bundle_list(path, 5) == [ha_repartition.Bundle(0, 2, 8), ha_repartition.Bundle(2, 3, 1)]
+    for n_jobs, text in [(6, '0\t2\t8\n2\t3\t1\n'), (5, '0\t2\t8\n3\t3\t1\n'), (5, '2\t3\t1\n0\t2\t8\n')]:
+        with open(path, 'w') as f:
+            f.write(text)
+        with pytest.raises(Exception, match='does not cover'):
+            ha_repartition.read_bundle_list(path, n_jobs)
+
+
+def test_ha_jobs_refuse_more_procs_than_cpus(tmp_path, monkeypatch):
+    from partis import utils
+    monkeypatch.setattr(utils, 'n_available_cpus', lambda: 2)
+    job = {'cluster_id': 'c', 'infname': 'x.fa', 'outfname': str(tmp_path / 'p.yaml'), 'n_seqs': 3, 'n_collapsed': 3, 'n_procs': 8}
+    with pytest.raises(Exception, match='need 8 procs but only 2 cpus'):
+        ha_repartition.run_jobs_in_process([job], argparse.Namespace(workdir=str(tmp_path)), None)
+    open(job['outfname'], 'w').close()  # a finished job needs no cpus
+    assert ha_repartition.run_jobs_in_process([job], argparse.Namespace(workdir=str(tmp_path)), None) == []
+
+
+def _run_partis_in_process(args):
+    sys.argv = ['partis'] + args + ['--n-procs', str(N_PROCS), '--random-seed', '1', '--dont-write-git-info'] + (['--zig'] if BACKEND == 'zig' else [])
+    runpy.run_path(os.path.join(REPO_DIR, 'bin', 'partis'), run_name='__main__')
+
+
+def test_ha_collapsed_count_matches_partition(tmp_path, ha_only_dir, monkeypatch):
+    # the scheduling count must match the initial partition that partition builds
+    outdir = copy_dir(ha_only_dir, tmp_path / 'out')
+    ddir, manifest = locus_manifest(outdir, 'igh')
+    for spec in ha_repartition.group_specs(ddir, manifest['groups'], 'igh'):
+        os.remove(spec['harep_out'])
+    for fname in glob.glob('%s/**/clusters/*/partition.yaml' % ddir, recursive=True):
+        os.remove(fname)
+    real_prepare, real_count = ha_repartition.prepare_all, ha_repartition.count_ha_collapsed
+    counts = {}
+    def count(jobs, *a, **kw):
+        res = real_count(jobs, *a, **kw)
+        counts.update((j['infname'], n) for j, n in zip(jobs, res))
+        return res
+    monkeypatch.setattr(ha_repartition, 'prepare_all', lambda *a, **kw: real_prepare(*a, **dict(kw, multiproc_min_collapsed=2)))
+    monkeypatch.setattr(ha_repartition, 'count_ha_collapsed', count)
+    pdir = os.path.join(PAIRED_PARAM_DIR, 'igh')
+    _run_partis_in_process(['create-ha-repartition-jobs', '--locus', 'igh', '--parameter-dir', pdir, '--paired-outdir', str(outdir)])
+    jobs = ha_repartition.read_task_list(ha_repartition.task_list_fname(ddir, 'igh'))
+    checked = [j for j in jobs if j['infname'] in counts][:3]
+    assert len(checked) > 0
+    ha_repartition.write_task_list(ddir, 'igh', [dict(j, n_procs=1) for j in jobs])  # one proc, as the count runs
+    initial = []
+    real_add = clusterpath.ClusterPath.add_partition
+    def add_partition(self, partition, *a, **kw):
+        initial.append(len(partition))
+        return real_add(self, partition, *a, **kw)
+    monkeypatch.setattr(clusterpath.ClusterPath, 'add_partition', add_partition)
+    for job in checked:
+        del initial[:]
+        _run_partis_in_process(['run-ha-repartition-jobs', '--locus', 'igh', '--parameter-dir', pdir, '--paired-outdir', str(outdir),
+                                '--job-start', str(jobs.index(job)), '--job-count', '1'])
+        assert len(initial) > 0 and initial[0] == counts[job['infname']], job['cluster_id']

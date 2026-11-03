@@ -19,6 +19,7 @@ pairs cannot be improved by HA).
 import collections
 import copy
 import glob
+import hashlib
 import json
 import multiprocessing
 import os
@@ -32,7 +33,6 @@ MIN_CLUSTER_SIZE = 3
 HA_COST_EXPONENT = 1.7  # per-cluster HA cost grows faster than linearly in collapsed cluster size
 HA_MULTIPROC_MIN_COLLAPSED = 500  # clusters with at least this many distinct naive seqs run multi-proc
 HA_MULTIPROC_N_PROCS = 8
-HA_MAX_DROPPED_FRAC = 0.5  # an HA result missing more of its cluster's uids than this keeps the cluster whole
 
 
 def read_fasta(path):
@@ -76,10 +76,11 @@ def read_sw_naives(sw_cache_fname):
 
 def prepare(partition_fname, fasta_fname, sw_cache_fname, workdir, min_cluster_size=MIN_CLUSTER_SIZE, multiproc_min_collapsed=None):
     """Write a per-cluster FASTA for every vsearch cluster >= min_cluster_size, plus a
-    task_list.txt (infname, outfname, n_seqs per line) for external array runs. Returns
+    task_list.txt (TASK_FIELDS per line) listing the group's jobs. Returns
     the list of job dicts {cluster_id, infname, outfname, n_seqs, n_collapsed, n_procs},
     where n_collapsed is the cluster's number of distinct sw naive seqs and n_procs is
     HA_MULTIPROC_N_PROCS if n_collapsed >= multiproc_min_collapsed (None for never), else 1."""
+    from partis import utils
     clusters = _load_best_partition(partition_fname)
     seqs = read_fasta(fasta_fname)
     sw_naives = read_sw_naives(sw_cache_fname)
@@ -100,7 +101,7 @@ def prepare(partition_fname, fasta_fname, sw_cache_fname, workdir, min_cluster_s
                     f.write('>%s\n%s\n' % (uid, seqs[uid]))
                     n_written += 1
         if n_written != len(cluster):
-            print('    warning: ha-repartition prepare wrote %d/%d cluster seqs to %s (rest missing from input fasta)' % (n_written, len(cluster), infa))
+            print('    %s ha-repartition prepare wrote %d/%d cluster seqs to %s (rest missing from input fasta)' % (utils.wrnstr(), n_written, len(cluster), infa))
         n_no_naive += sum(u not in sw_naives for u in cluster)
         n_collapsed = len(set(sw_naives[u] for u in cluster if u in sw_naives))
         multiproc = multiproc_min_collapsed is not None and n_collapsed >= multiproc_min_collapsed
@@ -108,10 +109,8 @@ def prepare(partition_fname, fasta_fname, sw_cache_fname, workdir, min_cluster_s
                      'outfname': result_fname(cdir, idx, cluster), 'n_seqs': len(cluster),
                      'n_collapsed': n_collapsed, 'n_procs': HA_MULTIPROC_N_PROCS if multiproc else 1})
     if n_no_naive > 0:
-        print('    warning: ha-repartition prepare found no sw naive for %d cluster seqs in %s, so they do not count toward n_collapsed' % (n_no_naive, sw_cache_fname))
-    with open(os.path.join(workdir, 'task_list.txt'), 'w') as f:
-        for j in jobs:
-            f.write('%s\t%s\t%d\n' % (j['infname'], j['outfname'], j['n_seqs']))
+        print('    %s ha-repartition prepare found no sw naive for %d cluster seqs in %s, so they do not count toward n_collapsed' % (utils.wrnstr(), n_no_naive, sw_cache_fname))
+    _write_atomic(os.path.join(workdir, 'task_list.txt'), task_lines(jobs))
     return jobs
 
 
@@ -121,10 +120,9 @@ def _id_str(cids, n_max=20):
 
 def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_size=MIN_CLUSTER_SIZE):
     """Merge per-cluster HA results over the vsearch partition and write full partis
-    output. A cluster >= min_cluster_size whose HA result holds only its own uids, and
-    misses at most HA_MAX_DROPPED_FRAC of them, is replaced by the result's sub-clusters,
-    and the missing uids are dropped; otherwise it is kept as-is. Returns (repartitioned,
-    n_split, n_kept)."""
+    output. A cluster >= min_cluster_size is replaced by its HA result's sub-clusters, plus
+    a singleton for each of its uids the result does not hold. Raises on an empty result or
+    one with uids from outside its cluster. Returns (repartitioned, n_split, n_kept)."""
     from partis import utils, partition_refinement, disjointgrouper
     clusters = _load_best_partition(partition_fname)
     cdir = os.path.join(workdir, 'clusters')
@@ -132,29 +130,28 @@ def assemble(partition_fname, workdir, sw_cache_fname, out_fname, min_cluster_si
     if len(missing) > 0:
         raise Exception('%d HA results missing in %s (re-run run-ha-repartition-jobs for them): %s' % (len(missing), cdir, _id_str(missing)))
     repartitioned, n_split, n_kept = [], 0, 0
-    uncovered, short, n_dropped = [], [], 0
+    bad, short, n_missed = [], [], 0
     for idx, cluster in enumerate(clusters):
-        result = result_fname(cdir, idx, cluster)
-        # foreign uids or too many missing keep the cluster whole; missing uids failed HA annotation, so drop them
-        if len(cluster) >= min_cluster_size:
-            subs = [s for s in _load_best_partition(result) if len(s) > 0]
-            sub_uids = set().union(*subs) if subs else set()
-            missed = [u for u in cluster if u not in sub_uids]
-            if subs and sub_uids <= set(cluster) and len(missed) <= HA_MAX_DROPPED_FRAC * len(cluster):
-                if len(missed) > 0:
-                    short.append('%s (%d)' % (cluster_id(idx, cluster), len(missed)))
-                    n_dropped += len(missed)
-                repartitioned.extend(subs)
-                n_split += 1 if len(subs) > 1 else 0
-                n_kept += 1 if len(subs) == 1 else 0
-                continue
-            uncovered.append(cluster_id(idx, cluster))
-        repartitioned.append(cluster)
-        n_kept += 1
+        if len(cluster) < min_cluster_size:
+            repartitioned.append(cluster)
+            n_kept += 1
+            continue
+        subs = [s for s in _load_best_partition(result_fname(cdir, idx, cluster)) if len(s) > 0]
+        sub_uids = set().union(*subs) if subs else set()
+        if len(subs) == 0 or not sub_uids <= set(cluster):
+            bad.append(cluster_id(idx, cluster))
+            continue
+        missed = [u for u in cluster if u not in sub_uids]
+        if len(missed) > 0:
+            short.append('%s (%d)' % (cluster_id(idx, cluster), len(missed)))
+            n_missed += len(missed)
+        repartitioned.extend(subs + [[u] for u in missed])
+        n_split += 1 if len(subs) + len(missed) > 1 else 0
+        n_kept += 1 if len(subs) + len(missed) == 1 else 0
+    if len(bad) > 0:
+        raise Exception('%d HA results in %s are empty or hold uids from outside their cluster: %s' % (len(bad), cdir, _id_str(bad)))
     if len(short) > 0:
-        print('    %s HA results in %s: %d with missing uids, dropped %d uids that failed HA annotation: %s' % (utils.wrnstr(), cdir, len(short), n_dropped, _id_str(short)))
-    if len(uncovered) > 0:
-        print('    %s HA results in %s: %d with foreign uids or missing over %.0f%% of their cluster, so those clusters are kept whole: %s' % (utils.wrnstr(), cdir, len(uncovered), 100 * HA_MAX_DROPPED_FRAC, _id_str(uncovered)))
+        print('    %s HA results in %s: %d miss some of their cluster\'s uids, kept %d of them as singletons: %s' % (utils.wrnstr(), cdir, len(short), n_missed, _id_str(short)))
     # write full output: synthesize each cluster's annotation from the persistent
     # partition-step annotations (full-length HMM naive_seq/input_seqs), not the sw-cache
     # (which stores SW-trimmed, variable-length seqs). partition-refine consumes these
@@ -208,10 +205,24 @@ def bundle_list_fname(disjoint_dir, locus):
     return '%s/ha-repartition-bundles-%s.txt' % (disjoint_dir, locus)
 
 
-def bundle_marker_fname(disjoint_dir, job_start):
-    # done-marker for the task-list slice starting at <job_start> ('*' globs them all), written by
-    # the slice and looked for by whatever dispatched it
-    return '%s/ha-repartition-bundle-%s.done' % (disjoint_dir, job_start)
+def bundle_marker_fname(disjoint_dir, plan, job_start):
+    # done-marker for one slice of one plan ('*' globs)
+    return '%s/ha-repartition-bundle-%s-%s.done' % (disjoint_dir, plan, job_start)
+
+
+def task_lines(jobs):
+    return ['\t'.join(str(j[k]) for k in TASK_FIELDS) for j in jobs]
+
+
+def plan_id(jobs):
+    return hashlib.sha1('\n'.join(task_lines(jobs)).encode()).hexdigest()[:12]
+
+
+def _write_atomic(path, lines):
+    tmp = '%s.tmp' % path
+    with open(tmp, 'w') as f:
+        f.writelines(l + '\n' for l in lines)
+    os.replace(tmp, path)
 
 
 def prepare_all(disjoint_dir, groups, locus, n_bundles, count_collapsed=None, min_cluster_size=MIN_CLUSTER_SIZE, multiproc_min_collapsed=HA_MULTIPROC_MIN_COLLAPSED, write_plan=True):
@@ -233,7 +244,7 @@ def prepare_all(disjoint_dir, groups, locus, n_bundles, count_collapsed=None, mi
         spec['jobs'] = prepare(spec['vsearch'], spec['fasta'], spec['sw_cache'], spec['workdir'],
                                min_cluster_size=min_cluster_size, multiproc_min_collapsed=multiproc_min_collapsed)
         all_jobs.extend(spec['jobs'])
-    candidates = [j for j in all_jobs if j['n_procs'] > 1]
+    candidates = [j for j in all_jobs if j['n_procs'] > 1 and not os.path.exists(j['outfname'])]  # a finished cluster keeps its sw count
     if len(candidates) > 0 and count_collapsed is not None:  # candidates by sw naive count, confirmed by HA's own collapse count, which replaces it
         for job, n_collapsed in zip(candidates, count_collapsed(candidates)):
             job['n_collapsed'] = n_collapsed
@@ -243,23 +254,15 @@ def prepare_all(disjoint_dir, groups, locus, n_bundles, count_collapsed=None, mi
     all_jobs, bundles = plan_bundles(all_jobs, n_bundles)
     if not write_plan:
         return specs, all_jobs, bundles
-    for fname in glob.glob(bundle_marker_fname(disjoint_dir, '*')):  # markers of an earlier plan name the wrong slices
+    for fname in glob.glob(bundle_marker_fname(disjoint_dir, '*', '*')):  # markers of earlier plans are never looked for again
         os.remove(fname)
     write_task_list(disjoint_dir, locus, all_jobs)
-    write_bundle_list(bundle_list_fname(disjoint_dir, locus), bundles)
+    _write_atomic(bundle_list_fname(disjoint_dir, locus), ['\t'.join(str(v) for v in b) for b in bundles])
     return specs, all_jobs, bundles
 
 
 def write_task_list(disjoint_dir, locus, jobs):
-    with open(task_list_fname(disjoint_dir, locus), 'w') as f:
-        for j in jobs:
-            f.write('\t'.join(str(j[k]) for k in TASK_FIELDS) + '\n')
-
-
-def write_bundle_list(path, bundles):
-    with open(path, 'w') as f:
-        for b in bundles:
-            f.write('\t'.join(str(v) for v in b) + '\n')
+    _write_atomic(task_list_fname(disjoint_dir, locus), task_lines(jobs))
 
 
 def lpt_bundles(jobs, n_bundles):
@@ -289,9 +292,14 @@ def plan_bundles(jobs, n_bundles):
     return multi + single, bundles
 
 
-def read_bundle_list(path):
+def read_bundle_list(path, n_jobs):
+    """Read a bundle list, raising unless its slices cover task-list jobs [0, n_jobs) in order."""
     with open(path) as f:
-        return [Bundle(*(int(v) for v in line.split('\t'))) for line in f if line.strip()]
+        bundles = [Bundle(*(int(v) for v in line.split('\t'))) for line in f if line.strip()]
+    starts = [sum(b.job_count for b in bundles[:i]) for i in range(len(bundles))]
+    if [b.job_start for b in bundles] != starts or sum(b.job_count for b in bundles) != n_jobs:
+        raise Exception('HA bundle list %s does not cover the %d task list jobs in order' % (path, n_jobs))
+    return bundles
 
 
 def seed_all(seed):
@@ -342,7 +350,7 @@ def read_task_list(path):
                 continue
             fields = line.split('\t')
             if len(fields) != len(TASK_FIELDS) or not all(f.isdigit() for f in fields[3:]):
-                raise Exception('malformed line %d in HA task list %s (want tab separated %s, the last three ints): %s' % (iline + 1, path, ', '.join(TASK_FIELDS), line))
+                raise Exception('malformed line %d in HA task list %s (want tab separated %s, the last three ints, got %d fields; a task list from an older partis needs a re-run of create-ha-repartition-jobs): %s' % (iline + 1, path, ', '.join(TASK_FIELDS), len(fields), line))
             jobs.append({k: (int(v) if i >= 3 else v) for i, (k, v) in enumerate(zip(TASK_FIELDS, fields))})
     return jobs
 
@@ -356,6 +364,10 @@ def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
     at these sizes). Returns (cluster_id, n_seqs, wall_sec) timing rows."""
     import time
     import csv as _csv
+    from partis import utils
+    n_max = max([j['n_procs'] for j in jobs if not os.path.exists(j['outfname'])] + [1])
+    if n_max > utils.n_available_cpus():
+        raise Exception('HA jobs need %d procs but only %d cpus are available' % (n_max, utils.n_available_cpus()))
     base_workdir = args.workdir
     rows = []
     for i, job in enumerate(jobs):

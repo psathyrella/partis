@@ -87,11 +87,11 @@ def single_proc_concurrency(args):
 
 # ----------------------------------------------------------------------------------------
 def ha_n_bundles(n_concurrent):
-    return n_concurrent * HAREP_BUNDLES_PER_PROC
+    return n_concurrent * BUNDLES_PER_PROC
 
 # ----------------------------------------------------------------------------------------
 SUBSET_TARGET_PROCS = 8  # procs per subset job
-HAREP_BUNDLES_PER_PROC = 8  # HA bundles per concurrency slot, more than one for load balance
+BUNDLES_PER_PROC = 8  # HA and refine bundles per concurrency slot, more than one for load balance
 
 # ----------------------------------------------------------------------------------------
 def job_proc_allocation(args, target_procs_per_job=None, n_queued=None, dbgstr='group'):
@@ -281,6 +281,7 @@ def run_ha_repartition_jobs_action(args):
     if not os.path.exists(task_list):
         raise Exception('HA task list %s does not exist (run create-ha-repartition-jobs first)' % task_list)
     jobs = ha_repartition.read_task_list(task_list)
+    plan = ha_repartition.plan_id(jobs)
     if args.job_start >= len(jobs):
         print('  %s --job-start %d is past the end of the %d jobs in %s, nothing to run' % (utils.wrnstr(), args.job_start, len(jobs), task_list))
     stop = len(jobs) if args.job_count is None else args.job_start + args.job_count
@@ -288,7 +289,7 @@ def run_ha_repartition_jobs_action(args):
     timing_csv = '%s/ha-repartition-timing-%s.csv' % (disjoint_dir, args.locus)
     ha_repartition.run_jobs_in_process(jobs, args, glfo, timing_csv=timing_csv)
     if len(jobs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
-        open(ha_repartition.bundle_marker_fname(disjoint_dir, args.job_start), 'w').close()
+        open(ha_repartition.bundle_marker_fname(disjoint_dir, plan, args.job_start), 'w').close()
 
 # ----------------------------------------------------------------------------------------
 def assemble_ha_repartition_action(args):
@@ -1977,11 +1978,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                 utils.run_cmds([{'cmd_str' : cmd, 'outfname' : ha_repartition.bundle_list_fname(disjoint_dir, ltmp), 'workdir' : '%s/ha-repartition-create-work' % disjoint_dir}], debug='write')
                 harep_specs = ha_repartition.group_specs(disjoint_dir, manifest['groups'], ltmp)
                 harep_jobs = ha_repartition.read_task_list(ha_repartition.task_list_fname(disjoint_dir, ltmp))
-                bundles = ha_repartition.read_bundle_list(ha_repartition.bundle_list_fname(disjoint_dir, ltmp))
+                bundles = ha_repartition.read_bundle_list(ha_repartition.bundle_list_fname(disjoint_dir, ltmp), len(harep_jobs))
             n_todo = sum(1 for j in harep_jobs if not os.path.exists(j['outfname']))  # existence is each cluster's completion signal
-            ha_cmdfos = {}
+            ha_cmdfos, plan = {}, ha_repartition.plan_id(harep_jobs)
             for start, count, n_bundle_procs in bundles:
-                done_marker = ha_repartition.bundle_marker_fname(disjoint_dir, start)
+                done_marker = ha_repartition.bundle_marker_fname(disjoint_dir, plan, start)
                 if os.path.exists(done_marker):
                     continue
                 cmd = build_single_locus_cmd('run-ha-repartition-jobs', ltmp, args, parameter_dir=getpdir(ltmp),
@@ -2007,14 +2008,13 @@ def run_all_loci(args, ig_or_tr='ig'):
             import partis.partition_refinement as partition_refinement
             # check here as well as in each bundle, so a missing table fails before any group runs
             partition_refinement.validate_mute_freq_tables(os.path.join(getpdir(ltmp), 'hmm', 'mute-freqs'))
-            refine_bundles_per_proc = 8  # bundles per concurrency slot
             ha_concurrency = single_proc_concurrency(args)
             rspecs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], ltmp)
             if not args.dry_run:
                 partition_refinement.locuswide_threshold(disjoint_dir, rspecs, ltmp, overwrite=args.rerun_refine)
             n_todo = len(rspecs) if args.rerun_refine else sum(1 for spec in rspecs if not os.path.exists(spec['refined_out']))  # existence is each group's refine completion signal
             total = len(rspecs)
-            n_bundles = min(total, ha_concurrency * refine_bundles_per_proc) if total > 0 else 0
+            n_bundles = min(total, ha_concurrency * BUNDLES_PER_PROC) if total > 0 else 0
             bundle_size = int(math.ceil(total / float(n_bundles))) if n_bundles > 0 else 0
             refine_cmdfos = []
             for start in range(0, total, bundle_size) if bundle_size > 0 else []:
@@ -2367,7 +2367,7 @@ subconfig = collections.OrderedDict((
     ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
     ('create-disjoint-groups',    {'func' : disjoint_group_action, 'help' : 'Split sequences into disjoint groups by cdr3 length for a single locus, writing per-group fastas, sw-cache subsets, and a manifest yaml. Requires --parameter-dir, --locus, and --paired-outdir.'}),
     ('assemble-groups',   {'func' : assemble_groups_action, 'help' : 'Validate and concatenate per-group partition outputs from disjoint grouping for a single locus. Requires --locus, --outfname, and --paired-outdir.'}),
-    ('create-ha-repartition-jobs', {'func' : create_ha_repartition_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), write per-cluster HA inputs and a task list for external HA-re-partition array orchestration. Requires --locus and --paired-outdir.'}),
+    ('create-ha-repartition-jobs', {'func' : create_ha_repartition_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), write per-cluster HA inputs, a task list and a bundle list (one task-list slice per line, with its procs) for external HA-re-partition array orchestration. Requires --locus, --paired-outdir and --parameter-dir.'}),
     ('run-ha-repartition-jobs',   {'func' : run_ha_repartition_jobs_action, 'help' : 'Run HA re-partition on a slice of the task list (one array task), controlled by --job-start and --job-count. Requires --locus, --parameter-dir, and --paired-outdir.'}),
     ('assemble-ha-repartition',   {'func' : assemble_ha_repartition_action, 'help' : 'Merge per-cluster HA results into per-group re-partitioned partitions for a single locus. Requires --locus and --paired-outdir.'}),
     ('run-partition-refine-jobs',   {'func' : run_partition_refine_jobs_action, 'help' : 'Run post-partition refinement on a slice of the disjoint groups (single locus), controlled by --job-start and --job-count; reassemble with assemble-groups. Requires --locus, --parameter-dir (locus-level), and --paired-outdir.'}),
