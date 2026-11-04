@@ -872,8 +872,8 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
     apart to be proposed. The group rate, null and cutoff are per refine group, pooled over its cdr3
     buckets with at least two fragments; a refine group whose null is too small, or where no p
     meets the target, merges nothing. Accepted pairs also need MERGE_MIN_MEMBERS in the smaller
-    fragment; the cutoff counts every candidate pair, including those, which keeps it conservative
-    for the pairs that can merge.
+    fragment; the cutoff counts every candidate pair, including those, which makes it stricter than
+    a cutoff over multi-member pairs only.
 
     Naive distances are computed only within groups that could survive the junction guard, and as a
     matrix product rather than elementwise.
