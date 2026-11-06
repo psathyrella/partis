@@ -24,6 +24,7 @@ import json
 import multiprocessing
 import os
 import random
+import shutil
 
 import numpy
 
@@ -318,13 +319,26 @@ def _cluster_driver(job, args, glfo, outfname, workdir, n_procs):
     return PartitionDriver(a, glfo, input_info, None, reco_info)
 
 
+def _passes_sw(step, parter):
+    # false if no query passes sw, since waterer then calls sys.exit(0)
+    try:
+        step()
+    except SystemExit as e:
+        if e.code not in (0, None):
+            raise
+        shutil.rmtree(parter.args.workdir, ignore_errors=True)
+        return False
+    return True
+
+
 def _ha_collapsed_count(ijob, job, args, glfo):
     # run HA's sw and naive seq caching steps on one cluster, then its collapse
     from partis import utils
     parter = _cluster_driver(job, args, glfo, None, '%s/ha-collapse-%d' % (args.workdir, ijob), 1)  # one proc each, the pool runs them in parallel
+    parter.current_action = 'partition'
+    if not _passes_sw(lambda: parter.run_waterer(look_for_cachefile=False, write_cachefile=False, count_parameters=False), parter):
+        return 0
     try:
-        parter.current_action = 'partition'
-        parter.run_waterer(look_for_cachefile=False, write_cachefile=False, count_parameters=False)
         if len(parter.sw_info['queries']) == 0:
             return 0
         parter.run_hmm('viterbi', parter.sub_param_dir, precache_all_naive_seqs=True)
@@ -355,6 +369,13 @@ def read_task_list(path):
     return jobs
 
 
+def _write_singletons_result(outfname, glfo, uids):
+    from partis import utils, clusterpath
+    print('    %s no sw-passing query, writing %d singletons to %s' % (utils.wrnstr(), len(uids), outfname))
+    cpath = clusterpath.ClusterPath(partition=[[u] for u in uids])
+    utils.write_annotations(outfname, glfo, [], utils.annotation_headers, partition_lines=cpath.get_partition_lines())
+
+
 def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
     """Run HA re-partition on a list of cluster jobs within a single process, reusing one
     pre-loaded glfo. Each cluster is partitioned exactly as a standalone `partis
@@ -375,8 +396,10 @@ def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
             continue
         t0 = time.time()
         parter = _cluster_driver(job, args, glfo, job['outfname'], '%s/ha-work-%d' % (base_workdir, i), job['n_procs'])
-        parter.run(['partition'])
-        parter.clean()
+        if _passes_sw(lambda: parter.run(['partition']), parter):
+            parter.clean()
+        else:
+            _write_singletons_result(job['outfname'], glfo, list(parter.input_info))
         rows.append((job['cluster_id'], job['n_seqs'], round(time.time() - t0, 3)))
     if timing_csv and rows:
         write_header = not os.path.exists(timing_csv)
