@@ -51,6 +51,41 @@ const TrellisEntry = struct {
     trellis: Trellis,
 };
 
+/// Per-gene kset → score map, plus the indexes `findPartialCacheMatch`
+/// needs so it doesn't have to scan every cached kset (#438). Keys are
+/// only ever added to `by_kset`, never removed, so each index holds the
+/// minimum over all keys added so far. Only the index for `region` is kept.
+/// Write only through `put`, or the indexes go stale.
+const GeneScores = struct {
+    region: Region,
+    by_kset: std.AutoHashMapUnmanaged(KSet, f64) = .{},
+    /// V genes: k_v → smallest k_d among `by_kset` keys with that k_v.
+    min_d_by_v: std.AutoHashMapUnmanaged(usize, usize) = .{},
+    /// J genes: k_v + k_d → smallest k_v among `by_kset` keys with that sum.
+    min_v_by_sum: std.AutoHashMapUnmanaged(usize, usize) = .{},
+
+    fn put(self: *GeneScores, allocator: std.mem.Allocator, kset: KSet, score: f64) !void {
+        try self.by_kset.put(allocator, kset, score);
+        switch (self.region) {
+            .v => {
+                const gop = try self.min_d_by_v.getOrPut(allocator, kset.v);
+                if (!gop.found_existing or kset.d < gop.value_ptr.*) gop.value_ptr.* = kset.d;
+            },
+            .j => {
+                const gop = try self.min_v_by_sum.getOrPut(allocator, kset.v + kset.d);
+                if (!gop.found_existing or kset.v < gop.value_ptr.*) gop.value_ptr.* = kset.v;
+            },
+            .d => {},
+        }
+    }
+
+    fn deinit(self: *GeneScores, allocator: std.mem.Allocator) void {
+        self.by_kset.deinit(allocator);
+        self.min_d_by_v.deinit(allocator);
+        self.min_v_by_sum.deinit(allocator);
+    }
+};
+
 /// Per-gene inner-map pointer bundle hoisted once at the top of
 /// `runKSet`'s per-gene loop iteration. Replaces 2-3 redundant
 /// `self.{scratch_cachefo,paths,scores}.getPtr(gene)` lookups in the
@@ -73,7 +108,7 @@ const TrellisEntry = struct {
 /// improvement is in the noise.
 ///
 /// Pointer-stability invariants (load-bearing):
-///   - `initCache(gene)` is the only site that grows
+///   - `initCache(gene, region)` is the only site that grows
 ///     `scratch_cachefo` / `paths` / `scores`. It runs immediately
 ///     above the cache build at the top of each gene-block iteration.
 ///   - Within one gene-block iteration, the outer string-keyed maps
@@ -91,7 +126,7 @@ const TrellisEntry = struct {
 const PerGeneCache = struct {
     cachefo: *std.ArrayListUnmanaged(*TrellisEntry),
     paths: *std.AutoHashMapUnmanaged(KSet, TracebackPath),
-    scores: *std.AutoHashMapUnmanaged(KSet, f64),
+    scores: *GeneScores,
 };
 
 /// Corresponds to C++ `ham::DPHandler`.
@@ -132,9 +167,9 @@ pub const DPHandler = struct {
     /// paths_: gene → (KSet → TracebackPath). Keys are borrowed (see
     /// `scratch_cachefo` doc-block); the canonical owner is `scores`.
     paths: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, TracebackPath)),
-    /// scores_: gene → (KSet → f64). Owns the gene-name keys shared with
-    /// `scratch_cachefo` and `paths` (item 5 of #342).
-    scores: std.StringHashMapUnmanaged(std.AutoHashMapUnmanaged(KSet, f64)),
+    /// scores_: gene → (KSet → f64), see `GeneScores`. Owns the gene-name
+    /// keys shared with `scratch_cachefo` and `paths` (item 5 of #342).
+    scores: std.StringHashMapUnmanaged(GeneScores),
     /// per_gene_support_: gene → best full-annotation log-prob
     per_gene_support: std.StringHashMapUnmanaged(f64),
 
@@ -611,7 +646,7 @@ pub const DPHandler = struct {
     /// down together by `clear()` / `deinit()`, so shared ownership is safe.
     /// Capacity is reserved up front so the puts cannot fail after the dupe,
     /// keeping the failure mode obvious if these maps ever move off the arena.
-    fn initCache(self: *DPHandler, gene: []const u8) !void {
+    fn initCache(self: *DPHandler, gene: []const u8, region: Region) !void {
         if (self.scores.contains(gene)) return;
 
         const allocator = self.scratchAllocator();
@@ -622,7 +657,7 @@ pub const DPHandler = struct {
         const key = try allocator.dupe(u8, gene);
         self.scratch_cachefo.putAssumeCapacity(key, .{});
         self.paths.putAssumeCapacity(key, .{});
-        self.scores.putAssumeCapacity(key, .{});
+        self.scores.putAssumeCapacity(key, .{ .region = region });
     }
 
     /// Look for a cached kset whose region sequences are a prefix of the
@@ -630,34 +665,19 @@ pub const DPHandler = struct {
     /// Returns null-kset if none found. `gene_scores` is the per-gene
     /// inner map hoisted by the caller (see `PerGeneCache`); replaces
     /// the prior `self.scores.get(gene)` lookup at this site.
-    fn findPartialCacheMatch(_: *DPHandler, region: Region, gene_scores: *const std.AutoHashMapUnmanaged(KSet, f64), kset: KSet) KSet {
-        if (gene_scores.get(kset) != null) return kset;
+    ///
+    /// C++ `map<KSet,double>` iterates in ascending (v,d) order and returns
+    /// the first match, i.e. the smallest-d match for V and the smallest-(v,d)
+    /// match for J. The `GeneScores` indexes give the same answer without the
+    /// O(n_ksets) scan (#438).
+    fn findPartialCacheMatch(_: *DPHandler, gene_scores: *const GeneScores, kset: KSet) KSet {
+        if (gene_scores.by_kset.get(kset) != null) return kset;
 
-        switch (region) {
-            .v => {
-                // C++ map<KSet,double> iterates in ascending (v,d) order, so
-                // it returns the smallest-d match. We must replicate that.
-                var best: ?KSet = null;
-                var it = gene_scores.iterator();
-                while (it.next()) |kv| {
-                    if (kv.key_ptr.v == kset.v) {
-                        if (best == null or kv.key_ptr.d < best.?.d)
-                            best = kv.key_ptr.*;
-                    }
-                }
-                if (best) |b| return b;
-            },
+        switch (gene_scores.region) {
+            .v => if (gene_scores.min_d_by_v.get(kset.v)) |d| return KSet{ .v = kset.v, .d = d },
             .j => {
-                var best: ?KSet = null;
-                var it = gene_scores.iterator();
-                while (it.next()) |kv| {
-                    if (kv.key_ptr.v + kv.key_ptr.d == kset.v + kset.d) {
-                        if (best == null or kv.key_ptr.v < best.?.v or
-                            (kv.key_ptr.v == best.?.v and kv.key_ptr.d < best.?.d))
-                            best = kv.key_ptr.*;
-                    }
-                }
-                if (best) |b| return b;
+                const sum = kset.v + kset.d;
+                if (gene_scores.min_v_by_sum.get(sum)) |v| return KSet{ .v = v, .d = sum - v };
             },
             .d => {},
         }
@@ -1068,7 +1088,7 @@ pub const DPHandler = struct {
                 }
             }.lessThan);
             for (sorted_genes) |gene| {
-                try self.initCache(gene);
+                try self.initCache(gene, region);
 
                 // Hoist the three gene-keyed inner-map pointers once per
                 // gene-block. After initCache(gene), the outer string-keyed
@@ -1083,7 +1103,7 @@ pub const DPHandler = struct {
                 };
 
                 var origin: []const u8 = "";
-                const partial_match = self.findPartialCacheMatch(region, gc.scores, kset);
+                const partial_match = self.findPartialCacheMatch(gc.scores, kset);
                 if (!partial_match.isNull()) {
                     // Phase-B: time the cache-hit path so we can compare it
                     // to fillTrellis_total_ns. Excludes findPartialCacheMatch
@@ -1100,7 +1120,7 @@ pub const DPHandler = struct {
                         path_copy.setModel(cached_path.hmm.?);
                         try gc.paths.put(scratch, kset, path_copy);
                     }
-                    const cached_score = gc.scores.get(partial_match) orelse mathutils.NEG_INF;
+                    const cached_score = gc.scores.by_kset.get(partial_match) orelse mathutils.NEG_INF;
                     try gc.scores.put(scratch, kset, cached_score);
                     origin = "cached";
                     perf_counters.addElapsed(&perf_counters.cachedPath_ns, t_cached);
@@ -1108,7 +1128,7 @@ pub const DPHandler = struct {
                     origin = try self.fillTrellis(allocator, kset, &query_seqs, gene, &gc);
                 }
 
-                const gene_score = gc.scores.get(kset) orelse mathutils.NEG_INF;
+                const gene_score = gc.scores.by_kset.get(kset) orelse mathutils.NEG_INF;
 
                 // Debug: per-gene viterbi output
                 if (self.args.debug == 2 and std.mem.eql(u8, self.algorithm, "viterbi")) {
@@ -1505,4 +1525,42 @@ test "DPHandler: parseStateIndex" {
     try std.testing.expectEqual(@as(?usize, 42), parseStateIndex("IGHV3-15_star_01_42"));
     try std.testing.expectEqual(@as(?usize, 0), parseStateIndex("IGHV3-15_star_01_0"));
     try std.testing.expectEqual(@as(?usize, null), parseStateIndex("insert_left_A"));
+}
+
+/// The pre-#438 `findPartialCacheMatch` scan, kept as the reference the
+/// `GeneScores` indexes must agree with.
+fn scanPartialCacheMatch(gene_scores: *const GeneScores, kset: KSet) KSet {
+    if (gene_scores.by_kset.get(kset) != null) return kset;
+    var best: ?KSet = null;
+    var it = gene_scores.by_kset.keyIterator();
+    while (it.next()) |k| {
+        const match = switch (gene_scores.region) {
+            .v => k.v == kset.v,
+            .j => k.v + k.d == kset.v + kset.d,
+            .d => false,
+        };
+        if (match and (best == null or KSet.lessThan({}, k.*, best.?))) best = k.*;
+    }
+    return best orelse KSet{ .v = 0, .d = 0 };
+}
+
+test "DPHandler: findPartialCacheMatch indexes agree with linear scan" {
+    const a = std.testing.allocator;
+    var handler: DPHandler = undefined;
+    var prng = std.Random.DefaultPrng.init(1);
+    const rand = prng.random();
+    for ([_]Region{ .v, .d, .j }) |region| {
+        var gs = GeneScores{ .region = region };
+        defer gs.deinit(a);
+        // Random insertion order, with repeats (overwrites), over a small grid
+        // so that most queries have several candidate matches.
+        for (0..300) |_| {
+            const kset = KSet{ .v = rand.intRangeAtMost(usize, 1, 12), .d = rand.intRangeAtMost(usize, 1, 12) };
+            try gs.put(a, kset, rand.float(f64));
+            for (1..16) |v| for (1..16) |d| {
+                const q = KSet{ .v = v, .d = d };
+                try std.testing.expectEqual(scanPartialCacheMatch(&gs, q), handler.findPartialCacheMatch(&gs, q));
+            };
+        }
+    }
 }
