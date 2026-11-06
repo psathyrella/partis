@@ -543,7 +543,7 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
     return result
 
 
-MERGE_FDR_TARGET = 0.05  # error rate the per-group p-value cutoff is held to
+MERGE_FDR_TARGET = 0.05  # max estimated fdr, against the null, for the per-group p-value cutoff
 MERGE_CONSENSUS_ALPHA = 0.05  # per-entry binomial tail a consensus entry must clear against its own frequency
 MERGE_MIN_MEMBERS = 2  # members the smaller fragment of an accepted pair needs
 MERGE_NULL_PAIRS_PER_CANDIDATE = 10  # null pairs drawn per candidate pair, for cdf resolution
