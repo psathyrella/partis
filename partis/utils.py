@@ -5461,7 +5461,7 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
                 merged_hist.write('%s/hmm/%s' % (pdir(merged_odir, ltmp), hfname))
         sum_fns = ['%s/hmm/%s' % (pdir(subdfn(isub), ltmp), mute_freq_sum_fname) for isub in range(n_subsets)]
         sum_fns = [f for f in sum_fns if os.path.exists(f)]
-        if len(sum_fns) > 0:  # sum over subsets to match the summed hists above, otherwise get_mean_mfreq(exact=True) gives one subset's mean
+        if len(sum_fns) > 0:  # sum over subsets like the hists above, so get_mean_mfreq(exact=True) can give the exact mean for the merged dir
             mf_sums = OrderedDict()
             for sfn in sum_fns:
                 with open(sfn) as sfile:
