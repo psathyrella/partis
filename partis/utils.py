@@ -5459,6 +5459,21 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
                     merged_hist.add(sub_hist)
             if merged_hist is not None:
                 merged_hist.write('%s/hmm/%s' % (pdir(merged_odir, ltmp), hfname))
+        sum_fns = ['%s/hmm/%s' % (pdir(subdfn(isub), ltmp), mute_freq_sum_fname) for isub in range(n_subsets)]
+        sum_fns = [f for f in sum_fns if os.path.exists(f)]
+        if len(sum_fns) > 0:  # sum over subsets to match the summed hists above, otherwise get_mean_mfreq(exact=True) gives one subset's mean
+            mf_sums = OrderedDict()
+            for sfn in sum_fns:
+                with open(sfn) as sfile:
+                    for line in csv.DictReader(sfile):
+                        rsum = mf_sums.setdefault(line['region'], {'sum' : 0., 'n_seqs' : 0})
+                        rsum['sum'] += float(line['sum'])
+                        rsum['n_seqs'] += int(line['n_seqs'])
+            with open('%s/hmm/%s' % (pdir(merged_odir, ltmp), mute_freq_sum_fname), csv_wmode()) as sfile:
+                writer = csv.DictWriter(sfile, ['region', 'sum', 'n_seqs'])
+                writer.writeheader()
+                for region, rsum in mf_sums.items():
+                    writer.writerow({'region' : region, 'sum' : rsum['sum'], 'n_seqs' : rsum['n_seqs']})
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         merged_mfreq_counts = {}  # summed counts, keyed by gene then position, same per-position dict shape mutefreqer uses
         merged_length_counts = {}  # summed counts for the deletion/insertion tables, keyed by column then remapped index tuple
