@@ -364,6 +364,7 @@ def test_ha_jobs_refuse_more_procs_than_cpus(tmp_path, monkeypatch):
 
 def _run_partis_in_process(args):
     sys.argv = ['partis'] + args + ['--n-procs', str(N_PROCS), '--random-seed', '1', '--dont-write-git-info'] + (['--zig'] if BACKEND == 'zig' else [])
+    os.environ.setdefault('PYTHONHASHSEED', '0')  # otherwise bin/partis re-execs itself, replacing the pytest process
     runpy.run_path(os.path.join(REPO_DIR, 'bin', 'partis'), run_name='__main__')
 
 
