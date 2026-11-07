@@ -531,6 +531,11 @@ def process(args):
         if args.mutate_from_scratch and not args.no_per_base_mutation:
             print('  note: setting --no-per-base-mutation since --mutate-from-scratch was set')
             args.no_per_base_mutation = True
+        for sarg in ['shm_rate_spread', 'shm_target_spread']:
+            if getattr(args, sarg) < 0:
+                raise Exception('--%s must be at least 0 (got %s)' % (sarg.replace('_', '-'), getattr(args, sarg)))
+            if getattr(args, sarg) != 1 and args.no_per_base_mutation:
+                raise Exception('--%s only works with per-base mutation from a parameter dir, so can\'t be used with --mutate-from-scratch, --simulate-from-scratch or --no-per-base-mutation' % sarg.replace('_', '-'))
 
         if args.dry_run and any(a is not None for a in [args.bulk_data_fraction, args.mean_cells_per_droplet, args.fraction_of_reads_to_remove]):
             raise Exception('can\'t use --dry-run to rerun locus combination parts of paired simulation when any of --bulk-data-fraction, --mean-cells-per-droplet, or --fraction-of-reads-to-remove are set (since the single chain files that we\'d read with --dry-run get rewritten after modification from any of these args)')
