@@ -1,3 +1,4 @@
+import csv
 import glob
 import os
 import re
@@ -19,6 +20,18 @@ def test_single_locus_chunked(single_locus_chunked_dir):
     assert uids <= fasta_uids(UNPAIRED_IGH_FNAME)
     assert len(uids) >= MIN_ANNOTATED_FRAC * len(fasta_uids(UNPAIRED_IGH_FNAME))
     assert (single_locus_chunked_dir / 'hmm' / 'all-mean-mute-freqs.csv').is_file()
+
+
+def test_merged_mute_freq_sums(single_locus_chunked_dir):
+    def read_sums(pdir):
+        with open(os.path.join(pdir, 'hmm', utils.mute_freq_sum_fname)) as sfile:
+            return {l['region'] : (float(l['sum']), int(l['n_seqs'])) for l in csv.DictReader(sfile)}
+    sub_sums = [read_sums(os.path.join(utils.parameter_subset_dir(str(single_locus_chunked_dir), isub), 'parameters')) for isub in range(N_SUBSETS)]
+    merged = read_sums(str(single_locus_chunked_dir))
+    assert len(merged) > 0 and all(set(s) == set(merged) for s in sub_sums)
+    for region, (msum, mn) in merged.items():
+        assert mn == sum(s[region][1] for s in sub_sums)
+        assert msum == pytest.approx(sum(s[region][0] for s in sub_sums))
 
 
 @pytest.mark.parametrize('locus', LOCI)
