@@ -120,7 +120,7 @@ class Tester(object):
         return ptest.startswith('subset-')
     # ----------------------------------------------------------------------------------------
     def sclust_sizes(self):  # NOTE depends on self.n_simu_leaves
-        return (15, 20) if args.slow else (5, 10)
+        return (15, 20) if args.slow else (5, 15)
     # ----------------------------------------------------------------------------------------
     def min_smetric_cluster_size(self):
         return 10 if args.slow else 3
