@@ -693,7 +693,7 @@ def split_inferred_allele_name(gene_name, debug=False):
         method = 'partis'
         template_name, mutstrs = gene_name.split('+')
         if mutstrs[0] not in utils.nukes:  # hashed name
-            int(mutstrs)  # make sure it's actually a hash
+            int(mutstrs, 16)  # make sure it's actually a hash (hex, from utils.uidhashstr(), but older decimal hashes are also valid hex)
             mutstrs = None
         else:
             mutstrs = mutstrs.split('.')
