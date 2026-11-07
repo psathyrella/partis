@@ -324,7 +324,7 @@ def _passes_sw(step, parter):
     try:
         step()
     except SystemExit as e:
-        if e.code not in (0, None):
+        if e.code != 0:  # a bare sys.exit() is an error path
             raise
         shutil.rmtree(parter.args.workdir, ignore_errors=True)
         return False
@@ -398,7 +398,7 @@ def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
         parter = _cluster_driver(job, args, glfo, job['outfname'], '%s/ha-work-%d' % (base_workdir, i), job['n_procs'])
         if _passes_sw(lambda: parter.run(['partition']), parter):
             parter.clean()
-        else:
+        else:  # no clean(): sw passed nothing, so there is no hmm cache to merge and no new allele
             _write_singletons_result(job['outfname'], glfo, list(parter.input_info))
         rows.append((job['cluster_id'], job['n_seqs'], round(time.time() - t0, 3)))
     if timing_csv and rows:
