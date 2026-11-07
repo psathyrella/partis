@@ -144,7 +144,7 @@ class Tester(object):
         self.dtypes = ['data', 'simu']
         if not os.path.exists(self.dirs('new')):
             os.makedirs(self.dirs('new'))
-        self.common_extras = ['--random-seed', '1', '--n-procs', '10']  # would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you change the number of procs
+        self.common_extras = ['--random-seed', '1', '--n-procs', '10', '--no-time-based-n-proc-reduction']  # --no-time-based-n-proc-reduction: otherwise partition results depend on how long each clustering step takes, i.e. on machine load (see #419). Would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you change the number of procs
         self.label = 'test' #  i really don't think there's any reason to have this, but i don't feel like removing it atm since it's not really causing much complication
 
         self.tiny_eps = 1e-4
