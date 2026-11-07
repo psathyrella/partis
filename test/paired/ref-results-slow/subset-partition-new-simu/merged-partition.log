@@ -1,194 +1,187 @@
-/partis-dev/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --max-ccf-fail-frac 0.15 --is-simu --random-seed 1 --n-procs 10 --paired-outdir test/paired/new-results-slow/subset-partition-new-simu --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets --continue-from-input-partition --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile
+/partis-dev/_wt-main-sync-v1.0.30/bin/partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --max-ccf-fail-frac 0.15 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir test/paired/new-results-slow/subset-partition-new-simu --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets --continue-from-input-partition --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile
 [44mpartition[0m [94migh[0m:
-[91mrun[0m /partis-dev/bin/partis partition --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --is-simu --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igh.yaml --continue-from-input-partition --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/test/simu/igh.yaml --outfname test/paired/new-results-slow/subset-partition-new-simu/single-chain/partition-igh.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '6a4c9e1c77-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['6466ca1e82-igh', '6466ca1e82-igl'] --> ['6466ca1e82-igl']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '225a7e771f-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['0324642825-igh', '0324642825-igl', '225a7e771f-igk'] --> ['225a7e771f-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '522e83753a-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['522e83753a-igk', '8a24ee658d-igh', '8a24ee658d-igl'] --> ['522e83753a-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'd51ed35e0e-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['a4dd5fe0c0-igh', 'a4dd5fe0c0-igl', 'd51ed35e0e-igk'] --> ['d51ed35e0e-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '93c2b5349f-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['8f9ed0f409-igh', '8f9ed0f409-igl', '93c2b5349f-igk'] --> ['93c2b5349f-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f77970bccd-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['b667f07bcb-igh', 'b667f07bcb-igl', 'f77970bccd-igk'] --> ['f77970bccd-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '71d60b7396-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['05e63bfe0d-igh', '05e63bfe0d-igl'] --> ['05e63bfe0d-igl']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f409fde226-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['73d3e822d5-igh', '73d3e822d5-igl', 'f409fde226-igk'] --> ['f409fde226-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'df0ba8f31b-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['df0ba8f31b-igk', 'e2242cd5f8-igh', 'e2242cd5f8-igl'] --> ['df0ba8f31b-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'e80d2e6de2-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['74dc869aae-igh', '74dc869aae-igl', 'e80d2e6de2-igk'] --> ['e80d2e6de2-igk']
-[93mwarning[0m replaced input metafo for 307 instances of keys paired-uids (see above, only printed the first 10)
-  --input-metafnames: added meta info for 815 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 815 sequences in 334 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igh.yaml
-    removed 49/864 queries from input info that were absent from input partition
+[91mrun[0m /partis-dev/_wt-main-sync-v1.0.30/bin/partis partition --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igh.yaml --continue-from-input-partition --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/test/simu/igh.yaml --outfname test/paired/new-results-slow/subset-partition-new-simu/single-chain/partition-igh.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '786eb3cb34-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['6b48fb83b0-igh', '6b48fb83b0-igl', '786eb3cb34-igk'] --> ['786eb3cb34-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '4c70a9ddb4-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['db1099c140-igh', 'db1099c140-igl'] --> []
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'd2b63c2c4b-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['a038e87560-igh', 'a038e87560-igl', 'd2b63c2c4b-igk'] --> ['d2b63c2c4b-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'a41bc2c235-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['998b87479d-igh', '998b87479d-igl', 'a41bc2c235-igk'] --> ['a41bc2c235-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'babfec1786-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['6afa5c78e6-igh', '6afa5c78e6-igl', 'babfec1786-igk'] --> ['babfec1786-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '740a872fc1-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['740a872fc1-igk', 'ae7aaed6dd-igh'] --> ['740a872fc1-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'cd9d6c5643-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['1b70cebb8e-igh', '1b70cebb8e-igl', 'cd9d6c5643-igk'] --> ['cd9d6c5643-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '71dc38beb3-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['44b5c60bed-igl', '71dc38beb3-igk'] --> ['71dc38beb3-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '07b838a743-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['07b838a743-igk', '59af281aa0-igh', '59af281aa0-igl'] --> ['07b838a743-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f45dadc973-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['eb7bd8d488-igh', 'eb7bd8d488-igl'] --> []
+[93mwarning[0m replaced input metafo for 296 instances of keys paired-uids (see above, only printed the first 10)
+  --input-metafnames: added meta info for 776 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 776 sequences in 350 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igh.yaml
+    removed 43/819 queries from input info that were absent from input partition
 partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/hmm)
 smith-waterman
-  vsearch: 815 / 815 v annotations (0 failed) with 24 v genes in 0.2 sec
+  vsearch: 776 / 776 v annotations (0 failed) with 26 v genes in 0.2 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml
-      info for 815 / 815 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 247 (0.303) unproductive
+      info for 776 / 776 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 283 (0.365) unproductive
         water time: 0.2
 hmm
-  caching all 815 naive sequences
-    [44mcaching[0m input annotation naive seqs in bcrham cache file for 334 clusters (815 seqs)
+  caching all 776 naive sequences
+    [44mcaching[0m input annotation naive seqs in bcrham cache file for 350 clusters (776 seqs)
       --continue-from-input-partition: using input partition for initial cpath
-             334 clusters (815 seqs)
-  334 clusters with 10 procs (1.2s)
-   302 clusters with 7 procs (1.1s)
-   274 clusters with 5 procs (1.2s)
-   245 clusters with 3 procs (1.2s)
-   217 clusters with 2 procs (1.6s)
-   192 clusters with 1 proc (3.2s)
+             350 clusters (776 seqs)
+  350 clusters with 10 procs (1.1s)
+   312 clusters with 7 procs (1.3s)
+   279 clusters with 5 procs (1.4s)
+   251 clusters with 3 procs (2.2s)
+   219 clusters with 2 procs (2.6s)
+   197 clusters with 2 procs (1.5s)
+   186 clusters with 2 procs (1.1s)
+   181 clusters with 2 procs (0.9s)
+   177 clusters with 1 proc (2.3s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 9.6
+      partition loop time: 14.6
 getting annotations for final partition
-  subcluster annotating 168 clusters with steps:  (1.5s) (0.8s) (0.3s) 
-    subcluster annotation time 2.9
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
-      total time: 13.3
-      bcrham time: 11.0 (82.6% of total, 9 calls)
+  subcluster annotating 172 clusters with steps:  (1.7s) (0.9s) (0.5s) (0.2s) 
+    subcluster annotation time 3.5
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
+      total time: 18.9
+      bcrham time: 16.3 (86.1% of total, 13 calls)
 [44mpartition[0m [94migk[0m:
-[91mrun[0m /partis-dev/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --is-simu --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igk.yaml --continue-from-input-partition --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/test/simu/igk.yaml --outfname test/paired/new-results-slow/subset-partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '2a68cd1707-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['0d0dc8e2b2-igh', '0d0dc8e2b2-igl'] --> []
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '225a7e771f-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['0324642825-igh', '0324642825-igl', '225a7e771f-igh'] --> ['225a7e771f-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '522e83753a-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['522e83753a-igh', '8a24ee658d-igh', '8a24ee658d-igl'] --> ['522e83753a-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'a5f2c302a6-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['a5f2c302a6-igh', 'ad807daefb-igh', 'ad807daefb-igl'] --> []
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'd51ed35e0e-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['a4dd5fe0c0-igh', 'a4dd5fe0c0-igl', 'd51ed35e0e-igh'] --> ['d51ed35e0e-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '058c314f2e-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['058c314f2e-igh', '8223402d76-igh', '8223402d76-igl'] --> []
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '93c2b5349f-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['8f9ed0f409-igh', '8f9ed0f409-igl', '93c2b5349f-igh'] --> ['93c2b5349f-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f77970bccd-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['b667f07bcb-igh', 'b667f07bcb-igl', 'f77970bccd-igh'] --> ['f77970bccd-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f409fde226-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['73d3e822d5-igh', '73d3e822d5-igl', 'f409fde226-igh'] --> ['f409fde226-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'df0ba8f31b-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['df0ba8f31b-igh', 'e2242cd5f8-igh', 'e2242cd5f8-igl'] --> ['df0ba8f31b-igh']
-[93mwarning[0m replaced input metafo for 141 instances of keys paired-uids (see above, only printed the first 10)
-  --input-metafnames: added meta info for 583 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 583 sequences in 218 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igk.yaml
-    removed 3/586 queries from input info that were absent from input partition
+[91mrun[0m /partis-dev/_wt-main-sync-v1.0.30/bin/partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igk.yaml --continue-from-input-partition --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/test/simu/igk.yaml --outfname test/paired/new-results-slow/subset-partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '786eb3cb34-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['6b48fb83b0-igh', '6b48fb83b0-igl', '786eb3cb34-igh'] --> ['786eb3cb34-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'b37493358d-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['8867307776-igh', '8867307776-igl'] --> []
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'd2b63c2c4b-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['a038e87560-igh', 'a038e87560-igl', 'd2b63c2c4b-igh'] --> ['d2b63c2c4b-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'a41bc2c235-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['998b87479d-igh', '998b87479d-igl', 'a41bc2c235-igh'] --> ['a41bc2c235-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'babfec1786-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['6afa5c78e6-igh', '6afa5c78e6-igl', 'babfec1786-igh'] --> ['babfec1786-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '740a872fc1-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['740a872fc1-igh', 'ae7aaed6dd-igh'] --> ['740a872fc1-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'cd9d6c5643-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['1b70cebb8e-igh', '1b70cebb8e-igl', 'cd9d6c5643-igh'] --> ['cd9d6c5643-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '71dc38beb3-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['44b5c60bed-igl', '71dc38beb3-igh'] --> ['71dc38beb3-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '07b838a743-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['07b838a743-igh', '59af281aa0-igh', '59af281aa0-igl'] --> ['07b838a743-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '9ac60d5b96-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['21be2eac20-igh', '9ac60d5b96-igh'] --> ['21be2eac20-igh']
+[93mwarning[0m replaced input metafo for 118 instances of keys paired-uids (see above, only printed the first 10)
+  --input-metafnames: added meta info for 521 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 521 sequences in 234 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igk.yaml
+    removed 7/528 queries from input info that were absent from input partition
 partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/hmm)
 smith-waterman
-  vsearch: 583 / 583 v annotations (0 failed) with 16 v genes in 0.2 sec
+  vsearch: 521 / 521 v annotations (0 failed) with 16 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml
-      info for 583 / 583 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 111 (0.190) unproductive
+      info for 521 / 521 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 143 (0.274) unproductive
         water time: 0.1
 hmm
-  caching all 583 naive sequences
-    [44mcaching[0m input annotation naive seqs in bcrham cache file for 218 clusters (583 seqs)
+  caching all 521 naive sequences
+    [44mcaching[0m input annotation naive seqs in bcrham cache file for 234 clusters (521 seqs)
       --continue-from-input-partition: using input partition for initial cpath
-             218 clusters (583 seqs)
-  218 clusters with 10 procs (0.5s)
-   152 clusters with 7 procs (0.4s)
-   112 clusters with 5 procs (0.3s)
-   88 clusters with 3 procs (0.4s)
-   62 clusters with 2 procs (0.3s)
-   51 clusters with 1 proc (0.9s)
+             234 clusters (521 seqs)
+  234 clusters with 10 procs (0.5s)
+   168 clusters with 7 procs (0.4s)
+   125 clusters with 5 procs (0.5s)
+   92 clusters with 3 procs (0.5s)
+   66 clusters with 2 procs (0.4s)
+   55 clusters with 2 procs (0.3s)
+   52 clusters with 2 procs (0.3s)
+   46 clusters with 2 procs (0.3s)
+   44 clusters with 1 proc (0.7s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 2.8
+      partition loop time: 3.9
 getting annotations for final partition
-  subcluster annotating 38 clusters with steps:  (1.1s) (0.5s) (0.3s) (0.1s) 
-    subcluster annotation time 2.2
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 586 missing ids as singletons to inferred partition, to match ids in true partition
-      total time: 5.5
-      bcrham time: 3.6 (64.5% of total, 10 calls)
+  subcluster annotating 44 clusters with steps:  (1.0s) (0.5s) (0.3s) (0.1s) 
+    subcluster annotation time 2.1
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 7 / 528 missing ids as singletons to inferred partition, to match ids in true partition
+      total time: 6.5
+      bcrham time: 4.4 (67.1% of total, 13 calls)
 [44mpartition[0m [94migl[0m:
-[91mrun[0m /partis-dev/bin/partis partition --locus igl --dont-write-git-info --max-ccf-fail-frac 0.15 --is-simu --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igl.yaml --continue-from-input-partition --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/test/simu/igl.yaml --outfname test/paired/new-results-slow/subset-partition-new-simu/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '1d43436d9c-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['1d43436d9c-igh', 'cd79092660-igh', 'cd79092660-igl'] --> ['1d43436d9c-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f6c554d325-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['c7be4f304e-igh', 'c7be4f304e-igl', 'f6c554d325-igh'] --> ['f6c554d325-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '0ac1cfb16e-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['0ac1cfb16e-igh', '46c0c0f2ee-igh', '46c0c0f2ee-igl'] --> ['0ac1cfb16e-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'ae307fdcc8-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['ae307fdcc8-igh', 'dfd5f01673-igl'] --> []
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '2a279563df-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['2a279563df-igh', 'd4a0f8799b-igh', 'd4a0f8799b-igl'] --> ['2a279563df-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '1e40877db8-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['1e40877db8-igh', '7bf8f718e1-igh', '7bf8f718e1-igl'] --> ['1e40877db8-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'afbc47f00d-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['afbc47f00d-igh', 'dd59d6123e-igh'] --> ['dd59d6123e-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '4255a7654b-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['1ce345fedf-igh', '1ce345fedf-igl', '4255a7654b-igh'] --> ['1ce345fedf-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '99ea146869-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['99ea146869-igh', 'a1b9c77a06-igh', 'a1b9c77a06-igl'] --> ['99ea146869-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '5ca9d00cae-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['13c3acc5b0-igh', '13c3acc5b0-igl', '5ca9d00cae-igh'] --> []
-[93mwarning[0m replaced input metafo for 180 instances of keys paired-uids (see above, only printed the first 10)
-  --input-metafnames: added meta info for 266 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 266 sequences in 117 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igl.yaml
-    removed 3/269 queries from input info that were absent from input partition
+[91mrun[0m /partis-dev/_wt-main-sync-v1.0.30/bin/partis partition --locus igl --dont-write-git-info --max-ccf-fail-frac 0.15 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igl.yaml --continue-from-input-partition --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/test/simu/igl.yaml --outfname test/paired/new-results-slow/subset-partition-new-simu/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '9af5a2ae9f-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['9af5a2ae9f-igh', 'de92a138c6-igl'] --> ['9af5a2ae9f-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '9f629e23b0-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['9f629e23b0-igh', 'ebcafbd266-igh'] --> ['ebcafbd266-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '505e40169e-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['505e40169e-igh', '80c96f208d-igh', '80c96f208d-igl'] --> ['505e40169e-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '8f189636ad-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['8f189636ad-igh', 'acd0057e0f-igh'] --> ['acd0057e0f-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '011cece5f4-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['011cece5f4-igh', '14d6f66daa-igh', '14d6f66daa-igl'] --> ['011cece5f4-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'df26c6210d-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['df26c6210d-igh', 'e523b4a7f8-igh'] --> ['df26c6210d-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '671de292a7-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['771f80f4e3-igh', '771f80f4e3-igl'] --> []
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '3338925197-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['2daf9d08b6-igh', '2daf9d08b6-igl', '3338925197-igh'] --> ['2daf9d08b6-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'eccce46ca3-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['4c4a0bf952-igh', 'eccce46ca3-igh'] --> ['eccce46ca3-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '2ba800cc30-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['2ba800cc30-igh', '5a964ab55e-igh', '5a964ab55e-igl'] --> ['2ba800cc30-igh']
+[93mwarning[0m replaced input metafo for 193 instances of keys paired-uids (see above, only printed the first 10)
+  --input-metafnames: added meta info for 295 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 295 sequences in 116 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igl.yaml
+    removed 1/296 queries from input info that were absent from input partition
 partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/hmm)
 smith-waterman
-  vsearch: 266 / 266 v annotations (0 failed) with 10 v genes in 0.1 sec
+  vsearch: 295 / 295 v annotations (0 failed) with 10 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
-      info for 266 / 266 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 54 (0.203) unproductive
+      info for 295 / 295 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 84 (0.285) unproductive
         water time: 0.1
 hmm
-  caching all 266 naive sequences
-    [44mcaching[0m input annotation naive seqs in bcrham cache file for 117 clusters (266 seqs)
+  caching all 295 naive sequences
+    [44mcaching[0m input annotation naive seqs in bcrham cache file for 116 clusters (295 seqs)
       --continue-from-input-partition: using input partition for initial cpath
-             117 clusters (266 seqs)
-  117 clusters with 10 procs (0.4s)
-   67 clusters with 7 procs (0.3s)
-   50 clusters with 5 procs (0.2s)
-   37 clusters with 3 procs (0.2s)
-   32 clusters with 2 procs (0.3s)
-   26 clusters with 1 proc (0.6s)
+             116 clusters (295 seqs)
+  116 clusters with 10 procs (0.4s)
+   70 clusters with 7 procs (0.3s)
+   51 clusters with 5 procs (0.3s)
+   38 clusters with 3 procs (0.3s)
+   25 clusters with 2 procs (0.1s)
+   24 clusters with 2 procs (0.2s)
+   21 clusters with 2 procs (0.2s)
+   18 clusters with 2 procs (0.2s)
+   18 clusters with 1 proc (0.5s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 1.9
+      partition loop time: 2.4
 getting annotations for final partition
-  subcluster annotating 20 clusters with steps:  (0.6s) (0.3s) (0.2s) (0.1s) 
-    subcluster annotation time 1.5
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 3 / 269 missing ids as singletons to inferred partition, to match ids in true partition
-      total time: 3.7
-      bcrham time: 2.4 (65.5% of total, 10 calls)
+  subcluster annotating 17 clusters with steps:  (0.7s) (0.4s) (0.2s) (0.2s) 
+    subcluster annotation time 1.6
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 1 / 296 missing ids as singletons to inferred partition, to match ids in true partition
+      total time: 4.4
+      bcrham time: 2.7 (63.0% of total, 13 calls)
 [44mcombining[0m chains
-cleaning pair info for 1664 seqs
+cleaning pair info for 1592 seqs
      synchronized/fixed 0 pairs where one had no pair info after cleaning: [94mh[0m 0  [95mk[0m 0  [92ml[0m 0
 WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
 WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
@@ -230,156 +223,151 @@ WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
 WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
 WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
 WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
-WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
-WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
-WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
-WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
-WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
-WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
 [94migh+igk[0m: synchronizing heavy and light chain cluster paths
-    removing badly + unpaired seqs:  kept 174 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 85  [95mk[0m 89
+    removing badly + unpaired seqs:  kept 143 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 68  [95mk[0m 75
             note: discarding unpaired seqs in families with no (well-)paired seqs (i.e. families that are all either unpaired or paired to the other/wrong light chain), rather than keeping track of them to re-add later
-        discarded 18 total unpaired (in families with no (well-)paired seqs): [94mh[0m 18  [95mk[0m 0
+        discarded 20 total unpaired (in families with no (well-)paired seqs): [94mh[0m 20  [95mk[0m 0
     merging igh+igk partitions
   [93mwarning[0m paired uids in line, but <translate_pids> wasn't set, so they won't be translated
    N clusters without bad/unpaired seqs:
-        [94mh[0m  125 --> 148  [91m+23[0m
-        [95mk[0m   38 --> 148  [91m+110[0m
-    re-added unpaired seqs ([94mh[0m 85, [95mk[0m 89) to give total seqs in joint partitions: [94mh[0m 579  [95mk[0m 583
+        [94mh[0m  126 --> 157  [91m+31[0m
+        [95mk[0m   44 --> 157  [91m+113[0m
+    re-added unpaired seqs ([94mh[0m 68, [95mk[0m 75) to give total seqs in joint partitions: [94mh[0m 514  [95mk[0m 521
                              new        existing
             singleton      cluster       cluster
-       [94mh[0m            0           0          85
-       [95mk[0m            0           0          89
-    [93mwarning[0m removed 49/864 uids (leaving 815) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m removed 40/581 uids (leaving 541) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m added 20 / 579 missing ids as singletons to true partition, to match ids in inferred partition (restricting to unpaired_uids, i.e. probably these were unpaired seqs that were re-added to the inferred partition, but in the true partition were paired with the other chain)
-    [93mwarning[0m added 18 / 579 missing ids as singletons to true partition, to match ids in inferred partition (giving up and adding whatever is needed, which is sometimes/maybe just from mispaired seqs)
+       [94mh[0m            0           0          68
+       [95mk[0m            0           0          75
+    [93mwarning[0m removed 43/819 uids (leaving 776) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m removed 31/519 uids (leaving 488) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m added 15 / 514 missing ids as singletons to true partition, to match ids in inferred partition (restricting to unpaired_uids, i.e. probably these were unpaired seqs that were re-added to the inferred partition, but in the true partition were paired with the other chain)
+    [93mwarning[0m added 11 / 514 missing ids as singletons to true partition, to match ids in inferred partition (giving up and adding whatever is needed, which is sometimes/maybe just from mispaired seqs)
   [94mh[0m ccfs:     purity  completeness
-      single   0.855  0.953
-       joint   0.943  0.946
-    [93mwarning[0m removed 3/586 uids (leaving 583) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m removed 3/586 uids (leaving 583) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+      single   0.815  0.922
+       joint   0.942  0.898
+    [93mwarning[0m removed 7/528 uids (leaving 521) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m removed 7/528 uids (leaving 521) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
   [95mk[0m ccfs:     purity  completeness
-      single   0.395  0.986
-       joint   0.890  0.822
+      single   0.386  0.972
+       joint   0.927  0.840
   merge time 0.0
-  need to get annotations for 86/148 joint igh clusters
+  need to get annotations for 85/157 joint igh clusters
 [44mannotate[0m [94migh+igk[0m:[94m igh[0m
     removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
-[91mrun[0m /partis-dev/bin/partis annotate --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igh.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igh-only-partition.yaml --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/input-seqs-igh.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igh.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml --ignore-sw-pair-info
-  --input-metafnames: added meta info for 579 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igh.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 579 sequences in 148 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igh-only-partition.yaml
+[91mrun[0m /partis-dev/_wt-main-sync-v1.0.30/bin/partis annotate --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igh.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igh-only-partition.yaml --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/input-seqs-igh.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igh.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml --ignore-sw-pair-info
+  --input-metafnames: added meta info for 514 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igh.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 514 sequences in 157 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/hmm)
 smith-waterman
-  vsearch: 579 / 579 v annotations (0 failed) with 24 v genes in 0.2 sec
+  vsearch: 514 / 514 v annotations (0 failed) with 26 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml
-      info for 579 / 579 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 177 (0.306) unproductive
-        water time: 0.2
-hmm
-  subcluster annotating 148 clusters with steps:  (1.3s) (0.6s) (0.2s) 
-    subcluster annotation time 2.3
-      total time: 2.6
-      bcrham time: 1.9 (71.6% of total, 3 calls)
-  need to get annotations for 142/148 joint igk clusters
-[44mannotate[0m [94migh+igk[0m:[94m igk[0m
-    removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
-[91mrun[0m /partis-dev/bin/partis annotate --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igk.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igk-only-partition.yaml --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/input-seqs-igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml --ignore-sw-pair-info
-  --input-metafnames: added meta info for 583 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igk.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 583 sequences in 148 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igk-only-partition.yaml
-annotating    (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/hmm)
-smith-waterman
-  vsearch: 583 / 583 v annotations (0 failed) with 16 v genes in 0.2 sec
-        reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml
-      info for 583 / 583 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 111 (0.190) unproductive
+      info for 514 / 514 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 205 (0.399) unproductive
         water time: 0.1
 hmm
-  [93mwarning[0m split apart 1 cluster that contained multiple cdr3 lengths (total clusters: 148 --> 149)
-      cluster splits:   5 --> 4 1
-  subcluster annotating 149 clusters with steps:  (1.1s) (0.5s) (0.2s) 
-    subcluster annotation time 1.9
-      total time: 2.2
-      bcrham time: 1.2 (57.9% of total, 3 calls)
+  subcluster annotating 157 clusters with steps:  (1.4s) (0.7s) (0.4s) 
+    subcluster annotation time 2.5
+      total time: 2.8
+      bcrham time: 2.2 (76.3% of total, 3 calls)
+  need to get annotations for 146/157 joint igk clusters
+[44mannotate[0m [94migh+igk[0m:[94m igk[0m
+    removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
+[91mrun[0m /partis-dev/_wt-main-sync-v1.0.30/bin/partis annotate --locus igk --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igk.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igk-only-partition.yaml --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/input-seqs-igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml --ignore-sw-pair-info
+  --input-metafnames: added meta info for 521 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igk.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 521 sequences in 157 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igk-only-partition.yaml
+annotating    (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/hmm)
+smith-waterman
+  vsearch: 521 / 521 v annotations (0 failed) with 16 v genes in 0.1 sec
+        reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml
+      info for 521 / 521 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 143 (0.274) unproductive
+        water time: 0.1
+hmm
+  [93mwarning[0m split apart 1 cluster that contained multiple cdr3 lengths (total clusters: 157 --> 158)
+      cluster splits:  10 --> 3 7
+  subcluster annotating 158 clusters with steps:  (1.0s) (0.5s) (0.2s) 
+    subcluster annotation time 1.8
+      total time: 2.0
+      bcrham time: 1.1 (56.1% of total, 3 calls)
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
-    removing badly + unpaired seqs:  kept 111 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 63  [92ml[0m 48
+    removing badly + unpaired seqs:  kept 100 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 47  [92ml[0m 53
             note: discarding unpaired seqs in families with no (well-)paired seqs (i.e. families that are all either unpaired or paired to the other/wrong light chain), rather than keeping track of them to re-add later
-        discarded 40 total unpaired (in families with no (well-)paired seqs): [94mh[0m 40  [92ml[0m 0
+        discarded 41 total unpaired (in families with no (well-)paired seqs): [94mh[0m 41  [92ml[0m 0
     merging igh+igl partitions
   [93mwarning[0m paired uids in line, but <translate_pids> wasn't set, so they won't be translated
    N clusters without bad/unpaired seqs:
-        [94mh[0m   68 --> 86   [91m+18[0m
-        [92ml[0m   20 --> 86   [91m+66[0m
-    re-added unpaired seqs ([94mh[0m 63, [92ml[0m 48) to give total seqs in joint partitions: [94mh[0m 281  [92ml[0m 266
+        [94mh[0m   66 --> 82   [91m+16[0m
+        [92ml[0m   17 --> 82   [91m+65[0m
+    re-added unpaired seqs ([94mh[0m 47, [92ml[0m 53) to give total seqs in joint partitions: [94mh[0m 289  [92ml[0m 295
                              new        existing
             singleton      cluster       cluster
-       [94mh[0m            0           0          63
-       [92ml[0m            0           0          48
-    [93mwarning[0m removed 49/864 uids (leaving 815) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m removed 40/283 uids (leaving 243) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m added 25 / 281 missing ids as singletons to true partition, to match ids in inferred partition (restricting to unpaired_uids, i.e. probably these were unpaired seqs that were re-added to the inferred partition, but in the true partition were paired with the other chain)
-    [93mwarning[0m added 13 / 281 missing ids as singletons to true partition, to match ids in inferred partition (giving up and adding whatever is needed, which is sometimes/maybe just from mispaired seqs)
+       [94mh[0m            0           0          47
+       [92ml[0m            0           0          53
+    [93mwarning[0m removed 43/819 uids (leaving 776) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m removed 34/300 uids (leaving 266) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m added 15 / 289 missing ids as singletons to true partition, to match ids in inferred partition (restricting to unpaired_uids, i.e. probably these were unpaired seqs that were re-added to the inferred partition, but in the true partition were paired with the other chain)
+    [93mwarning[0m added 8 / 289 missing ids as singletons to true partition, to match ids in inferred partition (giving up and adding whatever is needed, which is sometimes/maybe just from mispaired seqs)
   [94mh[0m ccfs:     purity  completeness
-      single   0.855  0.953
-       joint   0.875  0.882
-    [93mwarning[0m removed 3/269 uids (leaving 266) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m removed 3/269 uids (leaving 266) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+      single   0.815  0.922
+       joint   0.913  0.868
+    [93mwarning[0m removed 1/296 uids (leaving 295) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m removed 1/296 uids (leaving 295) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
   [92ml[0m ccfs:     purity  completeness
-      single   0.265  0.946
-       joint   0.848  0.741
+      single   0.344  0.971
+       joint   0.839  0.779
   merge time 0.0
-  need to get annotations for 54/86 joint igh clusters
+  need to get annotations for 51/82 joint igh clusters
 [44mannotate[0m [94migh+igl[0m:[94m igh[0m
     removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
-[91mrun[0m /partis-dev/bin/partis annotate --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igh.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igh-only-partition.yaml --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/input-seqs-igh.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igh.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml --ignore-sw-pair-info
-  --input-metafnames: added meta info for 281 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igh.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 281 sequences in 86 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igh-only-partition.yaml
+[91mrun[0m /partis-dev/_wt-main-sync-v1.0.30/bin/partis annotate --locus igh --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igh.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igh-only-partition.yaml --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/input-seqs-igh.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igh.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml --ignore-sw-pair-info
+  --input-metafnames: added meta info for 289 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igh.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 289 sequences in 82 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/hmm)
 smith-waterman
-  vsearch: 281 / 281 v annotations (0 failed) with 23 v genes in 0.1 sec
+  vsearch: 289 / 289 v annotations (0 failed) with 21 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml
-      info for 281 / 281 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 78 (0.278) unproductive
+      info for 289 / 289 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 87 (0.301) unproductive
         water time: 0.1
 hmm
-  subcluster annotating 86 clusters with steps:  (0.8s) (0.4s) (0.2s) 
-    subcluster annotation time 1.4
-      total time: 1.7
-      bcrham time: 1.2 (71.4% of total, 3 calls)
-  need to get annotations for 78/86 joint igl clusters
+  subcluster annotating 82 clusters with steps:  (1.0s) (0.5s) (0.2s) 
+    subcluster annotation time 1.8
+      total time: 2.0
+      bcrham time: 1.5 (75.1% of total, 3 calls)
+  need to get annotations for 76/82 joint igl clusters
 [44mannotate[0m [94migh+igl[0m:[94m igl[0m
     removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
-[91mrun[0m /partis-dev/bin/partis annotate --locus igl --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 10 --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igl.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igl-only-partition.yaml --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/input-seqs-igl.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igl.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml --ignore-sw-pair-info
-  --input-metafnames: added meta info for 266 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igl.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 266 sequences in 86 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igl-only-partition.yaml
+[91mrun[0m /partis-dev/_wt-main-sync-v1.0.30/bin/partis annotate --locus igl --dont-write-git-info --max-ccf-fail-frac 0.15 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igl.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igl-only-partition.yaml --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/input-seqs-igl.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igl.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml --ignore-sw-pair-info
+  --input-metafnames: added meta info for 295 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igl.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 295 sequences in 82 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igl-only-partition.yaml
 annotating    (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/hmm)
 smith-waterman
-  vsearch: 266 / 266 v annotations (0 failed) with 10 v genes in 0.1 sec
+  vsearch: 295 / 295 v annotations (0 failed) with 10 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
-      info for 266 / 266 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 54 (0.203) unproductive
+      info for 295 / 295 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 84 (0.285) unproductive
         water time: 0.1
 hmm
-  [93mwarning[0m split apart 2 clusters that contained multiple cdr3 lengths (total clusters: 86 --> 88)
-      cluster splits:  15 --> 1 14,   3 --> 2 1
-  subcluster annotating 88 clusters with steps:  (0.7s) (0.3s) (0.2s) 
-    subcluster annotation time 1.2
-      total time: 1.4
-      bcrham time: 0.9 (62.5% of total, 3 calls)
+  [93mwarning[0m split apart 3 clusters that contained multiple cdr3 lengths (total clusters: 82 --> 85)
+      cluster splits:   2 --> 1 1,   5 --> 4 1,   4 --> 1 3
+  subcluster annotating 85 clusters with steps:  (0.7s) (0.3s) (0.2s) (0.1s) 
+    subcluster annotation time 1.4
+      total time: 1.6
+      bcrham time: 1.0 (65.0% of total, 4 calls)
   --input-metafnames: no meta info added from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml
   concatenating heavy chain loci:
-      [94mh[0m starting with 148 annotations (579 seqs)
-      [93mwarning[0m genes in glfo but not referenced in any annotation:    j: [95mh[0m[91mj[0m[95m2[0m[93m01[0m
-      [95mk[0m starting with 149 annotations (583 seqs)
-      [94mh[0m adding 86 annotations (281 seqs) for total 234 (860)
-      [93mwarning[0m genes in glfo but not referenced in any annotation:    j: [95mh[0m[91mj[0m[95m2[0m[93m01[0m
-      [92ml[0m starting with 88 annotations (266 seqs)
-      [93mwarning[0m genes in glfo but not referenced in any annotation:    j: [95ml[0m[91mj[0m[95m2[0m[93m01_c13t[0m [95ml[0m[91mj[0m[95m3[0m[95m-2[0m[93m01_g11-[0m
+      [94mh[0m starting with 157 annotations (514 seqs)
+      [93mwarning[0m genes in glfo but not referenced in any annotation:    v: [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m02[0m   j: [95mh[0m[91mj[0m[95m6[0m[93m01[0m
+      [95mk[0m starting with 158 annotations (521 seqs)
+      [93mwarning[0m genes in glfo but not referenced in any annotation:    j: [95mk[0m[91mj[0m[95m4[0m[93m02[0m
+      [94mh[0m adding 82 annotations (289 seqs) for total 239 (803)
+      [93mwarning[0m genes in glfo but not referenced in any annotation:    j: [95mh[0m[91mj[0m[95m6[0m[93m01[0m
+      [92ml[0m starting with 85 annotations (295 seqs)
+      [93mwarning[0m genes in glfo but not referenced in any annotation:    j: [95ml[0m[91mj[0m[95m2[0m[93m01_c13t[0m [95ml[0m[91mj[0m[95m3[0m[95m-4[0m[93m01_g17-[0m [95ml[0m[91mj[0m[95m2[0m[93m01_t3-_a7g[0m [95ml[0m[91mj[0m[95m2[0m[93m01_t1-_g2-_t3-[0m [95ml[0m[91mj[0m[95m3[0m[95m-1[0m[93m01_i27g[0m
     finished with:
-     [94mh[0m: 234 annotations (815 seqs)
-    [93mwarning[0m added 49 / 864 missing ids as singletons to inferred partition, to match ids in true partition
+     [94mh[0m: 239 annotations (776 seqs)
+    [93mwarning[0m added 43 / 819 missing ids as singletons to inferred partition, to match ids in true partition
    N clusters with all seqs:
-        [94mh[0m  168 --> 234  [91m+66[0m
-        [95mk[0m   38 --> 148  [91m+110[0m
-        [92ml[0m   20 --> 86   [91m+66[0m
-      total time: 38.0
+        [94mh[0m  172 --> 239  [91m+67[0m
+        [95mk[0m   44 --> 157  [91m+113[0m
+        [92ml[0m   17 --> 82   [91m+65[0m
+      total time: 46.1
