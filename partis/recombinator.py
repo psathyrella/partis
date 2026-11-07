@@ -166,15 +166,12 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom, i_choose_tree=None, i_heavy_event=None):
         """ keep running self.try_to_combine() until you get a good event """
-        # NOTE seed once here, not per-retry inside try_to_combine, so retries advance the RNG state naturally rather than consuming new seed values. Lets each event use exactly one seed slot regardless of retry count, avoiding 32-bit seed-space exhaustion at large event counts.
-        numpy.random.seed(initial_irandom)
-        random.seed(initial_irandom)
         line = None
         itry = 0
         while line is None:
             if itry > 0 and self.args.debug:
                 print('    unproductive event -- rerunning (try %d)  ' % itry)  # probably a weirdly long v_3p or j_5p deletion
-            line = self.try_to_combine(initial_irandom, i_choose_tree=i_choose_tree, i_heavy_event=i_heavy_event)
+            line = self.try_to_combine(initial_irandom + itry, i_choose_tree=i_choose_tree, i_heavy_event=i_heavy_event)
             itry += 1
             if itry > self.n_max_tries:
                 raise Exception('too many tries %d in recombinator' % itry)
@@ -184,12 +181,14 @@ class Recombinator(object):
     def try_to_combine(self, irandom, i_choose_tree=None, i_heavy_event=None):
         """
         Create a recombination event and write it to disk
-        <irandom> is used as the per-event UID-hash salt and as the bppseqgen subprocess seed.
-        The global numpy/random state is seeded once per event by combine() (not here), so retries within a single event advance the RNG state naturally.
-        If combine() is called with the same <irandom>, it will find the same event.
+        <irandom> is used as the seed for the myriad random number calls.
+        If combine() is called with the same <irandom>, it will find the same event, i.e. it should be a random number, not just a seed
         """
         if self.args.debug:
             print('combine (seed %d)' % irandom)
+        irandom = irandom % 2**64  # event seeds are 64 bit (see utils.event_seed()), and retries add to them (which can't land on another event's seed in practice, since itry < self.n_max_tries is tiny compared to the 64-bit space)
+        numpy.random.seed([irandom % 2**32, irandom >> 32])  # numpy's legacy seeding only takes 32-bit words
+        random.seed(irandom)
 
         reco_event = RecombinationEvent(self.glfo, uid_hash_len=self.args.uid_hash_len)
         try:
@@ -457,7 +456,7 @@ class Recombinator(object):
             if itry % 500 == 0:
                 print('      %s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far with failcounters: %s)' % ('note:', '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry, '  '.join(fcstrs())))
             if itry > self.n_max_tries:
-                raise SimuGiveUpError('    %s too many tries (%d > %d) when trying to get scratch line so giving up (well, probably retrying from further up, with the RNG state advanced)' % (utils.wrnstr(), itry, self.n_max_tries))
+                raise SimuGiveUpError('    %s too many tries (%d > %d) when trying to get scratch line so giving up (well, probably retrying from further up, i.e. with new/iterated seed)' % (utils.wrnstr(), itry, self.n_max_tries))
 
         # convert insertions back to lengths (hoo boy this shouldn't need to be done)
         for bound in utils.all_boundaries:
@@ -883,7 +882,7 @@ class Recombinator(object):
             print('    regional heights:  %s' % ('   '.join(['%s %.3f' % (r, mheight * self.treeinfo['branch-length-ratios'][r]) for r in utils.regions])))
 
         cmdfos = []
-        self.prepare_bppseqgen(cmdfos, reco_event, seed=irandom)
+        self.prepare_bppseqgen(cmdfos, reco_event, seed=irandom % 2**63)  # bppseqgen reads its seed as a (signed 64-bit) long
         assert len(cmdfos) == 1  # used to be one cmd for each region
 
         start = time.time()
