@@ -162,8 +162,8 @@ class _FakeEvidence(object):
     # what sample_null reads, with a p-value that encodes its pair
     def __init__(self, frags):
         self.frags, self.fps = frags, [({}, 1) for _ in frags]
-    def pvalue(self, i, j, keep=True):
-        assert not keep, 'null pairs are not cached'
+    def pvalue(self, i, j, cache_pair=True):
+        assert not cache_pair, 'null pairs are not cached'
         return 10 * min(i, j) + max(i, j)
 
 
@@ -299,7 +299,7 @@ def _sample_null_reference(ev, n_target, naives, vdjs, naive_threshold):
         seen.add(frozenset((a, b)))
         if prf.hamming_frac(naives[a], naives[b]) <= naive_threshold:
             continue
-        out.append(ev.pvalue(a, b, keep=False))
+        out.append(ev.pvalue(a, b, cache_pair=False))
     return out
 
 
@@ -324,7 +324,7 @@ def test_null_pvalue_not_cached():
     muts = {'a1': {5: 'T', 8: 'G'}, 'a2': {5: 'T', 8: 'G'}, 'b1': {5: 'T', 8: 'G'}, 'b2': {5: 'T', 8: 'G'}}
     fps = [prf.get_cluster_fingerprint(f, muts) for f in frags]
     ev = prf._MergeEvidence(frags, fps, muts, lambda uid: ({k: 0.01 for k in muts[uid].items()}, {}), 4)
-    p = ev.pvalue(0, 1, keep=False)
+    p = ev.pvalue(0, 1, cache_pair=False)
     assert ev.pair_p == {} and ev.pvalue(1, 0) == p and ev.pair_p == {(0, 1): p}
 
 

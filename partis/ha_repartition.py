@@ -320,11 +320,11 @@ def _cluster_driver(job, args, glfo, outfname, workdir, n_procs):
 
 
 def _passes_sw(step, parter):
-    # false if no query passes sw, since waterer then calls sys.exit(0)
+    # false if no query passes sw (waterer then calls sys.exit(0)), and removes the job's workdir
     try:
         step()
     except SystemExit as e:
-        if e.code != 0:  # a bare sys.exit() is an error path
+        if e.code != 0:  # only waterer's sys.exit(0) means no query passed
             raise
         shutil.rmtree(parter.args.workdir, ignore_errors=True)
         return False
@@ -379,7 +379,8 @@ def _write_singletons_result(outfname, glfo, uids):
 def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
     """Run HA re-partition on a list of cluster jobs within a single process, reusing one
     pre-loaded glfo. Each cluster is partitioned exactly as a standalone `partis
-    partition` would (keep-or-split), writing the same per-cluster output; the only
+    partition` would (keep-or-split), writing the same per-cluster output (singletons if no
+    query passes sw, where standalone writes nothing); the only
     difference from a per-cluster subprocess is that Python/import/glfo startup is paid
     once for the whole batch instead of once per cluster (the dominant per-cluster cost
     at these sizes). Returns (cluster_id, n_seqs, wall_sec) timing rows."""

@@ -89,9 +89,12 @@ def hamming_frac(s1, s2):
     return diffs / compared if compared > 0 else 1.0
 
 
+N_BYTE = ord('N')
+
+
 def encode_naives(naives):
     """(n, max len) uint8 rows of <naives>, padded with N (None is all N), for hamming_frac_rows."""
-    enc = np.full((len(naives), max([len(s) for s in naives if s is not None], default=0)), ord('N'), dtype=np.uint8)
+    enc = np.full((len(naives), max([len(s) for s in naives if s is not None], default=0)), N_BYTE, dtype=np.uint8)
     for i, s in enumerate(naives):
         if s:
             enc[i, :len(s)] = np.frombuffer(s.encode(), dtype=np.uint8)
@@ -101,7 +104,7 @@ def encode_naives(naives):
 def hamming_frac_rows(enc, ia, ib):
     """hamming_frac between rows ia[k] and ib[k] of encode_naives output, for each k."""
     a, b = enc[ia], enc[ib]
-    valid = (a != ord('N')) & (b != ord('N'))
+    valid = (a != N_BYTE) & (b != N_BYTE)
     compared, diffs = valid.sum(axis=1), ((a != b) & valid).sum(axis=1)
     out = np.ones(len(ia))
     np.divide(diffs, compared, out=out, where=compared > 0)
@@ -322,7 +325,7 @@ def certified_fragment_pairs(frag_of_uid, uid_muts, ej_floor):
         open_pairs = np.flatnonzero(~ok & (k / np.maximum(n_a, n_b) >= ej_floor))
         if len(open_pairs) > 0:
             ro, co = r[open_pairs], c[open_pairs]
-            same_pos = np.asarray((by_pos[start : start + block] @ by_pos[start:].T)[ro - start, co - start]).ravel()
+            same_pos = np.asarray(by_pos[ro].multiply(by_pos[co]).sum(axis=1)).ravel()
             ok[open_pairs] = k[open_pairs] / (n_a[open_pairs] + n_b[open_pairs] - same_pos) >= ej_floor
         n_certified += int(ok.sum())
         frag_pairs.update(zip(frag[r[ok]].tolist(), frag[c[ok]].tolist()))
@@ -618,7 +621,7 @@ class _MergeEvidence(object):
         self.pcache = _PerUidPvalCache(n_seqs, WEIGHT_GRID_NATS)
         self.pair_p = {}
         self.adj_freqs = {}
-        self.items = {}
+        self.mut_sets = {}
         self.cons = [self._consensus(i) for i in range(len(frags))]
         counts, n = defaultdict(int), 0
         for (muts, _, _), (_, n_w) in zip(self.cons, fps):
@@ -659,21 +662,21 @@ class _MergeEvidence(object):
             self.adj_freqs[i] = {k: max(freqs.get(k, NO_GERMLINE_FREQ), self.group_rate.get(k, 0.0)) for k in muts.items()}
         return self.adj_freqs[i]
 
-    def _items(self, i):
-        if i not in self.items:
-            self.items[i] = frozenset(self.cons[i][0].items())
-        return self.items[i]
+    def _mut_set(self, i):
+        if i not in self.mut_sets:
+            self.mut_sets[i] = frozenset(self.cons[i][0].items())
+        return self.mut_sets[i]
 
-    def pvalue(self, i, j, keep=True):
-        """keep=False computes without caching the pair, for null pairs no one asks for again."""
+    def pvalue(self, i, j, cache_pair=True):
+        """cache_pair=False computes without caching the pair, for null pairs no one asks for again."""
         i, j = min(i, j), max(i, j)  # one cache entry per pair, whichever order the null draws it in
         p = self.pair_p.get((i, j))
         if p is None:
             (ma, _, oa), (mb, _, ob) = self.cons[i], self.cons[j]
             p = weighted_shared_descent_pvalue(
                 ma, mb, self._adjusted_freqs(i), self._adjusted_freqs(j), self.n_seqs, oa, ob,
-                cache=self.pcache, uid_a=i, uid_b=j, shared=self._items(i) & self._items(j)) if ma and mb else 1.0
-            if keep:
+                cache=self.pcache, uid_a=i, uid_b=j, shared=self._mut_set(i) & self._mut_set(j)) if ma and mb else 1.0
+            if cache_pair:
                 self.pair_p[(i, j)] = p
         return p
 
@@ -710,7 +713,7 @@ class _MergeEvidence(object):
             ia, ib = np.array(pairs).T
             for a, b, far in zip(ia.tolist(), ib.tolist(), (hamming_frac_rows(enc, ia, ib) > naive_threshold).tolist()):  # buckets already match naive length
                 if far:
-                    out.append(self.pvalue(a, b, keep=False))
+                    out.append(self.pvalue(a, b, cache_pair=False))
                     if len(out) == n_target:
                         break
         return out
@@ -833,7 +836,7 @@ def _bucket_merge_candidates(frags, uid_sw_naives, uid_to_muts_with_base, uid_re
 
         if len(same_len) >= 2:
             arr = np.frombuffer(''.join(same_len).encode(), dtype=np.uint8).reshape(len(same_len), seq_len)
-            oh, mask = onehot_naives(arr, ord('N'))
+            oh, mask = onehot_naives(arr, N_BYTE)
 
             def examine_naive_pair(ni_idx, nj_idx):
                 for i in naive_to_frags[same_len[ni_idx]]:
@@ -1203,7 +1206,12 @@ def _weight_bins(muts, freqs, n_seqs, grid, n_obs):
 
 def _conditional_pvalue_from_wb(wb, shared):
     """Same dp as _conditional_pvalue, given an already-built <wb> instead of rebuilding it."""
-    return _tail_dp(wb, sum(wb[pb][1] for pb in shared if pb in wb))
+    return _tail_dp(wb, _t_obs(wb, shared))
+
+
+def _t_obs(wb, shared):
+    """observed score: summed bins of the <shared> entries in <wb>"""
+    return sum(wb[pb][1] for pb in shared if pb in wb)
 
 
 def _tail_dp(wb, t_obs):
@@ -1278,7 +1286,7 @@ class _PerUidPvalCache(object):
         wb = self._get_wb(uid, muts, freqs, n_obs)
         if not wb:
             return 1.0
-        t_obs = sum(wb[pb][1] for pb in shared if pb in wb)
+        t_obs = _t_obs(wb, shared)
         if self.use_curve.get(uid):
             survival, max_t = self.curve[uid]
             return _survival_lookup(survival, max_t, t_obs)
