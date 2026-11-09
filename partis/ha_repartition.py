@@ -319,12 +319,13 @@ def _cluster_driver(job, args, glfo, outfname, workdir, n_procs):
     return PartitionDriver(a, glfo, input_info, None, reco_info)
 
 
-def _passes_sw(step, parter):
-    # false if no query passes sw (waterer then calls sys.exit(0)), and removes the job's workdir
+def _run_unless_no_sw_pass(step, parter):
+    """Run <step>. Return False, after removing the job's workdir, if it exits with code 0, which
+    only waterer does, when no query passes sw; re-raise any other exit."""
     try:
         step()
     except SystemExit as e:
-        if e.code != 0:  # only waterer's sys.exit(0) means no query passed
+        if e.code != 0:
             raise
         shutil.rmtree(parter.args.workdir, ignore_errors=True)
         return False
@@ -336,15 +337,16 @@ def _ha_collapsed_count(ijob, job, args, glfo):
     from partis import utils
     parter = _cluster_driver(job, args, glfo, None, '%s/ha-collapse-%d' % (args.workdir, ijob), 1)  # one proc each, the pool runs them in parallel
     parter.current_action = 'partition'
-    if not _passes_sw(lambda: parter.run_waterer(look_for_cachefile=False, write_cachefile=False, count_parameters=False), parter):
-        return 0
+    sw_passed = True
     try:
-        if len(parter.sw_info['queries']) == 0:
+        sw_passed = _run_unless_no_sw_pass(lambda: parter.run_waterer(look_for_cachefile=False, write_cachefile=False, count_parameters=False), parter)
+        if not sw_passed or len(parter.sw_info['queries']) == 0:
             return 0
         parter.run_hmm('viterbi', parter.sub_param_dir, precache_all_naive_seqs=True)
         return len(utils.collapse_naive_seqs(parter.synth_sw_info(parter.sw_info['queries']), split_by_cdr3=True))
     finally:
-        parter.clean()
+        if sw_passed:  # no sw pass already removed the workdir, and has no hmm cache to merge
+            parter.clean()
 
 
 def count_ha_collapsed(jobs, args, glfo, n_procs):
@@ -380,8 +382,8 @@ def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
     """Run HA re-partition on a list of cluster jobs within a single process, reusing one
     pre-loaded glfo. Each cluster is partitioned exactly as a standalone `partis
     partition` would (keep-or-split), writing the same per-cluster output (singletons if no
-    query passes sw, where standalone writes nothing); the only
-    difference from a per-cluster subprocess is that Python/import/glfo startup is paid
+    query passes sw, where standalone writes nothing); the only difference from a
+    per-cluster subprocess is that Python/import/glfo startup is paid
     once for the whole batch instead of once per cluster (the dominant per-cluster cost
     at these sizes). Returns (cluster_id, n_seqs, wall_sec) timing rows."""
     import time
@@ -397,7 +399,7 @@ def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
             continue
         t0 = time.time()
         parter = _cluster_driver(job, args, glfo, job['outfname'], '%s/ha-work-%d' % (base_workdir, i), job['n_procs'])
-        if _passes_sw(lambda: parter.run(['partition']), parter):
+        if _run_unless_no_sw_pass(lambda: parter.run(['partition']), parter):
             parter.clean()
         else:  # no clean(): sw passed nothing, so there is no hmm cache to merge and no new allele
             _write_singletons_result(job['outfname'], glfo, list(parter.input_info))

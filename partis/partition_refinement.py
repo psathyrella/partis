@@ -140,7 +140,7 @@ def get_mutations_with_base(seq, naive):
 
 
 NAIVE_THRESHOLD_FALLBACK = 0.01  # used only when no cluster is big enough to fit a threshold on
-HAMMING_PAIR_BLOCK = 100000  # naive pairs per hamming_frac_rows call, bounds the pair arrays' memory
+HAMMING_PAIR_BLOCK = 100000  # naive pairs per hamming_frac_rows call, bounds its per-call temporaries
 
 
 def all_pair_hammings(naives):
@@ -323,7 +323,7 @@ def certified_fragment_pairs(frag_of_uid, uid_muts, ej_floor):
         r, c, k = r[keep], c[keep], k[keep]
         if len(r) == 0:
             continue
-        # the union of mutated positions is in [max(n_a, n_b), n_a + n_b - k], so count it only where the bounds disagree
+        # cheap bounds on the position union, exact count only where they disagree
         n_a, n_b = n_pos[r], n_pos[c]
         ok = k / (n_a + n_b - k) >= ej_floor
         open_pairs = np.flatnonzero(~ok & (k / np.maximum(n_a, n_b) >= ej_floor))
@@ -694,13 +694,13 @@ class _MergeEvidence(object):
         keys = [k for k, v in buckets.items() if len(v) >= 2]
         if not keys:
             return []
-        cum_weights = list(itertools.accumulate(len(buckets[k]) * (len(buckets[k]) - 1) for k in keys))  # built once, same draws as weights=
+        cum_weights = list(itertools.accumulate(len(buckets[k]) * (len(buckets[k]) - 1) for k in keys))  # built once, as choices(weights=) would
         enc = encode_naives(naives)
         rng = random.Random(MERGE_NULL_SEED)
         max_tries = MERGE_NULL_TRIES_PER_PAIR * n_target
         out, n_tries, seen, n_frags = [], 0, set(), len(self.frags)
         while len(out) < n_target and n_tries < max_tries:
-            # draws in chunks, so the naive distances are one array op; draws past the last kept pair are discarded unused
+            # batched so the naive distances are one array op
             pairs = []
             for _ in range(min(MERGE_NULL_DRAW_CHUNK, max_tries - n_tries)):
                 n_tries += 1
@@ -1208,11 +1208,6 @@ def _weight_bins(muts, freqs, n_seqs, grid, n_obs):
     return out
 
 
-def _conditional_pvalue_from_wb(wb, shared):
-    """Same dp as _conditional_pvalue, given an already-built <wb> instead of rebuilding it."""
-    return _tail_dp(wb, _t_obs(wb, shared))
-
-
 def _t_obs(wb, shared):
     """observed score: summed bins of the <shared> entries in <wb>"""
     return sum(wb[pb][1] for pb in shared if pb in wb)
@@ -1242,7 +1237,7 @@ def _conditional_pvalue(muts_cond, shared, freqs, n_seqs, grid, n_obs):
     carries independently. Exact by dp over binned surprisal, with everything at or above the
     observed value collected into a tail bucket."""
     wb = _weight_bins(muts_cond, freqs, n_seqs, grid, n_obs=n_obs)
-    return _conditional_pvalue_from_wb(wb, shared)
+    return _tail_dp(wb, _t_obs(wb, shared))
 
 
 def _build_survival_curve(wb):

@@ -246,7 +246,7 @@ def test_dp_matches_scalar_reference():
         freqs = {(pos, 'A'): 10 ** rng.uniform(-5, 0) for pos in muts}
         wb = prf._weight_bins(muts, freqs, 1000, prf.WEIGHT_GRID_NATS, n_obs={})
         shared = [k for k in wb if rng.random() < 0.3]
-        assert prf._conditional_pvalue_from_wb(wb, shared) == _dp_reference(wb, shared)
+        assert prf._tail_dp(wb, prf._t_obs(wb, shared)) == _dp_reference(wb, shared)
         assert prf._build_survival_curve(wb) == _curve_reference(wb)
 
 
@@ -353,24 +353,48 @@ def test_null_pvalue_not_cached():
     assert ev.pair_p == {} and ev.pvalue(1, 0) == p and ev.pair_p == {(0, 1): p}
 
 
+def test_merge_evidence_pvalue_matches_inline_reference():
+    # reference builds the raised freqs and the shared mutations inline, as pvalue did before caching them
+    rng = random.Random(9)
+    frags, muts = [], {}
+    for ifrag in range(10):
+        base = {pos: rng.choice('AC') for pos in rng.sample(range(15), rng.randint(0, 8))}
+        frags.append(['f%d-%d' % (ifrag, i) for i in range(rng.randint(1, 3))])
+        for uid in frags[-1]:
+            muts[uid] = {**base, rng.randrange(15, 30): 'G'}
+    ufreqs = {uid: {k: 10 ** rng.uniform(-4, -0.5) for k in m.items()} for uid, m in muts.items()}
+    ev = prf._MergeEvidence(frags, [prf.get_cluster_fingerprint(f, muts) for f in frags], muts, lambda uid: (ufreqs[uid], {}), len(muts))
+    ref_cache = prf._PerUidPvalCache(len(muts), prf.WEIGHT_GRID_NATS)
+    n_below_one = 0
+    for i in range(len(frags)):
+        for j in range(i + 1, len(frags)):
+            (ma, fa, oa), (mb, fb, ob) = ev.cons[i], ev.cons[j]
+            fa = {k: max(fa.get(k, prf.NO_GERMLINE_FREQ), ev.group_rate.get(k, 0.0)) for k in ma.items()}
+            fb = {k: max(fb.get(k, prf.NO_GERMLINE_FREQ), ev.group_rate.get(k, 0.0)) for k in mb.items()}
+            ref = prf.weighted_shared_descent_pvalue(ma, mb, fa, fb, ev.n_seqs, oa, ob, cache=ref_cache, uid_a=i, uid_b=j) if ma and mb else 1.0
+            assert ev.pvalue(j, i, cache_pair=(i + j) % 2 == 0) == ref
+            n_below_one += ref < 1.0
+    assert n_below_one > 0
+
+
 class _FakeParter(object):
     def __init__(self, workdir):
         self.args = type('args', (), {'workdir': workdir})()
 
 
 @pytest.mark.parametrize('code', [0, None, 1, 'some error'])
-def test_passes_sw_only_on_exit_zero(tmp_path, code):
+def test_no_sw_pass_only_on_exit_zero(tmp_path, code):
     workdir = tmp_path / 'work'
     workdir.mkdir()
     def step():
         raise SystemExit(code)
     if code == 0:
-        assert ha_repartition._passes_sw(step, _FakeParter(str(workdir))) is False and not workdir.exists()
+        assert ha_repartition._run_unless_no_sw_pass(step, _FakeParter(str(workdir))) is False and not workdir.exists()
     else:
         with pytest.raises(SystemExit):
-            ha_repartition._passes_sw(step, _FakeParter(str(workdir)))
+            ha_repartition._run_unless_no_sw_pass(step, _FakeParter(str(workdir)))
         assert workdir.exists()
-    assert ha_repartition._passes_sw(lambda: None, _FakeParter(str(workdir))) is True
+    assert ha_repartition._run_unless_no_sw_pass(lambda: None, _FakeParter(str(workdir))) is True
 
 
 def test_write_singletons_result(tmp_path):
