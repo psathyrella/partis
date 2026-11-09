@@ -140,6 +140,15 @@ def get_mutations_with_base(seq, naive):
 
 
 NAIVE_THRESHOLD_FALLBACK = 0.01  # used only when no cluster is big enough to fit a threshold on
+HAMMING_PAIR_BLOCK = 100000  # naive pairs per hamming_frac_rows call, bounds the pair arrays' memory
+
+
+def all_pair_hammings(naives):
+    """hamming_frac of every unordered pair of <naives>, as one array."""
+    enc = encode_naives(naives)
+    ia, ib = np.triu_indices(len(naives), k=1)
+    return np.concatenate([hamming_frac_rows(enc, ia[s : s + HAMMING_PAIR_BLOCK], ib[s : s + HAMMING_PAIR_BLOCK])
+                           for s in range(0, len(ia), HAMMING_PAIR_BLOCK)])
 
 
 def estimate_naive_threshold(partition, uid_sw_naives):
@@ -147,29 +156,24 @@ def estimate_naive_threshold(partition, uid_sw_naives):
     for cluster in partition:
         if len(cluster) < 3:
             continue
-        cluster_naives = {}
-        for uid in cluster:
-            if uid in uid_sw_naives:
-                cluster_naives[uid] = uid_sw_naives[uid]
         # dedup by sequence, so pairs of identical naives contribute nothing: the quantile below is
         # fitted on the naives that disagree, not on every within-cluster pair
-        unique_naives = list(set(cluster_naives.values()))
+        unique_naives = list(set(uid_sw_naives[uid] for uid in cluster if uid in uid_sw_naives))
         if len(unique_naives) < 2:
             continue
-        for i in range(len(unique_naives)):
-            for j in range(i + 1, len(unique_naives)):
-                h = hamming_frac(unique_naives[i], unique_naives[j])
-                within_hammings.append(h)
+        within_hammings.append(all_pair_hammings(unique_naives))
     if len(within_hammings) == 0:
         from partis import utils
         print('  %s no within-cluster naive pairs, so the merge threshold falls back to %.3f rather than being fitted' % (utils.wrnstr(), NAIVE_THRESHOLD_FALLBACK), flush=True)
         return NAIVE_THRESHOLD_FALLBACK
-    within_hammings.sort()
+    within_hammings = np.concatenate(within_hammings)
     n = len(within_hammings)
-    p90 = within_hammings[min(int(n * 0.90), n - 1)]
+    i_median, i_p90 = n // 2, min(int(n * 0.90), n - 1)
+    within_hammings.partition([i_median, i_p90])  # puts these two order statistics where a full sort would
+    p90 = float(within_hammings[i_p90])  # a plain float, so the cache's repr() round trips
     print('  within-cluster SW naive hamming (%d pairs):' % n)
     print('    median: %.4f, p90: %.4f, max: %.4f' % (
-        within_hammings[n // 2], p90, within_hammings[-1]))
+        within_hammings[i_median], p90, within_hammings.max()))
     print('  adaptive naive threshold (p90): %.4f' % p90)
     return p90
 

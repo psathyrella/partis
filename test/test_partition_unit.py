@@ -259,6 +259,31 @@ def test_hamming_frac_rows_matches_hamming_frac():
     assert prf.hamming_frac_rows(enc, ia, ib).tolist() == [prf.hamming_frac(naives[a], naives[b]) for a, b in pairs]
 
 
+def _naive_threshold_reference(partition, uid_sw_naives):
+    hams = []
+    for cluster in partition:
+        unique_naives = list(set(uid_sw_naives[u] for u in cluster if u in uid_sw_naives))
+        if len(cluster) < 3 or len(unique_naives) < 2:
+            continue
+        hams += [prf.hamming_frac(a, b) for i, a in enumerate(unique_naives) for b in unique_naives[i + 1:]]
+    return sorted(hams)[min(int(len(hams) * 0.90), len(hams) - 1)] if hams else prf.NAIVE_THRESHOLD_FALLBACK
+
+
+@pytest.mark.parametrize('block', [prf.HAMMING_PAIR_BLOCK, 7])
+def test_naive_threshold_matches_scalar_reference(monkeypatch, block):
+    monkeypatch.setattr(prf, 'HAMMING_PAIR_BLOCK', block)
+    rng = random.Random(5)
+    for _ in range(100):
+        uid_sw_naives, partition = {}, []
+        for ic in range(rng.randint(0, 6)):
+            cluster = ['c%d-%d' % (ic, k) for k in range(rng.randint(1, 15))]
+            for uid in cluster[1:]:  # first uid has no sw naive
+                uid_sw_naives[uid] = ''.join(rng.choice('ACGN') for _ in range(rng.randint(0, 8)))
+            partition.append(cluster)
+        threshold = prf.estimate_naive_threshold(partition, uid_sw_naives)
+        assert type(threshold) is float and threshold == _naive_threshold_reference(partition, uid_sw_naives)
+
+
 def _certified_reference(frag_of_uid, uid_muts, ej_floor):
     uids, n_certified, frag_pairs = sorted(u for u in uid_muts if u in frag_of_uid), 0, set()
     for i, a in enumerate(uids):
