@@ -531,6 +531,11 @@ def process(args):
         if args.mutate_from_scratch and not args.no_per_base_mutation:
             print('  note: setting --no-per-base-mutation since --mutate-from-scratch was set')
             args.no_per_base_mutation = True
+        for sarg in ['shm_rate_spread', 'shm_target_spread']:
+            if getattr(args, sarg) < 0:
+                raise Exception('--%s must be at least 0 (got %s)' % (sarg.replace('_', '-'), getattr(args, sarg)))
+            if getattr(args, sarg) != 1 and args.no_per_base_mutation:
+                raise Exception('--%s only works with per-base mutation from a parameter dir, so can\'t be used with --mutate-from-scratch, --simulate-from-scratch or --no-per-base-mutation' % sarg.replace('_', '-'))
 
         if args.dry_run and any(a is not None for a in [args.bulk_data_fraction, args.mean_cells_per_droplet, args.fraction_of_reads_to_remove]):
             raise Exception('can\'t use --dry-run to rerun locus combination parts of paired simulation when any of --bulk-data-fraction, --mean-cells-per-droplet, or --fraction-of-reads-to-remove are set (since the single chain files that we\'d read with --dry-run get rewritten after modification from any of these args)')
@@ -549,6 +554,10 @@ def process(args):
             raise Exception('doesn\'t make sense to set both --mutate-from-scratch and --shm-parameter-dir')
         if args.reco_parameter_dir is None and not args.rearrange_from_scratch:
             raise Exception('have to either set --rearrange-from-scratch or --reco-parameter-dir (or --simulate-from-scratch)')
+        if args.rearrange_from_scratch and args.shm_parameter_dir is None and not args.mutate_from_scratch:  # default to the pooled shm parameters that come with partis (see data/recombinator/scratch-parameters/README.md)
+            args.shm_parameter_dir = '%s/data/recombinator/scratch-parameters%s' % (utils.get_partis_dir(), '' if args.locus is None else '/' + args.locus)  # with --paired-loci the main proc has no locus and never reads this, but each locus's subproc sets its own (and tree generation, which gets no --locus, uses the default igh, i.e. heavy chain trees)
+            if args.locus is not None:
+                print('  note: using pooled shm parameters from %s (set --shm-parameter-dir or --mutate-from-scratch to override)' % args.shm_parameter_dir)
         if args.shm_parameter_dir is None and not args.mutate_from_scratch:
             raise Exception('have to either set --mutate-from-scratch or --shm-parameter-dir (or --simulate-from-scratch)')
 
@@ -649,6 +658,9 @@ def process(args):
         args.dont_remove_unlikely_alleles = True
         args.allele_cluster = False
         args.dont_find_new_alleles = True
+        if any(f > 0 for f in args.min_allele_prevalence_fractions.values()):
+            print('  --leave-default-germline: setting --min-allele-prevalence-fraction to 0 (was %s), so no alleles are removed for low prevalence' % ' '.join('%s %.2g' % (r, f) for r, f in args.min_allele_prevalence_fractions.items()))
+        args.min_allele_prevalence_fractions = {r : 0. for r in utils.regions}
 
     if args.action not in actions_not_requiring_input and [args.infname, args.paired_indir].count(None) == 2:
         if args.paired_loci:

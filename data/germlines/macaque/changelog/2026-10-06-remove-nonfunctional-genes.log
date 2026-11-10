@@ -1,0 +1,105 @@
+# 2026-10-06  issue #421 (default sets keep only functional genes)
+# command:
+./data/germlines/remove-nonfunctional-genes.py --species macaque --write
+
+# ================================ full output ================================
+igh: removing 23 genes (7 ORF, 12 P, 4 unknown)
+    IGHV10-LLQ3*01                                     P
+    IGHV10-LLQ3*02                                     P
+    IGHV10-LLQ3*03                                     P
+    IGHV2-5VX5*11                                      P
+    IGHV2-V7ET*01                                      ORF
+    IGHV3-7FPK*07                                      P
+    IGHV3-GYPG*19                                      P
+    IGHV3-MEBQ*02                                      P
+    IGHV3-OLUF*01                                      ORF
+    IGHV3-PHO7*04                                      P
+    IGHV4-BQLH*01                                      P
+    IGHV8-PSOC*02                                      ORF
+    IGHV8-PSOC*04                                      ORF
+    IGHV9-DH64*12                                      ORF
+    IGHV5-d20*01                                       P
+    IGHV3-d63*01                                       P
+    IGHV4-AEB*01                                       unknown
+    IGHV3-AHA*01                                       P
+    IGHV3-ADU*03                                       ORF
+    IGHV3-AHH*01                                       unknown
+    IGHV3-ABY*03                                       unknown
+    IGHV3-ABH*02                                       ORF
+    IGHV3-AGQ*01                                       unknown
+  wrote igh to data/germlines/macaque
+igk: removing 38 genes (4 ORF, 10 P, 24 unknown)
+    IGKV0-TLTS*02                                      P
+    IGKV0-ZBTP*01                                      P
+    IGKV1-4YW5*03                                      P
+    IGKV1-CL4V*13                                      P
+    IGKV1-KXQ5*04                                      ORF
+    IGKV2-CGHM*09                                      P
+    IGKV3-7UKD*01                                      ORF
+    IGKV7-3ZGD*01                                      P
+    IGKV8-2QHW*01                                      P
+    IGKV8-IRUA*03                                      P
+    IGKV3-ADN*01                                       unknown
+    IGKV2-AAK*01                                       unknown
+    IGKV1-AEE*03                                       ORF
+    IGKV3-AED*02                                       unknown
+    IGKV1-ACI*02                                       unknown
+    IGKV1-AEA*03                                       unknown
+    IGKV2-AAN*02                                       unknown
+    IGKV3-ADN*02                                       ORF
+    IGKV2-ACR*03                                       unknown
+    IGKV2-ACL*04                                       unknown
+    IGKV2-ACL*03                                       unknown
+    IGKV2-AEQ*01                                       unknown
+    IGKV1-ABV*01                                       unknown
+    IGKV1-ABV*02                                       unknown
+    IGKV1-ACE*02                                       unknown
+    IGKV1-ACE*03                                       unknown
+    IGKV1-AEA*02                                       unknown
+    IGKV2-AEM*02                                       unknown
+    IGKV1-AES*01                                       P
+    IGKV2-AEL*01                                       unknown
+    IGKV2-AET*03                                       P
+    IGKV2-ADZ*01                                       unknown
+    IGKV3-ACF*05                                       unknown
+    IGKV3-ACF*04                                       unknown
+    IGKV3-ADW*03                                       unknown
+    IGKV2-ADV*03                                       unknown
+    IGKV2-ADV*02                                       unknown
+    IGKV1-AEA*01                                       unknown
+  wrote igk to data/germlines/macaque
+igl: removing 31 genes (26 P, 5 unknown)
+    IGLV0-5QRY*02                                      P
+    IGLV0-5QRY*03                                      P
+    IGLV14-WNKU*01                                     P
+    IGLV19-GNF7*01                                     P
+    IGLV2-3NOK*08                                      P
+    IGLV22-ACMF*01                                     P
+    IGLV22-II36*01                                     P
+    IGLV23-CGIK*01                                     P
+    IGLV23-JKIO*02                                     P
+    IGLV23-JKIO*03                                     P
+    IGLV23-JKIO*04                                     P
+    IGLV23-JKIO*05                                     P
+    IGLV23-JKIO*06                                     P
+    IGLV23-JKIO*07                                     P
+    IGLV23-JKIO*08                                     P
+    IGLV23-JKIO*09                                     P
+    IGLV23-JKIO*10                                     P
+    IGLV23-JKIO*11                                     P
+    IGLV25-QYEU*01                                     P
+    IGLV25-QYEU*02                                     P
+    IGLV26-AKX7*01                                     P
+    IGLV9-DGNA*02                                      P
+    IGLV9-DGNA*04                                      P
+    IGLV9-NPLJ*01                                      P
+    IGLV5S4*01                                         P
+    IGLV3-AEB*03                                       P
+    IGLV1-ACV*01                                       unknown
+    IGLV6-AAC*05                                       unknown
+    IGLV3-AAT*05                                       unknown
+    IGLV5-ACY*02                                       unknown
+    IGLV5-AAX*03                                       unknown
+  wrote igl to data/germlines/macaque
+
+note now rewrite the functionality file: ./data/germlines/write-functionalities.py --species macaque --gldir data/germlines/macaque --write

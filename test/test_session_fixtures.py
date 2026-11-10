@@ -42,13 +42,14 @@ def test_backend_forwarded_to_subset_jobs(chunked_param_dir):
             assert ('--zig' in logfile.read().split()) == (BACKEND == 'zig')
 
 
-@pytest.mark.parametrize('locus', LOCI)
-def test_hfrac_partition_splits_a_group(hfrac_partition_dir, locus):
-    manifest = read_manifest(str(hfrac_partition_dir / 'single-chain' / 'disjoint-groups' / locus / MANIFEST_FNAME))
-    assert manifest['grouping-info']['method'] == 'cdr3-length+hfrac'
-    assert all('/sub-groups/sub-' in group['fasta_path'] for group in manifest['groups'])
-    n_sub_groups = collections.Counter(group['cdr3_length'] for group in manifest['groups'])
-    assert max(n_sub_groups.values()) > 1
+def test_hfrac_partition_splits_a_group(hfrac_partition_dir):
+    max_sub_groups = {}
+    for locus in LOCI:
+        manifest = read_manifest(str(hfrac_partition_dir / 'single-chain' / 'disjoint-groups' / locus / MANIFEST_FNAME))
+        assert manifest['grouping-info']['method'] == 'cdr3-length+hfrac'
+        assert all('/sub-groups/sub-' in group['fasta_path'] for group in manifest['groups'])
+        max_sub_groups[locus] = max(collections.Counter(group['cdr3_length'] for group in manifest['groups']).values())
+    assert max(max_sub_groups.values()) > 1, max_sub_groups  # in a sample this small, every light chain cdr3 group can fit in one hfrac bin
 
 
 @pytest.mark.parametrize('locus', LOCI)

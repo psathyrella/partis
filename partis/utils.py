@@ -557,6 +557,7 @@ def get_single_entry(tl, errmsg=None):  # adding this very late, so there's a lo
 # j      53.6    48   62
 # cdr3   52.2    23   96  (from test/ output)
 # all   378.2   348  420
+mute_freq_sum_fname = 'mute-freq-sums.csv'  # in parameter dirs' hmm/: for each region, the sum of each sequence's exact mutation fraction, and the number of sequences (written by mutefreqer, read by get_mean_mfreq())
 typical_lengths = {
     'v' : 297,
     'd' : 26,
@@ -1757,6 +1758,10 @@ def resolve_uid_hash_len(n_sim_events):  # NOTE exact for reco ids, but uid coll
 # ----------------------------------------------------------------------------------------
 def hashint(instr, max_int=2**31):  # max random seed val is 32, so reduce by 1 to get some leeway
     return int(get_hash(instr), base=16) % max_int
+
+# ----------------------------------------------------------------------------------------
+def event_seed(random_seed, ievt):  # 64-bit seed for simulation event <ievt>: hashing (rather than adding to <random_seed>) keeps different --random-seed values independent, and 64 bits (rather than drawing int32s) keeps events within a run from sharing a seed (see #430 and #367)
+    return hashint('%d %d' % (random_seed, ievt), max_int=2**64)
 
 # ----------------------------------------------------------------------------------------
 # NOTE see seqfileopener.py or treeutils.py for example usage (both args should be set to None the first time through)
@@ -3033,6 +3038,17 @@ def codon_unmutated(codon, seq, position, debug=False, extra_str=''):
             print('%s%s codon %s not among expected codons (%s)' % (extra_str, codon, seq[position : position + 3], ' '.join(codon_table[codon])))
         return False
     return True
+
+#----------------------------------------------------------------------------------------
+def conserved_codon_status(codon, seq, position):  # status of one germline gene's conserved codon (used e.g. to find genes we can't use)
+    """ return 'truncated' (sequence ends before the end of the codon), 'out-of-frame' (v only: codon isn't in frame with the start of the gene), 'mutated', or 'ok' """
+    if len(seq) < position + 3:
+        return 'truncated'
+    if codon == 'cyst' and not in_frame_germline_v(seq, position):
+        return 'out-of-frame'
+    if not codon_unmutated(codon, seq, position):
+        return 'mutated'
+    return 'ok'
 
 #----------------------------------------------------------------------------------------
 def in_frame_germline_v(seq, cyst_position):  # NOTE duplication with in_frame() (this is for when all we have is the germline v gene, whereas in_frame() is for when we have the whole rearrangement line)
@@ -5443,6 +5459,21 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
                     merged_hist.add(sub_hist)
             if merged_hist is not None:
                 merged_hist.write('%s/hmm/%s' % (pdir(merged_odir, ltmp), hfname))
+        sum_fns = ['%s/hmm/%s' % (pdir(subdfn(isub), ltmp), mute_freq_sum_fname) for isub in range(n_subsets)]
+        sum_fns = [f for f in sum_fns if os.path.exists(f)]
+        if len(sum_fns) > 0:  # sum over subsets like the hists above, so get_mean_mfreq(exact=True) can give the exact mean for the merged dir
+            mf_sums = OrderedDict()
+            for sfn in sum_fns:
+                with open(sfn) as sfile:
+                    for line in csv.DictReader(sfile):
+                        rsum = mf_sums.setdefault(line['region'], {'sum' : 0., 'n_seqs' : 0})
+                        rsum['sum'] += float(line['sum'])
+                        rsum['n_seqs'] += int(line['n_seqs'])
+            with open('%s/hmm/%s' % (pdir(merged_odir, ltmp), mute_freq_sum_fname), csv_wmode()) as sfile:
+                writer = csv.DictWriter(sfile, ['region', 'sum', 'n_seqs'])
+                writer.writeheader()
+                for region, rsum in mf_sums.items():
+                    writer.writerow({'region' : region, 'sum' : rsum['sum'], 'n_seqs' : rsum['n_seqs']})
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         merged_mfreq_counts = {}  # summed counts, keyed by gene then position, same per-position dict shape mutefreqer uses
         merged_length_counts = {}  # summed counts for the deletion/insertion tables, keyed by column then remapped index tuple
@@ -7302,10 +7333,47 @@ def intexterpolate(x1, y1, x2, y2, x):
     return m * x + b
 
 # ----------------------------------------------------------------------------------------
-def get_mean_mfreq(parameter_dir):
+def get_mean_mfreq(parameter_dir, region='all', exact=False, n_muted_hist=None, debug=False):
+    # Return the mean over sequences of the fraction of positions mutated in <region> ('all' for the whole sequence).
+    # By default this is the mean of the <region>-mean-mute-freqs.csv hist, whose first bin (0 to 0.01) counts each of its sequences at the bin center, which for barely-mutated samples is several times too high.
+    # If <exact> is set (so far only for simulation, since changing the default would change e.g. clustering thresholds in get_naive_hamming_bounds()), instead return the exact mean if mutefreqer wrote mute_freq_sum_fname, and otherwise (older parameter dirs) estimate it by replacing the first bin's contribution with the mean fraction of the sequences in <n_muted_hist> (the <region>-mean-n-muted.csv hist) that would fall in it, using the length implied by the means, and iterating. Returns None if it can't be determined.
     from .hist import Hist
-    mutehist = Hist(fname=parameter_dir + '/all-mean-mute-freqs.csv')
-    return mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
+    mfname = '%s/%s-mean-mute-freqs.csv' % (parameter_dir, region)
+    if not exact:
+        mutehist = Hist(fname=mfname)
+        return mutehist.get_mean(ignore_overflows=True)  # should I not ignore overflows here?
+    sfn = '%s/%s' % (parameter_dir, mute_freq_sum_fname)
+    if os.path.exists(sfn):
+        with open(sfn) as sfile:
+            for line in csv.DictReader(sfile):
+                if line['region'] == region:
+                    return float(line['sum']) / int(line['n_seqs']) if int(line['n_seqs']) > 0 else None
+    if not os.path.exists(mfname) or n_muted_hist is None:
+        return None
+    mfhist = Hist(fname=mfname)
+    mfhist.normalize(include_overflows=True)
+    nmhist = copy.deepcopy(n_muted_hist)
+    nmhist.normalize(include_overflows=True)
+    mean_n = nmhist.get_mean()
+    first_bin_width = mfhist.binwidth(1)
+    rest_contribution = sum(mfhist.bin_contents[ib] * mfhist.get_bin_centers()[ib] for ib in range(2, mfhist.n_bins + 2))  # everything above the first bin (including overflows)
+    if mean_n == 0 or rest_contribution == 0:  # if nothing is above the first bin, every length is equally consistent with the hists, so we can't tell
+        return None
+    length = mean_n / mfhist.get_mean()
+    nm_centers = nmhist.get_bin_centers()
+    converged = False
+    for _ in range(100):
+        first_bin_contribution = sum(nmhist.bin_contents[ib] * nm_centers[ib] / length for ib in range(1, nmhist.n_bins + 2) if nm_centers[ib] / length < first_bin_width)  # skip the underflow bin
+        new_length = mean_n / (first_bin_contribution + rest_contribution)
+        if abs(new_length - length) < 1e-6 * length:
+            converged = True
+            break
+        length = new_length
+    if not converged:
+        print('  %s mean mute freq estimate for %s in %s didn\'t converge (using length %.1f)' % (wrnstr(), region, parameter_dir, length))
+    if debug:
+        print('    %s: mean mute freq %.4f from %s (uncorrected %.4f)' % (region, mean_n / length, mfname, mfhist.get_mean()))
+    return mean_n / length
 
 # ----------------------------------------------------------------------------------------
 def get_naive_hamming_bounds(partition_method, parameter_dir=None, overall_mute_freq=None):  # parameterize the relationship between mutation frequency and naive sequence inaccuracy

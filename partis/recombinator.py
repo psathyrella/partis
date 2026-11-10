@@ -80,12 +80,12 @@ class Recombinator(object):
             self.treeinfo = json.load(treefile)
         os.remove(self.treefname)
 
-        # because when writing bppseqgen input we carefully adjust the per-base rates based on the germline base (so that the prob to go from germline to germline is zero, i.e. we're not at equilibrium) bppseqgen makes too many mutations (since it assumes we're at equilibrium/assumes the rate matrix and initial state are uncorrelated)
-        # we correct for this by multiplying by this heuristic factor, although andy has some corrections that we could calculate, see data/recombinator/andy-bpp-per-base-correction.txt
-        self.per_base_mutation_multiplier = 0.6
+        # with per-base mutation, bppseqgen would make too many mutations, since it normalizes each site's model assuming equilibrium, whereas every site starts at its naive base (and we set the naive base's per-base freq to ~zero). We used to correct for this with a heuristic factor of 0.6 on the whole tree, but now correct each site separately in write_mute_freqs() (see #436, and andy's corrections in data/recombinator/andy-bpp-per-base-correction.txt), then scale each event's tree to give the requested mutation level in get_tree_scale()
+        self.n_capped_events = 0  # number of events whose requested mutation level was higher than we can reach (see get_tree_scale())
 
         self.validation_values = {'heights' : {t : {'in' : [], 'out' : []} for t in ['all'] + utils.regions}}
         self.validation_values['bpp-times'] = []
+        self.validation_values['share-factors'] = []  # see get_share_factor()
 
         self.heavy_chain_events = heavy_chain_events
 
@@ -166,15 +166,12 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def combine(self, initial_irandom, i_choose_tree=None, i_heavy_event=None):
         """ keep running self.try_to_combine() until you get a good event """
-        # NOTE seed once here, not per-retry inside try_to_combine, so retries advance the RNG state naturally rather than consuming new seed values. Lets each event use exactly one seed slot regardless of retry count, avoiding 32-bit seed-space exhaustion at large event counts.
-        numpy.random.seed(initial_irandom)
-        random.seed(initial_irandom)
         line = None
         itry = 0
         while line is None:
             if itry > 0 and self.args.debug:
                 print('    unproductive event -- rerunning (try %d)  ' % itry)  # probably a weirdly long v_3p or j_5p deletion
-            line = self.try_to_combine(initial_irandom, i_choose_tree=i_choose_tree, i_heavy_event=i_heavy_event)
+            line = self.try_to_combine(initial_irandom + itry, i_choose_tree=i_choose_tree, i_heavy_event=i_heavy_event)
             itry += 1
             if itry > self.n_max_tries:
                 raise Exception('too many tries %d in recombinator' % itry)
@@ -184,12 +181,14 @@ class Recombinator(object):
     def try_to_combine(self, irandom, i_choose_tree=None, i_heavy_event=None):
         """
         Create a recombination event and write it to disk
-        <irandom> is used as the per-event UID-hash salt and as the bppseqgen subprocess seed.
-        The global numpy/random state is seeded once per event by combine() (not here), so retries within a single event advance the RNG state naturally.
-        If combine() is called with the same <irandom>, it will find the same event.
+        <irandom> is used as the seed for the myriad random number calls.
+        If combine() is called with the same <irandom>, it will find the same event, i.e. it should be a random number, not just a seed
         """
         if self.args.debug:
             print('combine (seed %d)' % irandom)
+        irandom = irandom % 2**64  # event seeds are 64 bit (see utils.event_seed()), and retries add to them (which can't land on another event's seed in practice, since itry < self.n_max_tries is tiny compared to the 64-bit space)
+        numpy.random.seed([irandom % 2**32, irandom >> 32])  # numpy's legacy seeding only takes 32-bit words
+        random.seed(irandom)
 
         reco_event = RecombinationEvent(self.glfo, uid_hash_len=self.args.uid_hash_len)
         try:
@@ -457,7 +456,7 @@ class Recombinator(object):
             if itry % 500 == 0:
                 print('      %s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far with failcounters: %s)' % ('note:', '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry, '  '.join(fcstrs())))
             if itry > self.n_max_tries:
-                raise SimuGiveUpError('    %s too many tries (%d > %d) when trying to get scratch line so giving up (well, probably retrying from further up, with the RNG state advanced)' % (utils.wrnstr(), itry, self.n_max_tries))
+                raise SimuGiveUpError('    %s too many tries (%d > %d) when trying to get scratch line so giving up (well, probably retrying from further up, i.e. with new/iterated seed)' % (utils.wrnstr(), itry, self.n_max_tries))
 
         # convert insertions back to lengths (hoo boy this shouldn't need to be done)
         for bound in utils.all_boundaries:
@@ -585,6 +584,8 @@ class Recombinator(object):
             if pbcounts is None:
                 pbcounts = {n : def_count(n) for n in utils.nukes}
             pbcounts = {n : def_count(n, count=c) for n, c in pbcounts.items()}  # add pseudocounts (NOTE this is quite a bit less involved than in hmmwriter.py process_mutation_info() and get_emission_prob())
+            if self.args.shm_target_spread != 1:  # scale how concentrated the target distribution is: 0 gives even targets, 1 the parameter dir's, more than 1 more concentrated (the naive base count is 0 here, and stays 0)
+                pbcounts = {n : c**self.args.shm_target_spread if n != naive_base else c for n, c in pbcounts.items()}
             pbcounts = {n : min_count(c, sum(pbcounts.values())) for n, c in pbcounts.items()}  # make sure none of them are too small
             tmptot = sum(pbcounts.values())
             pbcounts = {n : pbcounts[n] / float(tmptot) for n, c in pbcounts.items()}
@@ -611,6 +612,7 @@ class Recombinator(object):
                 cposlist = list(range(cpos, cpos + 3))
 
             # NOTE <inuke> is position/index in the *eroded* sequence that we're dealing with, while <position> is in the uneroded germline gene
+            missing_inukes, conserved_inukes = set(), set()  # positions not in the parameter dir, and conserved codon positions (only used for --shm-rate-spread)
             for inuke in range(len(rseq)):  # append a freq for each nuke
                 position = inuke + all_erosions[region + '_5p']
                 freq = 0.0
@@ -618,12 +620,18 @@ class Recombinator(object):
                     freq = mute_freqs[position]
                 else:
                     freq = mute_freqs['overall_mean']
+                    missing_inukes.add(inuke)
                 if cposlist is not None and position in cposlist:  # set freq for conserved codons to zero
                     freq = 0.0
+                    conserved_inukes.add(inuke)
                 rfreqs[region].append(freq)
                 rtotals[region] += freq
                 if not self.args.no_per_base_mutation:
                     per_base_freqs[region].append(get_pbfreqs(rseq[inuke], pbcounts=mute_counts.get(position), inuke=inuke, rgene=rgene))
+
+            if self.args.shm_rate_spread != 1:  # scale how much rates vary between positions within the region: rate goes as mute_freq^a, so 0 gives flat rates, 1 the parameter dir's, more than 1 more variation (region ratios are applied below, so aren't affected)
+                rfreqs[region] = self.apply_rate_spread(rfreqs[region], missing_inukes, conserved_inukes)
+                rtotals[region] = sum(rfreqs[region])
 
             # normalize to the number of sites in this region, i.e. so an average site is given value 1.0 (I'm not sure that this really needs to be done, but it might not be exactly normalized before this)
             assert rtotals[region] != 0.0
@@ -674,6 +682,14 @@ class Recombinator(object):
             final_total += final_freqs[inuke]
         assert utils.is_normed(final_total / float(len(final_seq)))
 
+        # <final_freqs> are now the speeds at which we want each site to leave its naive base. But bppseqgen normalizes each site's model so its mean rate is 1 *at equilibrium*, whereas each site starts at its naive base, which it leaves faster than this by (1 - pi_naive) / (1 - sum(pi^2)) (where pi is the site's per-base freqs), i.e. faster the more concentrated pi is (see #436).
+        # So we divide each site's rate by its factor before writing it (this has to happen after the normalization above, so that the region ratios and insertion rates are unchanged).
+        written_rates = final_freqs
+        naive_pis = None
+        if not self.args.no_per_base_mutation:
+            naive_pis = [per_base_freqs['final'][i].get(final_seq[i], 0.) for i in range(len(final_seq))]
+            written_rates = [final_freqs[i] * (1. - sum(pf**2 for pf in per_base_freqs['final'][i].values())) / (1. - naive_pis[i]) for i in range(len(final_seq))]
+
         # write the input file for bppseqgen, one base per line
         with open(reco_seq_fname, 'w') as reco_seq_file:
             # NOTE really not sure why this doesn't really [seems to require an "extra" column] work with csv DictWriter, but it doesn't -- bppseqgen barfs (I think maybe it expects a different newline character? don't feel like working it out)
@@ -684,24 +700,63 @@ class Recombinator(object):
             for inuke in range(len(final_seq)):
                 linestr = final_seq[inuke]
                 if not self.args.mutate_from_scratch:
-                    linestr += '\t%f' % final_freqs[inuke]
+                    linestr += ('\t%f' if self.args.no_per_base_mutation else '\t%.8f') % written_rates[inuke]  # dividing by the per-base factor can make some rates pretty small
                 reco_seq_file.write(linestr + '\n')
         if debug:
             print('    wrote %d positions%s to %s' % (len(final_seq), '' if self.args.mutate_from_scratch else ' with per-position rates', reco_seq_fname))
 
+        return final_freqs, naive_pis
+
+    # ----------------------------------------------------------------------------------------
+    def apply_rate_spread(self, freqs, missing_inds, conserved_inds):  # see --shm-rate-spread
+        # positions in the parameter dir get mute_freq^a. Missing ones get the mean of those (rather than overall_mean^a, which by Jensen's inequality would drift low for a > 1 and high for a < 1), and conserved codons stay at 0
+        tvals = {i : f**self.args.shm_rate_spread for i, f in enumerate(freqs) if i not in missing_inds and i not in conserved_inds}
+        fill_val = numpy.mean(list(tvals.values())) if len(tvals) > 0 else 1.
+        return [0. if i in conserved_inds else tvals.get(i, fill_val) for i in range(len(freqs))]
+
+    # ----------------------------------------------------------------------------------------
+    def get_share_factor(self, site_speeds, naive_pis, site_pbfreqs, naive_seq, tree_scale, heights):
+        # chance that two unrelated sequences of this family's rearrangement carry the same (position, base) mutation, relative to flat rates and even targets (so 1 means no more sharing than with no structure at all).
+        # Uses each position's expected fraction mutated at the scaled tree's mean leaf height (so includes saturation), times its target distribution over the three non-naive bases
+        offvals = 1. - numpy.array(naive_pis)
+        mfracs = offvals * -numpy.expm1(-numpy.array(site_speeds) * tree_scale * numpy.mean(heights) / offvals)
+        if sum(mfracs) == 0:
+            return None
+        share = sum((mf * pbf[b] / (1. - pbf.get(nb, 0.)))**2 for mf, pbf, nb in zip(mfracs, site_pbfreqs, naive_seq) for b in utils.nukes if b != nb)
+        return share / (len(mfracs) * numpy.mean(mfracs)**2 / 3.)
+
+    # ----------------------------------------------------------------------------------------
+    def get_tree_scale(self, tree, site_speeds, naive_pis, max_fraction_of_reachable=0.99):
+        # Return the factor by which to scale <tree> so that the expected fraction of mutated positions in its leaves equals its mean leaf height (i.e. the requested mutation level).
+        # A site that leaves its naive base with speed r, and whose naive base has per-base freq p (so a fraction ~p of subsequent mutations go back to it), is off its naive base after time t with probability (1 - p) * (1 - exp(-r t / (1 - p))).
+        # This is less than r*t, since a site can't be counted as mutated twice, and the difference gets bigger as the mutation level gets higher and the more the speeds vary between sites.
+        heights = numpy.array(list(treeutils.get_leaf_depths(tree).values()))
+        target = numpy.mean(heights)
+        if target == 0:  # e.g. families drawn from the zero-mutation bin
+            return 1.
+        speeds, offvals = numpy.array(site_speeds), 1. - numpy.array(naive_pis)
+        def expected_fraction(scale):
+            return numpy.mean(offvals[:, None] * -numpy.expm1(-numpy.outer(speeds / offvals, heights * scale)))
+        max_reachable = numpy.mean(offvals * (speeds > 0))  # sites with zero speed (e.g. conserved codons) can never mutate
+        if target > max_fraction_of_reachable * max_reachable:
+            target = max_fraction_of_reachable * max_reachable
+            self.n_capped_events += 1
+        lo, hi = 0., 1.
+        while expected_fraction(hi) < target:
+            lo, hi = hi, 2 * hi
+        for _ in range(100):
+            mid = 0.5 * (lo + hi)
+            if expected_fraction(mid) < target:
+                lo = mid
+            else:
+                hi = mid
+            if hi - lo < 1e-9 * hi:
+                break
+        return 0.5 * (lo + hi)
+
     # ----------------------------------------------------------------------------------------
     def prepare_bppseqgen(self, cmdfos, reco_event, seed):
         """ write input files and get command line options necessary to run bppseqgen on <seq> (which is a part of the full query sequence) """
-        tmptree = copy.deepcopy(reco_event.tree)  # we really don't want to modify the tree in the event
-        if not self.args.no_per_base_mutation:
-            if self.args.debug:
-                print('      rescaling tree by %.2f to account for non-equilibrium per-base mutation' % self.per_base_mutation_multiplier)
-            tmptree.scale_edges(self.per_base_mutation_multiplier)
-        for node in tmptree.preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
-            node.taxon = None
-        chosen_tree = tmptree.as_string(schema='newick').strip()
-        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_leaf_height(treestr=chosen_tree))  # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen; see https://github.com/BioPP/bppsuite/issues/3)
-
         workdir = self.workdir + '/bpp'
         treefname = workdir + '/tree.tre'
         reco_seq_fname = workdir + '/start-seq.txt'
@@ -709,10 +764,25 @@ class Recombinator(object):
         workfnames = [reco_seq_fname, treefname]
 
         os.makedirs(workdir)
+        per_base_freqs = {} if not self.args.no_per_base_mutation else None
+        site_speeds, naive_pis = self.write_mute_freqs(reco_event, reco_seq_fname, per_base_freqs=per_base_freqs)
+
+        tmptree = copy.deepcopy(reco_event.tree)  # we really don't want to modify the tree in the event (so the tree we write to output keeps its meaning: its height is the requested mutation level)
+        if not self.args.no_per_base_mutation:
+            tree_scale = self.get_tree_scale(tmptree, site_speeds, naive_pis)
+            if self.args.debug:
+                print('      rescaling tree by %.3f so the expected fraction of mutated positions matches the requested mutation level' % tree_scale)
+            if self.args.shm_rate_spread != 1 or self.args.shm_target_spread != 1 or self.args.check_tree_depths:
+                sfactor = self.get_share_factor(site_speeds, naive_pis, per_base_freqs['final'], reco_event.recombined_seq, tree_scale, list(treeutils.get_leaf_depths(tmptree).values()))
+                if sfactor is not None:
+                    self.validation_values['share-factors'].append(sfactor)
+            tmptree.scale_edges(tree_scale)
+        for node in tmptree.preorder_internal_node_iter():  # bppseqgen barfs if any node labels aren't of form t<N>, so we have to de-label all the internal nodes, which have been labelled by the code in treeutils
+            node.taxon = None
+        chosen_tree = tmptree.as_string(schema='newick').strip()
+        chosen_tree = '(%s,%s:%.15f):0.0;' % (chosen_tree.rstrip(';'), dummy_name_so_bppseqgen_doesnt_break, treeutils.get_mean_leaf_height(treestr=chosen_tree))  # add dummy leaf that we'll subsequently ignore (such are the vagaries of bppseqgen; see https://github.com/BioPP/bppsuite/issues/3)
         with open(treefname, 'w') as treefile:
             treefile.write(chosen_tree)
-        per_base_freqs = {} if not self.args.no_per_base_mutation else None
-        self.write_mute_freqs(reco_event, reco_seq_fname, per_base_freqs=per_base_freqs)
 
         bpp_path = '%s/packages/%s' % (self.args.partis_dir, 'bpp-newlik/_build' if not self.args.no_per_base_mutation else 'bpp')
         bpp_binary = '%s/bin/bppseqgen' % bpp_path
@@ -746,7 +816,7 @@ class Recombinator(object):
                 plines += ['process1 = Homogeneous(model=model1, tree=1, rate=1)']  # not really sure what the rate does here
                 plines += ['simul1 = Single(process=%d, output.sequence.file=%s)' % (len(full_seq) + 1, leaf_seq_fname)]
             else:  # default: per-position read from parameter file
-                # NOTE/TODO this successfully gets us per-base mutation rates, but the overall mutation isn't right -- the more asymmetric the rates to the four bases, the higher the tree depth bppseqgen gives back. Not sure why yet
+                # NOTE the more asymmetric the rates to the four bases, the faster bppseqgen mutates a site away from its naive base, which we correct for in write_mute_freqs() (see #436)
                 # updating bio++ to (mostly) newlik branch, maybe roughly the same as v2.4.0?
                 # https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!msg/biopp-devel-forum/cX-Q9aks7CA/mW1uQfCy-nUJ
                 # general philosophy here: download + compile a specific version of bio++, test it *thoroughly* to make sure it's doing *exactly* the mutation we need, and then only allow use of that specific version (this probably screws people on other operating systems, or at least they'll have to recompile)
@@ -850,14 +920,6 @@ class Recombinator(object):
 
     # ----------------------------------------------------------------------------------------
     def add_mutants(self, reco_event, irandom, i_choose_tree=None):
-        if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # some of the stuff below fails if mut mult is actually 0.
-            reco_event.final_seqs.append(reco_event.recombined_seq)  # set final sequnce in reco_event
-            reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(len(reco_event.final_seqs))]
-            # reco_event.setline(irandom)  # doesn't work
-            if self.args.rearrange_from_scratch:
-                print('  %s not setting reco_event.line, which may cause a crash. If you\'re setting --mutation-multiplier to exactly zero you can fix this by setting it to arbitrary very small value e.g. 0.00000001 (sorry)' % utils.wrnstr())
-            return
-
         # When generating trees, each tree's number of leaves and total depth are chosen from the specified distributions (a.t.m., by default n-leaves is from a geometric/zipf, and depth is from data)
         # This chosen depth corresponds to the sequence-wide mutation frequency (the newick trees have branch lengths corresponding to the whole sequence  (i.e. the weighted mean of v, d, and j))
         # In order to account for varying mutation rates in v, d, and j we also get the repertoire-wide ratio of mutation freqs for each region from treegenerator
@@ -876,6 +938,14 @@ class Recombinator(object):
         reco_event.set_tree(chosen_treestr)  # leaf names are still just like t<n>
         if self.args.mutation_multiplier is not None:
             reco_event.tree.scale_edges(self.args.mutation_multiplier)
+        if self.args.mutation_multiplier is not None and self.args.mutation_multiplier == 0.:  # no mutation, so skip bppseqgen (which fails with zero-length trees) and give every leaf the unmutated naive sequence (this also skips shm indels, so --indel-frequency has no effect)
+            n_leaves = treeutils.get_n_leaves(reco_event.tree)
+            reco_event.final_seqs = [reco_event.recombined_seq for _ in range(n_leaves)]
+            reco_event.leaf_names = ['t%d' % (i + 1) for i in range(n_leaves)]  # same leaf naming as read_bppseqgen_output()
+            reco_event.final_codon_positions = [copy.deepcopy(reco_event.post_erosion_codon_positions) for _ in range(n_leaves)]
+            reco_event.indelfos = [indelutils.get_empty_indel() for _ in range(n_leaves)]
+            reco_event.setline(irandom)
+            return
 
         if self.args.debug:
             mheight = treeutils.get_mean_leaf_height(tree=reco_event.tree)
@@ -883,7 +953,7 @@ class Recombinator(object):
             print('    regional heights:  %s' % ('   '.join(['%s %.3f' % (r, mheight * self.treeinfo['branch-length-ratios'][r]) for r in utils.regions])))
 
         cmdfos = []
-        self.prepare_bppseqgen(cmdfos, reco_event, seed=irandom)
+        self.prepare_bppseqgen(cmdfos, reco_event, seed=irandom % 2**63)  # bppseqgen reads its seed as a (signed 64-bit) long
         assert len(cmdfos) == 1  # used to be one cmd for each region
 
         start = time.time()
@@ -926,6 +996,8 @@ class Recombinator(object):
     # ----------------------------------------------------------------------------------------
     def print_validation_values(self):  # the point of having this separate from the previous function is that it's run after you've simulated lots of different events (unlike everything else in this class, the validation values aggregate over different events)
         print('  input tree height vs output mut frac (means over leaves/seqs) averaged over %d events:' % len(self.validation_values['heights']['all']['in']))
+        if len(self.validation_values['heights']['all']['in']) == 0:  # e.g. with --mutation-multiplier 0, which skips bppseqgen (and these checks)
+            return
         print('             in      out       diff    std err   std dev')
         for vtype in ['all'] + utils.regions:
             vvals = self.validation_values['heights'][vtype]

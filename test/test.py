@@ -120,7 +120,7 @@ class Tester(object):
         return ptest.startswith('subset-')
     # ----------------------------------------------------------------------------------------
     def sclust_sizes(self):  # NOTE depends on self.n_simu_leaves
-        return (15, 20) if args.slow else (5, 10)
+        return (15, 20) if args.slow else (5, 15)
     # ----------------------------------------------------------------------------------------
     def min_smetric_cluster_size(self):
         return 10 if args.slow else 3
@@ -144,7 +144,7 @@ class Tester(object):
         self.dtypes = ['data', 'simu']
         if not os.path.exists(self.dirs('new')):
             os.makedirs(self.dirs('new'))
-        self.common_extras = ['--random-seed', '1', '--n-procs', '10']  # would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you change the number of procs
+        self.common_extras = ['--random-seed', '1', '--n-procs', '10', '--no-time-based-n-proc-reduction']  # --no-time-based-n-proc-reduction: otherwise partition results depend on how long each clustering step takes, i.e. on machine load (see #419). Would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you change the number of procs
         self.label = 'test' #  i really don't think there's any reason to have this, but i don't feel like removing it atm since it's not really causing much complication
 
         self.tiny_eps = 1e-4
@@ -381,7 +381,7 @@ class Tester(object):
             for subd in ['', '/*+*/partition-*']:
                 for tmeth in ['fasttree', 'iqtree']:
                     for ftp in ['fasttree.out', 'log*', 'input-seqs.fa']:
-                        tfns += glob.glob('%s%s/%s/iclust-*/%s' % (self.opath('partition-new-simu', st='new'), subd, tmeth, ftp))
+                        tfns += glob.glob('%s%s/%s/iclust-*/%s' % (utils.getprefix(self.opath('partition-new-simu', st='new')), subd, tmeth, ftp))  # strip the .yaml suffix that opath() adds for single chain, since the tree inference dirs are next to the output file
             for ffn in [f for f in tfns if os.path.exists(f)]:
                 rm_file(ffn)
         if len(files_to_rm) > 0:
@@ -407,6 +407,8 @@ class Tester(object):
     # ----------------------------------------------------------------------------------------
     def run(self, args):
         if not args.dry_run:
+            if os.path.exists(self.logfname) and os.path.getsize(self.logfname) > 0:  # keep the previous run's log (e.g. if it failed) rather than truncating it (only one generation, since numbered copies would pile up in new-results)
+                os.rename(self.logfname, self.logfname + '.prev')
             open(self.logfname, 'w').close()
 
         os.environ['PYTHONHASHSEED'] = '0'  # turn off hash seed randomization for repeatable results
@@ -467,6 +469,7 @@ class Tester(object):
                 # print err  # this just says it exited with code != 0
                 print('  log tail: %s' % self.logfname)
                 print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
+                print('  full log, including the output of nested partis processes (where the actual error usually is, above the tail): %s' % self.logfname)
                 sys.exit(1)  # raise Exception('exited with error')
             self.run_times[name] = time.time() - start  # seconds
 

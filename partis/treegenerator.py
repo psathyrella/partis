@@ -23,6 +23,7 @@ class TreeGenerator(object):
         self.parameter_dir = parameter_dir
         self.n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
         self.n_leaf_hist = None
+        self.generate_trees_depth = 0.1  # depth of trees written with --generate-trees: they're only read back with --input-simulation-treefname, which replaces each tree's depth (read_input_tree_file()), so this only affects their shape, which for TreeSim's rates is the same for any depth up to ~0.15. Using a drawn depth instead would give zero-depth trees for unmutated bins, which can't be rescaled
 
         self.set_branch_lengths()  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         self.init_n_leaves()
@@ -36,6 +37,20 @@ class TreeGenerator(object):
         # NOTE this helps, but is not sufficient, because the mutation rate is super dominated by a relative few very highly mutated positions
         argument = max(1e-2, 1. - (4./3)* mute_freq)  # HACK arbitrarily cut it off at 0.01 (only affects the very small fraction with mute_freq higher than about 0.75)
         return -(3./4) * math.log(argument)
+
+    #----------------------------------------------------------------------------------------
+    def get_n_muted_length(self, mtype, n_muted_hist):
+        # length by which to divide the number of mutations in <n_muted_hist> to get the fraction of positions mutated: the ratio of the mean number of mutations to the mean fraction mutated in the parameter dir, so it reflects the sequences that were actually counted (locus, read coverage, ambiguous bases, erosion).
+        # Fall back to utils.typical_lengths (heavy chain, full length) if there's no mutation (in which case the length doesn't matter), or the mean fraction can't be determined.
+        mean_n = n_muted_hist.get_mean()
+        mean_freq = utils.get_mean_mfreq(self.parameter_dir, region=mtype, exact=True, n_muted_hist=n_muted_hist) if mean_n > 0 else None
+        if mean_freq is None or mean_freq == 0:
+            length = utils.typical_lengths[mtype]
+        else:
+            length = mean_n / mean_freq
+        if self.args.debug:
+            print('      %4s: dividing n mutated by length %.1f%s' % (mtype, length, ' (typical length)' if mean_freq is None or mean_freq == 0 else ''))
+        return length
 
     #----------------------------------------------------------------------------------------
     def get_mute_hist(self, mtype):
@@ -61,7 +76,8 @@ class TreeGenerator(object):
             def gfn(mstr): return  '%s/%s-mean-%s.csv' % (self.parameter_dir, mtype, mstr)
             if os.path.exists(gfn('n-muted')):  # we used to only write the mute-freqs one, but using that causes bin width issues with very unmutated samples, so now we use n-muted if possible
                 hist = Hist(fname=gfn('n-muted'))
-                hist.low_edges = [float(e) / utils.typical_lengths[mtype] for e in hist.low_edges]
+                length = self.get_n_muted_length(mtype, hist)
+                hist.low_edges = [float(e) / length for e in hist.low_edges]
             else:
                 hist = Hist(fname=gfn('mute-freqs'))
 
@@ -72,13 +88,14 @@ class TreeGenerator(object):
         self.branch_lengths = {}
         for mtype in ['all'] + utils.regions:
             hist = self.get_mute_hist(mtype)
+            mean_val = hist.get_mean()  # take the mean before normalizing, since normalize() below leaves the overflow bin unnormalized. This counts overflows at the overflow bin's center, which is a lower bound for them, but still closer to the true mean than ignoring them
             hist.normalize(include_overflows=False, expect_overflows=True)  # if it was written with overflows included, it'll need to be renormalized
             lengths, probs = [], []
             for ibin in range(1, hist.n_bins + 1):  # ignore under/overflow bins
                 freq = hist.get_bin_centers()[ibin]
                 lengths.append(self.convert_observed_changes_to_branch_length(float(freq)))
                 probs.append(hist.bin_contents[ibin])
-            self.branch_lengths[mtype] = {'mean' : hist.get_mean(), 'lengths' : lengths, 'probs' : probs}
+            self.branch_lengths[mtype] = {'mean' : mean_val, 'lengths' : lengths, 'probs' : probs}
 
             if not utils.is_normed(probs):
                 raise Exception('not normalized %f' % check_sum)
@@ -175,7 +192,7 @@ class TreeGenerator(object):
         cmd_lines += ['set.seed(' + str(seed)+ ')']
         for itree in range(self.args.n_trees):
             n_leaves = self.choose_n_leaves()
-            age = self.choose_full_sequence_branch_length()
+            age = self.choose_full_sequence_branch_length() if not self.args.generate_trees else self.generate_trees_depth
             ages.append(age)
             if n_leaves == 1:  # add singleton trees by hand
                 treestrs.append('t1:%f;' % age)
@@ -224,6 +241,7 @@ class TreeGenerator(object):
             print('  reading trees from %s' % self.args.input_simulation_treefname)
         utils.simplerun('cp %s %s' % (self.args.input_simulation_treefname, outfname), debug=False)
         ages, treestrs = [], []
+        n_zero_depth = 0
         with open(outfname) as treefile:
             for line in treefile:
                 tstr = line.strip()
@@ -235,6 +253,8 @@ class TreeGenerator(object):
                 old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
                 treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
                 age = self.choose_full_sequence_branch_length()
+                if age > 0 and treeutils.get_mean_leaf_height(tree=dtree) == 0:  # all branch lengths are zero, so rescale_tree() can't give it a nonzero depth
+                    n_zero_depth += 1
                 if self.args.debug > 1:  # it's easier to keep this debug line separate up here than make a tmp variable to keep track of the old height
                     print('    input tree %d (rescaled depth %.3f --> %.3f):' % (len(ages), treeutils.get_mean_leaf_height(tree=dtree), age))
                 treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
@@ -242,6 +262,8 @@ class TreeGenerator(object):
                 treestrs.append(dtree.as_string(schema='newick').strip())
                 if self.args.debug > 1:
                     print(utils.pad_lines(treeutils.get_ascii_tree(dtree)))
+        if n_zero_depth > 0:
+            print('  %s %d input tree%s from %s had zero depth (all branch lengths zero), so can\'t be rescaled, and their families will be unmutated' % (utils.wrnstr(), n_zero_depth, utils.plural(n_zero_depth), self.args.input_simulation_treefname))
         if any(a > 1. for a in ages):  # maybe it's ok to change this to a warning? seems to be working
             # raise Exception('tree depths must be less than 1., but trees read from %s don\'t satisfy this: %s' % (self.args.input_simulation_treefname, ages))
             print('  %s read tree[s] with depth[s] greater than 1. from %s (see comment in choose_full_sequence_branch_length()): %s' % (utils.color('yellow', 'warning'), self.args.input_simulation_treefname, ' '.join('%.2f'%a for a in sorted(ages, reverse=True))))

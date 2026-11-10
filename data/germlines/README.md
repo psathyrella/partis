@@ -23,6 +23,33 @@ by aligning to the old set, so an extras.csv in the new set is optional; add
 Default is a dry run; add `--write` to write the merged set. It prints the added and
 old-only gene names plus the conflicts (redirect stdout to a file for a record -- see the
 per-species changelog/ dirs). Review the output and every warning before committing.
+New genes whose conserved codon can't be used (the sequence ends before it, or a v cysteine
+is out of frame) are left out of the merge and listed.
+
+After every merge, rewrite the functionality file and then remove non-functional genes
+(logging each to changelog/ as above):
+  ./data/germlines/write-functionalities.py --species <species> --write
+  ./data/germlines/remove-nonfunctional-genes.py --species <species> --write
+  ./data/germlines/write-functionalities.py --species <species> --write
+
+## Functionality and unusable genes (issue #421)
+
+`<species>/functionalities.csv` gives every gene's functionality (F, ORF, P, or blank if
+unknown), with where it came from and the sequence it applies to. It's written by
+`write-functionalities.py`, which labels by sequence only (never by name): exact match to
+the IMGT GENE-DB download in `imgt-download/genedb/` (`get-genedb.sh`; all F, ORF and P
+entries), then for macaque exact match to OGRDB's `functional` field
+(`ogrdb-download/macaque/get-functional.py`), then the nearest IMGT entry within 8 nt.
+partis uses it to keep non-F genes out of from-scratch simulation; annotation doesn't use it.
+NOTE `imgt-download/human/` is a different, smaller IMGT download (F+ORF+in-frame P).
+
+`remove-unusable-genes.py` removes genes whose conserved codon can't be used (see its
+docstring); it was run on human and macaque in 2026-10 (see changelog/).
+
+The default human and macaque sets contain only functional (F) genes: `remove-nonfunctional-genes.py`
+removes ORF, P, and unknown-functionality genes (reasons in its docstring and in
+https://github.com/psathyrella/partis/issues/421#issuecomment-6007296922). To use non-functional
+genes, pass your own set with `--initial-germline-dir`.
 
 ---
 
@@ -33,6 +60,11 @@ human: download from https://ogrdb.airr-community.org/germline_sets/Human
     - input file doesn't matter/isn't used
     - add something like: `glutils.write_glfo('ogrdb-ref/ogrdb-sanitized', glfo, debug=True)` to `bin/partis` where `args.sanitize_input_germlines` gets used
   - also added genes from genomic sequencing in engelbrecht/rodriguez papers, downloaded from vdjbase
+    (2026, issue #396): the vdjbase download is in vdjbase-download/human/, where
+    split-germlines.py and process-germlines.py combine it with imgt-download/human/ (see
+    process-germlines.py for how to rerun it). That set was built for annotating one cohort,
+    so it kept imgt ORFs and genes with unusable conserved codons; the latter were removed in
+    2026-10 (issue #421).
 
 macaque/ is merged from imgt, ramesh, and ogrdb (the bulk of it is now ogrdb)
   - ogrdb https://ogrdb.airr-community.org/germline_sets/Macaca%20mulatta
@@ -46,6 +78,9 @@ macaque/ is merged from imgt, ramesh, and ogrdb (the bulk of it is now ogrdb)
     changelog/2026-07-30-ogrdb-macaque-update.log; nobody has yet checked whether these
     are real upstream removals (in which case we'd want to drop them) or just genes
     ogrdb hasn't included.
+  - in 2026-10 16 macaque v genes with an out-of-frame cysteine were removed (issue #421,
+    changelog/2026-10-05-remove-unusable-genes.log), including the 9 IGLV0-D2KF/JFFW alleles,
+    which have a 4-nt FR3 deletion (ogrdb calls them functional).
 
 mouse/ is merged from imgt, ogrdb c57bl, and ogrdb balbc
 
