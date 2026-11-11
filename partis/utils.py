@@ -8244,10 +8244,10 @@ def get_version_info(debug=False):
     return vinfo
 
 # ----------------------------------------------------------------------------------------
-def write_only_partition(fname, partition):
+def write_only_partition(fname, partition, glfo=None):
     from . import clusterpath
     cpath = clusterpath.ClusterPath(partition=partition)
-    write_annotations(fname, None, [], None, partition_lines=cpath.get_partition_lines())
+    write_annotations(fname, glfo, [], None, partition_lines=cpath.get_partition_lines())
 
 # ----------------------------------------------------------------------------------------
 def write_empty_annotations(fname, locus):

@@ -2,6 +2,7 @@ import os
 import random
 import re
 
+import numpy as np
 import pytest
 
 from _helpers import HFRAC_ARGS, LOCI, PAIRED_PARAM_DIR, copy_dir, disjoint_dir, group_cmds, group_stage_path, locus_manifest, paired_partition_args, partition_fname, read_log, read_yaml, run_partis, run_partis_fails
@@ -284,6 +285,24 @@ def test_naive_threshold_matches_scalar_reference(monkeypatch, block):
         assert type(threshold) is float and threshold == _naive_threshold_reference(partition, uid_sw_naives)
 
 
+def test_naive_threshold_p90_index_on_distinct_distances():
+    # tied distances would hide an off-by-one in the order statistic
+    naives = ['A' * (2 ** k - 1) + 'C' * 2 ** k + 'A' * (128 - 2 ** (k + 1) + 1) for k in range(7)]  # distance (2^j + 2^k) / 128
+    hams = sorted(prf.hamming_frac(a, b) for i, a in enumerate(naives) for b in naives[i + 1:])
+    assert len(set(hams)) == len(hams)
+    cluster = ['u%d' % i for i in range(len(naives))]
+    assert prf.estimate_naive_threshold([cluster], dict(zip(cluster, naives))) == hams[int(len(hams) * 0.90)]
+
+
+@pytest.mark.parametrize('n', [2, 3, 10, 41])
+@pytest.mark.parametrize('block', [1, 5, 1000])
+def test_upper_triangle_pair_blocks_match_triu_indices(n, block):
+    blocks = list(prf.upper_triangle_pair_blocks(n, block))
+    ia, ib = np.triu_indices(n, k=1)
+    assert np.array_equal(np.concatenate([a for a, _ in blocks]), ia) and np.array_equal(np.concatenate([b for _, b in blocks]), ib)
+    assert all(len(a) < block + n for a, _ in blocks)
+
+
 def _certified_reference(frag_of_uid, uid_muts, ej_floor):
     uids, n_certified, frag_pairs = sorted(u for u in uid_muts if u in frag_of_uid), 0, set()
     for i, a in enumerate(uids):
@@ -342,6 +361,17 @@ def test_sample_null_matches_scalar_reference(monkeypatch, chunk):
         assert out == _sample_null_reference(_FakeEvidence(frags), n_target, naives, vdjs, 0.3)
         lens.append(len(out))
     assert lens[:3] == [1, 20, 100] and 100 < lens[3] < 2000
+
+
+def test_sample_null_boundary_and_excluded_fragments():
+    # a pair exactly at the threshold is not null, and fragments with no vdj or no mutated member are never drawn
+    frags = [['a1', 'a2'], ['b1', 'b2'], ['c1', 'c2'], ['d1', 'd2'], ['e1', 'e2']]
+    naives = ['AAAA', 'AAAC', 'AACC', 'CCCC', 'CCCC']
+    vdjs = [('v1', 'd', 'j')] * 3 + [None, ('v1', 'd', 'j')]
+    ev = _FakeEvidence(frags)
+    ev.fps[4] = ({}, 0)
+    out = prf._MergeEvidence.sample_null(ev, 100, naives, vdjs, 0.25)
+    assert sorted(out) == [2]  # (0, 2) at 0.5; (0, 1) and (1, 2) sit at 0.25
 
 
 def test_null_pvalue_not_cached():
@@ -403,6 +433,29 @@ def test_write_singletons_result(tmp_path):
     ha_repartition._write_singletons_result(fname, glfo, ['a', 'b', 'c'])
     _, antns, cpath = utils.read_output(fname, glfo=glfo)
     assert sorted(cpath.best()) == [['a'], ['b'], ['c']] and antns == []
+
+
+def _bundle_specs(sizes):
+    return [{'group': {'sequence_count': n}} for n in sizes]
+
+
+def test_refine_bundles_without_large_groups_match_contiguous_slices():
+    for n_groups in range(1, 30):
+        for n_bundles in range(1, n_groups + 1):
+            size = int(np.ceil(n_groups / float(n_bundles)))
+            serial, parallel = prf.refine_bundles(_bundle_specs([5] * n_groups), n_bundles, serial_min_seqs=10)
+            assert serial == [] and parallel == [(s, min(size, n_groups - s)) for s in range(0, n_groups, size)]
+
+
+def test_refine_bundles_large_groups_run_alone():
+    rng = random.Random(11)
+    assert prf.refine_bundles([], 4, 50) == ([], [])
+    for _ in range(300):
+        sizes = [rng.choice([1, 5, 50]) for _ in range(rng.randint(1, 25))]
+        serial, parallel = prf.refine_bundles(_bundle_specs(sizes), rng.randint(1, 8), serial_min_seqs=50)
+        assert serial == [(i, 1) for i, n in enumerate(sizes) if n >= 50]
+        covered = sorted(i for start, count in serial + parallel for i in range(start, start + count))
+        assert covered == list(range(len(sizes))) and all(sizes[i] < 50 for start, count in parallel for i in range(start, start + count))
 
 
 def _snap_reference(groups):

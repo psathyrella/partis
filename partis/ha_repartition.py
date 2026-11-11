@@ -372,10 +372,9 @@ def read_task_list(path):
 
 
 def _write_singletons_result(outfname, glfo, uids):
-    from partis import utils, clusterpath
+    from partis import utils
     print('    %s no sw-passing query, writing %d singletons to %s' % (utils.wrnstr(), len(uids), outfname))
-    cpath = clusterpath.ClusterPath(partition=[[u] for u in uids])
-    utils.write_annotations(outfname, glfo, [], utils.annotation_headers, partition_lines=cpath.get_partition_lines())
+    utils.write_only_partition(outfname, [[u] for u in uids], glfo=glfo)
 
 
 def run_jobs_in_process(jobs, args, glfo, timing_csv=None):
