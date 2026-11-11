@@ -22,6 +22,7 @@ integrated --partition-refine flag), which run run_jobs() over the disjoint grou
 """
 import bisect
 import csv
+import itertools
 import json
 import math
 import os
@@ -31,7 +32,16 @@ import tempfile
 import time
 from collections import defaultdict, namedtuple
 import numpy as np
+from scipy import sparse
 from scipy.special import bdtrc
+
+# block sizes for vectorized pair work: memory bounds only, output is identical at any value
+HAMMING_PAIR_BLOCK = 100000  # naive pairs per hamming_frac_rows call, bounds its per-call temporaries
+CROSS_PAIRS_BLOCK_ENTRIES = 10000000  # uid pairs per block of the shared-mutation product, and mutation entries per exact-count gather
+MERGE_NULL_DRAW_CHUNK = 10000  # null draws per batched naive distance computation
+
+N_BASE = 'N'
+N_BYTE = ord(N_BASE)
 
 
 def load_hmm_naives(hmm_annotation_path, sw_naives=None):
@@ -79,7 +89,7 @@ def hamming_frac(s1, s2):
     compared = 0
     diffs = 0
     for a, b in zip(s1[:n], s2[:n]):
-        if a == 'N' or b == 'N':
+        if a == N_BASE or b == N_BASE:
             continue
         compared += 1
         if a != b:
@@ -87,12 +97,31 @@ def hamming_frac(s1, s2):
     return diffs / compared if compared > 0 else 1.0
 
 
+def encode_naives(naives):
+    """(n, max len) uint8 rows of <naives>, padded with N (None is all N), for hamming_frac_rows."""
+    enc = np.full((len(naives), max([len(s) for s in naives if s is not None], default=0)), N_BYTE, dtype=np.uint8)
+    for i, s in enumerate(naives):
+        if s:
+            enc[i, :len(s)] = np.frombuffer(s.encode(), dtype=np.uint8)
+    return enc
+
+
+def hamming_frac_rows(enc, ia, ib):
+    """hamming_frac between rows ia[k] and ib[k] of encode_naives output, for each k."""
+    a, b = enc[ia], enc[ib]
+    valid = (a != N_BYTE) & (b != N_BYTE)
+    compared, diffs = valid.sum(axis=1), ((a != b) & valid).sum(axis=1)
+    out = np.ones(len(ia))
+    np.divide(diffs, compared, out=out, where=compared > 0)
+    return out
+
+
 def get_mutations(seq, naive):
     if len(seq) != len(naive):  # zip would silently truncate a frame mismatch
         raise Exception('seq (%d) and naive (%d) different lengths' % (len(seq), len(naive)))
     muts = set()
     for i, (s, n) in enumerate(zip(seq, naive)):
-        if s != n and s != 'N' and n != 'N':
+        if s != n and s != N_BASE and n != N_BASE:
             muts.add(i)
     return muts
 
@@ -110,7 +139,7 @@ def get_mutations_with_base(seq, naive):
         raise Exception('seq (%d) and naive (%d) different lengths' % (len(seq), len(naive)))
     muts = {}
     for i, (s, n) in enumerate(zip(seq, naive)):
-        if s != n and s != 'N' and n != 'N':
+        if s != n and s != N_BASE and n != N_BASE:
             muts[i] = s
     return muts
 
@@ -118,34 +147,47 @@ def get_mutations_with_base(seq, naive):
 NAIVE_THRESHOLD_FALLBACK = 0.01  # used only when no cluster is big enough to fit a threshold on
 
 
+def upper_triangle_pair_blocks(n, block):
+    """(ia, ib) index arrays covering every i < j < n in np.triu_indices order, about <block> pairs at a time."""
+    ia, ib, n_pairs = [], [], 0
+    for i in range(n - 1):
+        ia.append(np.full(n - 1 - i, i))
+        ib.append(np.arange(i + 1, n))
+        n_pairs += n - 1 - i
+        if n_pairs >= block or i == n - 2:
+            yield np.concatenate(ia), np.concatenate(ib)
+            ia, ib, n_pairs = [], [], 0
+
+
+def all_pair_hammings(naives):
+    """hamming_frac of every unordered pair of <naives>, as one array."""
+    enc = encode_naives(naives)
+    return np.concatenate([hamming_frac_rows(enc, ia, ib) for ia, ib in upper_triangle_pair_blocks(len(naives), HAMMING_PAIR_BLOCK)])
+
+
 def estimate_naive_threshold(partition, uid_sw_naives):
     within_hammings = []
     for cluster in partition:
         if len(cluster) < 3:
             continue
-        cluster_naives = {}
-        for uid in cluster:
-            if uid in uid_sw_naives:
-                cluster_naives[uid] = uid_sw_naives[uid]
         # dedup by sequence, so pairs of identical naives contribute nothing: the quantile below is
         # fitted on the naives that disagree, not on every within-cluster pair
-        unique_naives = list(set(cluster_naives.values()))
+        unique_naives = list(set(uid_sw_naives[uid] for uid in cluster if uid in uid_sw_naives))
         if len(unique_naives) < 2:
             continue
-        for i in range(len(unique_naives)):
-            for j in range(i + 1, len(unique_naives)):
-                h = hamming_frac(unique_naives[i], unique_naives[j])
-                within_hammings.append(h)
+        within_hammings.append(all_pair_hammings(unique_naives))
     if len(within_hammings) == 0:
         from partis import utils
         print('  %s no within-cluster naive pairs, so the merge threshold falls back to %.3f rather than being fitted' % (utils.wrnstr(), NAIVE_THRESHOLD_FALLBACK), flush=True)
         return NAIVE_THRESHOLD_FALLBACK
-    within_hammings.sort()
+    within_hammings = np.concatenate(within_hammings)
     n = len(within_hammings)
-    p90 = within_hammings[min(int(n * 0.90), n - 1)]
+    i_median, i_p90 = n // 2, min(int(n * 0.90), n - 1)
+    within_hammings.partition([i_median, i_p90])  # puts these two order statistics where a full sort would
+    p90 = float(within_hammings[i_p90])  # a plain float, so the cache's repr() round trips
     print('  within-cluster SW naive hamming (%d pairs):' % n)
     print('    median: %.4f, p90: %.4f, max: %.4f' % (
-        within_hammings[n // 2], p90, within_hammings[-1]))
+        within_hammings[i_median], p90, within_hammings.max()))
     print('  adaptive naive threshold (p90): %.4f' % p90)
     return p90
 
@@ -251,38 +293,75 @@ def snap_unsupported(groups):
         return groups, 0
     out = dict((nv, list(mem)) for nv, mem in supported)
     n_snapped = 0
+    enc = encode_naives([nv for nv, _ in supported] + [nv for nv, mem in groups if len(mem) < 2])
+    isup, iun = np.arange(len(supported)), len(supported)
     for nv, mem in groups:
         if len(mem) >= 2:
             continue
+        dists = hamming_frac_rows(enc, np.full(len(supported), iun), isup).tolist()
+        iun += 1
         # nearest wins at any distance, and the key reads the frozen list so order cannot matter
-        best = min(supported, key=lambda s: (hamming_frac(nv, s[0]), -len(s[1]), s[0]))
+        best = supported[min(isup.tolist(), key=lambda k: (dists[k], -len(supported[k][1]), supported[k][0]))]
         out[best[0]].extend(mem)
         n_snapped += len(mem)
     return list(out.items()), n_snapped
 
 
-def cross_shared_counts(frag_of_uid, uid_muts):
-    """Shared base-specific mutation count for each cross-fragment uid pair sharing at least one.
-    Pairs sharing none are absent."""
-    inv = defaultdict(list)
-    for uid, muts in uid_muts.items():
-        for pos, base in muts.items():
-            inv[(pos, base)].append(uid)
-    pair_k = defaultdict(int)
-    for uids in inv.values():
-        if len(uids) < 2:
+def mutation_incidence(uids, uid_muts):
+    """(by_key, by_pos): 0/1 sparse matrices of each uid against its (position, base) mutations
+    and against its mutated positions. None when no uid carries a mutation."""
+    rows, key_cols, pos_cols, key_idx, pos_idx = [], [], [], {}, {}
+    for i_uid, uid in enumerate(uids):
+        for pos, base in uid_muts[uid].items():
+            rows.append(i_uid)
+            key_cols.append(key_idx.setdefault((pos, base), len(key_idx)))
+            pos_cols.append(pos_idx.setdefault(pos, len(pos_idx)))
+    if not rows:
+        return None
+    ones = np.ones(len(rows), dtype=np.int32)
+    return (sparse.csr_matrix((ones, (rows, key_cols)), shape=(len(uids), len(key_idx))),
+            sparse.csr_matrix((ones, (rows, pos_cols)), shape=(len(uids), len(pos_idx))))
+
+
+def shared_positions(by_pos, ia, ib, n_pos_max):
+    """number of mutated positions shared by uids ia[k] and ib[k] (ia not empty), gathering at most
+    CROSS_PAIRS_BLOCK_ENTRIES entries of by_pos per side at a time. <n_pos_max>: most mutated positions of any uid."""
+    block = max(1, CROSS_PAIRS_BLOCK_ENTRIES // max(1, n_pos_max))
+    return np.concatenate([np.asarray(by_pos[ia[s : s + block]].multiply(by_pos[ib[s : s + block]]).sum(axis=1)).ravel()
+                           for s in range(0, len(ia), block)])
+
+
+def certified_fragment_pairs(frag_of_uid, uid_muts, ej_floor):
+    """(number of certifying uid pairs, set of (fragment, fragment) pairs they join). A cross-fragment
+    uid pair certifies when its shared base-specific mutations over the union of its mutated
+    positions (enhanced jaccard) reach <ej_floor>."""
+    uids = [u for u in uid_muts if u in frag_of_uid]
+    incidence = mutation_incidence(uids, uid_muts) if len(uids) >= 2 else None
+    if incidence is None:
+        return 0, set()
+    by_key, by_pos = incidence
+    frag = np.array([frag_of_uid[u] for u in uids])
+    n_pos = np.diff(by_pos.indptr)
+    n_pos_max = n_pos.max()
+    n_certified, frag_pairs = 0, set()
+    block = max(1, CROSS_PAIRS_BLOCK_ENTRIES // len(uids))
+    for start in range(0, len(uids), block):  # each block against itself and later uids only, the upper triangle
+        shared = (by_key[start : start + block] @ by_key[start:].T).tocoo()
+        ia, ib, n_shared = shared.row + start, shared.col + start, shared.data
+        keep = (ib > ia) & (frag[ia] != frag[ib])
+        ia, ib, n_shared = ia[keep], ib[keep], n_shared[keep]
+        if len(ia) == 0:
             continue
-        for i in range(len(uids)):
-            fi = frag_of_uid.get(uids[i])
-            if fi is None:
-                continue
-            for j in range(i + 1, len(uids)):
-                fj = frag_of_uid.get(uids[j])
-                if fj is None or fi == fj:
-                    continue
-                a, b = uids[i], uids[j]
-                pair_k[(a, b) if a < b else (b, a)] += 1
-    return pair_k
+        # cheap bounds on the position union, exact count only where they disagree
+        n_a, n_b = n_pos[ia], n_pos[ib]
+        certified = n_shared / (n_a + n_b - n_shared) >= ej_floor
+        undecided = np.flatnonzero(~certified & (n_shared / np.maximum(n_a, n_b) >= ej_floor))
+        if len(undecided) > 0:
+            same_pos = shared_positions(by_pos, ia[undecided], ib[undecided], n_pos_max)
+            certified[undecided] = n_shared[undecided] / (n_a[undecided] + n_b[undecided] - same_pos) >= ej_floor
+        n_certified += int(certified.sum())
+        frag_pairs.update(zip(frag[ia[certified]].tolist(), frag[ib[certified]].tolist()))
+    return n_certified, frag_pairs
 
 
 # ----------------------------------------------------------------------------
@@ -517,11 +596,10 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
         ffind, funion = _union_find(len(frags))
         frag_of_uid = dict((u, i) for i, f in enumerate(frags) for u in f)
         muts_sw = dict((u, uid_muts_sw[u]) for u in uid_list if u in uid_muts_sw)
-        npos = dict((u, set(m)) for u, m in muts_sw.items())
-        for (a, b), k in cross_shared_counts(frag_of_uid, muts_sw).items():
-            if k / float(len(npos[a] | npos[b])) >= ej_floor:  # enhanced jaccard: shared over union
-                funion(frag_of_uid[a], frag_of_uid[b])
-                ctr['certified_pairs'] += 1
+        n_certified, frag_pairs = certified_fragment_pairs(frag_of_uid, muts_sw, ej_floor)
+        for fa, fb in frag_pairs:
+            funion(fa, fb)
+        ctr['certified_pairs'] += n_certified
 
         validated = defaultdict(list)
         for i in range(len(frags)):
@@ -548,7 +626,6 @@ MERGE_CONSENSUS_ALPHA = 0.05  # per-entry binomial tail a consensus entry must c
 MERGE_MIN_MEMBERS = 2  # members the smaller fragment of an accepted pair needs
 MERGE_NULL_PAIRS_PER_CANDIDATE = 10  # null pairs drawn per candidate pair, for cdf resolution
 MERGE_NULL_PAIRS_MIN = 20000  # null sample size floor
-MERGE_NULL_PAIRS_MAX = 200000  # null sample size cap, a runtime bound
 MERGE_NULL_MIN_SAMPLE = 100  # fewer null pairs than this: no cutoff, so the group abstains from merging
 MERGE_NULL_SEED = 1
 MERGE_NULL_TRIES_PER_PAIR = 50  # draws per wanted null pair before a small group stops trying
@@ -574,6 +651,8 @@ class _MergeEvidence(object):
         self.muts, self.get_uid_freqs, self.n_seqs = uid_to_muts_with_base, get_uid_freqs, n_seqs
         self.pcache = _PerUidPvalCache(n_seqs, WEIGHT_GRID_NATS)
         self.pair_p = {}
+        self.adj_freqs = {}
+        self.mut_sets = {}
         self.cons = [self._consensus(i) for i in range(len(frags))]
         counts, n = defaultdict(int), 0
         for (muts, _, _), (_, n_w) in zip(self.cons, fps):
@@ -607,15 +686,30 @@ class _MergeEvidence(object):
                 obs[(pos, base)] = ou[(pos, base)]
         return muts, freqs, obs
 
-    def pvalue(self, i, j):
+    def _adjusted_freqs(self, i):
+        # fragment i's consensus freqs raised to the group rate, built once per fragment
+        if i not in self.adj_freqs:
+            muts, freqs, _ = self.cons[i]
+            self.adj_freqs[i] = {k: max(freqs.get(k, NO_GERMLINE_FREQ), self.group_rate.get(k, 0.0)) for k in muts.items()}
+        return self.adj_freqs[i]
+
+    def _mut_set(self, i):
+        if i not in self.mut_sets:
+            self.mut_sets[i] = frozenset(self.cons[i][0].items())
+        return self.mut_sets[i]
+
+    def pvalue(self, i, j, cache_pair=True):
+        """cache_pair=False computes without caching the pair, for null pairs no one asks for again."""
         i, j = min(i, j), max(i, j)  # one cache entry per pair, whichever order the null draws it in
-        if (i, j) not in self.pair_p:
-            (ma, fa, oa), (mb, fb, ob) = self.cons[i], self.cons[j]
-            fa = {k: max(fa.get(k, NO_GERMLINE_FREQ), self.group_rate.get(k, 0.0)) for k in ma.items()}
-            fb = {k: max(fb.get(k, NO_GERMLINE_FREQ), self.group_rate.get(k, 0.0)) for k in mb.items()}
-            self.pair_p[(i, j)] = weighted_shared_descent_pvalue(
-                ma, mb, fa, fb, self.n_seqs, oa, ob, cache=self.pcache, uid_a=i, uid_b=j) if ma and mb else 1.0
-        return self.pair_p[(i, j)]
+        p = self.pair_p.get((i, j))
+        if p is None:
+            (ma, _, oa), (mb, _, ob) = self.cons[i], self.cons[j]
+            p = weighted_shared_descent_pvalue(
+                ma, mb, self._adjusted_freqs(i), self._adjusted_freqs(j), self.n_seqs, oa, ob,
+                cache=self.pcache, uid_a=i, uid_b=j, shared=self._mut_set(i) & self._mut_set(j)) if ma and mb else 1.0
+            if cache_pair:
+                self.pair_p[(i, j)] = p
+        return p
 
     def sample_null(self, n_target, naives, vdjs, naive_threshold):
         """p-values of distinct fragment pairs with the same v gene and naive length but naives
@@ -625,20 +719,33 @@ class _MergeEvidence(object):
             if self.fps[i][1] > 0 and vdj is not None and naive is not None:
                 buckets[(vdj[0], len(naive))].append(i)
         keys = [k for k, v in buckets.items() if len(v) >= 2]
-        weights = [len(buckets[k]) * (len(buckets[k]) - 1) for k in keys]
+        if not keys:
+            return []
+        cum_weights = list(itertools.accumulate(len(buckets[k]) * (len(buckets[k]) - 1) for k in keys))  # built once, as choices(weights=) would
+        enc = encode_naives(naives)
         rng = random.Random(MERGE_NULL_SEED)
-        out, n_tries, seen = [], 0, set()
-        while keys and len(out) < n_target and n_tries < MERGE_NULL_TRIES_PER_PAIR * n_target:
-            n_tries += 1
-            a, b = rng.sample(buckets[rng.choices(keys, weights)[0]], 2)
-            if len(self.frags[a]) == 1 and len(self.frags[b]) == 1:  # the proposer never offers singleton pairs
+        max_tries = MERGE_NULL_TRIES_PER_PAIR * n_target
+        out, n_tries, seen, n_frags = [], 0, set(), len(self.frags)
+        while len(out) < n_target and n_tries < max_tries:
+            # batched so the naive distances are one array op
+            pairs = []
+            for _ in range(min(MERGE_NULL_DRAW_CHUNK, max_tries - n_tries)):
+                n_tries += 1
+                a, b = rng.sample(buckets[rng.choices(keys, cum_weights=cum_weights)[0]], 2)
+                if len(self.frags[a]) == 1 and len(self.frags[b]) == 1:  # the proposer never offers singleton pairs
+                    continue
+                pairs.append((a, b))
+            if not pairs:
                 continue
-            if frozenset((a, b)) in seen:  # distinct pairs only, so a small group cannot fill the null with one pair
-                continue
-            seen.add(frozenset((a, b)))
-            if hamming_frac(naives[a], naives[b]) <= naive_threshold:  # buckets already match naive length
-                continue
-            out.append(self.pvalue(a, b))
+            ia, ib = np.array(pairs).T
+            for a, b, far in zip(ia.tolist(), ib.tolist(), (hamming_frac_rows(enc, ia, ib) > naive_threshold).tolist()):  # buckets already match naive length
+                key = min(a, b) * n_frags + max(a, b)
+                if not far or key in seen:  # distinct null pairs only, so a small group cannot fill the null with one pair
+                    continue
+                seen.add(key)
+                out.append(self.pvalue(a, b, cache_pair=False))
+                if len(out) == n_target:
+                    break
         return out
 
 
@@ -758,8 +865,8 @@ def _bucket_merge_candidates(frags, uid_sw_naives, uid_to_muts_with_base, uid_re
         diff_len = [n for n in unique_naives if len(n) != seq_len]
 
         if len(same_len) >= 2:
-            arr = np.frombuffer(''.join(same_len).encode(), dtype=np.uint8).reshape(len(same_len), seq_len)
-            oh, mask = onehot_naives(arr, ord('N'))
+            arr = encode_naives(same_len)
+            oh, mask = onehot_naives(arr, N_BYTE)
 
             def examine_naive_pair(ni_idx, nj_idx):
                 for i in naive_to_frags[same_len[ni_idx]]:
@@ -925,7 +1032,7 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
 
     evidence = _MergeEvidence(pool_frags, pool_fps, uid_to_muts_with_base, get_uid_freqs, sum(len(c) for c in split_partition))
     cand_ps = [evidence.pvalue(offset + i, offset + j) for _, offset, pairs in buckets if offset is not None for i, j in pairs]
-    n_null = min(MERGE_NULL_PAIRS_MAX, max(MERGE_NULL_PAIRS_MIN, MERGE_NULL_PAIRS_PER_CANDIDATE * len(cand_ps)))
+    n_null = max(MERGE_NULL_PAIRS_MIN, MERGE_NULL_PAIRS_PER_CANDIDATE * len(cand_ps))
     null_ps = evidence.sample_null(n_null, pool_naives, pool_vdjs, naive_threshold)
     cutoff, rule = merge_fdr_cutoff(cand_ps, null_ps)
 
@@ -1127,27 +1234,26 @@ def _weight_bins(muts, freqs, n_seqs, grid, n_obs):
     return out
 
 
-def _conditional_pvalue_from_wb(wb, shared):
-    """Same dp as _conditional_pvalue, given an already-built <wb> instead of rebuilding it."""
-    t_obs = sum(wb[pb][1] for pb in shared if pb in wb)
+def _t_obs(wb, shared):
+    """observed score: summed bins of the <shared> entries in <wb>"""
+    return sum(wb[pb][1] for pb in shared if pb in wb)
+
+
+def _tail_dp(wb, t_obs):
+    """P(T >= t_obs) by the truncated dp over <wb>."""
     if t_obs <= 0:
         return 1.0
-    dist = [0.0] * t_obs
+    dist = np.zeros(t_obs)
     dist[0] = 1.0
     tail = 0.0
     for p, nbin in wb.values():
         if nbin == 0:
             continue  # a mutation everyone carries is no evidence either way
-        nxt = [0.0] * t_obs
-        for b, mass in enumerate(dist):
-            if mass == 0.0:
-                continue
-            nxt[b] += mass * (1.0 - p)
-            hit = b + nbin
-            if hit >= t_obs:
-                tail += mass * p
-            else:
-                nxt[hit] += mass * p
+        for mass in (dist[max(t_obs - nbin, 0):] * p).tolist():  # summed in bin order, as a scalar loop would
+            tail += mass
+        nxt = dist * (1.0 - p)
+        if nbin < t_obs:
+            nxt[nbin:] += dist[:t_obs - nbin] * p
         dist = nxt
     return min(max(tail, 0.0), 1.0)
 
@@ -1157,29 +1263,21 @@ def _conditional_pvalue(muts_cond, shared, freqs, n_seqs, grid, n_obs):
     carries independently. Exact by dp over binned surprisal, with everything at or above the
     observed value collected into a tail bucket."""
     wb = _weight_bins(muts_cond, freqs, n_seqs, grid, n_obs=n_obs)
-    return _conditional_pvalue_from_wb(wb, shared)
+    return _tail_dp(wb, _t_obs(wb, shared))
 
 
 def _build_survival_curve(wb):
     """Untruncated dp over <wb>, reduced to the survival function S(t) = P(T >= t)."""
-    dist = [1.0]
+    dist = np.ones(1)
     for p, nbin in wb.values():
         if nbin == 0:
             continue
-        nxt = [0.0] * (len(dist) + nbin)
-        for b, mass in enumerate(dist):
-            if mass == 0.0:
-                continue
-            nxt[b] += mass * (1.0 - p)
-            nxt[b + nbin] += mass * p
+        nxt = np.zeros(len(dist) + nbin)
+        nxt[:len(dist)] = dist * (1.0 - p)
+        nxt[nbin:] += dist * p
         dist = nxt
-    max_t = len(dist) - 1
-    survival = [0.0] * (max_t + 1)
-    running = 0.0
-    for t in range(max_t, -1, -1):
-        running += dist[t]
-        survival[t] = running
-    return survival, max_t
+    survival = np.cumsum(dist[::-1])[::-1]  # cumsum adds in sequence, from the top bin down
+    return survival.tolist(), len(dist) - 1
 
 
 def _survival_lookup(survival, max_t, t_obs):
@@ -1213,12 +1311,11 @@ class _PerUidPvalCache(object):
         wb = self._get_wb(uid, muts, freqs, n_obs)
         if not wb:
             return 1.0
+        t_obs = _t_obs(wb, shared)
         if self.use_curve.get(uid):
             survival, max_t = self.curve[uid]
-            t_obs = sum(wb[pb][1] for pb in shared if pb in wb)
             return _survival_lookup(survival, max_t, t_obs)
-        p = _conditional_pvalue_from_wb(wb, shared)
-        t_obs = sum(wb[pb][1] for pb in shared if pb in wb)
+        p = _tail_dp(wb, t_obs)
         cost = self.trunc_cost.get(uid, 0) + t_obs
         self.trunc_cost[uid] = cost
         max_t = sum(nbin for _, nbin in wb.values() if nbin > 0)
@@ -1313,14 +1410,19 @@ def param_dir_classify_pos(pos, bounds):
     return 'other'
 
 
-def param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir):
+_BOUNDS_NOT_GIVEN = object()  # param_dir_region_bounds can return None, so None cannot mean not given
+
+
+def param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir, bounds=_BOUNDS_NOT_GIVEN):
     """(frequency, n_obs) for one (partition-frame position, base) in the frame of <antn>
     (a partition-frame annotation, matching the frame <pos> is already in). n_obs is the
-    observation count behind that germline position.
+    observation count behind that germline position. <bounds>: param_dir_region_bounds(antn,
+    glfo), if the caller already has it.
 
     (None, None) where there is no germline source: D-region (light loci have no real D)
     and every insertion (fv/vd/dj/jf) have no germline base by definition."""
-    bounds = param_dir_region_bounds(antn, glfo)
+    if bounds is _BOUNDS_NOT_GIVEN:
+        bounds = param_dir_region_bounds(antn, glfo)
     region = param_dir_classify_pos(pos, bounds)
     if region == 'v':
         offset = max(0, len(antn['fv_insertion']) - antn['v_5p_del'])
@@ -1359,11 +1461,12 @@ def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=N
         if counts is not None:
             counts['no_antn'] = counts.get('no_antn', 0) + 1
         return {(pos, base): NO_GERMLINE_FREQ for pos, base in muts.items()}, {}
-    if counts is not None and param_dir_region_bounds(antn, glfo) is None:
+    bounds = param_dir_region_bounds(antn, glfo)
+    if counts is not None and bounds is None:
         counts['gene_missing_from_glfo'] = counts.get('gene_missing_from_glfo', 0) + 1
     out, obs = {}, {}
     for pos, base in muts.items():
-        f, n_obs = param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir)
+        f, n_obs = param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir, bounds=bounds)
         out[(pos, base)] = f if f is not None else NO_GERMLINE_FREQ
         if n_obs is not None:
             obs[(pos, base)] = n_obs
@@ -1371,13 +1474,15 @@ def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=N
 
 
 def weighted_shared_descent_pvalue(muts_a, muts_b, freqs_a, freqs_b, n_seqs, n_obs_a, n_obs_b,
-                                    grid=WEIGHT_GRID_NATS, cache=None, uid_a=None, uid_b=None):
+                                    grid=WEIGHT_GRID_NATS, cache=None, uid_a=None, uid_b=None, shared=None):
     """Probability that two unrelated sequences would share mutations this improbable, with
     each sequence scored against its own per-gene mute-freqs table (freqs_a, freqs_b) rather
     than one shared locus-wide table, since the germline frequency of a position depends on which
     V/J gene that sequence used. Returns 1.0 when nothing is shared. Pass <cache>/<uid_a>/
-    <uid_b> to route through a _PerUidPvalCache instead of recomputing from scratch."""
-    shared = [(pos, base) for pos, base in muts_a.items() if muts_b.get(pos) == base]
+    <uid_b> to route through a _PerUidPvalCache instead of recomputing from scratch. <shared>:
+    the (pos, base) entries both carry, if the caller already has them."""
+    if shared is None:
+        shared = [(pos, base) for pos, base in muts_a.items() if muts_b.get(pos) == base]
     if not shared:
         return 1.0
     if cache is not None:
@@ -1727,9 +1832,9 @@ def pad_sw_naive(sw_seq, sw_naive, part_seq, ioff):
     if ioff < 0 or nright < 0:
         return None
     # partis masks the odd base in the padded frame, e.g. a 1-base jf_insertion, so N matches anything
-    if any(p != 'N' and p != s for p, s in zip(part_seq[ioff : ioff + len(sw_seq)], sw_seq)):
+    if any(p != N_BASE and p != s for p, s in zip(part_seq[ioff : ioff + len(sw_seq)], sw_seq)):
         return None
-    padded = 'N' * ioff + sw_naive + 'N' * nright
+    padded = N_BASE * ioff + sw_naive + N_BASE * nright
     if len(padded) != len(part_seq):  # shm indel: different coord systems, padding cannot align them
         return None
     return padded
@@ -1936,6 +2041,22 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
 # ha_repartition module). The unit is the group (refine is pure-python, no per-cluster
 # fan-out), so there is no separate prepare step; assemble is assemble_groups.
 # ----------------------------------------------------------------------------
+def refine_bundles(specs, n_bundles, serial_min_seqs):
+    """(serial, parallel) lists of (job_start, job_count) slices of <specs>. Each group with at least
+    <serial_min_seqs> sequences is a one-group serial bundle; the groups between them are split into
+    contiguous bundles of at most ceil(len(specs) / n_bundles) groups."""
+    if len(specs) == 0:
+        return [], []
+    bundle_size = int(math.ceil(len(specs) / float(n_bundles)))
+    serial, parallel, run_start = [], [], 0
+    for i_end in [i for i, spec in enumerate(specs) if spec['group']['sequence_count'] >= serial_min_seqs] + [len(specs)]:
+        parallel.extend((s, min(bundle_size, i_end - s)) for s in range(run_start, i_end, bundle_size))
+        if i_end < len(specs):
+            serial.append((i_end, 1))
+        run_start = i_end + 1
+    return serial, parallel
+
+
 def bundle_marker_fname(disjoint_dir, job_start):
     # done-marker for the group slice starting at <job_start>, written by the slice and looked
     # for by whatever dispatched it

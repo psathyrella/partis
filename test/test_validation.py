@@ -2,6 +2,7 @@ import argparse
 import glob
 import json
 import os
+import random
 import re
 import runpy
 import shutil
@@ -401,3 +402,38 @@ def test_ha_collapsed_count_matches_partition(tmp_path, ha_only_dir, monkeypatch
         _run_partis_in_process(['run-ha-repartition-jobs', '--locus', 'igh', '--parameter-dir', pdir, '--paired-outdir', str(outdir),
                                 '--job-start', str(jobs.index(job)), '--job-count', '1'])
         assert len(initial) > 0 and initial[0] == counts[job['infname']], job['cluster_id']
+
+
+def test_ha_cluster_with_no_sw_pass_writes_singletons(tmp_path, ha_only_dir, monkeypatch):
+    # a cluster where no query passes sw gets singletons and a collapsed count of 0, and the bundle goes on
+    outdir = copy_dir(ha_only_dir, tmp_path / 'out')
+    ddir, manifest = locus_manifest(outdir, 'igh')
+    for spec in ha_repartition.group_specs(ddir, manifest['groups'], 'igh'):
+        os.remove(spec['harep_out'])
+    for fname in glob.glob('%s/**/clusters/*/partition.yaml' % ddir, recursive=True):
+        os.remove(fname)
+    pdir = os.path.join(PAIRED_PARAM_DIR, 'igh')
+    _run_partis_in_process(['create-ha-repartition-jobs', '--locus', 'igh', '--parameter-dir', pdir, '--paired-outdir', str(outdir)])
+    jobs = ha_repartition.read_task_list(ha_repartition.task_list_fname(ddir, 'igh'))
+    assert len(jobs) >= 2
+    bad = jobs[0]
+    with open(bad['infname']) as f:
+        uids = [l[1:].strip() for l in f if l.startswith('>')]
+    rng = random.Random(1)
+    with open(bad['infname'], 'w') as f:
+        for uid in uids:
+            f.write('>%s\n%s\n' % (uid, ''.join(rng.choice('ACGT') for _ in range(40))))
+    real_run = ha_repartition.run_jobs_in_process
+    counts = []
+    def run(run_jobs, args, glfo, timing_csv=None):
+        counts.extend(ha_repartition.count_ha_collapsed(run_jobs[:2], args, glfo, 2))
+        return real_run(run_jobs, args, glfo, timing_csv=timing_csv)
+    monkeypatch.setattr(ha_repartition, 'run_jobs_in_process', run)
+    workdir = tmp_path / 'wd'
+    _run_partis_in_process(['run-ha-repartition-jobs', '--locus', 'igh', '--parameter-dir', pdir, '--paired-outdir', str(outdir),
+                            '--job-start', '0', '--workdir', str(workdir)])
+    assert counts[0] == 0 and counts[1] > 0
+    assert all(os.path.exists(j['outfname']) for j in jobs)
+    with open(bad['outfname']) as f:
+        assert sorted(json.load(f)['partitions'][-1]['partition']) == sorted([u] for u in uids)
+    assert glob.glob('%s/ha-*' % workdir) == []

@@ -96,6 +96,7 @@ def ha_n_bundles(n_concurrent):
 # ----------------------------------------------------------------------------------------
 SUBSET_TARGET_PROCS = 8  # procs per subset job
 BUNDLES_PER_PROC = 8  # HA and refine bundles per concurrency slot, more than one for load balance
+REFINE_SERIAL_MIN_SEQS = int(disjointgrouper.BIN_PACK_TOLERANCE * disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT)  # refine groups past the default hfrac sub-group bound run one at a time on a host, since refine memory grows with group size
 
 # ----------------------------------------------------------------------------------------
 def job_proc_allocation(args, target_procs_per_job=None, n_queued=None, dbgstr='group'):
@@ -2022,26 +2023,27 @@ def run_all_loci(args, ig_or_tr='ig'):
             rspecs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], ltmp)
             if not args.dry_run:
                 partition_refinement.locuswide_threshold(disjoint_dir, rspecs, ltmp, overwrite=args.rerun_refine)
-            n_todo = len(rspecs) if args.rerun_refine else sum(1 for spec in rspecs if not os.path.exists(spec['refined_out']))  # existence is each group's refine completion signal
-            total = len(rspecs)
-            n_bundles = min(total, ha_concurrency * BUNDLES_PER_PROC) if total > 0 else 0
-            bundle_size = int(math.ceil(total / float(n_bundles))) if n_bundles > 0 else 0
-            refine_cmdfos = []
-            for start in range(0, total, bundle_size) if bundle_size > 0 else []:
-                done_marker = partition_refinement.bundle_marker_fname(disjoint_dir, start)
-                if os.path.exists(done_marker) and not args.rerun_refine:  # otherwise --rerun-refine could not reach the groups in a finished bundle
-                    continue
-                cmd = build_single_locus_cmd('run-partition-refine-jobs', ltmp, args, parameter_dir=getpdir(ltmp),
-                                             extra_args=['--paired-outdir', getodir(),
-                                                         '--job-start', str(start), '--job-count', str(bundle_size)]
-                                                        + (['--rerun-refine'] if args.rerun_refine else []))
-                refine_cmdfos.append({'cmd_str' : cmd, 'outfname' : done_marker, 'workdir' : '%s/refine-bundle-work-%d' % (disjoint_dir, start)})
-            if len(refine_cmdfos) > 0:
-                if args.dry_run:
-                    print('    --dry-run: would run %d group refine jobs in %d bundles (%d concurrent)' % (n_todo, len(refine_cmdfos), ha_concurrency))
-                else:
-                    print('    running %d group refine jobs in %d bundles (%d concurrent):' % (n_todo, len(refine_cmdfos), ha_concurrency), end=' ')
-                    utils.run_cmds(refine_cmdfos, n_max_procs=ha_concurrency, debug='write', progress=True)
+            n_bundles = min(len(rspecs), ha_n_bundles(ha_concurrency))
+            serial_bundles, parallel_bundles = partition_refinement.refine_bundles(rspecs, n_bundles, REFINE_SERIAL_MIN_SEQS)
+            for tier, bundles, tier_concurrency in [('serial (large group)', serial_bundles, 1), ('parallel', parallel_bundles, ha_concurrency)]:  # large groups first, one at a time
+                tier_specs = [rspecs[i] for start, count in bundles for i in range(start, start + count)]
+                n_todo = len(tier_specs) if args.rerun_refine else sum(1 for spec in tier_specs if not os.path.exists(spec['refined_out']))  # existence is each group's refine completion signal
+                refine_cmdfos = []
+                for start, count in bundles:
+                    done_marker = partition_refinement.bundle_marker_fname(disjoint_dir, start)
+                    if os.path.exists(done_marker) and not args.rerun_refine:  # otherwise --rerun-refine could not reach the groups in a finished bundle
+                        continue
+                    cmd = build_single_locus_cmd('run-partition-refine-jobs', ltmp, args, parameter_dir=getpdir(ltmp),
+                                                 extra_args=['--paired-outdir', getodir(),
+                                                             '--job-start', str(start), '--job-count', str(count)]
+                                                            + (['--rerun-refine'] if args.rerun_refine else []))
+                    refine_cmdfos.append({'cmd_str' : cmd, 'outfname' : done_marker, 'workdir' : '%s/refine-bundle-work-%d' % (disjoint_dir, start)})
+                if len(refine_cmdfos) > 0:
+                    if args.dry_run:
+                        print('    --dry-run: would run %d group refine jobs in %d %s bundles (%d concurrent)' % (n_todo, len(refine_cmdfos), tier, tier_concurrency))
+                    else:
+                        print('    running %d group refine jobs in %d %s bundles (%d concurrent):' % (n_todo, len(refine_cmdfos), tier, tier_concurrency), end=' ')
+                        utils.run_cmds(refine_cmdfos, n_max_procs=tier_concurrency, debug='write', progress=True)
             if not args.dry_run:
                 for spec in rspecs:  # assemble will use the refined output where it was written
                     if os.path.exists(spec['refined_out']):  # existence is refine's completion signal

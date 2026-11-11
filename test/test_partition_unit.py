@@ -1,10 +1,13 @@
 import os
+import random
 import re
 
+import numpy as np
 import pytest
 
 from _helpers import HFRAC_ARGS, LOCI, PAIRED_PARAM_DIR, copy_dir, disjoint_dir, group_cmds, group_stage_path, locus_manifest, paired_partition_args, partition_fname, read_log, read_yaml, run_partis, run_partis_fails
 from partis import disjointgrouper as dg
+from partis import glutils
 from partis import ha_repartition
 from partis import partition_refinement as prf
 from partis import utils
@@ -160,7 +163,8 @@ class _FakeEvidence(object):
     # what sample_null reads, with a p-value that encodes its pair
     def __init__(self, frags):
         self.frags, self.fps = frags, [({}, 1) for _ in frags]
-    def pvalue(self, i, j):
+    def pvalue(self, i, j, cache_pair=True):
+        assert not cache_pair, 'null pairs are not cached'
         return 10 * min(i, j) + max(i, j)
 
 
@@ -190,3 +194,297 @@ def test_merge_evidence_discounts_entries_every_fragment_carries():
     assert ev.group_rate[common] == 1.
     assert ev.pvalue(1, 0) == ev.pvalue(0, 1)
     assert ev.pvalue(0, 1) < prf.MERGE_FDR_TARGET < ev.pvalue(2, 3)
+
+
+# ----------------------------------------------------------------------------------------
+# the vectorized refine paths against the scalar code they replaced, which must agree exactly
+
+
+def _dp_reference(wb, shared):
+    t_obs = sum(wb[pb][1] for pb in shared if pb in wb)
+    if t_obs <= 0:
+        return 1.0
+    dist, tail = [1.0] + [0.0] * (t_obs - 1), 0.0
+    for p, nbin in wb.values():
+        if nbin == 0:
+            continue
+        nxt = [0.0] * t_obs
+        for b, mass in enumerate(dist):
+            if mass == 0.0:
+                continue
+            nxt[b] += mass * (1.0 - p)
+            if b + nbin >= t_obs:
+                tail += mass * p
+            else:
+                nxt[b + nbin] += mass * p
+        dist = nxt
+    return min(max(tail, 0.0), 1.0)
+
+
+def _curve_reference(wb):
+    dist = [1.0]
+    for p, nbin in wb.values():
+        if nbin == 0:
+            continue
+        nxt = [0.0] * (len(dist) + nbin)
+        for b, mass in enumerate(dist):
+            if mass == 0.0:
+                continue
+            nxt[b] += mass * (1.0 - p)
+            nxt[b + nbin] += mass * p
+        dist = nxt
+    survival, running = [0.0] * len(dist), 0.0
+    for t in range(len(dist) - 1, -1, -1):
+        running += dist[t]
+        survival[t] = running
+    return survival, len(dist) - 1
+
+
+def test_dp_matches_scalar_reference():
+    rng = random.Random(3)
+    for _ in range(500):
+        muts = {pos: 'A' for pos in rng.sample(range(400), rng.randint(1, 50))}
+        freqs = {(pos, 'A'): 10 ** rng.uniform(-5, 0) for pos in muts}
+        wb = prf._weight_bins(muts, freqs, 1000, prf.WEIGHT_GRID_NATS, n_obs={})
+        shared = [k for k in wb if rng.random() < 0.3]
+        assert prf._tail_dp(wb, prf._t_obs(wb, shared)) == _dp_reference(wb, shared)
+        assert prf._build_survival_curve(wb) == _curve_reference(wb)
+
+
+def test_hamming_frac_rows_matches_hamming_frac():
+    rng = random.Random(4)
+    naives = [None, '', 'NNNN'] + [''.join(rng.choice('ACGTN') for _ in range(rng.randint(1, 12))) for _ in range(60)]
+    enc = prf.encode_naives(naives)
+    pairs = [(a, b) for a in range(1, len(naives)) for b in range(1, len(naives))]  # row 0 (None) is never drawn
+    ia, ib = [a for a, _ in pairs], [b for _, b in pairs]
+    assert prf.hamming_frac_rows(enc, ia, ib).tolist() == [prf.hamming_frac(naives[a], naives[b]) for a, b in pairs]
+
+
+def _naive_threshold_reference(partition, uid_sw_naives):
+    hams = []
+    for cluster in partition:
+        unique_naives = list(set(uid_sw_naives[u] for u in cluster if u in uid_sw_naives))
+        if len(cluster) < 3 or len(unique_naives) < 2:
+            continue
+        hams += [prf.hamming_frac(a, b) for i, a in enumerate(unique_naives) for b in unique_naives[i + 1:]]
+    return sorted(hams)[min(int(len(hams) * 0.90), len(hams) - 1)] if hams else prf.NAIVE_THRESHOLD_FALLBACK
+
+
+@pytest.mark.parametrize('block', [prf.HAMMING_PAIR_BLOCK, 7])
+def test_naive_threshold_matches_scalar_reference(monkeypatch, block):
+    monkeypatch.setattr(prf, 'HAMMING_PAIR_BLOCK', block)
+    rng = random.Random(5)
+    for _ in range(100):
+        uid_sw_naives, partition = {}, []
+        for ic in range(rng.randint(0, 6)):
+            cluster = ['c%d-%d' % (ic, k) for k in range(rng.randint(1, 15))]
+            for uid in cluster[1:]:  # first uid has no sw naive
+                uid_sw_naives[uid] = ''.join(rng.choice('ACGN') for _ in range(rng.randint(0, 8)))
+            partition.append(cluster)
+        threshold = prf.estimate_naive_threshold(partition, uid_sw_naives)
+        assert type(threshold) is float and threshold == _naive_threshold_reference(partition, uid_sw_naives)
+
+
+def test_naive_threshold_p90_index_on_distinct_distances():
+    # tied distances would hide an off-by-one in the order statistic
+    naives = ['A' * (2 ** k - 1) + 'C' * 2 ** k + 'A' * (128 - 2 ** (k + 1) + 1) for k in range(7)]  # distance (2^j + 2^k) / 128
+    hams = sorted(prf.hamming_frac(a, b) for i, a in enumerate(naives) for b in naives[i + 1:])
+    assert len(set(hams)) == len(hams)
+    cluster = ['u%d' % i for i in range(len(naives))]
+    assert prf.estimate_naive_threshold([cluster], dict(zip(cluster, naives))) == hams[int(len(hams) * 0.90)]
+
+
+@pytest.mark.parametrize('n', [2, 3, 10, 41])
+@pytest.mark.parametrize('block', [1, 5, 1000])
+def test_upper_triangle_pair_blocks_match_triu_indices(n, block):
+    blocks = list(prf.upper_triangle_pair_blocks(n, block))
+    ia, ib = np.triu_indices(n, k=1)
+    assert np.array_equal(np.concatenate([a for a, _ in blocks]), ia) and np.array_equal(np.concatenate([b for _, b in blocks]), ib)
+    assert all(len(a) < block + n for a, _ in blocks)
+
+
+def _certified_reference(frag_of_uid, uid_muts, ej_floor):
+    uids, n_certified, frag_pairs = sorted(u for u in uid_muts if u in frag_of_uid), 0, set()
+    for i, a in enumerate(uids):
+        for b in uids[i + 1:]:
+            k = sum(1 for pos, base in uid_muts[a].items() if uid_muts[b].get(pos) == base)
+            if frag_of_uid[a] == frag_of_uid[b] or k == 0:
+                continue
+            if k / float(len(set(uid_muts[a]) | set(uid_muts[b]))) >= ej_floor:
+                n_certified += 1
+                frag_pairs.add(tuple(sorted((frag_of_uid[a], frag_of_uid[b]))))
+    return n_certified, frag_pairs
+
+
+@pytest.mark.parametrize('block_entries', [prf.CROSS_PAIRS_BLOCK_ENTRIES, 7])
+def test_certified_fragment_pairs_matches_pairwise(monkeypatch, block_entries):
+    monkeypatch.setattr(prf, 'CROSS_PAIRS_BLOCK_ENTRIES', block_entries)
+    rng = random.Random(5)
+    for _ in range(30):
+        uid_muts = {'u%d' % i: {pos: rng.choice('ACGT') for pos in rng.sample(range(15), rng.randint(0, 6))} for i in range(rng.randint(0, 25))}
+        frag_of_uid = {u: rng.randrange(4) for u in uid_muts if rng.random() > 0.1}  # a uid with no fragment is skipped
+        n_certified, frag_pairs = prf.certified_fragment_pairs(frag_of_uid, uid_muts, prf.EJ_SAME_FAMILY_FLOOR)
+        assert (n_certified, set(tuple(sorted(p)) for p in frag_pairs)) == _certified_reference(frag_of_uid, uid_muts, prf.EJ_SAME_FAMILY_FLOOR)
+
+
+def _sample_null_reference(ev, n_target, naives, vdjs, naive_threshold):
+    buckets = {}
+    for i, (vdj, naive) in enumerate(zip(vdjs, naives)):
+        if ev.fps[i][1] > 0 and vdj is not None and naive is not None:
+            buckets.setdefault((vdj[0], len(naive)), []).append(i)
+    keys = [k for k, v in buckets.items() if len(v) >= 2]
+    rng = random.Random(prf.MERGE_NULL_SEED)
+    out, n_tries, seen = [], 0, set()
+    while keys and len(out) < n_target and n_tries < prf.MERGE_NULL_TRIES_PER_PAIR * n_target:
+        n_tries += 1
+        a, b = rng.sample(buckets[rng.choices(keys, weights=[len(buckets[k]) * (len(buckets[k]) - 1) for k in keys])[0]], 2)
+        if len(ev.frags[a]) == 1 and len(ev.frags[b]) == 1 or frozenset((a, b)) in seen:
+            continue
+        seen.add(frozenset((a, b)))
+        if prf.hamming_frac(naives[a], naives[b]) <= naive_threshold:
+            continue
+        out.append(ev.pvalue(a, b, cache_pair=False))
+    return out
+
+
+@pytest.mark.parametrize('chunk', [prf.MERGE_NULL_DRAW_CHUNK, 7])
+def test_sample_null_matches_scalar_reference(monkeypatch, chunk):
+    monkeypatch.setattr(prf, 'MERGE_NULL_DRAW_CHUNK', chunk)
+    rng = random.Random(6)
+    n_frags = 60
+    frags = [['f%d-%d' % (i, k) for k in range(rng.choice([1, 1, 2, 3]))] for i in range(n_frags)]
+    naives = [''.join(rng.choice('ACGTN') for _ in range(rng.choice([8, 9]))) if rng.random() > 0.05 else None for _ in range(n_frags)]
+    vdjs = [(rng.choice(['v1', 'v2', 'v3']), 'd', 'j') for _ in range(n_frags)]
+    lens = []
+    for n_target in (1, 20, 100, 2000):  # the last wants more distinct pairs than there are, so runs out of tries
+        out = prf._MergeEvidence.sample_null(_FakeEvidence(frags), n_target, naives, vdjs, 0.3)
+        assert out == _sample_null_reference(_FakeEvidence(frags), n_target, naives, vdjs, 0.3)
+        lens.append(len(out))
+    assert lens[:3] == [1, 20, 100] and 100 < lens[3] < 2000
+
+
+def test_sample_null_boundary_and_excluded_fragments():
+    # a pair exactly at the threshold is not null, and fragments with no vdj or no mutated member are never drawn
+    frags = [['a1', 'a2'], ['b1', 'b2'], ['c1', 'c2'], ['d1', 'd2'], ['e1', 'e2']]
+    naives = ['AAAA', 'AAAC', 'AACC', 'CCCC', 'CCCC']
+    vdjs = [('v1', 'd', 'j')] * 3 + [None, ('v1', 'd', 'j')]
+    ev = _FakeEvidence(frags)
+    ev.fps[4] = ({}, 0)
+    out = prf._MergeEvidence.sample_null(ev, 100, naives, vdjs, 0.25)
+    assert sorted(out) == [2]  # (0, 2) at 0.5; (0, 1) and (1, 2) sit at 0.25
+
+
+def test_null_pvalue_not_cached():
+    frags = [['a1', 'a2'], ['b1', 'b2']]
+    muts = {'a1': {5: 'T', 8: 'G'}, 'a2': {5: 'T', 8: 'G'}, 'b1': {5: 'T', 8: 'G'}, 'b2': {5: 'T', 8: 'G'}}
+    fps = [prf.get_cluster_fingerprint(f, muts) for f in frags]
+    ev = prf._MergeEvidence(frags, fps, muts, lambda uid: ({k: 0.01 for k in muts[uid].items()}, {}), 4)
+    p = ev.pvalue(0, 1, cache_pair=False)
+    assert ev.pair_p == {} and ev.pvalue(1, 0) == p and ev.pair_p == {(0, 1): p}
+
+
+def test_merge_evidence_pvalue_matches_inline_reference():
+    # reference builds the raised freqs and the shared mutations inline, as pvalue did before caching them
+    rng = random.Random(9)
+    frags, muts = [], {}
+    for ifrag in range(10):
+        base = {pos: rng.choice('AC') for pos in rng.sample(range(15), rng.randint(0, 8))}
+        frags.append(['f%d-%d' % (ifrag, i) for i in range(rng.randint(1, 3))])
+        for uid in frags[-1]:
+            muts[uid] = {**base, rng.randrange(15, 30): 'G'}
+    ufreqs = {uid: {k: 10 ** rng.uniform(-4, -0.5) for k in m.items()} for uid, m in muts.items()}
+    ev = prf._MergeEvidence(frags, [prf.get_cluster_fingerprint(f, muts) for f in frags], muts, lambda uid: (ufreqs[uid], {}), len(muts))
+    ref_cache = prf._PerUidPvalCache(len(muts), prf.WEIGHT_GRID_NATS)
+    n_below_one = 0
+    for i in range(len(frags)):
+        for j in range(i + 1, len(frags)):
+            (ma, fa, oa), (mb, fb, ob) = ev.cons[i], ev.cons[j]
+            fa = {k: max(fa.get(k, prf.NO_GERMLINE_FREQ), ev.group_rate.get(k, 0.0)) for k in ma.items()}
+            fb = {k: max(fb.get(k, prf.NO_GERMLINE_FREQ), ev.group_rate.get(k, 0.0)) for k in mb.items()}
+            ref = prf.weighted_shared_descent_pvalue(ma, mb, fa, fb, ev.n_seqs, oa, ob, cache=ref_cache, uid_a=i, uid_b=j) if ma and mb else 1.0
+            assert ev.pvalue(j, i, cache_pair=(i + j) % 2 == 0) == ref
+            n_below_one += ref < 1.0
+    assert n_below_one > 0
+
+
+class _FakeParter(object):
+    def __init__(self, workdir):
+        self.args = type('args', (), {'workdir': workdir})()
+
+
+@pytest.mark.parametrize('code', [0, None, 1, 'some error'])
+def test_no_sw_pass_only_on_exit_zero(tmp_path, code):
+    workdir = tmp_path / 'work'
+    workdir.mkdir()
+    def step():
+        raise SystemExit(code)
+    if code == 0:
+        assert ha_repartition._run_unless_no_sw_pass(step, _FakeParter(str(workdir))) is False and not workdir.exists()
+    else:
+        with pytest.raises(SystemExit):
+            ha_repartition._run_unless_no_sw_pass(step, _FakeParter(str(workdir)))
+        assert workdir.exists()
+    assert ha_repartition._run_unless_no_sw_pass(lambda: None, _FakeParter(str(workdir))) is True
+
+
+def test_write_singletons_result(tmp_path):
+    glfo = glutils.read_glfo('%s/igh/hmm/germline-sets' % PAIRED_PARAM_DIR, 'igh')
+    fname = str(tmp_path / 'singletons.yaml')
+    ha_repartition._write_singletons_result(fname, glfo, ['a', 'b', 'c'])
+    _, antns, cpath = utils.read_output(fname, glfo=glfo)
+    assert sorted(cpath.best()) == [['a'], ['b'], ['c']] and antns == []
+
+
+def _bundle_specs(sizes):
+    return [{'group': {'sequence_count': n}} for n in sizes]
+
+
+def test_refine_bundles_without_large_groups_match_contiguous_slices():
+    for n_groups in range(1, 30):
+        for n_bundles in range(1, n_groups + 1):
+            size = int(np.ceil(n_groups / float(n_bundles)))
+            serial, parallel = prf.refine_bundles(_bundle_specs([5] * n_groups), n_bundles, serial_min_seqs=10)
+            assert serial == [] and parallel == [(s, min(size, n_groups - s)) for s in range(0, n_groups, size)]
+
+
+def test_refine_bundles_large_groups_run_alone():
+    rng = random.Random(11)
+    assert prf.refine_bundles([], 4, 50) == ([], [])
+    for _ in range(300):
+        sizes = [rng.choice([1, 5, 50]) for _ in range(rng.randint(1, 25))]
+        serial, parallel = prf.refine_bundles(_bundle_specs(sizes), rng.randint(1, 8), serial_min_seqs=50)
+        assert serial == [(i, 1) for i, n in enumerate(sizes) if n >= 50]
+        covered = sorted(i for start, count in serial + parallel for i in range(start, start + count))
+        assert covered == list(range(len(sizes))) and all(sizes[i] < 50 for start, count in parallel for i in range(start, start + count))
+
+
+def _snap_reference(groups):
+    supported = [g for g in groups if len(g[1]) >= 2]
+    if len(supported) == 0 or len(supported) == len(groups):
+        return groups, 0
+    out, n_snapped = dict((nv, list(mem)) for nv, mem in supported), 0
+    for nv, mem in groups:
+        if len(mem) >= 2:
+            continue
+        best = min(supported, key=lambda s: (prf.hamming_frac(nv, s[0]), -len(s[1]), s[0]))
+        out[best[0]].extend(mem)
+        n_snapped += len(mem)
+    return list(out.items()), n_snapped
+
+
+def test_snap_unsupported_matches_scalar_reference():
+    rng = random.Random(7)
+    for _ in range(200):
+        naives = list(set(''.join(rng.choice('ACN') for _ in range(rng.choice([0, 3, 4]))) for _ in range(rng.randint(1, 12))))
+        groups = [(nv, ['%s-%d' % (nv, k) for k in range(rng.choice([1, 1, 2, 3]))]) for nv in naives]
+        assert prf.snap_unsupported(groups) == _snap_reference(groups)
+
+
+def test_shared_passed_in_matches_computed():
+    rng = random.Random(8)
+    for _ in range(200):
+        ma, mb = [{pos: rng.choice('AC') for pos in rng.sample(range(30), rng.randint(1, 12))} for _ in range(2)]
+        fa, fb = [{k: 10 ** rng.uniform(-4, -0.5) for k in m.items()} for m in (ma, mb)]
+        shared = frozenset(ma.items()) & frozenset(mb.items())
+        args = (ma, mb, fa, fb, 1000, {}, {})
+        assert prf.weighted_shared_descent_pvalue(*args, shared=shared) == prf.weighted_shared_descent_pvalue(*args)
