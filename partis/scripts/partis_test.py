@@ -8,6 +8,8 @@ import os
 import csv
 import glob
 import math
+import re
+import shlex
 import shutil
 import time
 from collections import OrderedDict
@@ -943,7 +945,6 @@ def files_match(fn1, fn2, rel_tol=1e-12):  # True if the two files have the same
         t1, t2 = b1.decode(), b2.decode()
     except UnicodeDecodeError:  # binary file
         return False
-    import re
     tokens1, tokens2 = [re.split(r'([\s,;:\[\]{}()]+)', t) for t in (t1, t2)]
     if len(tokens1) != len(tokens2):
         return False
@@ -972,11 +973,11 @@ def compare_backends(new_dir):  # run the tests with the C++ and then the zig ba
     if os.path.exists(new_dir):  # both runs have to start from an empty dir, otherwise leftover files from earlier runs end up only in the C++ output
         print('  removing %s' % new_dir)
         shutil.rmtree(new_dir)
-    utils.simplerun(' '.join(clist))
+    utils.simplerun(shlex.join(clist), shell=True)  # shell=True so the shlex quoting survives (simplerun otherwise splits on whitespace)
     if os.path.exists(cpp_dir):
         shutil.rmtree(cpp_dir)
     shutil.move(new_dir, cpp_dir)
-    utils.simplerun(' '.join(clist + ['--zig']))
+    utils.simplerun(shlex.join(clist + ['--zig']), shell=True)
     cpp_files, zig_files = file_set(cpp_dir), file_set(new_dir)
     only_cpp, only_zig = sorted(cpp_files - zig_files), sorted(zig_files - cpp_files)
     differ = sorted(f for f in cpp_files & zig_files if not files_match(os.path.join(cpp_dir, f), os.path.join(new_dir, f)))
