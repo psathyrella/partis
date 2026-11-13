@@ -630,11 +630,13 @@ def process(args):
 
         if args.allowed_cdr3_lengths is not None and not args.paired_loci and args.rearrange_from_scratch and any(l < 30 for l in args.allowed_cdr3_lengths):  # ick
             factor = 3
-            print('  note: asked for cdr3 lengths <30 with --rearrange-from-scratch set, so increasing scratch mean deletion lengths and decreasing scratch mean insertion lengths by factor of %.1f:' % factor)
-            for tdict, tfact in zip([utils.scratch_mean_erosion_lengths[args.locus], utils.scratch_mean_insertion_lengths[args.locus]], [factor, 1./factor]):
+            print('  note: asked for cdr3 lengths <30 with --rearrange-from-scratch set, so increasing scratch mean deletion lengths and decreasing scratch mean insertion lengths (the part above 1) by factor of %.1f:' % factor)
+            # insertion draw is geometric(1/mean) - 1, so scale only the part above 1
+            for tdict, tfact, toffset in zip([utils.scratch_mean_erosion_lengths[args.locus], utils.scratch_mean_insertion_lengths[args.locus]], [factor, 1./factor], [0., 1.]):
                 for tstr in tdict:
-                    print('    %8s  %5.1f --> %5.1f' % (tstr, tdict[tstr], tfact * tdict[tstr]))
-                    tdict[tstr] *= tfact
+                    newval = toffset + tfact * (tdict[tstr] - toffset) if tdict[tstr] > 0 else 0.
+                    print('    %8s  %5.1f --> %5.1f' % (tstr, tdict[tstr], newval))
+                    tdict[tstr] = newval
 
     if args.parameter_dir is not None and not args.paired_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
         args.parameter_dir = args.parameter_dir.rstrip('/')
