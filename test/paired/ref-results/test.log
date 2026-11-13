@@ -1,6 +1,6 @@
-[92mcache-parameters-data[0m            partis cache-parameters --dont-write-git-info --paired-loci --infname /tmp/dralph/partis-440/test/paired-data/all-seqs.fa --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data --n-max-queries 100 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
+[92mcache-parameters-data[0m            partis cache-parameters --dont-write-git-info --paired-loci --infname /home/dralph/work/partis/test/paired-data/all-seqs.fa --parameter-dir test/paired/new-results/test/parameters/data --n-max-queries 100 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
   note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).
-[91mrun[0m extract-pairing-info.py /tmp/dralph/partis-440/test/paired-data/all-seqs.fa /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/meta.yaml --n-max-queries 100
+[91mrun[0m extract-pairing-info.py /home/dralph/work/partis/test/paired-data/all-seqs.fa /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/meta.yaml --n-max-queries 100
   --n-max-queries: chose 48 / 48 droplets (first 100, after random shuffling) which had 100 / 100 seqs
   extract_pairing_info(): read 100 sequences with 48 droplet ids
     droplet id separators (set automatically): _  indices: [0]
@@ -11,9 +11,9 @@
         2           42     0.875
         3            2     0.042
         4            2     0.042
-[91mrun[0m split-loci.py /tmp/dralph/partis-440/test/paired-data/all-seqs.fa --outdir /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7 --input-metafname /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/meta.yaml --n-max-queries 100
+[91mrun[0m split-loci.py /home/dralph/work/partis/test/paired-data/all-seqs.fa --outdir /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573 --input-metafname /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/meta.yaml --n-max-queries 100
   --n-max-queries: chose 48 / 48 droplets (first 100, after random shuffling) which had 100 / 100 seqs
-  --input-metafnames: added meta info for 100 sequences from /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/meta.yaml: paired-uids
+  --input-metafnames: added meta info for 100 sequences from /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/meta.yaml: paired-uids
     read pairing info for 100 seqs from input meta file
   running vsearch on 100 sequences:
     igh:   50 / 100 v annotations (50 failed) with 35 v genes in 0.1 sec
@@ -36,10 +36,10 @@ totals: igh 48 igk 37 igl 15
                2   0.13   [94mh[0m [92ml[0m
                1   0.07   [94mh[0m [95mk[0m
                1   0.07   [94mh[0m [94mh[0m [95mk[0m
-writing to /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/
-  igh: 48 to 4cd93f49bbcb48559b28aff92b92b9a7/igh.fa
-  igk: 37 to 4cd93f49bbcb48559b28aff92b92b9a7/igk.fa
-  igl: 15 to 4cd93f49bbcb48559b28aff92b92b9a7/igl.fa
+writing to /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/
+  igh: 48 to b323c12972d141a0ac5b14da8161e573/igh.fa
+  igk: 37 to b323c12972d141a0ac5b14da8161e573/igk.fa
+  igl: 15 to b323c12972d141a0ac5b14da8161e573/igl.fa
 writing to paired subdirs
     igh+igk:
       igh: 36 / 48 to igh+igk/igh.fa
@@ -48,40 +48,40 @@ writing to paired subdirs
       igh: 15 / 48 to igh+igl/igh.fa
       igl: 15 / 15 to igh+igl/igl.fa
 [44mcache-parameters[0m [94migh[0m:
-[91mrun[0m partis cache-parameters --locus igh --dont-write-git-info --infname /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/igh.fa --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/meta.yaml
-  --input-metafnames: added meta info for 48 sequences from /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/meta.yaml: paired-uids
+[91mrun[0m partis cache-parameters --locus igh --dont-write-git-info --infname /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/igh.fa --parameter-dir test/paired/new-results/test/parameters/data/igh --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --sw-cachefname test/paired/new-results/test/parameters/data/igh/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/meta.yaml
+  --input-metafnames: added meta info for 48 sequences from /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/meta.yaml: paired-uids
 caching parameters
-  vsearch: 48 / 48 v annotations (0 failed) with 31 v genes in 0.1 sec
+  vsearch: 48 / 48 v annotations (0 failed) with 31 v genes in 0.0 sec
     keeping 24 / 433 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 48 / 48 v annotations (0 failed) with 24 v genes in 0.1 sec
     running 10 procs for 48 seqs
       info for 48 / 48 = 1.000   (removed: 0 failed)
       kept 1 (0.021) unproductive
-    water time: 0.1  (ig-sw 0.0  processing 0.1)
+    water time: 0.1  (ig-sw 0.1  processing 0.1)
 smith-waterman  (writing parameters)
   vsearch: 48 / 48 v annotations (0 failed) with 24 v genes in 0.1 sec
     running 10 procs for 48 seqs
       info for 48 / 48 = 1.000   (removed: 0 failed)
       kept 1 (0.021) unproductive
-        writing sw results to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/sw-cache.yaml
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/sw (1.8 sec)
-    water time: 1.9  (ig-sw 1.8  processing 0.1)
+        writing sw results to test/paired/new-results/test/parameters/data/igh/sw-cache.yaml
+    writing parameters to test/paired/new-results/test/parameters/data/igh/sw (1.7 sec)
+    water time: 1.8  (ig-sw 1.8  processing 0.1)
   writing hmms     removed 63 genes from glfo (leaving v 24  d 26  j 6)
-(0.5 sec)
+(0.4 sec)
 hmm
     reading output
         read 48 hmm output lines with 48 sequences in 48 events  (0 failures)
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm (1.7 sec)
+    writing parameters to test/paired/new-results/test/parameters/data/igh/hmm (1.6 sec)
          infra time: 1.7
       hmm step time: 2.1
   writing hmms     removed 7  genes from glfo (leaving v 24  d 19  j 6)
 (0.5 sec)
-      total time: 5.5
-      bcrham time: 0.4 (6.4% of total, 1 calls)
+      total time: 5.3
+      bcrham time: 0.4 (6.7% of total, 1 calls)
 [44mcache-parameters[0m [94migk[0m:
-[91mrun[0m partis cache-parameters --locus igk --dont-write-git-info --infname /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/igk.fa --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/meta.yaml
-  --input-metafnames: added meta info for 37 sequences from /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/meta.yaml: paired-uids
+[91mrun[0m partis cache-parameters --locus igk --dont-write-git-info --infname /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/igk.fa --parameter-dir test/paired/new-results/test/parameters/data/igk --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --sw-cachefname test/paired/new-results/test/parameters/data/igk/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/meta.yaml
+  --input-metafnames: added meta info for 37 sequences from /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/meta.yaml: paired-uids
 caching parameters
   vsearch: 37 / 37 v annotations (0 failed) with 18 v genes in 0.0 sec
     keeping 16 / 186 v genes
@@ -92,28 +92,28 @@ smith-waterman  (new-allele fitting)
       kept 1 (0.027) unproductive
     water time: 0.1  (ig-sw 0.0  processing 0.1)
 smith-waterman  (writing parameters)
-  vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.1 sec
+  vsearch: 37 / 37 v annotations (0 failed) with 16 v genes in 0.0 sec
     running 10 procs for 37 seqs
       info for 37 / 37 = 1.000   (removed: 0 failed)
       kept 1 (0.027) unproductive
-        writing sw results to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/sw-cache.yaml
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/sw (1.2 sec)
-    water time: 1.4  (ig-sw 1.3  processing 0.1)
+        writing sw results to test/paired/new-results/test/parameters/data/igk/sw-cache.yaml
+    writing parameters to test/paired/new-results/test/parameters/data/igk/sw (1.1 sec)
+    water time: 1.2  (ig-sw 1.1  processing 0.1)
   writing hmms     removed 11 genes from glfo (leaving v 16  d 1  j 7)
 (0.3 sec)
 hmm
     reading output
         read 37 hmm output lines with 37 sequences in 37 events  (0 failures)
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm (1.0 sec)
+    writing parameters to test/paired/new-results/test/parameters/data/igk/hmm (1.0 sec)
          infra time: 1.1
       hmm step time: 1.3
   writing hmms     removed 0  genes from glfo (leaving v 16  d 1  j 7)
 (0.3 sec)
-      total time: 3.7
-      bcrham time: 0.2 (6.2% of total, 1 calls)
+      total time: 3.4
+      bcrham time: 0.2 (5.7% of total, 1 calls)
 [44mcache-parameters[0m [94migl[0m:
-[91mrun[0m partis cache-parameters --locus igl --dont-write-git-info --infname /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/igl.fa --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/meta.yaml
-  --input-metafnames: added meta info for 15 sequences from /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/meta.yaml: paired-uids
+[91mrun[0m partis cache-parameters --locus igl --dont-write-git-info --infname /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/igl.fa --parameter-dir test/paired/new-results/test/parameters/data/igl --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --sw-cachefname test/paired/new-results/test/parameters/data/igl/sw-cache.yaml --input-metafnames /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/meta.yaml
+  --input-metafnames: added meta info for 15 sequences from /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/meta.yaml: paired-uids
 caching parameters
   vsearch: 15 / 15 v annotations (0 failed) with 15 v genes in 0.0 sec
     keeping 10 / 441 v genes
@@ -126,27 +126,27 @@ smith-waterman  (writing parameters)
   vsearch: 15 / 15 v annotations (0 failed) with 10 v genes in 0.0 sec
     running 10 procs for 15 seqs
       info for 15 / 15 = 1.000   (removed: 0 failed)
-        writing sw results to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl/sw-cache.yaml
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl/sw (0.8 sec)
+        writing sw results to test/paired/new-results/test/parameters/data/igl/sw-cache.yaml
+    writing parameters to test/paired/new-results/test/parameters/data/igl/sw (0.8 sec)
     water time: 0.9  (ig-sw 0.8  processing 0.0)
   writing hmms     removed 28 genes from glfo (leaving v 10  d 1  j 4)
 (0.1 sec)
 hmm
     reading output
         read 15 hmm output lines with 15 sequences in 15 events  (0 failures)
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl/hmm (0.7 sec)
-         infra time: 0.8
+    writing parameters to test/paired/new-results/test/parameters/data/igl/hmm (0.7 sec)
+         infra time: 0.7
       hmm step time: 0.9
   writing hmms     removed 0  genes from glfo (leaving v 10  d 1  j 4)
 (0.1 sec)
       total time: 2.3
-      bcrham time: 0.1 (4.5% of total, 1 calls)
-      [93mwarning[0m expected to remove 1/11 files+dirs that weren't in /tmp/dralph/hmms/4cd93f49bbcb48559b28aff92b92b9a7/: failed.fa
-      total time: 16.4
-[92msimulate[0m                         partis simulate --dont-write-git-info --paired-loci --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data --n-sim-events 10 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir /tmp/dralph/partis-440/test/paired/new-results/test/simu --indel-frequency 0.2
+      bcrham time: 0.1 (6.1% of total, 1 calls)
+      [93mwarning[0m expected to remove 1/11 files+dirs that weren't in /tmp/dralph/hmms/b323c12972d141a0ac5b14da8161e573/: failed.fa
+      total time: 15.9
+[92msimulate[0m                         partis simulate --dont-write-git-info --paired-loci --parameter-dir test/paired/new-results/test/parameters/data --n-sim-events 10 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir test/paired/new-results/test/simu --indel-frequency 0.2
 [94migh+igk[0m: simulating 7 events
 [44mgenerate-trees[0m [94migh+igk[0m:[94m igh[0m
-[91mrun[0m partis simulate --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh --n-trees 7 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 2003260051 --no-time-based-n-proc-reduction --indel-frequency 0.2 --generate-trees --outfname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igk/trees.nwk
+[91mrun[0m partis simulate --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igh --n-trees 7 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 2003260051 --no-time-based-n-proc-reduction --indel-frequency 0.2 --generate-trees --outfname test/paired/new-results/test/simu/igh+igk/trees.nwk
 stty: 'standard input': Inappropriate ioctl for device
 Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
   subscript out of bounds
@@ -156,107 +156,107 @@ In system("stty size", intern = T) :
   note: reducing --n-procs to 1 (was 28) so it isn't bigger than --n-sim-events
   generating 7 trees, n-leaves from geometric distribution with parameter 5.0
     mean over 7 trees:   depth 0.10000   leaves 4.43
-    writing trees to /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igk/trees.nwk
-      total time: 1.5
+    writing trees to test/paired/new-results/test/simu/igh+igk/trees.nwk
+      total time: 1.4
 [44msimulate[0m [94migh+igk[0m:[94m igh[0m
-[91mrun[0m partis simulate --locus igh --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh --n-sim-events 7 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 2003260051 --n-procs 10 --no-time-based-n-proc-reduction --indel-frequency 0.2 --crash-on-duplicate-uids --choose-trees-in-order --outfname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igk/igh.yaml --input-simulation-treefname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igk/trees.nwk
+[91mrun[0m partis simulate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igh --n-sim-events 7 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 2003260051 --n-procs 10 --no-time-based-n-proc-reduction --indel-frequency 0.2 --crash-on-duplicate-uids --choose-trees-in-order --outfname test/paired/new-results/test/simu/igh+igk/igh.yaml --input-simulation-treefname test/paired/new-results/test/simu/igh+igk/trees.nwk
   note: reducing --n-procs to 7 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 0
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8292961f5848484297e02de4a20a45c9/trees-sub-0.nwk
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/37b964fb40c743e8b4ea077b187d42b8/trees-sub-0.nwk
     made 1 event with 12 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.3
 
       --> proc 1
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8292961f5848484297e02de4a20a45c9/trees-sub-1.nwk
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/37b964fb40c743e8b4ea077b187d42b8/trees-sub-1.nwk
     made 1 event with 5 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.2
 
       --> proc 2
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8292961f5848484297e02de4a20a45c9/trees-sub-2.nwk
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/37b964fb40c743e8b4ea077b187d42b8/trees-sub-2.nwk
     made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.2
 
       --> proc 3
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8292961f5848484297e02de4a20a45c9/trees-sub-3.nwk
-    made 1 event with 3 seqs in 0.2s (0.2s of which was running bppseqgen)
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/37b964fb40c743e8b4ea077b187d42b8/trees-sub-3.nwk
+    made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.2
 
       --> proc 4
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8292961f5848484297e02de4a20a45c9/trees-sub-4.nwk
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/37b964fb40c743e8b4ea077b187d42b8/trees-sub-4.nwk
     made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.2
 
       --> proc 5
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8292961f5848484297e02de4a20a45c9/trees-sub-5.nwk
-    made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/37b964fb40c743e8b4ea077b187d42b8/trees-sub-5.nwk
+    made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.2
 
       --> proc 6
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/8292961f5848484297e02de4a20a45c9/trees-sub-6.nwk
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/37b964fb40c743e8b4ea077b187d42b8/trees-sub-6.nwk
     made 1 event with 2 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.2
 
    read 7 events with 31 seqs from 7 .yaml files
-      total time: 1.9
+      total time: 2.6
 [44msimulate[0m [94migh+igk[0m:[94m igk[0m
-[91mrun[0m partis simulate --locus igk --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk --n-sim-events 7 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 2077655082 --n-procs 10 --no-time-based-n-proc-reduction --indel-frequency 0.2 --crash-on-duplicate-uids --choose-trees-in-order --outfname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igk/igk.yaml --input-simulation-treefname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igk/trees.nwk
+[91mrun[0m partis simulate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igk --n-sim-events 7 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 2077655082 --n-procs 10 --no-time-based-n-proc-reduction --indel-frequency 0.2 --crash-on-duplicate-uids --choose-trees-in-order --outfname test/paired/new-results/test/simu/igh+igk/igk.yaml --input-simulation-treefname test/paired/new-results/test/simu/igh+igk/trees.nwk
   note: reducing --n-procs to 7 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 0
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/fd412c9749014b7680b781510f4cd4f5/trees-sub-0.nwk
+    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/888708a2543c41e2b814d8ac38847ff2/trees-sub-0.nwk
     made 1 event with 12 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.2
 
       --> proc 1
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/fd412c9749014b7680b781510f4cd4f5/trees-sub-1.nwk
-    made 1 event with 5 seqs in 0.2s (0.1s of which was running bppseqgen)
+    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/888708a2543c41e2b814d8ac38847ff2/trees-sub-1.nwk
+    made 1 event with 5 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.2
 
       --> proc 2
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/fd412c9749014b7680b781510f4cd4f5/trees-sub-2.nwk
+    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/888708a2543c41e2b814d8ac38847ff2/trees-sub-2.nwk
     made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.1
 
       --> proc 3
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/fd412c9749014b7680b781510f4cd4f5/trees-sub-3.nwk
+    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/888708a2543c41e2b814d8ac38847ff2/trees-sub-3.nwk
     made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.2
 
       --> proc 4
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/fd412c9749014b7680b781510f4cd4f5/trees-sub-4.nwk
-    made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
-      total time: 0.2
+    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/888708a2543c41e2b814d8ac38847ff2/trees-sub-4.nwk
+    made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 0.1
 
       --> proc 5
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/fd412c9749014b7680b781510f4cd4f5/trees-sub-5.nwk
+    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/888708a2543c41e2b814d8ac38847ff2/trees-sub-5.nwk
     made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.1
 
       --> proc 6
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igk/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/fd412c9749014b7680b781510f4cd4f5/trees-sub-6.nwk
+    reco params: test/paired/new-results/test/parameters/data/igk/hmm     shm params: test/paired/new-results/test/parameters/data/igk/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/888708a2543c41e2b814d8ac38847ff2/trees-sub-6.nwk
     made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.1
 
    read 7 events with 31 seqs from 7 .yaml files
-      total time: 1.7
+      total time: 1.8
 [94migh+igl[0m: simulating 3 events
 [44mgenerate-trees[0m [94migh+igl[0m:[94m igh[0m
-[91mrun[0m partis simulate --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh --n-trees 3 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 982264879 --no-time-based-n-proc-reduction --indel-frequency 0.2 --generate-trees --outfname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igl/trees.nwk
+[91mrun[0m partis simulate --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igh --n-trees 3 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 982264879 --no-time-based-n-proc-reduction --indel-frequency 0.2 --generate-trees --outfname test/paired/new-results/test/simu/igh+igl/trees.nwk
 stty: 'standard input': Inappropriate ioctl for device
 Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
   subscript out of bounds
@@ -266,58 +266,58 @@ In system("stty size", intern = T) :
   note: reducing --n-procs to 1 (was 28) so it isn't bigger than --n-sim-events
   generating 3 trees, n-leaves from geometric distribution with parameter 5.0
     mean over 3 trees:   depth 0.10000   leaves 6.67
-    writing trees to /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igl/trees.nwk
+    writing trees to test/paired/new-results/test/simu/igh+igl/trees.nwk
       total time: 1.4
 [44msimulate[0m [94migh+igl[0m:[94m igh[0m
-[91mrun[0m partis simulate --locus igh --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh --n-sim-events 3 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 982264879 --n-procs 10 --no-time-based-n-proc-reduction --indel-frequency 0.2 --crash-on-duplicate-uids --choose-trees-in-order --outfname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igl/igh.yaml --input-simulation-treefname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igl/trees.nwk
+[91mrun[0m partis simulate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igh --n-sim-events 3 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 982264879 --n-procs 10 --no-time-based-n-proc-reduction --indel-frequency 0.2 --crash-on-duplicate-uids --choose-trees-in-order --outfname test/paired/new-results/test/simu/igh+igl/igh.yaml --input-simulation-treefname test/paired/new-results/test/simu/igh+igl/trees.nwk
   note: reducing --n-procs to 3 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 0
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/1d05408a45b740d6a636e1f8c6ee7b81/trees-sub-0.nwk
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/256c2b0509a6487f92291b8a8fefa759/trees-sub-0.nwk
     made 1 event with 14 seqs in 0.3s (0.2s of which was running bppseqgen)
       total time: 0.3
 
       --> proc 1
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/1d05408a45b740d6a636e1f8c6ee7b81/trees-sub-1.nwk
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/256c2b0509a6487f92291b8a8fefa759/trees-sub-1.nwk
     made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.2
 
       --> proc 2
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igh/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/1d05408a45b740d6a636e1f8c6ee7b81/trees-sub-2.nwk
+    reco params: test/paired/new-results/test/parameters/data/igh/hmm     shm params: test/paired/new-results/test/parameters/data/igh/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/256c2b0509a6487f92291b8a8fefa759/trees-sub-2.nwk
     made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
       total time: 0.2
 
    read 3 events with 20 seqs from 3 .yaml files
       total time: 1.6
 [44msimulate[0m [94migh+igl[0m:[94m igl[0m
-[91mrun[0m partis simulate --locus igl --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl --n-sim-events 3 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 1083609742 --n-procs 10 --no-time-based-n-proc-reduction --indel-frequency 0.2 --crash-on-duplicate-uids --choose-trees-in-order --outfname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igl/igl.yaml --input-simulation-treefname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igl/trees.nwk
+[91mrun[0m partis simulate --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/data/igl --n-sim-events 3 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --min-observations-per-gene 5 --mean-cells-per-droplet 1.25 --constant-cells-per-droplet --fraction-of-reads-to-remove 0.15 --random-seed 1083609742 --n-procs 10 --no-time-based-n-proc-reduction --indel-frequency 0.2 --crash-on-duplicate-uids --choose-trees-in-order --outfname test/paired/new-results/test/simu/igh+igl/igl.yaml --input-simulation-treefname test/paired/new-results/test/simu/igh+igl/trees.nwk
   note: reducing --n-procs to 3 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 0
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/9222bc7281114d9b851e4f7ae6d6898b/trees-sub-0.nwk
+    reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/261bd578071b4a75abc89a9acc56a07d/trees-sub-0.nwk
     made 1 event with 14 seqs in 0.2s (0.2s of which was running bppseqgen)
       total time: 0.3
 
       --> proc 1
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/9222bc7281114d9b851e4f7ae6d6898b/trees-sub-1.nwk
+    reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/261bd578071b4a75abc89a9acc56a07d/trees-sub-1.nwk
     made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.1
 
       --> proc 2
-    reco params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl/hmm     shm params: /tmp/dralph/partis-440/test/paired/new-results/test/parameters/data/igl/hmm
-    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/9222bc7281114d9b851e4f7ae6d6898b/trees-sub-2.nwk
+    reco params: test/paired/new-results/test/parameters/data/igl/hmm     shm params: test/paired/new-results/test/parameters/data/igl/hmm
+    resetting --n-trees from 10 to 1 to match trees read from /tmp/dralph/hmms/261bd578071b4a75abc89a9acc56a07d/trees-sub-2.nwk
     made 1 event with 3 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 0.1
 
    read 3 events with 20 seqs from 3 .yaml files
       total time: 1.6
-[94migh+igk[0m: synchronizing heavy and light chain simulation trees and rewriting output files in /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igk/
-[94migh+igl[0m: synchronizing heavy and light chain simulation trees and rewriting output files in /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh+igl/
+[94migh+igk[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results/test/simu/igh+igk/
+[94migh+igl[0m: synchronizing heavy and light chain simulation trees and rewriting output files in test/paired/new-results/test/simu/igh+igl/
   concatenating heavy chain loci:
       [94mh[0m starting with 7 annotations (31 seqs)
       [93mwarning[0m genes in glfo but not referenced in any annotation:    v: [95mh[0m[91mv[0m[95m1[0m[95m-69[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-74[0m[93m01_g173c[0m [95mh[0m[91mv[0m[95m4[0m[95m-39[0m[93m01[0m [95mh[0m[91mv[0m[95m4[0m[95m-59[0m[93m11[0m [95mh[0m[91mv[0m[95m1[0m[95m-46[0m[93m03[0m [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m01[0m [95mh[0m[91mv[0m[95m1[0m[95m-2[0m[93m02[0m [95mh[0m[91mv[0m[95m1[0m[95m-8[0m[93m01[0m [95mh[0m[91mv[0m[95m4[0m[95m-4[0m[93m02[0m [95mh[0m[91mv[0m[95m4[0m[95m-31[0m[93m03[0m [95mh[0m[91mv[0m[95m3[0m[95m-15[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-7[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-20[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91mv[0m[95m2[0m[95m-5[0m[93m02[0m [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-66[0m[93m01[0m   d: [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m7[0m[95m-27[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-21[0m[93m02_c3g_c22g_27attcc31[0m [95mh[0m[91md[0m[95m6[0m[95m-19[0m[93m01[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01_c28-[0m [95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01_a14t_t16-_a17g_c28-[0m [95mh[0m[91md[0m[95m6[0m[95m-13[0m[93m01_t4a[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01_a14-[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02_c12g_t21-_a22c[0m [95mh[0m[91md[0m[95m1[0m[95m-20[0m[93m01[0m [95mh[0m[91md[0m[95m3[0m[95m-3[0m[93m02[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m   j: [95mh[0m[91mj[0m[95m5[0m[93m02[0m [95mh[0m[91mj[0m[95m1[0m[93m01[0m [95mh[0m[91mj[0m[95m2[0m[93m01[0m
@@ -331,14 +331,14 @@ simulating
      [94mh[0m: 10 annotations (51 seqs)
   apportioned 102 seqs among 40 droplets (mean/2 1.3): 2 2 2 4 2 2 2 4 4 4 4 2 2 2 4 2 2 2 2 2 2 2 2 4 2 4 2 2 4 2 2 2 2 2 4 4 2 2 2 2
   removed 15 / 102 = 0.15 seqs from outfos (leaving 8 / 87 unpaired)
-    writing combined h/l info to fasta and meta files in /tmp/dralph/partis-440/test/paired/new-results/test/simu
-      total time: 16.9
-[92mcache-parameters-simu[0m            partis cache-parameters --dont-write-git-info --paired-loci --paired-indir /tmp/dralph/partis-440/test/paired/new-results/test/simu --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
+    writing combined h/l info to fasta and meta files in test/paired/new-results/test/simu
+      total time: 17.4
+[92mcache-parameters-simu[0m            partis cache-parameters --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
   note: --paired-outdir is not set, so there will be no persistent record of the results (except the parameter directory).
 [44mcache-parameters[0m [94migh[0m:
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis cache-parameters --locus igh --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --infname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 44 sequences from /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis cache-parameters --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --infname test/paired/new-results/test/simu/igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 44 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
 caching parameters
   vsearch: 44 / 44 v annotations (0 failed) with 10 v genes in 0.0 sec
     keeping 6 / 433 v genes
@@ -356,26 +356,26 @@ smith-waterman  (writing parameters)
     running 11 procs for 1 seq
       info for 44 / 44 = 1.000   (removed: 0 failed)
       kept 18 (0.409) unproductive
-        writing sw results to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw (0.6 sec)
-    water time: 0.8  (ig-sw 0.6  processing 0.0)
+        writing sw results to test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
+    writing parameters to test/paired/new-results/test/parameters/simu/igh/sw (0.5 sec)
+    water time: 0.7  (ig-sw 0.6  processing 0.0)
   writing hmms     removed 77 genes from glfo (leaving v 6  d 12  j 6)
 (0.2 sec)
 hmm
     reading output
         read 44 hmm output lines with 44 sequences in 44 events  (0 failures)
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/hmm (0.5 sec)
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/true (0.4 sec)
-         infra time: 1.0
-      hmm step time: 1.3
+    writing parameters to test/paired/new-results/test/parameters/simu/igh/hmm (0.4 sec)
+    writing parameters to test/paired/new-results/test/parameters/simu/igh/true (0.4 sec)
+         infra time: 0.9
+      hmm step time: 1.2
   writing hmms     removed 1  genes from glfo (leaving v 6  d 11  j 6)
 (0.2 sec)
-      total time: 2.8
-      bcrham time: 0.3 (10.0% of total, 1 calls)
+      total time: 2.6
+      bcrham time: 0.3 (9.7% of total, 1 calls)
 [44mcache-parameters[0m [94migk[0m:
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis cache-parameters --locus igk --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --infname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igk.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 26 sequences from /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis cache-parameters --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --infname test/paired/new-results/test/simu/igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 26 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
 caching parameters
   vsearch: 26 / 26 v annotations (0 failed) with 9 v genes in 0.0 sec
     keeping 5 / 186 v genes
@@ -391,26 +391,26 @@ smith-waterman  (writing parameters)
     running 10 procs for 26 seqs
       info for 26 / 26 = 1.000   (removed: 0 failed)
       kept 5 (0.192) unproductive
-        writing sw results to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/sw (0.4 sec)
-    water time: 0.5  (ig-sw 0.4  processing 0.0)
+        writing sw results to test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
+    writing parameters to test/paired/new-results/test/parameters/simu/igk/sw (0.4 sec)
+    water time: 0.5  (ig-sw 0.5  processing 0.0)
   writing hmms     removed 13 genes from glfo (leaving v 5  d 1  j 5)
 (0.1 sec)
 hmm
     reading output
         read 26 hmm output lines with 26 sequences in 26 events  (0 failures)
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/hmm (0.4 sec)
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/true (0.4 sec)
-         infra time: 0.9
-      hmm step time: 1.0
+    writing parameters to test/paired/new-results/test/parameters/simu/igk/hmm (0.4 sec)
+    writing parameters to test/paired/new-results/test/parameters/simu/igk/true (0.3 sec)
+         infra time: 0.8
+      hmm step time: 0.9
   writing hmms     removed 0  genes from glfo (leaving v 5  d 1  j 5)
 (0.1 sec)
-      total time: 2.0
-      bcrham time: 0.2 (8.1% of total, 1 calls)
+      total time: 1.9
+      bcrham time: 0.1 (7.3% of total, 1 calls)
 [44mcache-parameters[0m [94migl[0m:
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis cache-parameters --locus igl --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --infname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igl.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 17 sequences from /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis cache-parameters --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --infname test/paired/new-results/test/simu/igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 17 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
 caching parameters
   vsearch: 17 / 17 v annotations (0 failed) with 5 v genes in 0.0 sec
     keeping 2 / 441 v genes
@@ -420,39 +420,39 @@ smith-waterman  (new-allele fitting)
     running 10 procs for 17 seqs
       info for 17 / 17 = 1.000   (removed: 0 failed)
       kept 3 (0.176) unproductive
-    water time: 0.1  (ig-sw 0.0  processing 0.0)
+    water time: 0.0  (ig-sw 0.0  processing 0.0)
 smith-waterman  (writing parameters)
   vsearch: 17 / 17 v annotations (0 failed) with 2 v genes in 0.1 sec
     running 10 procs for 17 seqs
       info for 17 / 17 = 1.000   (removed: 0 failed)
       kept 3 (0.176) unproductive
-        writing sw results to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw (0.2 sec)
+        writing sw results to test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
+    writing parameters to test/paired/new-results/test/parameters/simu/igl/sw (0.2 sec)
     water time: 0.3  (ig-sw 0.3  processing 0.0)
   writing hmms     removed 31 genes from glfo (leaving v 2  d 1  j 1)
 (0.1 sec)
 hmm
     reading output
         read 17 hmm output lines with 17 sequences in 17 events  (0 failures)
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/hmm (0.1 sec)
-    writing parameters to /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/true (0.1 sec)
-         infra time: 0.4
-      hmm step time: 0.5
+    writing parameters to test/paired/new-results/test/parameters/simu/igl/hmm (0.1 sec)
+    writing parameters to test/paired/new-results/test/parameters/simu/igl/true (0.1 sec)
+         infra time: 0.3
+      hmm step time: 0.4
   writing hmms     removed 0  genes from glfo (leaving v 2  d 1  j 1)
 (0.1 sec)
-      total time: 1.2
-      bcrham time: 0.1 (9.9% of total, 1 calls)
-      total time: 9.7
-[92mpartition-new-simu[0m               partis partition --dont-write-git-info --paired-loci --paired-indir /tmp/dralph/partis-440/test/paired/new-results/test/simu --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu
+      total time: 1.1
+      bcrham time: 0.1 (9.4% of total, 1 calls)
+      total time: 9.1
+[92mpartition-new-simu[0m               partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir test/paired/new-results/partition-new-simu
   [93mwarning[0m ignoring --plot-annotation-performance for paired clustering since it's going to be a bit fiddly to implement
 [44mpartition[0m [94migh[0m:
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis partition --locus igh --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igh --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igh.yaml --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/single-chain/partition-igh.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 44 sequences from /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml: loci paired-uids
-partitioning     (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/hmm)
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis partition --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igh --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/test/simu/igh.yaml --outfname test/paired/new-results/partition-new-simu/single-chain/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 44 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+partitioning     (with test/paired/new-results/test/parameters/simu/igh/hmm)
 smith-waterman
   vsearch: 44 / 44 v annotations (0 failed) with 6 v genes in 0.1 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
+        reading sw results from test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
       info for 44 / 44 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 18 (0.409) unproductive
   plotting performance 
@@ -467,27 +467,27 @@ hmm
    18 clusters with 5 procs (0.2s)
    17 clusters with 3 procs (0.1s)
    17 clusters with 2 procs (0.1s)
-   15 clusters with 2 procs (0.3s)
+   15 clusters with 2 procs (0.2s)
    13 clusters with 2 procs (0.1s)
    13 clusters with 2 procs (0.1s)
    13 clusters with 1 proc (0.3s)
        partition loop time: 1.5
 getting annotations for final partition
-  subcluster annotating 13 clusters with steps:  (0.3s) (0.2s) (0.2s)   plotting performance 
+  subcluster annotating 13 clusters with steps:  (0.2s) (0.2s) (0.2s)   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 4 queries with different true and inferred net shm indel lengths: 437dc38039-igh be4457c2cc-igh d2ef33b9ac-igh e4f7e53dbe-igh
 (0.0 sec)
 
-    subcluster annotation time 0.6
+    subcluster annotation time 0.7
       total time: 2.7
-      bcrham time: 1.9 (72.7% of total, 13 calls)
+      bcrham time: 1.9 (71.3% of total, 13 calls)
 [44mpartition[0m [94migk[0m:
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis partition --locus igk --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igk --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igk.yaml --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 26 sequences from /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml: loci paired-uids
-partitioning     (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/hmm)
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igk --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/test/simu/igk.yaml --outfname test/paired/new-results/partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 26 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+partitioning     (with test/paired/new-results/test/parameters/simu/igk/hmm)
 smith-waterman
   vsearch: 26 / 26 v annotations (0 failed) with 5 v genes in 0.1 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
+        reading sw results from test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
       info for 26 / 26 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 5 (0.192) unproductive
   plotting performance (0.0 sec)
@@ -499,26 +499,26 @@ hmm
   6 clusters with 6 procs (0.1s)
    6 clusters with 4 procs (0.1s)
    6 clusters with 3 procs (0.1s)
-   6 clusters with 2 procs (0.2s)
+   6 clusters with 2 procs (0.1s)
    6 clusters with 2 procs (0.1s)
    6 clusters with 2 procs (0.1s)
    6 clusters with 2 procs (0.2s)
    6 clusters with 1 proc (0.2s)
-       partition loop time: 0.9
+       partition loop time: 0.8
 getting annotations for final partition
   subcluster annotating 6 clusters with steps:  (0.2s) (0.1s) (0.1s)   plotting performance (0.0 sec)
 
     subcluster annotation time 0.4
-      total time: 1.6
-      bcrham time: 1.0 (61.5% of total, 12 calls)
+      total time: 1.5
+      bcrham time: 1.0 (64.0% of total, 12 calls)
 [44mpartition[0m [94migl[0m:
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis partition --locus igl --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igl --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/test/simu/igl.yaml --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/single-chain/partition-igl.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 17 sequences from /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml: loci paired-uids
-partitioning     (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/hmm)
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis partition --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --plotdir test/paired/new-results/partition-new-simu-annotation-performance/single-chain/plots/igl --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/test/simu/igl.yaml --outfname test/paired/new-results/partition-new-simu/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 17 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+partitioning     (with test/paired/new-results/test/parameters/simu/igl/hmm)
 smith-waterman
-  vsearch: 17 / 17 v annotations (0 failed) with 2 v genes in 0.0 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
+  vsearch: 17 / 17 v annotations (0 failed) with 2 v genes in 0.1 sec
+        reading sw results from test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
       info for 17 / 17 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 3 (0.176) unproductive
   plotting performance 
@@ -542,8 +542,8 @@ getting annotations for final partition
 (0.0 sec)
 
     subcluster annotation time 0.4
-      total time: 1.0
-      bcrham time: 0.6 (58.1% of total, 10 calls)
+      total time: 1.1
+      bcrham time: 0.6 (57.5% of total, 10 calls)
 [44mcombining[0m chains
 cleaning pair info for 87 seqs
      synchronized/fixed 0 pairs where one had no pair info after cleaning: [94mh[0m 0  [95mk[0m 0  [92ml[0m 0
@@ -579,40 +579,40 @@ WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
   merge time 0.0
   need to get annotations for 3/9 joint igh clusters
 [44mannotate[0m [94migh+igk[0m:[94m igh[0m
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis annotate --locus igh --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh --max-ccf-fail-frac 0.10 --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/input-seqs-igh.fa --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igh.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/meta-igh.yaml --ignore-sw-pair-info --input-partition-fname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igh-only-partition.yaml
-  --input-metafnames: added meta info for 29 sequences from /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/meta-igh.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 29 sequences in 9 clusters from /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igh-only-partition.yaml
-annotating    (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/hmm)
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis annotate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --max-ccf-fail-frac 0.10 --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/partition-new-simu/igh+igk/input-seqs-igh.fa --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/partition-new-simu/igh+igk/meta-igh.yaml --ignore-sw-pair-info --input-partition-fname test/paired/new-results/partition-new-simu/igh+igk/partition-igh-only-partition.yaml
+  --input-metafnames: added meta info for 29 sequences from test/paired/new-results/partition-new-simu/igh+igk/meta-igh.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 29 sequences in 9 clusters from test/paired/new-results/partition-new-simu/igh+igk/partition-igh-only-partition.yaml
+annotating    (with test/paired/new-results/test/parameters/simu/igh/hmm)
 smith-waterman
   vsearch: 29 / 29 v annotations (0 failed) with 6 v genes in 0.1 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
+        reading sw results from test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
       info for 29 / 29 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 13 (0.448) unproductive
         water time: 0.0
 hmm
-  subcluster annotating 9 clusters with steps:  (0.2s) (0.2s) (0.1s) 
+  subcluster annotating 9 clusters with steps:  (0.2s) (0.2s) (0.2s) 
     subcluster annotation time 0.5
       total time: 0.6
-      bcrham time: 0.5 (75.7% of total, 3 calls)
+      bcrham time: 0.5 (78.6% of total, 3 calls)
   need to get annotations for 8/9 joint igk clusters
 [44mannotate[0m [94migh+igk[0m:[94m igk[0m
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis annotate --locus igk --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk --max-ccf-fail-frac 0.10 --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/input-seqs-igk.fa --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igk.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/meta-igk.yaml --ignore-sw-pair-info --input-partition-fname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igk-only-partition.yaml
-  --input-metafnames: added meta info for 26 sequences from /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/meta-igk.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 26 sequences in 9 clusters from /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igk-only-partition.yaml
-annotating    (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/hmm)
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis annotate --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --max-ccf-fail-frac 0.10 --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/partition-new-simu/igh+igk/input-seqs-igk.fa --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/partition-new-simu/igh+igk/meta-igk.yaml --ignore-sw-pair-info --input-partition-fname test/paired/new-results/partition-new-simu/igh+igk/partition-igk-only-partition.yaml
+  --input-metafnames: added meta info for 26 sequences from test/paired/new-results/partition-new-simu/igh+igk/meta-igk.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 26 sequences in 9 clusters from test/paired/new-results/partition-new-simu/igh+igk/partition-igk-only-partition.yaml
+annotating    (with test/paired/new-results/test/parameters/simu/igk/hmm)
 smith-waterman
   vsearch: 26 / 26 v annotations (0 failed) with 5 v genes in 0.1 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
+        reading sw results from test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
       info for 26 / 26 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 5 (0.192) unproductive
         water time: 0.0
 hmm
-  subcluster annotating 9 clusters with steps:  (0.1s) (0.1s) 
+  subcluster annotating 9 clusters with steps:  (0.2s) (0.1s) 
     subcluster annotation time 0.3
-      total time: 0.3
-      bcrham time: 0.2 (54.7% of total, 2 calls)
+      total time: 0.4
+      bcrham time: 0.2 (53.4% of total, 2 calls)
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
     removing badly + unpaired seqs:  kept 6 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 2  [92ml[0m 4
             note: discarding unpaired seqs in families with no (well-)paired seqs (i.e. families that are all either unpaired or paired to the other/wrong light chain), rather than keeping track of them to re-add later
@@ -637,14 +637,14 @@ hmm
   merge time 0.0
   need to get annotations for 3/4 joint igh clusters
 [44mannotate[0m [94migh+igl[0m:[94m igh[0m
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis annotate --locus igh --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh --max-ccf-fail-frac 0.10 --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/input-seqs-igh.fa --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igh.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/meta-igh.yaml --ignore-sw-pair-info --input-partition-fname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igh-only-partition.yaml
-  --input-metafnames: added meta info for 15 sequences from /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/meta-igh.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 15 sequences in 4 clusters from /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igh-only-partition.yaml
-annotating    (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/hmm)
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis annotate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --max-ccf-fail-frac 0.10 --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/partition-new-simu/igh+igl/input-seqs-igh.fa --outfname test/paired/new-results/partition-new-simu/igh+igl/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/partition-new-simu/igh+igl/meta-igh.yaml --ignore-sw-pair-info --input-partition-fname test/paired/new-results/partition-new-simu/igh+igl/partition-igh-only-partition.yaml
+  --input-metafnames: added meta info for 15 sequences from test/paired/new-results/partition-new-simu/igh+igl/meta-igh.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 15 sequences in 4 clusters from test/paired/new-results/partition-new-simu/igh+igl/partition-igh-only-partition.yaml
+annotating    (with test/paired/new-results/test/parameters/simu/igh/hmm)
 smith-waterman
   vsearch: 15 / 15 v annotations (0 failed) with 3 v genes in 0.1 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
+        reading sw results from test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
       info for 15 / 15 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 4 (0.267) unproductive
         water time: 0.0
@@ -652,17 +652,17 @@ hmm
   subcluster annotating 4 clusters with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.3
       total time: 0.4
-      bcrham time: 0.3 (67.8% of total, 3 calls)
+      bcrham time: 0.3 (66.7% of total, 3 calls)
   need to get annotations for 3/4 joint igl clusters
 [44mannotate[0m [94migh+igl[0m:[94m igl[0m
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis annotate --locus igl --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl --max-ccf-fail-frac 0.10 --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/input-seqs-igl.fa --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igl.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/meta-igl.yaml --ignore-sw-pair-info --input-partition-fname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igl-only-partition.yaml
-  --input-metafnames: added meta info for 17 sequences from /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/meta-igl.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 17 sequences in 4 clusters from /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igl-only-partition.yaml
-annotating    (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/hmm)
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis annotate --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --max-ccf-fail-frac 0.10 --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/partition-new-simu/igh+igl/input-seqs-igl.fa --outfname test/paired/new-results/partition-new-simu/igh+igl/partition-igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results/partition-new-simu/igh+igl/meta-igl.yaml --ignore-sw-pair-info --input-partition-fname test/paired/new-results/partition-new-simu/igh+igl/partition-igl-only-partition.yaml
+  --input-metafnames: added meta info for 17 sequences from test/paired/new-results/partition-new-simu/igh+igl/meta-igl.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 17 sequences in 4 clusters from test/paired/new-results/partition-new-simu/igh+igl/partition-igl-only-partition.yaml
+annotating    (with test/paired/new-results/test/parameters/simu/igl/hmm)
 smith-waterman
-  vsearch: 17 / 17 v annotations (0 failed) with 2 v genes in 0.1 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
+  vsearch: 17 / 17 v annotations (0 failed) with 2 v genes in 0.0 sec
+        reading sw results from test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
       info for 17 / 17 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 3 (0.176) unproductive
         water time: 0.0
@@ -670,7 +670,7 @@ hmm
   subcluster annotating 4 clusters with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.3
       total time: 0.4
-      bcrham time: 0.2 (62.1% of total, 3 calls)
+      bcrham time: 0.3 (66.9% of total, 3 calls)
   concatenating heavy chain loci:
       [94mh[0m starting with 9 annotations (29 seqs)
       [93mwarning[0m genes in glfo but not referenced in any annotation:    d: [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
@@ -684,20 +684,20 @@ hmm
         [94mh[0m   13 --> 13  
         [95mk[0m    6 --> 9    [91m+3[0m
         [92ml[0m    3 --> 4    [91m+1[0m
-      total time: 17.1
-[92msubset-partition-new-simu[0m        partis subset-partition --dont-write-git-info --paired-loci --paired-indir /tmp/dralph/partis-440/test/paired/new-results/test/simu --max-ccf-fail-frac 0.25 --is-simu --n-subsets 2 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu
-  note: --input-metafnames not specified, so setting to default location /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 87 sequences from /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml: loci paired-uids
-[44mrunning subset-partition[0m 87 seqs with 2 subsets from /tmp/dralph/partis-440/test/paired/new-results/test/simu/all-seqs.fa
+      total time: 16.6
+[92msubset-partition-new-simu[0m        partis subset-partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --max-ccf-fail-frac 0.25 --is-simu --n-subsets 2 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir test/paired/new-results/subset-partition-new-simu
+  note: --input-metafnames not specified, so setting to default location test/paired/new-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 87 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+[44mrunning subset-partition[0m 87 seqs with 2 subsets from test/paired/new-results/test/simu/all-seqs.fa
   grouped 87 input seqs into 40 droplet groups using existing pair info (first few droplet ids: a0a0a86fea bd89b2dfcb aeccfffbce)
      8/87 (0.09) had no pair info
   splitting 40 droplets into 2 groups with sizes: 20 20
     isub 0: chose 20 / 40 droplets in order (after random shuffling) which had 39 / 87 seqs
     isub 1: chose 20 / 40 droplets in order (after random shuffling) which had 48 / 87 seqs
-  [94misub 0:[0m [91mrun[0m partis partition --dont-write-git-info --paired-loci --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/isub-0 --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/isub-0/meta.yaml --infname /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/isub-0/input-seqs.fa
-          [94misub 0:[0m log: /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/isub-0/partition.log
-  [94misub 1:[0m [91mrun[0m partis partition --dont-write-git-info --paired-loci --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/isub-1 --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/isub-1/input-seqs.fa
-          [94misub 1:[0m log: /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/isub-1/partition.log
+  [94misub 0:[0m [91mrun[0m partis partition --dont-write-git-info --paired-loci --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir test/paired/new-results/subset-partition-new-simu/isub-0 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-0/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-0/input-seqs.fa
+          [94misub 0:[0m log: test/paired/new-results/subset-partition-new-simu/isub-0/partition.log
+  [94misub 1:[0m [91mrun[0m partis partition --dont-write-git-info --paired-loci --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir test/paired/new-results/subset-partition-new-simu/isub-1 --input-metafnames test/paired/new-results/subset-partition-new-simu/isub-1/meta.yaml --infname test/paired/new-results/subset-partition-new-simu/isub-1/input-seqs.fa
+          [94misub 1:[0m log: test/paired/new-results/subset-partition-new-simu/isub-1/partition.log
   concatenating heavy chain loci:
       [94mh[0m starting with 11 annotations (25 seqs)
       [93mwarning[0m genes in glfo but not referenced in any annotation:    v: [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m15[0m   d: [95mh[0m[91md[0m[95m1[0m[95m-26[0m[93m01[0m [95mh[0m[91md[0m[95m1[0m[95m-1[0m[93m01[0m
@@ -707,13 +707,13 @@ hmm
       [92ml[0m starting with 5 annotations (16 seqs)
     finished with:
      [94mh[0m: 16 annotations (41 seqs)
-   writing merged outputs from 2 paired dirs to /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/merged-subsets
-    writing combined h/l info to fasta and meta files in /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/merged-subsets
-    merging parameters from 2 subdirs (e.g. /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/isub-0) to /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/merged-subsets
-[91mrun[0m partis partition --dont-write-git-info --paired-loci --paired-indir /tmp/dralph/partis-440/test/paired/new-results/test/simu --max-ccf-fail-frac 0.25 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/merged-subsets/meta.yaml --input-partition-fname /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/merged-subsets --continue-from-input-partition --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile
-        log: /tmp/dralph/partis-440/test/paired/new-results/subset-partition-new-simu/merged-partition.log
-      total time: 62.9
-[92mseed-partition-new-simu[0m          partis partition --dont-write-git-info --paired-loci --paired-indir /tmp/dralph/partis-440/test/paired/new-results/test/simu --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu --max-ccf-fail-frac 0.10 --is-simu --seed-unique-id 6e6d2c416c-igh:6e6d2c416c-igl --seed-loci igh:igl --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu
+   writing merged outputs from 2 paired dirs to test/paired/new-results/subset-partition-new-simu/merged-subsets
+    writing combined h/l info to fasta and meta files in test/paired/new-results/subset-partition-new-simu/merged-subsets
+    merging parameters from 2 subdirs (e.g. test/paired/new-results/subset-partition-new-simu/isub-0) to test/paired/new-results/subset-partition-new-simu/merged-subsets
+[91mrun[0m partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --max-ccf-fail-frac 0.25 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir test/paired/new-results/subset-partition-new-simu --input-metafnames test/paired/new-results/subset-partition-new-simu/merged-subsets/meta.yaml --input-partition-fname test/paired/new-results/subset-partition-new-simu/merged-subsets --continue-from-input-partition --parameter-dir test/paired/new-results/subset-partition-new-simu/merged-subsets/parameters --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile
+        log: test/paired/new-results/subset-partition-new-simu/merged-partition.log
+      total time: 62.2
+[92mseed-partition-new-simu[0m          partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results/test/simu --parameter-dir test/paired/new-results/test/parameters/simu --max-ccf-fail-frac 0.10 --is-simu --seed-unique-id 6e6d2c416c-igh:6e6d2c416c-igl --seed-loci igh:igl --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir test/paired/new-results/seed-partition-new-simu
    removing seqs very different from seed seq
                            wrong/no     removed      singly         kept   missing
            locus  before   pairing    cdr3  hfrac    added   after  frac   true ids
@@ -726,13 +726,13 @@ hmm
              [92ml[0m      10       0     10    0.588
       taken 19, paired with taken 7 (total 26)
 [44mpartition[0m [94migh[0m:
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis partition --locus igh --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/input-seqs-igh.fa --outfname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/partition-igh.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 13 sequences from /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml: loci paired-uids
-partitioning     (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/hmm)
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis partition --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/input-seqs-igh.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 13 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+partitioning     (with test/paired/new-results/test/parameters/simu/igh/hmm)
 smith-waterman
-  vsearch: 13 / 13 v annotations (0 failed) with 4 v genes in 0.0 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
+  vsearch: 13 / 13 v annotations (0 failed) with 4 v genes in 0.1 sec
+        reading sw results from test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
       info for 13 / 13 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 3 (0.231) unproductive
         water time: 0.0
@@ -749,19 +749,19 @@ hmm
    5 clusters with 1 proc (0.2s)
        partition loop time: 0.6
 getting annotations for final partition
-  subcluster annotating 5 clusters with steps:  (0.1s) (0.1s) 
+  subcluster annotating 5 clusters with steps:  (0.2s) (0.1s) 
     subcluster annotation time 0.3
-      total time: 1.1
-      bcrham time: 0.7 (67.4% of total, 10 calls)
+      total time: 1.0
+      bcrham time: 0.7 (67.0% of total, 10 calls)
 [44mpartition[0m [94migk[0m:
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis partition --locus igk --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/input-seqs-igk.fa --outfname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/partition-igk.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 3 sequences from /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis partition --locus igk --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igk --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/input-seqs-igk.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 3 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
   note: reducing N procs to the number of seqs 10 --> 3
-partitioning     (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/hmm)
+partitioning     (with test/paired/new-results/test/parameters/simu/igk/hmm)
 smith-waterman
   vsearch: 3 / 3 v annotations (0 failed) with 3 v genes in 0.0 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
+        reading sw results from test/paired/new-results/test/parameters/simu/igk/sw-cache.yaml
       info for 3 / 3 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
         water time: 0.0
 hmm
@@ -779,15 +779,15 @@ getting annotations for final partition
         read 3 hmm output lines with 3 sequences in 3 events  (0 failures)
       hmm step time: 0.1
       total time: 0.7
-      bcrham time: 0.4 (63.5% of total, 8 calls)
+      bcrham time: 0.4 (63.2% of total, 8 calls)
 [44mpartition[0m [94migl[0m:
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis partition --locus igl --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/input-seqs-igl.fa --outfname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/partition-igl.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml
-  --input-metafnames: added meta info for 10 sequences from /tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml: loci paired-uids
-partitioning     (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/hmm)
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis partition --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/input-seqs-igl.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results/test/simu/meta.yaml
+  --input-metafnames: added meta info for 10 sequences from test/paired/new-results/test/simu/meta.yaml: loci paired-uids
+partitioning     (with test/paired/new-results/test/parameters/simu/igl/hmm)
 smith-waterman
   vsearch: 10 / 10 v annotations (0 failed) with 1 v gene in 0.1 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
+        reading sw results from test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
       info for 10 / 10 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 1 (0.100) unproductive
         water time: 0.0
@@ -800,8 +800,8 @@ hmm
 getting annotations for final partition
   subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.3
-      total time: 0.5
-      bcrham time: 0.4 (74.0% of total, 5 calls)
+      total time: 0.6
+      bcrham time: 0.4 (74.1% of total, 5 calls)
 [44mcombining[0m chains
 cleaning pair info for 26 seqs
      synchronized/fixed 0 pairs where one had no pair info after cleaning: [94mh[0m 0  [95mk[0m 0  [92ml[0m 0
@@ -851,15 +851,15 @@ cleaning pair info for 26 seqs
   seed cluster size in best joint partition: 9, excluding seed seq: 8
 [44mannotate[0m [94migh+igl[0m:[94m igh[0m
     removed 2 arg strs that were specific to action 'partition': --seed-unique-id 6e6d2c416c-igh:6e6d2c416c-igl
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis annotate --locus igh --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/input-seqs-igh.fa --outfname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igh.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/meta-igh.yaml --ignore-sw-pair-info --input-partition-fname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igh-only-partition.yaml
-  --input-metafnames: added meta info for 9 sequences from /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/meta-igh.yaml: loci paired-uids
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis annotate --locus igh --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igh --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/input-seqs-igh.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igh.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml --input-metafnames test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/meta-igh.yaml --ignore-sw-pair-info --input-partition-fname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igh-only-partition.yaml
+  --input-metafnames: added meta info for 9 sequences from test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/meta-igh.yaml: loci paired-uids
   note: reducing N procs to the number of seqs 10 --> 9
-  --input-partition-fname: read best partition with 9 sequences in 1 clusters from /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igh-only-partition.yaml
-annotating    (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/hmm)
+  --input-partition-fname: read best partition with 9 sequences in 1 clusters from test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igh-only-partition.yaml
+annotating    (with test/paired/new-results/test/parameters/simu/igh/hmm)
 smith-waterman
-  vsearch: 9 / 9 v annotations (0 failed) with 1 v gene in 0.1 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
+  vsearch: 9 / 9 v annotations (0 failed) with 1 v gene in 0.0 sec
+        reading sw results from test/paired/new-results/test/parameters/simu/igh/sw-cache.yaml
       info for 9 / 9 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 2 (0.222) unproductive
         water time: 0.0
@@ -867,28 +867,28 @@ hmm
   subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) 
     subcluster annotation time 0.2
       total time: 0.3
-      bcrham time: 0.2 (61.6% of total, 2 calls)
+      bcrham time: 0.2 (68.2% of total, 2 calls)
      removed 0 unseeded clusters (of 1 total, leaving 1) from igl joint partition
   need to get annotations for 1/1 joint igl clusters
   seed cluster size in best joint partition: 10, excluding seed seq: 9
 [44mannotate[0m [94migh+igl[0m:[94m igl[0m
     removed 2 arg strs that were specific to action 'partition': --seed-unique-id 6e6d2c416c-igh:6e6d2c416c-igl
-  note: adding input metafname from default location (/tmp/dralph/partis-440/test/paired/new-results/test/simu/meta.yaml)
-[91mrun[0m partis annotate --locus igl --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/input-seqs-igl.fa --outfname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igl.yaml --sw-cachefname /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/meta-igl.yaml --ignore-sw-pair-info --input-partition-fname /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igl-only-partition.yaml
-  --input-metafnames: added meta info for 10 sequences from /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/meta-igl.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 10 sequences in 1 clusters from /tmp/dralph/partis-440/test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igl-only-partition.yaml
-annotating    (with /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/hmm)
+  note: adding input metafname from default location (test/paired/new-results/test/simu/meta.yaml)
+[91mrun[0m partis annotate --locus igl --dont-write-git-info --parameter-dir test/paired/new-results/test/parameters/simu/igl --max-ccf-fail-frac 0.10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --crash-on-duplicate-uids --refuse-to-cache-parameters --infname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/input-seqs-igl.fa --outfname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igl.yaml --sw-cachefname test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml --input-metafnames test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/meta-igl.yaml --ignore-sw-pair-info --input-partition-fname test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igl-only-partition.yaml
+  --input-metafnames: added meta info for 10 sequences from test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/meta-igl.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 10 sequences in 1 clusters from test/paired/new-results/seed-partition-new-simu/seeds/6e6d2c416c-igh+6e6d2c416c-igl/igh+igl/partition-igl-only-partition.yaml
+annotating    (with test/paired/new-results/test/parameters/simu/igl/hmm)
 smith-waterman
-  vsearch: 10 / 10 v annotations (0 failed) with 1 v gene in 0.1 sec
-        reading sw results from /tmp/dralph/partis-440/test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
+  vsearch: 10 / 10 v annotations (0 failed) with 1 v gene in 0.0 sec
+        reading sw results from test/paired/new-results/test/parameters/simu/igl/sw-cache.yaml
       info for 10 / 10 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
       kept 1 (0.100) unproductive
         water time: 0.0
 hmm
   subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.3
-      total time: 1.2
-      bcrham time: 0.3 (21.1% of total, 3 calls)
+      total time: 0.4
+      bcrham time: 0.3 (67.1% of total, 3 calls)
   concatenating heavy chain loci:
       [94mh[0m empty files
       [95mk[0m empty files
@@ -901,10 +901,10 @@ hmm
    N clusters with all seqs:
         [94mh[0m    5 --> 1    [91m-4[0m
         [92ml[0m    1 --> 1   
-      total time: 9.8
-[92mget-selection-metrics-new-simu[0m   partis get-selection-metrics --dont-write-git-info --paired-loci --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu --chosen-ab-fname /tmp/dralph/partis-440/test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
+      total time: 8.8
+[92mget-selection-metrics-new-simu[0m   partis get-selection-metrics --dont-write-git-info --paired-loci --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir test/paired/new-results/partition-new-simu --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
 [44mget-selection-metrics[0m [94migh+igk[0m:[94m igh[0m
-[91mrun[0m partis get-selection-metrics --locus igh --dont-write-git-info --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --chosen-ab-fname /tmp/dralph/partis-440/test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --crash-on-duplicate-uids --refuse-to-cache-parameters --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igh.yaml
+[91mrun[0m partis get-selection-metrics --locus igh --dont-write-git-info --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --crash-on-duplicate-uids --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igh.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: By default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set).
         If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters (or, if set during partitioning, --n-final-clusters or --min-largest-cluster-size).
@@ -912,29 +912,29 @@ hmm
       skipped 5 smaller than 3 (controlled by --min-selection-metric-cluster-size)
     getting trees for 2 clusters with sizes: 11 4
       starting 2 jobs
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igh/fasttree/iclust-0/fasttree.out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igh/fasttree/iclust-0/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igh/fasttree/iclust-1/fasttree.out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igh/fasttree/iclust-1/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igk/partition-igh/fasttree/iclust-0/fasttree.out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igk/partition-igh/fasttree/iclust-0/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igk/partition-igh/fasttree/iclust-1/fasttree.out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igk/partition-igh/fasttree/iclust-1/input-seqs.fa
       made 2 fasttree trees (0.1s)
     tree origins: 2 ran fasttree
     skipped 2/4 clusters smaller than 4
       setting default tau to 1 / 373 = 0.0027
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0027
                 [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.056  mfreq 0.049  diff 0.006  abs(frac diff) 12%  ratio 1.1
+                    mean values:  tree depth 0.055  mfreq 0.049  diff 0.006  abs(frac diff) 11%  ratio 1.1
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.0696    0.0541       1.3     0.0155     4c1f20b594-igh
+              0.0688    0.0541       1.3     0.0147     4c1f20b594-igh
           10 with highest+lowest ratios:
-              0.0696    0.0541       1.3     0.0155     4c1f20b594-igh
-              0.0696    0.0541       1.3     0.0155     4c1f20b594-igh
+              0.0688    0.0541       1.3     0.0147     4c1f20b594-igh
+              0.0688    0.0541       1.3     0.0147     4c1f20b594-igh
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: amz bev bgs bnw bop dkn eqz ikl ikm psx
       setting default tau to 1 / 373 = 0.0027
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0027
     skipped 2/4 clusters that had no uids in common with tree
-  writing selection metrics to /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igh-selection-metrics.yaml
+  writing selection metrics to test/paired/new-results/partition-new-simu/igh+igk/partition-igh-selection-metrics.yaml
       total time: 0.2
 [44mget-selection-metrics[0m [94migh+igk[0m:[94m igk[0m
-[91mrun[0m partis get-selection-metrics --locus igk --dont-write-git-info --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --chosen-ab-fname /tmp/dralph/partis-440/test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --crash-on-duplicate-uids --refuse-to-cache-parameters --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igk.yaml
+[91mrun[0m partis get-selection-metrics --locus igk --dont-write-git-info --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --crash-on-duplicate-uids --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igk/partition-igk.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: By default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set).
         If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters (or, if set during partitioning, --n-final-clusters or --min-largest-cluster-size).
@@ -942,18 +942,18 @@ hmm
       skipped 7 smaller than 3 (controlled by --min-selection-metric-cluster-size)
     getting trees for 2 clusters with sizes: 9 5
       starting 2 jobs
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-0/fasttree.out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-0/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-1/fasttree.out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-1/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-0/fasttree.out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-0/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-1/fasttree.out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-1/input-seqs.fa
       made 2 fasttree trees (0.1s)
     tree origins: 2 ran fasttree
       setting default tau to 1 / 334 = 0.0030
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0030
       setting default tau to 1 / 334 = 0.0030
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0030
-  writing selection metrics to /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igk/partition-igk-selection-metrics.yaml
+  writing selection metrics to test/paired/new-results/partition-new-simu/igh+igk/partition-igk-selection-metrics.yaml
       total time: 0.2
 [44mget-selection-metrics[0m [94migh+igl[0m:[94m igh[0m
-[91mrun[0m partis get-selection-metrics --locus igh --dont-write-git-info --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --chosen-ab-fname /tmp/dralph/partis-440/test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --crash-on-duplicate-uids --refuse-to-cache-parameters --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igh.yaml
+[91mrun[0m partis get-selection-metrics --locus igh --dont-write-git-info --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --crash-on-duplicate-uids --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igl/partition-igh.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: By default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set).
         If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters (or, if set during partitioning, --n-final-clusters or --min-largest-cluster-size).
@@ -961,32 +961,18 @@ hmm
       skipped 3 smaller than 3 (controlled by --min-selection-metric-cluster-size)
     getting trees for 1 cluster with size: 11
       starting 1 jobs
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igh/fasttree/iclust-0/fasttree.out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igh/fasttree/iclust-0/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igl/partition-igh/fasttree/iclust-0/fasttree.out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igl/partition-igh/fasttree/iclust-0/input-seqs.fa
       made 1 fasttree trees (0.1s)
     tree origins: 1 ran fasttree
       setting default tau to 1 / 358 = 0.0028
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0028
-                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 4/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.005  mfreq 0.004  diff 0.001  abs(frac diff) 45%  ratio 1.4
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0051    0.0028       1.8     0.0023     71c9a729cd-igh
-              0.0051    0.0028       1.8     0.0023     9d90fc36c1-igh
-              0.0045    0.0028       1.6     0.0017     8887ae15ca-igh
-              0.0040    0.0028       1.4     0.0012     b5aedccfa9-igh
-          10 with highest+lowest ratios:
-              0.0051    0.0028       1.8     0.0023     71c9a729cd-igh
-              0.0051    0.0028       1.8     0.0023     9d90fc36c1-igh
-              0.0045    0.0028       1.6     0.0017     8887ae15ca-igh
-              0.0040    0.0028       1.4     0.0012     b5aedccfa9-igh
-              0.0040    0.0028       1.4     0.0012     b5aedccfa9-igh
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 11/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: amz bnw bop dkn psx
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 11/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bnw bop dkn ikm psx
       setting default tau to 1 / 358 = 0.0028
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0028
-  writing selection metrics to /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igh-selection-metrics.yaml
+  writing selection metrics to test/paired/new-results/partition-new-simu/igh+igl/partition-igh-selection-metrics.yaml
       total time: 0.1
 [44mget-selection-metrics[0m [94migh+igl[0m:[94m igl[0m
-[91mrun[0m partis get-selection-metrics --locus igl --dont-write-git-info --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --chosen-ab-fname /tmp/dralph/partis-440/test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --crash-on-duplicate-uids --refuse-to-cache-parameters --outfname /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igl.yaml
+[91mrun[0m partis get-selection-metrics --locus igl --dont-write-git-info --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --chosen-ab-fname test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv --crash-on-duplicate-uids --refuse-to-cache-parameters --outfname test/paired/new-results/partition-new-simu/igh+igl/partition-igl.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: By default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set).
         If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters (or, if set during partitioning, --n-final-clusters or --min-largest-cluster-size).
@@ -994,7 +980,7 @@ hmm
       skipped 2 smaller than 3 (controlled by --min-selection-metric-cluster-size)
     getting trees for 1 cluster with size: 11
       starting 1 jobs
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igl/fasttree/iclust-0/fasttree.out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igl/fasttree/iclust-0/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igl/partition-igl/fasttree/iclust-0/fasttree.out /home/dralph/work/partis/test/paired/new-results/partition-new-simu/igh+igl/partition-igl/fasttree/iclust-0/input-seqs.fa
       made 1 fasttree trees (0.1s)
     tree origins: 1 ran fasttree
     skipped 1/2 clusters smaller than 4
@@ -1003,7 +989,7 @@ hmm
       setting default tau to 1 / 331 = 0.0030
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0030
     skipped 1/2 clusters that had no uids in common with tree
-  writing selection metrics to /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/igh+igl/partition-igl-selection-metrics.yaml
+  writing selection metrics to test/paired/new-results/partition-new-simu/igh+igl/partition-igl-selection-metrics.yaml
       total time: 0.1
 [44mgetting combined h/l selection metrics[0m
       find_cluster_pairs igh+igk (9 h, 9 l input clusters --> 2 output pairs):
@@ -1022,37 +1008,17 @@ hmm
       skipped 0 smaller than 3 (controlled by --min-selection-metric-cluster-size)
     getting trees for 3 clusters with sizes: 9 8 4
       starting 3 jobs
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/fasttree/iclust-0/fasttree.out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/fasttree/iclust-0/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/fasttree/iclust-1/fasttree.out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/fasttree/iclust-1/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/fasttree/iclust-2/fasttree.out /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/fasttree/iclust-2/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out test/paired/new-results/partition-new-simu/fasttree/iclust-0/fasttree.out test/paired/new-results/partition-new-simu/fasttree/iclust-0/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out test/paired/new-results/partition-new-simu/fasttree/iclust-1/fasttree.out test/paired/new-results/partition-new-simu/fasttree/iclust-1/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out test/paired/new-results/partition-new-simu/fasttree/iclust-2/fasttree.out test/paired/new-results/partition-new-simu/fasttree/iclust-2/input-seqs.fa
       made 3 fasttree trees (0.2s)
     tree origins: 3 ran fasttree
       setting default tau to 1 / 693 = 0.0014
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0014
-                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 5/9 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.003  mfreq 0.002  diff 0.001  abs(frac diff) 57%  ratio 1.6
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0076    0.0058       1.3     0.0018     6e6d2c416c_contig_igh+igl
-              0.0046    0.0029       1.6     0.0017     6e2bb47b03_contig_igh+igl
-              0.0026    0.0014       1.8     0.0011     71c9a729cd_contig_igh+igl
-              0.0026    0.0014       1.8     0.0011     9d90fc36c1_contig_igh+igl
-              0.0026    0.0014       1.8     0.0011     8887ae15ca_contig_igh+igl
-          10 with highest+lowest ratios:
-              0.0026    0.0014       1.8     0.0011     71c9a729cd_contig_igh+igl
-              0.0026    0.0014       1.8     0.0011     9d90fc36c1_contig_igh+igl
-              0.0026    0.0014       1.8     0.0011     8887ae15ca_contig_igh+igl
-              0.0046    0.0029       1.6     0.0017     6e2bb47b03_contig_igh+igl
-              0.0076    0.0058       1.3     0.0018     6e6d2c416c_contig_igh+igl
-              0.0026    0.0014       1.8     0.0011     71c9a729cd_contig_igh+igl
-              0.0026    0.0014       1.8     0.0011     9d90fc36c1_contig_igh+igl
-              0.0026    0.0014       1.8     0.0011     8887ae15ca_contig_igh+igl
-              0.0046    0.0029       1.6     0.0017     6e2bb47b03_contig_igh+igl
-              0.0076    0.0058       1.3     0.0018     6e6d2c416c_contig_igh+igl
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 9/14 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bnw dkn ikm psx
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 9/14 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: amz bnw dkn psx
       setting default tau to 1 / 693 = 0.0014
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0014
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 15/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: doq dst eov eqs flx ily npq
-  writing selection metrics to /tmp/dralph/partis-440/test/paired/new-results/partition-new-simu/selection-metrics.yaml
-      writing 9 chosen abs to /tmp/dralph/partis-440/test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
-      total time: 5.6
+  writing selection metrics to test/paired/new-results/partition-new-simu/selection-metrics.yaml
+      writing 9 chosen abs to test/paired/new-results/get-selection-metrics-new-simu-chosen-abs.csv
+      total time: 5.5

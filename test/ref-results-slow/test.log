@@ -1,15 +1,15 @@
-[92mcache-parameters-data[0m            partis cache-parameters --dont-write-git-info --infname /tmp/dralph/partis-440/test/mishmash.fa --parameter-dir /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data --sw-cachefname /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/sw-cache.yaml --n-max-queries -1 --input-metafnames /tmp/dralph/partis-440/test/input-meta.yaml --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
-  --input-metafnames: added meta info for 4 sequences from /tmp/dralph/partis-440/test/input-meta.yaml: multiplicities
+[92mcache-parameters-data[0m            partis cache-parameters --dont-write-git-info --infname /home/dralph/work/partis/test/mishmash.fa --parameter-dir test/new-results-slow/test/parameters/data --sw-cachefname test/new-results-slow/test/parameters/data/sw-cache.yaml --n-max-queries -1 --input-metafnames /home/dralph/work/partis/test/input-meta.yaml --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
+  --input-metafnames: added meta info for 4 sequences from /home/dralph/work/partis/test/input-meta.yaml: multiplicities
 caching parameters
   vsearch: 1269 / 1412 v annotations (143 failed) with 321 v genes in 0.1 sec
     keeping 65 / 433 v genes
 smith-waterman  (new-allele fitting)
-  vsearch: 1263 / 1412 v annotations (149 failed) with 65 v genes in 0.1 sec
+  vsearch: 1263 / 1412 v annotations (149 failed) with 65 v genes in 0.2 sec
     running 10 procs for 1412 seqs
     running 13 procs for 58 seqs
       info for 1371 / 1412 = 0.971   (removed: 41 failed)
       kept 438 (0.310) unproductive
-    water time: 2.1  (ig-sw 0.1  processing 0.1)
+    water time: 2.0  (ig-sw 0.1  processing 0.1)
   no queries for allele finding
 smith-waterman  (writing parameters)
   vsearch: 1263 / 1412 v annotations (149 failed) with 65 v genes in 0.2 sec
@@ -17,24 +17,24 @@ smith-waterman  (writing parameters)
     running 13 procs for 17 seqs
       info for 1371 / 1412 = 0.971   (removed: 41 failed)
       kept 438 (0.310) unproductive
-        writing sw results to /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/sw-cache.yaml
-    writing parameters to /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/sw (2.2 sec)
-    water time: 4.7  (ig-sw 2.8  processing 0.1)
+        writing sw results to test/new-results-slow/test/parameters/data/sw-cache.yaml
+    writing parameters to test/new-results-slow/test/parameters/data/sw (2.0 sec)
+    water time: 4.5  (ig-sw 2.6  processing 0.1)
   writing hmms     removed 2  genes from glfo (leaving v 65  d 77  j 16)
-(0.9 sec)
+(0.8 sec)
 hmm
     skipping matches from 8 genes without enough counts: [95mh[0m[91mj[0m[95m6[0m[93m01[0m [95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01_g18-_t19-_c28-[0m [95mh[0m[91mj[0m[95m5[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m02_g23-[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91md[0m[95m2[0m[95m-8[0m[93m02_c12g_t21-_a22c[0m [95mh[0m[91md[0m[95m2[0m[95m-2[0m[93m01_a14g_a17-_c18-_c19g[0m
     reading output
         read 1371 hmm output lines with 1362 sequences in 1362 events  (9 failures)
           [91mwarning[0m no valid paths: -1651760806376077044 -1889013233140917886 -4348677206158192452 -5294497590599348090 04-A-M_3755036 4182690314301324604 4937696822602299712 6182728664197942741 6880877555932742798
-    writing parameters to /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm (2.1 sec)
-         infra time: 2.9
-      hmm step time: 8.2
+    writing parameters to test/new-results-slow/test/parameters/data/hmm (2.1 sec)
+         infra time: 3.0
+      hmm step time: 8.3
   writing hmms     removed 15 genes from glfo (leaving v 64  d 68  j 11)
 (0.8 sec)
-      total time: 17.7
-      bcrham time: 5.4 (30.3% of total, 1 calls)
-[92msimulate[0m                         partis simulate --dont-write-git-info --parameter-dir /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data --n-sim-events 200 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname /tmp/dralph/partis-440/test/new-results-slow/test/simu.yaml --indel-frequency 0.2
+      total time: 17.4
+      bcrham time: 5.3 (30.6% of total, 1 calls)
+[92msimulate[0m                         partis simulate --dont-write-git-info --parameter-dir test/new-results-slow/test/parameters/data --n-sim-events 200 --n-trees 200 --n-leaf-distribution geometric --n-leaves 5 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results-slow/test/simu.yaml --indel-frequency 0.2
 simulating
       --> proc 0
 stty: 'standard input': Inappropriate ioctl for device
@@ -42,9 +42,9 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
   subscript out of bounds
 In addition: Warning message:
 In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm     shm params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 95 seqs in 4.2s (3.7s of which was running bppseqgen)
-      total time: 6.1
+  running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 95 seqs in 4.2s (3.8s of which was running bppseqgen)
+      total time: 6.2
 
       --> proc 1
 stty: 'standard input': Inappropriate ioctl for device
@@ -52,9 +52,9 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
   subscript out of bounds
 In addition: Warning message:
 In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm     shm params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 80 seqs in 4.0s (3.6s of which was running bppseqgen)
-      total time: 5.9
+  running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 80 seqs in 4.2s (3.9s of which was running bppseqgen)
+      total time: 6.2
 
       --> proc 2
 stty: 'standard input': Inappropriate ioctl for device
@@ -62,7 +62,7 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
   subscript out of bounds
 In addition: Warning message:
 In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm     shm params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm
+  running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
     made 20 events with 106 seqs in 4.4s (4.0s of which was running bppseqgen)
       total time: 6.3
 
@@ -72,9 +72,9 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
   subscript out of bounds
 In addition: Warning message:
 In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm     shm params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 77 seqs in 4.1s (3.6s of which was running bppseqgen)
-      total time: 6.2
+  running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 77 seqs in 4.0s (3.7s of which was running bppseqgen)
+      total time: 6.0
 
       --> proc 4
 stty: 'standard input': Inappropriate ioctl for device
@@ -82,9 +82,9 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
   subscript out of bounds
 In addition: Warning message:
 In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm     shm params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 101 seqs in 4.0s (3.6s of which was running bppseqgen)
-      total time: 5.9
+  running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 101 seqs in 4.2s (3.8s of which was running bppseqgen)
+      total time: 6.1
 
       --> proc 5
 stty: 'standard input': Inappropriate ioctl for device
@@ -92,9 +92,9 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
   subscript out of bounds
 In addition: Warning message:
 In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm     shm params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 100 seqs in 4.1s (3.7s of which was running bppseqgen)
-      total time: 6.1
+  running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 100 seqs in 4.0s (3.7s of which was running bppseqgen)
+      total time: 6.0
 
       --> proc 6
 stty: 'standard input': Inappropriate ioctl for device
@@ -102,9 +102,9 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
   subscript out of bounds
 In addition: Warning message:
 In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm     shm params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 91 seqs in 4.2s (3.9s of which was running bppseqgen)
-      total time: 6.2
+  running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 91 seqs in 4.0s (3.5s of which was running bppseqgen)
+      total time: 5.9
 
       --> proc 7
 stty: 'standard input': Inappropriate ioctl for device
@@ -112,9 +112,9 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
   subscript out of bounds
 In addition: Warning message:
 In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm     shm params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 88 seqs in 3.8s (3.4s of which was running bppseqgen)
-      total time: 5.8
+  running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 88 seqs in 4.2s (3.8s of which was running bppseqgen)
+      total time: 6.2
 
       --> proc 8
 stty: 'standard input': Inappropriate ioctl for device
@@ -122,9 +122,9 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
   subscript out of bounds
 In addition: Warning message:
 In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm     shm params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 105 seqs in 4.4s (4.0s of which was running bppseqgen)
-      total time: 6.5
+  running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 105 seqs in 3.9s (3.4s of which was running bppseqgen)
+      total time: 5.8
 
       --> proc 9
 stty: 'standard input': Inappropriate ioctl for device
@@ -132,13 +132,13 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
   subscript out of bounds
 In addition: Warning message:
 In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm     shm params: /tmp/dralph/partis-440/test/new-results-slow/test/parameters/data/hmm
-    made 20 events with 153 seqs in 4.5s (4.2s of which was running bppseqgen)
-      total time: 6.5
+  running command 'stty size' had status 1    reco params: test/new-results-slow/test/parameters/data/hmm     shm params: test/new-results-slow/test/parameters/data/hmm
+    made 20 events with 153 seqs in 5.0s (4.6s of which was running bppseqgen)
+      total time: 7.0
 
    read 200 events with 996 seqs from 10 .yaml files
-      total time: 8.2
-[92mcache-parameters-simu[0m            partis cache-parameters --dont-write-git-info --infname /tmp/dralph/partis-440/test/new-results-slow/test/simu.yaml --parameter-dir /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu --sw-cachefname /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
+      total time: 8.6
+[92mcache-parameters-simu[0m            partis cache-parameters --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
 caching parameters
   vsearch: 818 / 996 v annotations (178 failed) with 86 v genes in 0.1 sec
     keeping 44 / 433 v genes
@@ -149,16 +149,16 @@ smith-waterman  (new-allele fitting)
     running 12 procs for 80 seqs
       info for 984 / 996 = 0.988   (removed: 12 failed)
       kept 552 (0.554) unproductive
-    water time: 1.6  (ig-sw 0.1  processing 0.2)
+    water time: 1.5  (ig-sw 0.1  processing 0.2)
 smith-waterman  (writing parameters)
   vsearch: 817 / 996 v annotations (179 failed) with 44 v genes in 0.2 sec
     running 10 procs for 984 seqs
     running 12 procs for 68 seqs
       info for 984 / 996 = 0.988   (removed: 12 failed)
       kept 552 (0.554) unproductive
-        writing sw results to /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml
-    writing parameters to /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw (2.3 sec)
-    water time: 4.4  (ig-sw 2.9  processing 0.2)
+        writing sw results to test/new-results-slow/test/parameters/simu/sw-cache.yaml
+    writing parameters to test/new-results-slow/test/parameters/simu/sw (2.1 sec)
+    water time: 4.0  (ig-sw 2.6  processing 0.2)
   writing hmms     removed 8  genes from glfo (leaving v 44  d 71  j 16)
 (0.9 sec)
 hmm
@@ -166,25 +166,25 @@ hmm
     reading output
         read 984 hmm output lines with 983 sequences in 983 events  (1 failures)
           [91mwarning[0m no valid paths: 55e7526c5c
-    writing parameters to /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/hmm (1.9 sec)
-    writing parameters to /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/true (2.3 sec)
-         infra time: 5.3
+    writing parameters to test/new-results-slow/test/parameters/simu/hmm (2.0 sec)
+    writing parameters to test/new-results-slow/test/parameters/simu/true (2.3 sec)
+         infra time: 5.5
       hmm step time: 8.5
   writing hmms     removed 19 genes from glfo (leaving v 44  d 56  j 12)
 (0.8 sec)
-      total time: 17.4
-      bcrham time: 3.1 (18.0% of total, 1 calls)
-[92mannotate-new-simu[0m                partis annotate --dont-write-git-info --infname /tmp/dralph/partis-440/test/new-results-slow/test/simu.yaml --parameter-dir /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu --sw-cachefname /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --plotdir /tmp/dralph/partis-440/test/new-results-slow/annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname /tmp/dralph/partis-440/test/new-results-slow/annotate-new-simu.yaml
-annotating    (with /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/hmm)
+      total time: 16.9
+      bcrham time: 3.0 (17.8% of total, 1 calls)
+[92mannotate-new-simu[0m                partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --plotdir test/new-results-slow/annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results-slow/annotate-new-simu.yaml
+annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
   vsearch: 817 / 996 v annotations (179 failed) with 44 v genes in 0.2 sec
-        reading sw results from /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml
+        reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 984 / 996 = 0.988   (removed: 12 failed, 0 duplicates [removed when cache file was written])
       kept 552 (0.554) unproductive
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 59 queries with different true and inferred net shm indel lengths: d35a97c1f8 fe60242ff7 f84a7c1400 c2289e9966 51d871878b e8acc9f1b0 084e4fcb68 b631475b15 fb0e480e17 225130e22d 5111dbc2d7 55e7526c5c 7e1148afa3 ee54080e3c e013f15019 9f3125d62f 241a4d4b20 e70527bc7f 3e696d6516 1fb8ca8353 7d25e75329 7b91e66ab8 15e75dbebb 5ae0e03f29 3a48f8149e a9e0ffd373 db8bc237a8 25a543f32e 7d0c436baf d5b4b410de c6411223a3 4dd5997cc7 7895d80103 d7499a3c6a fe0e9a8419 90ca64931a 57045a260d 0a3b14f53f 3846d8e5a2 56bff0df82 e10397569d 55c983b7c2 85426eee59 5784d28e4d 0883e7a15e b429674b7e d069f1bd88 15a06dc6cd 3ef96722db fa6cc6c6c7 7e4d0d8af1 cc04182208 761c308457 82f8368ce2 75882ee8f2 ca9d677f94 9af5e1428b e6442a9398 f7d905fc7d
 (0.0 sec)
-        water time: 0.6
+        water time: 0.5
 hmm
     reading output
         read 984 hmm output lines with 983 sequences in 983 events  (1 failures)
@@ -227,28 +227,28 @@ T[91mC[0mTGGTGG[91mC[0mTCC[91mA[0mTCAGT[91mA[0mGTTACTACTGGAGCTGGATCCG[9
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 58 queries with different true and inferred net shm indel lengths: fb0e480e17 9f3125d62f 15e75dbebb 7e4d0d8af1 e6442a9398 7e1148afa3 241a4d4b20 7d25e75329 a9e0ffd373 7d0c436baf 7895d80103 fe0e9a8419 57045a260d e10397569d b429674b7e ee54080e3c 3a48f8149e f7d905fc7d e70527bc7f 90ca64931a 3846d8e5a2 d069f1bd88 761c308457 75882ee8f2 b631475b15 225130e22d 5111dbc2d7 e013f15019 d7499a3c6a 56bff0df82 ca9d677f94 3e696d6516 c6411223a3 55c983b7c2 cc04182208 82f8368ce2 fe60242ff7 e8acc9f1b0 5ae0e03f29 9af5e1428b d35a97c1f8 f84a7c1400 51d871878b 7b91e66ab8 d5b4b410de 0a3b14f53f 85426eee59 fa6cc6c6c7 c2289e9966 084e4fcb68 1fb8ca8353 25a543f32e 5784d28e4d 15a06dc6cd db8bc237a8 4dd5997cc7 0883e7a15e 3ef96722db
 (0.0 sec)
-         infra time: 3.3
-      hmm step time: 6.3
-      total time: 7.3
-      bcrham time: 3.0 (41.4% of total, 1 calls)
-[92mmulti-annotate-new-simu[0m          partis annotate --dont-write-git-info --infname /tmp/dralph/partis-440/test/new-results-slow/test/simu.yaml --parameter-dir /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu --sw-cachefname /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --simultaneous-true-clonal-seqs --is-simu --plotdir /tmp/dralph/partis-440/test/new-results-slow/multi-annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname /tmp/dralph/partis-440/test/new-results-slow/multi-annotate-new-simu.yaml
-annotating    (with /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/hmm)
+         infra time: 3.0
+      hmm step time: 6.0
+      total time: 7.0
+      bcrham time: 3.0 (42.4% of total, 1 calls)
+[92mmulti-annotate-new-simu[0m          partis annotate --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --simultaneous-true-clonal-seqs --is-simu --plotdir test/new-results-slow/multi-annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results-slow/multi-annotate-new-simu.yaml
+annotating    (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
   vsearch: 817 / 996 v annotations (179 failed) with 44 v genes in 0.2 sec
   note: not running msa indel stuff for --simultaneous-true-clonal-seqs, so any families with shm indels within cdr3 will be split up before running the hmm. To fix this you'll either need to run set_msa_info() (which is fine and easy, but slow, and requires deciding whether to make sure to run parameter caching with the arg, or else rerun smith waterman with the msa indels
-        reading sw results from /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml
+        reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 984 / 996 = 0.988   (removed: 12 failed, 0 duplicates [removed when cache file was written])
       kept 552 (0.554) unproductive
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 59 queries with different true and inferred net shm indel lengths: d35a97c1f8 fe60242ff7 f84a7c1400 c2289e9966 51d871878b e8acc9f1b0 084e4fcb68 b631475b15 fb0e480e17 225130e22d 5111dbc2d7 55e7526c5c 7e1148afa3 ee54080e3c e013f15019 9f3125d62f 241a4d4b20 e70527bc7f 3e696d6516 1fb8ca8353 7d25e75329 7b91e66ab8 15e75dbebb 5ae0e03f29 3a48f8149e a9e0ffd373 db8bc237a8 25a543f32e 7d0c436baf d5b4b410de c6411223a3 4dd5997cc7 7895d80103 d7499a3c6a fe0e9a8419 90ca64931a 57045a260d 0a3b14f53f 3846d8e5a2 56bff0df82 e10397569d 55c983b7c2 85426eee59 5784d28e4d 0883e7a15e b429674b7e d069f1bd88 15a06dc6cd 3ef96722db fa6cc6c6c7 7e4d0d8af1 cc04182208 761c308457 82f8368ce2 75882ee8f2 ca9d677f94 9af5e1428b e6442a9398 f7d905fc7d
 (0.0 sec)
-        water time: 0.6
+        water time: 0.5
 hmm
   --simultaneous-true-clonal-seqs: grouping seqs according to true partition
   [93mwarning[0m split apart 29 clusters that contained multiple cdr3 lengths (total clusters: 200 --> 234)
       cluster splits:  10 --> 9 1,  10 --> 1 9,   9 --> 8 1,   6 --> 1 5,  16 --> 1 15,   7 --> 1 6,   3 --> 1 2,  12 --> 1 10 1,   9 --> 8 1,   7 --> 1 6,   7 --> 1 6,   9 --> 8 1,   5 --> 4 1,   5 --> 1 4,  15 --> 14 1,  17 --> 1 1 15,   3 --> 1 1 1,   4 --> 1 2 1,   2 --> 1 1,   8 --> 7 1,  17 --> 1 15 1,   3 --> 2 1,   5 --> 1 4,   3 --> 1 2,   6 --> 1 5,   6 --> 5 1,   2 --> 1 1,   2 --> 1 1,   7 --> 1 6
   subcluster annotating 234 clusters with steps:            [91mwarning[0m no valid paths: 55e7526c5c
-(3.7s)     missing 1 annotations
+(3.6s)     missing 1 annotations
       removing missing cluster from clusters_still_to_do: 55e7526c5c
 (1.7s) (0.6s) [93mwarning[0m different length true and inferred naive seqs for 295ec96c3d, proceeding to align, which is very slow (see above):
   GAGGTGCAGCTGGTGGAGTCTGGGGGAGGCCTGGTCAAGCCTGGGGGGTCCCTGAGACTCTCCTGTGCAGCCTCTGGATTCACCTTCAGTAGCTATAGCATGAACTGGGTCCGCCAGGCTCCAGGGAAGGGGCTGGAGTGGGTCTCATCCATTAGTAGTAGTAGTTACATATACTACGCAGACTCAGTGAAGGGCCGATTCACCATCTCCAGAGACAACGCCAAGAACTCACTGTATCTGCAAATGAACAGCCTGAGAGCCGAGGACACGGCTGTGTATTACTGTGCGAACGGGTATAGCAGTGGCTGGTACTCCATGAACTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG
@@ -292,36 +292,36 @@ TATGGTGGGTCCTTCAGTGGTTACTACTGGAGCTGGATCCGCCAGCCCCCAGGGAAGGGGCTGGAGTGGATTGGGGAAAT
 T[91mC[0mTGGTGG[91mC[0mTCC[91mA[0mTCAGT[91mA[0mGTTACTACTGGAGCTGGATCCG[91mG[0mCAGCCC[91mG[0mC[91mC[0mGGGAAGGG[91mA[0mCTGGAGTGGATTGGG[91mC[0m[91mG[0m[91mT[0mATC[91mT[0mAT[91mA[0m[91mC[0m[91mC[0mAGTGG[91mG[0mAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCAT[91mG[0mTCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGC[91mA[0mGACACGGC[91mC[0mGTGTATTACTGTGCGAGAG[91mA[0m[91mC[0m[91mG[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 58 queries with different true and inferred net shm indel lengths: c6411223a3 e10397569d 5111dbc2d7 57045a260d 9af5e1428b 084e4fcb68 25a543f32e 761c308457 82f8368ce2 0a3b14f53f a9e0ffd373 3a48f8149e fe60242ff7 d35a97c1f8 b631475b15 9f3125d62f 241a4d4b20 e70527bc7f 3e696d6516 1fb8ca8353 7d25e75329 ca9d677f94 7d0c436baf 5784d28e4d 85426eee59 cc04182208 fb0e480e17 d5b4b410de d7499a3c6a 7895d80103 7e1148afa3 db8bc237a8 ee54080e3c e013f15019 fa6cc6c6c7 51d871878b 0883e7a15e b429674b7e d069f1bd88 90ca64931a fe0e9a8419 e8acc9f1b0 7e4d0d8af1 f7d905fc7d 225130e22d e6442a9398 55c983b7c2 5ae0e03f29 56bff0df82 7b91e66ab8 75882ee8f2 3846d8e5a2 15a06dc6cd 3ef96722db 4dd5997cc7 f84a7c1400 c2289e9966 15e75dbebb
-(0.0 sec)
+(0.1 sec)
 
-    subcluster annotation time 12.9
-      total time: 13.9
-      bcrham time: 5.5 (39.7% of total, 3 calls)
-[92mpartition-new-simu[0m               partis partition --dont-write-git-info --infname /tmp/dralph/partis-440/test/new-results-slow/test/simu.yaml --parameter-dir /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu --sw-cachefname /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname /tmp/dralph/partis-440/test/new-results-slow/cache-new-partition.csv --plotdir /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu.yaml
-partitioning     (with /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/hmm)
+    subcluster annotation time 12.4
+      total time: 13.3
+      bcrham time: 5.4 (40.7% of total, 3 calls)
+[92mpartition-new-simu[0m               partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --plotdir test/new-results-slow/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results-slow/partition-new-simu.yaml
+partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
   vsearch: 817 / 996 v annotations (179 failed) with 44 v genes in 0.2 sec
-        reading sw results from /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml
+        reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 984 / 996 = 0.988   (removed: 12 failed, 0 duplicates [removed when cache file was written])
       kept 552 (0.554) unproductive
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 59 queries with different true and inferred net shm indel lengths: d35a97c1f8 fe60242ff7 f84a7c1400 c2289e9966 51d871878b e8acc9f1b0 084e4fcb68 b631475b15 fb0e480e17 225130e22d 5111dbc2d7 55e7526c5c 7e1148afa3 ee54080e3c e013f15019 9f3125d62f 241a4d4b20 e70527bc7f 3e696d6516 1fb8ca8353 7d25e75329 7b91e66ab8 15e75dbebb 5ae0e03f29 3a48f8149e a9e0ffd373 db8bc237a8 25a543f32e 7d0c436baf d5b4b410de c6411223a3 4dd5997cc7 7895d80103 d7499a3c6a fe0e9a8419 90ca64931a 57045a260d 0a3b14f53f 3846d8e5a2 56bff0df82 e10397569d 55c983b7c2 85426eee59 5784d28e4d 0883e7a15e b429674b7e d069f1bd88 15a06dc6cd 3ef96722db fa6cc6c6c7 7e4d0d8af1 cc04182208 761c308457 82f8368ce2 75882ee8f2 ca9d677f94 9af5e1428b e6442a9398 f7d905fc7d
-(0.0 sec)
+(0.1 sec)
         water time: 0.6
 hmm
-  --persistent-cachefname: using existing hmm cache file /tmp/dralph/partis-440/test/new-results-slow/cache-new-partition.csv
+  --persistent-cachefname: using existing hmm cache file test/new-results-slow/cache-new-partition.csv
   caching all 984 naive sequences (3.2s)
      [93mwarning:[0m missing 1/984 queries from hmm cache file (using sw naive sequence instead): 55e7526c5c
    collapsed 984 queries into 499 clusters with identical naive seqs (0.0 sec)
   499 clusters with 10 procs (3.7s)
-   425 clusters with 7 procs (4.3s)
-   386 clusters with 5 procs (7.4s)
-   334 clusters with 3 procs (5.0s)
+   425 clusters with 7 procs (4.0s)
+   386 clusters with 5 procs (7.3s)
+   334 clusters with 3 procs (5.1s)
    295 clusters with 2 procs (9.5s)
    254 clusters with 2 procs (5.9s)
-   247 clusters with 2 procs (5.5s)
-   240 clusters with 2 procs (6.9s)
-   231 clusters with 1 proc (9.8s)
+   247 clusters with 2 procs (5.3s)
+   240 clusters with 2 procs (6.7s)
+   231 clusters with 1 proc (10.6s)
    [93mnote[0m not merging entire cpath history
   [93mwarning[0m all 13 partitions in cluster path have log prob -inf, so setting last (best) to zero
       partition loop time: 58.1
@@ -329,7 +329,7 @@ getting annotations for final partition
   subcluster annotating 228 clusters with steps:            [91mwarning[0m no valid paths: 55e7526c5c
 (2.7s)     missing 1 annotations
       removing missing cluster from clusters_still_to_do: 55e7526c5c
-(1.2s) (0.9s) (0.6s) [93mwarning[0m different length true and inferred naive seqs for 89490d94bd, proceeding to align, which is very slow (see above):
+(1.2s) (0.8s) (0.5s) [93mwarning[0m different length true and inferred naive seqs for 89490d94bd, proceeding to align, which is very slow (see above):
   TATGGTGGGTCCTTCAGTGGTTACTACTGGAGCTGGATCCGCCAGCCCCCAGGGAAGGGGCTGGAGTGGATTGGGGAAATCAATCATAGTGGAAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGCGGACACGGCTGTGTATTACTGTGCGAGAGGTACCAGCTGCTATCCCGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAGNNNNNNNNNNNNNNNNNNNNNNNN
   CAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCACAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGTGGTAGTTACTACTGGAGCTGGATCCGGCAGCCCGCCGGGAAGGGACTGGAGTGGATTGGGCGTATCTATACCAGTGGGAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATGTCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGCAGACACGGCCGTGTATTACTGTGCGAGAGGGA
 TATGGTGGGTCCTTCAGTGGTTACTACTGGAGCTGGATCCGCCAGCCCCCAGGGAAGGGGCTGGAGTGGATTGGGGAAATCAATCATAGTGGAAGCACCAACTACAACCCCTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGCGGACACGGCTGTGTATTACTGTGCGAGAGGTACCAGCTGCTATCCCGACCCCTGGGGCCAGGGAACCCTGGTCACCGTCTCCTCAG[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m
@@ -366,9 +366,9 @@ CAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATA
 [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCTG[91mC[0m[91mA[0mGCAGTC[91mA[0mGG[91mT[0m[91mC[0mC[91mG[0mG[91mG[0m[91mA[0m[91mC[0mTG[91mG[0m[91mT[0mGAAGCC[91mC[0m[91mT[0m[91mC[0mG[91mC[0m[91mA[0m[91mG[0m[91mA[0mC[91mC[0m[91mC[0mT[91mC[0m[91mT[0m[91mC[0m[91mA[0m[91mC[0mTC[91mA[0mCCTG[91mT[0m[91mG[0m[91mC[0m[91mC[0m[91mA[0m[91mT[0m[91mC[0mTC[91mC[0mGG[91mG[0m[91mG[0mACA[91mG[0m[91mT[0m[91mG[0mTC[91mT[0mC[91mT[0m[91mA[0mGC[91mA[0mAC[91mA[0m[91mG[0mT[91mG[0m[91mC[0mG[91mA[0mACTGG[91mA[0mT[91mC[0m[91mA[0mG[91mG[0mCAG[91mT[0mCCCC[91mA[0m[91mT[0m[91mC[0m[91mG[0m[91mA[0m[91mG[0mAGG[91mC[0mCTTGAGTGG[91mC[0mTGGGA[91mA[0mGGA[91mC[0mCA[91mG[0m[91mG[0m[91mT[0mC[91mC[0mAA[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mGTGG[91mT[0mA[91mT[0mAAA[91mT[0mTATGCA[91mG[0m[91mT[0m[91mA[0m[91mT[0m[91mC[0m[91mT[0m[91mG[0mT[91mG[0m[91mA[0mA[91mA[0m[91mA[0mG[91mT[0m[91mC[0mG[91mA[0m[91mA[0mT[91mA[0mACCAT[91mC[0mA[91mA[0mC[91mC[0m[91mC[0m[91mA[0mGACAC[91mA[0mTCCA[91mA[0m[91mG[0mA[91mA[0mC[91mC[0m[91mA[0m[91mG[0m[91mT[0m[91mT[0mCT[91mC[0mC[91mC[0mTG[91mC[0mAGCTGA[91mA[0mC[91mT[0m[91mC[0m[91mT[0m[91mG[0mTGA[91mC[0m[91mT[0m[91mC[0mC[91mC[0mGA[91mG[0mGACACGGC[91mT[0mGTGTATTACTGTGC[91mA[0mAGAG[91mT[0m[91mG[0m[91mT[0m[91mA[0m[91mT[0mTA[91mC[0mT[91mA[0mTG[91mA[0mT[91mA[0m[91mG[0m[91mT[0m[91mA[0m[91mG[0mT[91mG[0m[91mG[0m[91mT[0mTA[91mT[0mTACTAC[91mA[0mAC[91mT[0mG[91mG[0m[91mT[0mT[91mC[0mGAC[91mC[0m[91mC[0mCTGGGGCCA[91mG[0mGG[91mA[0mACC[91mC[0m[91mT[0mGGTCACCGTCTCCTCAG
   plotting performance 
     [93mwarning[0m skipped annotation performance evaluation on 58 queries with different true and inferred net shm indel lengths: 7d0c436baf 15a06dc6cd db8bc237a8 3ef96722db c2289e9966 75882ee8f2 1fb8ca8353 241a4d4b20 3e696d6516 9f3125d62f 7d25e75329 e70527bc7f 4dd5997cc7 5784d28e4d 0883e7a15e d069f1bd88 b429674b7e 15e75dbebb 7b91e66ab8 761c308457 82f8368ce2 084e4fcb68 0a3b14f53f 225130e22d 25a543f32e 3846d8e5a2 3a48f8149e 5111dbc2d7 51d871878b 55c983b7c2 56bff0df82 57045a260d 5ae0e03f29 7895d80103 7e1148afa3 7e4d0d8af1 85426eee59 90ca64931a 9af5e1428b a9e0ffd373 b631475b15 c6411223a3 ca9d677f94 cc04182208 d35a97c1f8 d5b4b410de d7499a3c6a e013f15019 e10397569d e6442a9398 e8acc9f1b0 ee54080e3c f7d905fc7d f84a7c1400 fa6cc6c6c7 fb0e480e17 fe0e9a8419 fe60242ff7
-(0.1 sec)
+(0.0 sec)
 
-    subcluster annotation time 9.5
+    subcluster annotation time 9.2
     [93mwarning[0m added 12 / 996 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 12 / 996 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 12 / 996 missing ids as singletons to inferred partition, to match ids in true partition
@@ -382,19 +382,19 @@ CAGGTGCAGCTGGTGCAGTCTGGGGCTGAGGTGAAGAAGCCTGGGGCCTCAGTGAAGGTCTCCTGCAAGGCTTCTGGATA
     [93mwarning[0m added 12 / 996 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 12 / 996 missing ids as singletons to inferred partition, to match ids in true partition
     [93mwarning[0m added 12 / 996 missing ids as singletons to inferred partition, to match ids in true partition
-      total time: 72.0
-      bcrham time: 64.4 (89.6% of total, 14 calls)
-[92mseed-partition-new-simu[0m          partis partition --dont-write-git-info --infname /tmp/dralph/partis-440/test/new-results-slow/test/simu.yaml --parameter-dir /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu --sw-cachefname /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname /tmp/dralph/partis-440/test/new-results-slow/cache-new-partition.csv --seed-unique-id 5848f45b8b --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname /tmp/dralph/partis-440/test/new-results-slow/seed-partition-new-simu.yaml
-partitioning     (with /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/hmm)
+      total time: 71.6
+      bcrham time: 64.5 (90.1% of total, 14 calls)
+[92mseed-partition-new-simu[0m          partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --seed-unique-id 5848f45b8b --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results-slow/seed-partition-new-simu.yaml
+partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
   vsearch: 817 / 996 v annotations (179 failed) with 44 v genes in 0.2 sec
-        reading sw results from /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml
+        reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 984 / 996 = 0.988   (removed: 12 failed, 0 duplicates [removed when cache file was written])
       kept 552 (0.554) unproductive
       removed 911 / 984 = 0.93 sequences with cdr3 length different from seed sequence (leaving 73)
         water time: 0.2
 hmm
-  --persistent-cachefname: using existing hmm cache file /tmp/dralph/partis-440/test/new-results-slow/cache-new-partition.csv
+  --persistent-cachefname: using existing hmm cache file test/new-results-slow/cache-new-partition.csv
    collapsed 73 queries into 28 clusters with identical naive seqs (0.0 sec)
   28 clusters with 10 procs (0.2s)
    35 clusters with 7 procs   [93mwarning[0m cluster occurs 8 times in the <nsets> we're sending to bcrham: 01ed078af6:1b6003d7ea:42b84f2bb4:5848f45b8b:5967526cd3:59d8ac69eb:5ea95a101c:690e260ada:76c6d5b128:8f0b6130fd:9d88c35a04:9f00e929d3:a8bc5703ab:b43336d714:b797064de0:faf06fcd3c:fea72581a3
@@ -404,23 +404,23 @@ hmm
        removed 53 sequences in unseeded clusters, split 5 seeded clusters into 20 singletons, and merged these into 3 clusters with identical naive seqs (0.0 sec)
         new n_procs 1 (initial seqs/proc: 7.30   new seqs/proc: 3.00
   3 clusters with 1 proc (0.1s)
-       partition loop time: 0.9
+       partition loop time: 0.8
 getting annotations for final partition
   subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) (0.1s) 
     subcluster annotation time 0.4
   seed cluster size in best partition: 20, excluding seed seq: 19
-      total time: 2.1
-      bcrham time: 1.0 (49.7% of total, 7 calls)
-[92mvsearch-partition-new-simu[0m       partis partition --dont-write-git-info --infname /tmp/dralph/partis-440/test/new-results-slow/test/simu.yaml --parameter-dir /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu --sw-cachefname /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml --naive-vsearch --is-simu --persistent-cachefname /tmp/dralph/partis-440/test/new-results-slow/cache-new-partition.csv --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname /tmp/dralph/partis-440/test/new-results-slow/vsearch-partition-new-simu.yaml
-partitioning     (with /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/hmm)
+      total time: 2.0
+      bcrham time: 1.0 (49.1% of total, 7 calls)
+[92mvsearch-partition-new-simu[0m       partis partition --dont-write-git-info --infname test/new-results-slow/test/simu.yaml --parameter-dir test/new-results-slow/test/parameters/simu --sw-cachefname test/new-results-slow/test/parameters/simu/sw-cache.yaml --naive-vsearch --is-simu --persistent-cachefname test/new-results-slow/cache-new-partition.csv --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results-slow/vsearch-partition-new-simu.yaml
+partitioning     (with test/new-results-slow/test/parameters/simu/hmm)
 smith-waterman
   vsearch: 817 / 996 v annotations (179 failed) with 44 v genes in 0.2 sec
-        reading sw results from /tmp/dralph/partis-440/test/new-results-slow/test/parameters/simu/sw-cache.yaml
+        reading sw results from test/new-results-slow/test/parameters/simu/sw-cache.yaml
       info for 984 / 996 = 0.988   (removed: 12 failed, 0 duplicates [removed when cache file was written])
       kept 552 (0.554) unproductive
         water time: 0.3
 hmm
-  --persistent-cachefname: using existing hmm cache file /tmp/dralph/partis-440/test/new-results-slow/cache-new-partition.csv
+  --persistent-cachefname: using existing hmm cache file test/new-results-slow/cache-new-partition.csv
     [93mwarning[0m empty naive seq in hmm cache for '55e7526c5c', using sw info
         collapsed 984 sequences (984 initial naive seqs/clusters) into 499 unique naive sequences over 43 cdr3 lengths (0.0 sec)
     using hfrac bound for vsearch 0.027
@@ -429,14 +429,14 @@ hmm
 getting annotations for final partition
       calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
   subcluster annotating 288 clusters with steps:            [91mwarning[0m no valid paths: 55e7526c5c
-(2.8s)     missing 1 annotations
+(2.7s)     missing 1 annotations
       removing missing cluster from clusters_still_to_do: 55e7526c5c
-(1.0s) (0.5s) (0.5s) 
-    subcluster annotation time 8.0
+(1.1s) (0.5s) (0.5s) 
+    subcluster annotation time 8.4
     [93mwarning[0m added 12 / 996 missing ids as singletons to inferred partition, to match ids in true partition
-      total time: 11.1
-      bcrham time: 4.3 (39.0% of total, 4 calls)
-[92mget-selection-metrics-new-simu[0m   partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu.yaml --selection-metric-fname /tmp/dralph/partis-440/test/new-results-slow/get-selection-metrics-new-simu.yaml --ab-choice-cfg /tmp/dralph/partis-440/test/ab-choice-slow.yaml
+      total time: 11.5
+      bcrham time: 4.2 (36.9% of total, 4 calls)
+[92mget-selection-metrics-new-simu[0m   partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 10 --min-paired-cluster-size-to-read 10 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results-slow/partition-new-simu.yaml --selection-metric-fname test/new-results-slow/get-selection-metrics-new-simu.yaml --ab-choice-cfg /home/dralph/work/partis/test/ab-choice-slow.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
 
 13 failed queries
@@ -446,155 +446,147 @@ getting annotations for final partition
       skipped 209 smaller than 10 (controlled by --min-selection-metric-cluster-size)
     getting trees for 18 clusters with sizes: 74 41 29 20 15 14 14 13 13 12 12 12 11 11 10 10 10 10
       starting 18 jobs
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-0/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-0/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-1/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-1/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-2/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-2/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-3/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-3/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-4/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-4/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-5/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-5/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-6/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-6/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-7/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-7/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-8/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-8/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-9/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-9/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-10/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-10/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-11/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-11/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-12/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-12/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-13/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-13/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-14/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-14/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-15/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-15/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-16/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-16/input-seqs.fa
-        [91mrun[0m /tmp/dralph/partis-440/bin/FastTree-linux -gtr -nt -out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-17/fasttree.out /tmp/dralph/partis-440/test/new-results-slow/partition-new-simu/fasttree/iclust-17/input-seqs.fa
-      made 18 fasttree trees (1.0s)
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-0/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-0/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-1/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-1/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-2/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-2/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-3/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-3/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-4/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-4/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-5/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-5/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-6/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-6/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-7/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-7/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-8/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-8/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-9/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-9/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-10/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-10/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-11/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-11/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-12/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-12/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-13/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-13/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-14/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-14/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-15/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-15/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-16/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-16/input-seqs.fa
+        [91mrun[0m /home/dralph/work/partis/bin/FastTree-linux -gtr -nt -out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-17/fasttree.out /home/dralph/work/partis/test/new-results-slow/partition-new-simu/fasttree/iclust-17/input-seqs.fa
+      made 18 fasttree trees (0.9s)
     tree origins: 18 ran fasttree
       setting default tau to 1 / 385 = 0.0026
     calculating normalized lb index and lb ratio and lb fraction with tau 0.0026
-                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 26/74 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.217  mfreq 0.146  diff 0.071  abs(frac diff) 28%  ratio 1.3
+                [94miclust 0: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 25/74 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.215  mfreq 0.146  diff 0.070  abs(frac diff) 25%  ratio 1.2
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.6900    0.3883       1.8     0.3017     39cb892629
-              0.6335    0.3723       1.7     0.2611     3ee4c19e67
-              0.5773    0.3289       1.8     0.2484     15a06dc6cd
-              0.6069    0.3777       1.6     0.2293     ccb36ab83b
-              0.5432    0.3324       1.6     0.2108     405ac9566a
-              0.5517    0.3484       1.6     0.2033     a48075667b
-              0.5219    0.3218       1.6     0.2001     4901243f93
-              0.5242    0.3245       1.6     0.1998     2c5c043cf0
-              0.5065    0.3112       1.6     0.1953     bcac53ca02
-              0.5131    0.3191       1.6     0.1940     afb535eb86
+              0.6879    0.3883       1.8     0.2996     39cb892629
+              0.6314    0.3723       1.7     0.2590     3ee4c19e67
+              0.5754    0.3289       1.7     0.2465     15a06dc6cd
+              0.6049    0.3777       1.6     0.2272     ccb36ab83b
+              0.5414    0.3324       1.6     0.2089     405ac9566a
+              0.5504    0.3484       1.6     0.2020     a48075667b
+              0.5200    0.3218       1.6     0.1982     4901243f93
+              0.5223    0.3245       1.6     0.1979     2c5c043cf0
+              0.5046    0.3112       1.6     0.1935     bcac53ca02
+              0.5113    0.3191       1.6     0.1921     afb535eb86
           10 with highest+lowest ratios:
-              0.6900    0.3883       1.8     0.3017     39cb892629
-              0.5773    0.3289       1.8     0.2484     15a06dc6cd
-              0.6335    0.3723       1.7     0.2611     3ee4c19e67
-              0.5432    0.3324       1.6     0.2108     405ac9566a
-              0.5065    0.3112       1.6     0.1953     bcac53ca02
-              0.4799    0.3218       1.5     0.1581     76269c17c6
-              0.4882    0.3298       1.5     0.1584     1f17b06007
-              0.4829    0.3271       1.5     0.1557     275477b3b7
-              0.5255    0.3564       1.5     0.1691     00544d9065
-              0.0450    0.0346       1.3     0.0104     87b9766fca
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 125/137 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aer ajs amz bcp bds bev bgs blz bnw bop bqz cdf cft chk chp ckn cos cqv csw csz dhn dhx dkn dmq dmv dvx efi eiu eks eoy eps epu eqz euz evw fis fkw gil gps gsw hjk hjl hrv ikl ikm jnz jqx kly knx kqr lns lpt lsu lsy msv muz otw psx rst tuv tvx uvw
+              0.6879    0.3883       1.8     0.2996     39cb892629
+              0.5754    0.3289       1.7     0.2465     15a06dc6cd
+              0.6314    0.3723       1.7     0.2590     3ee4c19e67
+              0.5414    0.3324       1.6     0.2089     405ac9566a
+              0.5046    0.3112       1.6     0.1935     bcac53ca02
+              0.5420    0.3617       1.5     0.1803     64071b847e
+              0.4780    0.3218       1.5     0.1562     76269c17c6
+              0.4864    0.3298       1.5     0.1566     1f17b06007
+              0.4810    0.3271       1.5     0.1539     275477b3b7
+              0.5237    0.3564       1.5     0.1673     00544d9065
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 125/137 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aer ajs amy amz bcp bev bgs blz bnw bop bqz cdf chk chp ckn cnu cos cpy crt csw csz dhn dhx dkn dmq dmv dqw dvx efi eiu eks eoy eps epu eqz euz evw fis fkw fty gil gox gsw gsx hjk hjl ikl ikm jnz jqx kly kqr lpt lsu lsy msv muz otw psx rtz tuv tvx
       setting default tau to 1 / 385 = 0.0026
     calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0026
-                [94miclust 1: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 14/41 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.149  mfreq 0.114  diff 0.035  abs(frac diff) 23%  ratio 1.2
+                [94miclust 1: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 13/41 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.148  mfreq 0.114  diff 0.034  abs(frac diff) 22%  ratio 1.2
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.4788    0.3218       1.5     0.1570     ec821ada89
-              0.4481    0.3059       1.5     0.1423     7dc0ddcb25
-              0.4273    0.2899       1.5     0.1374     be12b76d08
-              0.3823    0.2580       1.5     0.1243     cbe02fc2be
-              0.3564    0.2447       1.5     0.1117     19752c2a33
-              0.3642    0.2606       1.4     0.1036     4744e7d6ec
-              0.3488    0.2473       1.4     0.1014     e9144b0ffd
-              0.2177    0.1676       1.3     0.0501     9246ee3657
-              0.2109    0.1649       1.3     0.0460     8fe3320e67
-              0.0957    0.0718       1.3     0.0239     4178ac68b2
+              0.4784    0.3218       1.5     0.1566     ec821ada89
+              0.4474    0.3059       1.5     0.1416     7dc0ddcb25
+              0.4203    0.2899       1.4     0.1304     be12b76d08
+              0.3746    0.2580       1.5     0.1167     cbe02fc2be
+              0.3538    0.2447       1.4     0.1091     19752c2a33
+              0.3456    0.2473       1.4     0.0983     e9144b0ffd
+              0.3564    0.2606       1.4     0.0957     4744e7d6ec
+              0.2117    0.1676       1.3     0.0441     9246ee3657
+              0.0955    0.0718       1.3     0.0236     4178ac68b2
+              0.0905    0.0691       1.3     0.0214     1452caf42a
           10 with highest+lowest ratios:
-              0.4788    0.3218       1.5     0.1570     ec821ada89
-              0.3823    0.2580       1.5     0.1243     cbe02fc2be
-              0.4273    0.2899       1.5     0.1374     be12b76d08
-              0.4481    0.3059       1.5     0.1423     7dc0ddcb25
-              0.3564    0.2447       1.5     0.1117     19752c2a33
-              0.0957    0.0718       1.3     0.0239     4178ac68b2
-              0.0907    0.0691       1.3     0.0216     1452caf42a
-              0.2177    0.1676       1.3     0.0501     9246ee3657
-              0.0792    0.0612       1.3     0.0180     3040f08d7f
-              0.2109    0.1649       1.3     0.0460     8fe3320e67
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 66/74 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: amn awy bfj bqv cls dhn dmo doq dor dst dsu eov eoy eqv etx euv fkm fmp gim gmn hln hot huy ily itw jkr jor jpw kmn lmn lvx oxy
-                [94miclust 2: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/29 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.030  mfreq 0.027  diff 0.003  abs(frac diff) 12%  ratio 1.1
-          10 with highest abs(diff):
-            tree depth   mfreq      ratio    diff
-              0.0246    0.0192       1.3     0.0054     8cbf6ff899
-          10 with highest+lowest ratios:
-              0.0246    0.0192       1.3     0.0054     8cbf6ff899
-              0.0246    0.0192       1.3     0.0054     8cbf6ff899
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 47/53 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: adj aex ajy apr cfi dhq esv eyz fnv frw fsw fsx hwy itv jny lmz lru nox oyz qsu svz twx uvx
+              0.4784    0.3218       1.5     0.1566     ec821ada89
+              0.4474    0.3059       1.5     0.1416     7dc0ddcb25
+              0.3746    0.2580       1.5     0.1167     cbe02fc2be
+              0.4203    0.2899       1.4     0.1304     be12b76d08
+              0.3538    0.2447       1.4     0.1091     19752c2a33
+              0.3564    0.2606       1.4     0.0957     4744e7d6ec
+              0.0955    0.0718       1.3     0.0236     4178ac68b2
+              0.0905    0.0691       1.3     0.0214     1452caf42a
+              0.0789    0.0612       1.3     0.0177     3040f08d7f
+              0.2117    0.1676       1.3     0.0441     9246ee3657
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 65/73 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: amn awy bfj bqv cil cls dhn dmo dor dsu eov eoy eqs eqv etx fkm flx fmp gim gmn hln htv huy itw jkr jor kmn lmn lvx npq oxy
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 47/53 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: adj aex ajy apr cfi dhq dij esv eyz fnv frw fsw fsx hwy iqt jny lmz lru nwz oyz qsu svz twx
                 [94miclust 3: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/20 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
-                    mean values:  tree depth 0.020  mfreq 0.019  diff 0.001  abs(frac diff) 8%  ratio 1.1
+                    mean values:  tree depth 0.020  mfreq 0.019  diff 0.001  abs(frac diff) 6%  ratio 1.1
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
               0.0140    0.0107       1.3     0.0033     faf06fcd3c
           10 with highest+lowest ratios:
               0.0140    0.0107       1.3     0.0033     faf06fcd3c
               0.0140    0.0107       1.3     0.0033     faf06fcd3c
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 23/31 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bcg bco bvw dfh fky fpy hiq ilr ivy mpy
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 23/31 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bcg bco bez bko blu bvw gno ilr jks quz
                 [94miclust 4: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 15/15 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
                     mean values:  tree depth 0.574  mfreq 0.362  diff 0.212  abs(frac diff) 59%  ratio 1.6
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.6401    0.3827       1.7     0.2574     05d0388bfb
-              0.6381    0.3883       1.6     0.2498     8cc19e4b41
-              0.5997    0.3715       1.6     0.2282     427bac8186
-              0.6075    0.3827       1.6     0.2248     7d36d0ebb2
-              0.5929    0.3715       1.6     0.2214     c95861c48d
-              0.5863    0.3715       1.6     0.2148     43b8f6b604
-              0.5663    0.3520       1.6     0.2144     56c9aa3791
-              0.5662    0.3547       1.6     0.2114     21b22ffd41
-              0.5874    0.3771       1.6     0.2103     3a694b8e66
-              0.5639    0.3547       1.6     0.2092     153ffffee9
+              0.6397    0.3827       1.7     0.2570     05d0388bfb
+              0.6384    0.3883       1.6     0.2501     8cc19e4b41
+              0.5996    0.3715       1.6     0.2281     427bac8186
+              0.6078    0.3827       1.6     0.2251     7d36d0ebb2
+              0.5932    0.3715       1.6     0.2217     c95861c48d
+              0.5866    0.3715       1.6     0.2151     43b8f6b604
+              0.5670    0.3520       1.6     0.2150     56c9aa3791
+              0.5665    0.3547       1.6     0.2117     21b22ffd41
+              0.5877    0.3771       1.6     0.2106     3a694b8e66
+              0.5642    0.3547       1.6     0.2094     153ffffee9
           10 with highest+lowest ratios:
-              0.6401    0.3827       1.7     0.2574     05d0388bfb
-              0.6381    0.3883       1.6     0.2498     8cc19e4b41
-              0.5997    0.3715       1.6     0.2282     427bac8186
-              0.5663    0.3520       1.6     0.2144     56c9aa3791
-              0.5252    0.3268       1.6     0.1984     29ffea00ab
-              0.5874    0.3771       1.6     0.2103     3a694b8e66
-              0.5887    0.3799       1.5     0.2088     bdd1c16d72
-              0.5401    0.3492       1.5     0.1909     11a9281f5c
-              0.5108    0.3352       1.5     0.1756     3f7cbff896
-              0.5005    0.3324       1.5     0.1681     2114acda34
+              0.6397    0.3827       1.7     0.2570     05d0388bfb
+              0.6384    0.3883       1.6     0.2501     8cc19e4b41
+              0.5996    0.3715       1.6     0.2281     427bac8186
+              0.5670    0.3520       1.6     0.2150     56c9aa3791
+              0.5247    0.3268       1.6     0.1979     29ffea00ab
+              0.5877    0.3771       1.6     0.2106     3a694b8e66
+              0.5891    0.3799       1.6     0.2092     bdd1c16d72
+              0.5399    0.3492       1.5     0.1908     11a9281f5c
+              0.5111    0.3352       1.5     0.1759     3f7cbff896
+              0.5001    0.3324       1.5     0.1677     2114acda34
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 4): skipped 27/29 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ahj asx bcr cpv djk fmt frs guw ijy iot itz nsu vwx
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 2/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ckv
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 23/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: agk agt chr cku der efk eix fjw hix hrz jps
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 23/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: agt chr cku der dmn efk eix fjw hix jps uxy
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 7): skipped 13/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bqs cef crt den ent mqv
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 8): skipped 21/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aft alw aop atv bsz dgw gpx hks ouz pwz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 19/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: abn ars bvx dqs egv hil hux inp msz
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 9): skipped 19/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ars bvx dqs dqz egv hil hux inp msz
                 [94miclust 10: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 12/12 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
                     mean values:  tree depth 0.550  mfreq 0.356  diff 0.194  abs(frac diff) 54%  ratio 1.5
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.6663    0.3739       1.8     0.2924     4f641f81b5
+              0.6664    0.3739       1.8     0.2925     4f641f81b5
               0.6442    0.3710       1.7     0.2732     8504757517
               0.6051    0.3942       1.5     0.2109     0f8dce7279
-              0.5707    0.3652       1.6     0.2055     526be0f65f
+              0.5708    0.3652       1.6     0.2055     526be0f65f
               0.6035    0.4000       1.5     0.2035     9979894107
               0.5736    0.3750       1.5     0.1986     3ef96722db
-              0.5815    0.3855       1.5     0.1960     ae9c6617ac
+              0.5816    0.3855       1.5     0.1960     ae9c6617ac
               0.5655    0.3768       1.5     0.1887     28bcc49ada
               0.5552    0.3710       1.5     0.1842     e5396cd910
-              0.4129    0.2841       1.5     0.1289     ef7befc3cd
+              0.4130    0.2841       1.5     0.1289     ef7befc3cd
           10 with highest+lowest ratios:
-              0.6663    0.3739       1.8     0.2924     4f641f81b5
+              0.6664    0.3739       1.8     0.2925     4f641f81b5
               0.6442    0.3710       1.7     0.2732     8504757517
-              0.5707    0.3652       1.6     0.2055     526be0f65f
+              0.5708    0.3652       1.6     0.2055     526be0f65f
               0.6051    0.3942       1.5     0.2109     0f8dce7279
               0.5736    0.3750       1.5     0.1986     3ef96722db
               0.5655    0.3768       1.5     0.1887     28bcc49ada
               0.5552    0.3710       1.5     0.1842     e5396cd910
-              0.4129    0.2841       1.5     0.1289     ef7befc3cd
-              0.4134    0.2870       1.4     0.1265     0d25ba4742
+              0.4130    0.2841       1.5     0.1289     ef7befc3cd
+              0.4135    0.2870       1.4     0.1265     0d25ba4742
               0.4074    0.2841       1.4     0.1234     1552fc35a2
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 10): skipped 23/24 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aby agh aly bhr bsx gjr glx kvw prw rtu tux
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 11): skipped 17/21 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: amw bgz bls dkq dov enu fny hop
@@ -603,56 +595,56 @@ getting annotations for final partition
                     mean values:  tree depth 0.521  mfreq 0.356  diff 0.165  abs(frac diff) 46%  ratio 1.5
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.6280    0.3929       1.6     0.2351     85aee2f7c8
-              0.5686    0.3654       1.6     0.2032     ef15511f1d
-              0.5977    0.4011       1.5     0.1966     c157ca2810
-              0.4626    0.2967       1.6     0.1659     1dd767796c
-              0.5141    0.3489       1.5     0.1652     a1dcf4482b
-              0.5103    0.3462       1.5     0.1641     6898818785
-              0.5120    0.3681       1.4     0.1439     41c48d29d4
-              0.4828    0.3462       1.4     0.1366     86a2e85c8a
-              0.4709    0.3352       1.4     0.1358     af7defe6c4
-              0.4941    0.3599       1.4     0.1342     8a6b52886d
+              0.6283    0.3929       1.6     0.2354     85aee2f7c8
+              0.5689    0.3654       1.6     0.2035     ef15511f1d
+              0.5979    0.4011       1.5     0.1968     c157ca2810
+              0.4624    0.2967       1.6     0.1657     1dd767796c
+              0.5140    0.3489       1.5     0.1651     a1dcf4482b
+              0.5102    0.3462       1.5     0.1641     6898818785
+              0.5119    0.3681       1.4     0.1438     41c48d29d4
+              0.4828    0.3462       1.4     0.1367     86a2e85c8a
+              0.4707    0.3352       1.4     0.1356     af7defe6c4
+              0.4943    0.3599       1.4     0.1344     8a6b52886d
           10 with highest+lowest ratios:
-              0.6280    0.3929       1.6     0.2351     85aee2f7c8
-              0.4626    0.2967       1.6     0.1659     1dd767796c
-              0.5686    0.3654       1.6     0.2032     ef15511f1d
-              0.5977    0.4011       1.5     0.1966     c157ca2810
-              0.5103    0.3462       1.5     0.1641     6898818785
-              0.4709    0.3352       1.4     0.1358     af7defe6c4
-              0.4828    0.3462       1.4     0.1366     86a2e85c8a
-              0.5120    0.3681       1.4     0.1439     41c48d29d4
-              0.4909    0.3571       1.4     0.1337     c3ffd311a8
-              0.4941    0.3599       1.4     0.1342     8a6b52886d
+              0.6283    0.3929       1.6     0.2354     85aee2f7c8
+              0.4624    0.2967       1.6     0.1657     1dd767796c
+              0.5689    0.3654       1.6     0.2035     ef15511f1d
+              0.5979    0.4011       1.5     0.1968     c157ca2810
+              0.5102    0.3462       1.5     0.1641     6898818785
+              0.4707    0.3352       1.4     0.1356     af7defe6c4
+              0.4828    0.3462       1.4     0.1367     86a2e85c8a
+              0.5119    0.3681       1.4     0.1438     41c48d29d4
+              0.4910    0.3571       1.4     0.1339     c3ffd311a8
+              0.4943    0.3599       1.4     0.1344     8a6b52886d
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 13): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: abq amt anv bpz bry fmv hnx irt jtx mno
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 14): skipped 5/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dru glz
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 14): skipped 5/13 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bel cnq
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 15): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ady dlm fhq gux lqw mnq nwz pux suy
                 [94miclust 16: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 10/10 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
                     mean values:  tree depth 0.586  mfreq 0.354  diff 0.232  abs(frac diff) 65%  ratio 1.7
           10 with highest abs(diff):
             tree depth   mfreq      ratio    diff
-              0.7523    0.4282       1.8     0.3241     5c72f6ab33
-              0.6051    0.3457       1.8     0.2594     2a6804cf9a
-              0.6118    0.3590       1.7     0.2527     2f3aaa063d
-              0.5931    0.3484       1.7     0.2447     62b0215d91
-              0.5528    0.3165       1.7     0.2363     f9fb29acd6
-              0.5892    0.3697       1.6     0.2196     b4df5e255e
-              0.5481    0.3378       1.6     0.2103     b79b32e71b
-              0.5369    0.3324       1.6     0.2044     e54a269b9d
-              0.5577    0.3617       1.5     0.1960     505c0569ed
-              0.5094    0.3378       1.5     0.1717     ec3bb69fbc
+              0.7525    0.4282       1.8     0.3244     5c72f6ab33
+              0.6053    0.3457       1.8     0.2596     2a6804cf9a
+              0.6120    0.3590       1.7     0.2530     2f3aaa063d
+              0.5933    0.3484       1.7     0.2449     62b0215d91
+              0.5531    0.3165       1.7     0.2366     f9fb29acd6
+              0.5894    0.3697       1.6     0.2197     b4df5e255e
+              0.5483    0.3378       1.6     0.2106     b79b32e71b
+              0.5372    0.3324       1.6     0.2047     e54a269b9d
+              0.5580    0.3617       1.5     0.1963     505c0569ed
+              0.5096    0.3378       1.5     0.1718     ec3bb69fbc
           10 with highest+lowest ratios:
-              0.7523    0.4282       1.8     0.3241     5c72f6ab33
-              0.6051    0.3457       1.8     0.2594     2a6804cf9a
-              0.5528    0.3165       1.7     0.2363     f9fb29acd6
-              0.6118    0.3590       1.7     0.2527     2f3aaa063d
-              0.5931    0.3484       1.7     0.2447     62b0215d91
-              0.5481    0.3378       1.6     0.2103     b79b32e71b
-              0.5369    0.3324       1.6     0.2044     e54a269b9d
-              0.5892    0.3697       1.6     0.2196     b4df5e255e
-              0.5577    0.3617       1.5     0.1960     505c0569ed
-              0.5094    0.3378       1.5     0.1717     ec3bb69fbc
+              0.7525    0.4282       1.8     0.3244     5c72f6ab33
+              0.6053    0.3457       1.8     0.2596     2a6804cf9a
+              0.5531    0.3165       1.7     0.2366     f9fb29acd6
+              0.6120    0.3590       1.7     0.2530     2f3aaa063d
+              0.5933    0.3484       1.7     0.2449     62b0215d91
+              0.5483    0.3378       1.6     0.2106     b79b32e71b
+              0.5372    0.3324       1.6     0.2047     e54a269b9d
+              0.5894    0.3697       1.6     0.2197     b4df5e255e
+              0.5580    0.3617       1.5     0.1963     505c0569ed
+              0.5096    0.3378       1.5     0.1718     ec3bb69fbc
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 16): skipped 19/20 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aeo akl bkn ehw eiv lnz mrs ovz rsw
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 17): skipped 15/18 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ams cmu ekv emn kns lqy lsx
-  writing selection metrics to /tmp/dralph/partis-440/test/new-results-slow/get-selection-metrics-new-simu.yaml
+  writing selection metrics to test/new-results-slow/get-selection-metrics-new-simu.yaml
       total time: 1.4
