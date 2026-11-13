@@ -27,14 +27,18 @@ from partis.clusterpath import ClusterPath
 import partis.paircluster as paircluster
 
 # ----------------------------------------------------------------------------------------
+def results_dir(tstr, force_paired=False):
+    assert tstr in ['ref', 'new']
+    bdir = 'test%s' % ('/paired' if (args.paired or force_paired) else '')
+    if not os.path.exists(bdir):
+        bdir = '%s/%s' % (utils.get_partis_dir(), bdir)
+    return '%s/%s-results%s' % (bdir, tstr, '-slow' if args.slow else '')
+
+# ----------------------------------------------------------------------------------------
 class Tester(object):
     # ----------------------------------------------------------------------------------------
     def dirs(self, tstr, force_paired=False):
-        assert tstr in ['ref', 'new']
-        bdir = 'test%s' % ('/paired' if (args.paired or force_paired) else '')
-        if not os.path.exists(bdir):
-            bdir = '%s/%s' % (utils.get_partis_dir(), bdir)
-        return '%s/%s-results%s' % (bdir, tstr, '-slow' if args.slow else '')
+        return results_dir(tstr, force_paired=force_paired)
     # ----------------------------------------------------------------------------------------
     def nqr(self, act):
         if act == 'quick':  # bears no relation to the others, so makes sense to handle it differently
@@ -930,6 +934,61 @@ class Tester(object):
             compare_files(self.ptn_cachefn(input_stype))
 
 # ----------------------------------------------------------------------------------------
+def files_match(fn1, fn2, rel_tol=1e-12):  # True if the two files have the same text, allowing numbers to differ only in how many digits are printed (e.g. the C++ and zig bcrham print log probs to different precision)
+    with open(fn1, 'rb') as f1, open(fn2, 'rb') as f2:
+        b1, b2 = f1.read(), f2.read()
+    if b1 == b2:
+        return True
+    try:
+        t1, t2 = b1.decode(), b2.decode()
+    except UnicodeDecodeError:  # binary file
+        return False
+    import re
+    tokens1, tokens2 = [re.split(r'([\s,;:\[\]{}()]+)', t) for t in (t1, t2)]
+    if len(tokens1) != len(tokens2):
+        return False
+    for w1, w2 in zip(tokens1, tokens2):
+        if w1 == w2:
+            continue
+        try:
+            v1, v2 = float(w1), float(w2)
+        except ValueError:
+            return False
+        if not math.isclose(v1, v2, rel_tol=rel_tol, abs_tol=1e-12):
+            return False
+    return True
+
+# ----------------------------------------------------------------------------------------
+def compare_backends(new_dir):  # run the tests with the C++ and then the zig backend, and fail if their outputs differ (apart from logs and plots)
+    def skip_file(fn):  # logs and run times differ between any two runs, and svgs embed ids that differ between runs
+        bn = os.path.basename(fn)
+        return bn in ['test.log', 'test.log.prev', 'run-times.csv', 'log'] or bn.endswith('.log') or bn.endswith('.svg')
+    def file_set(bdir):
+        return set(os.path.relpath(os.path.join(dp, f), bdir) for dp, _, fns in os.walk(bdir) for f in fns if not skip_file(f))
+    clist = copy.deepcopy(sys.argv)
+    utils.remove_from_arglist(clist, '--compare-backends')
+    utils.remove_from_arglist(clist, '--zig')
+    cpp_dir = new_dir + '-cpp'
+    if os.path.exists(new_dir):  # both runs have to start from an empty dir, otherwise leftover files from earlier runs end up only in the C++ output
+        print('  removing %s' % new_dir)
+        shutil.rmtree(new_dir)
+    utils.simplerun(' '.join(clist))
+    if os.path.exists(cpp_dir):
+        shutil.rmtree(cpp_dir)
+    shutil.move(new_dir, cpp_dir)
+    utils.simplerun(' '.join(clist + ['--zig']))
+    cpp_files, zig_files = file_set(cpp_dir), file_set(new_dir)
+    only_cpp, only_zig = sorted(cpp_files - zig_files), sorted(zig_files - cpp_files)
+    differ = sorted(f for f in cpp_files & zig_files if not files_match(os.path.join(cpp_dir, f), os.path.join(new_dir, f)))
+    print('comparing C++ backend output (%s) to zig backend output (%s): %d files in common' % (cpp_dir, new_dir, len(cpp_files & zig_files)))
+    for tstr, flist in [('only in C++ output', only_cpp), ('only in zig output', only_zig), ('differ', differ)]:
+        if len(flist) > 0:
+            print('  %s %d files %s:\n      %s' % (utils.color('red', 'error'), len(flist), tstr, '\n      '.join(flist)))
+    if len(only_cpp) + len(only_zig) + len(differ) > 0:
+        sys.exit(1)
+    print('  %s: C++ and zig outputs match' % utils.color('green', 'ok'))
+
+# ----------------------------------------------------------------------------------------
 def main():
     global args
     parser = argparse.ArgumentParser()
@@ -955,6 +1014,7 @@ def main():
     parser.add_argument('--bcrham-binary', default=None, help='override default bcrham binary path (e.g. Zig drop-in replacement)')
     parser.add_argument('--ig-sw-binary', default=None, help='override default ig-sw binary path (e.g. Zig drop-in replacement)')
     parser.add_argument('--zig', action='store_true', help='use Zig backend (equivalent to --bcrham-binary and --ig-sw-binary pointing to packages/zig-core/zig-out/bin/)')
+    parser.add_argument('--compare-backends', action='store_true', help='run the tests (for the other args given) first with the C++ backend and then with the zig backend, and exit with an error if their outputs differ (apart from logs and plots). The C++ output is moved to <new results dir>-cpp. Both backends must be built.')
     args = parser.parse_args()
     assert not (args.quick and args.slow)  # it just doesn't make sense
     assert not (args.quick and args.paired)  # --quick ignores --paired, which is confusing
@@ -964,6 +1024,11 @@ def main():
 
     if args.print_width == 0:
         args.print_width = 99999
+
+    if args.compare_backends:
+        assert not (args.zig or args.bust_cache or args.run_all or args.dont_run or args.dry_run or args.bcrham_binary or args.ig_sw_binary)  # it runs both backends itself, and needs to actually run them
+        compare_backends(results_dir('new'))
+        sys.exit(0)
 
     if args.run_all or (args.bust_cache and not args.only_bust_current):  # run all four combos
         for slowval in [False, True]:

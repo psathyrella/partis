@@ -131,12 +131,19 @@ jobs:
     - name: Run quick test
       run: partis-test.py --quick ${{ matrix.backend == 'zig' && '--zig' || '' }}
 
+    - name: Build zig backend alongside C++ (for the backend comparison)
+      if: matrix.os == 'ubuntu-latest' && matrix.backend == 'cpp'
+      run: bin/zig-build.sh
+
     - name: Run full test
       run: |
         Z="${{ matrix.backend == 'zig' && '--zig' || '' }}"
         if [[ "${{ matrix.os }}" == macos* ]]; then
           partis-test.py --no-simu $Z
           partis-test.py --paired --no-simu $Z
+        elif [ "${{ matrix.backend }}" = cpp ]; then  # runs the tests with C++, then again with zig, and fails if the two backends' outputs differ
+          partis-test.py --compare-backends --no-per-base-mutation --no-tree-gen
+          partis-test.py --paired --compare-backends --no-per-base-mutation --no-tree-gen
         else
           partis-test.py --no-per-base-mutation --no-tree-gen $Z
           partis-test.py --paired --no-per-base-mutation --no-tree-gen $Z
