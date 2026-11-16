@@ -4,7 +4,7 @@ import shutil
 
 import pytest
 
-from _helpers import HFRAC_ARGS, LOCI, N_SUBSETS, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, check_subsets_complete, copy_dir, edit_yaml, group_stage_path, locus_manifest, merge_subsets_args, paired_chunked_args, paired_partition_args, partition_fname, read_log, run_partis, run_partis_fails
+from _helpers import HFRAC_ARGS, LOCI, N_SUBSETS, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, check_subsets_complete, copy_dir, drop_ha_results, edit_yaml, group_stage_path, ha_result_files, locus_manifest, merge_subsets_args, paired_chunked_args, paired_partition_args, partition_fname, read_ha_results, read_log, run_partis, run_partis_fails
 from partis import utils
 from partis import disjointgrouper as dg
 from partis import ha_repartition
@@ -103,11 +103,12 @@ def test_ha_assemble_refuses_missing_result(tmp_path, ha_only_dir):
     ddir, manifest = locus_manifest(outdir, 'igh')
     for spec in ha_repartition.group_specs(ddir, manifest['groups'], 'igh'):  # so assemble redoes every group
         os.remove(spec['harep_out'])
-    results = sorted(glob.glob('%s/**/clusters/*/partition.yaml' % ddir, recursive=True))
-    os.remove(results[0])
+    rfname = ha_result_files(ddir)[0]
+    cid = read_ha_results(rfname)[0]['cluster_id']
+    drop_ha_results(os.path.dirname(os.path.dirname(rfname)), [cid])  # in its group only
     log = run_partis_fails(['assemble-ha-repartition', '--locus', 'igh', '--paired-outdir', str(outdir)], str(tmp_path / 'partis.log'))
     assert '1 HA results missing in' in log
-    assert os.path.basename(os.path.dirname(results[0])) in log  # the cluster id
+    assert cid in log
 
 
 # ----------------------------------------------------------------------------------------

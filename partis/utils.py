@@ -1554,7 +1554,8 @@ def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting don
 
 # ----------------------------------------------------------------------------------------
 # <reco_info> just needs to be an annotation dict with single-sequence annotations
-def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False): #, dont_deep_copy=False):  # assumes you already added all the implicit info
+# <iseqs>: optional {uid : its index in reco_info[uid]}, used in place of a search per key
+def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False, iseqs=None): #, dont_deep_copy=False):  # assumes you already added all the implicit info
     assert len(uids) > 0
     # invalid = False
     # if any(reco_info[u]['invalid'] for u in uids):
@@ -1562,15 +1563,20 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False): #, do
     #     invalid = True
     multikeys = set(k for u in uids for k in reco_info[u])  # need to have any key that's in any annotation
     multifo = {}
+    atomic = (str, int, float, bool, type(None))  # immutable, so nothing to copy
     for col in sorted(multikeys):
         if col in linekeys['per_seq']:
-            cval = [per_seq_val(reco_info[u], col, u, use_default=True, default_val=nullval(col)) for u in uids]
+            if iseqs is None:
+                cval = [per_seq_val(reco_info[u], col, u, use_default=True, default_val=nullval(col)) for u in uids]
+            else:
+                cval = [reco_info[u][col][iseqs[u]] if col in reco_info[u] and iseqs[u] is not None else nullval(col) for u in uids]
         else:  # would be nice to use linekeys['per_family'], but not all keys are in one or the other (e.g. linekeys['sw'] aren't in either)
             cvals = [reco_info[u][col] for u in uids if col in reco_info[u]]
             if warn and any(v != cvals[0] for v in cvals):  # eh, maybe i don't need to raise an exception here? Although generally you sure shouldn't be merging them if they differ
                 print('    %s multiple values for key \'%s\' when synthesizing multi-seq line (just using the first one): %s' % (wrnstr(), col, '')) #cvals))
             cval = cvals[0]
-        multifo[col] = copy.deepcopy(cval)
+        cvals_to_copy = cval if col in linekeys['per_seq'] else [cval]  # the per-seq list itself is already new
+        multifo[col] = cval if all(type(v) in atomic for v in cvals_to_copy) else copy.deepcopy(cval)
     return multifo
 
 # ----------------------------------------------------------------------------------------
@@ -5983,6 +5989,22 @@ def n_available_cpus():  # cpus available to this process (respects slurm/cgroup
         return len(os.sched_getaffinity(0))
     except (AttributeError, OSError):
         return multiprocessing.cpu_count()
+
+# ----------------------------------------------------------------------------------------
+def job_memory():  # bytes of memory this job may use: its slurm allocation if it has one, else the machine's
+    if os.getenv('SLURM_MEM_PER_NODE') is not None:  # in MB, as is the per cpu one
+        return int(os.getenv('SLURM_MEM_PER_NODE')) * 2**20
+    if os.getenv('SLURM_MEM_PER_CPU') is not None:
+        return int(os.getenv('SLURM_MEM_PER_CPU')) * n_available_cpus() * 2**20
+    return psutil.virtual_memory().total
+
+# ----------------------------------------------------------------------------------------
+def peak_rss():  # bytes, the most resident memory this process has held
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (1 if platform.system() == 'Darwin' else 1024)
+
+# ----------------------------------------------------------------------------------------
+def current_rss():  # bytes of resident memory this process holds now
+    return psutil.Process().memory_info().rss
 
 # ----------------------------------------------------------------------------------------
 def limit_procs(base_cmd_str, n_max_procs=None, sleep_time=1, procs=None, debug=False):  # <sleep_time> is seconds

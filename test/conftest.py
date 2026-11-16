@@ -79,13 +79,13 @@ def unpaired_chunked_dir(tmp_path_factory):
 @pytest.fixture(scope='session')
 def ha_refine_dir(tmp_path_factory):
     """paired partition --disjoint-groups --hfrac --ha-repartition --partition-refine"""
-    return run_fixture(tmp_path_factory, 'ha-refine', paired_partition_args(HFRAC_ARGS + ['--ha-repartition', '--partition-refine']))
+    return run_fixture(tmp_path_factory, 'ha-refine', paired_partition_args(HFRAC_ARGS + ['--ha-repartition', '--partition-refine', '--keep-intermediates', '--pool-memory-gb', '64']))
 
 
 @pytest.fixture(scope='session')
 def ha_only_dir(tmp_path_factory):
     """paired partition --disjoint-groups --ha-repartition"""
-    return run_fixture(tmp_path_factory, 'ha-only', paired_partition_args(['--ha-repartition']))
+    return run_fixture(tmp_path_factory, 'ha-only', paired_partition_args(['--ha-repartition', '--keep-intermediates']))
 
 
 @pytest.fixture(scope='session')
