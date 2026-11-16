@@ -15,6 +15,7 @@ TEST_DIR = os.path.join(REPO_DIR, 'test')
 sys.path.insert(0, REPO_DIR)
 from partis import utils
 from partis import disjointgrouper as dg
+from partis import ha_repartition
 from partis.clusterpath import ClusterPath
 from partis.paircluster import paired_fn
 
@@ -176,7 +177,7 @@ def sw_cache_uids(pdir):
 
 def ha_result_files(ddir):
     # the HA result files of every group under <ddir>, which can be one group's dir
-    return sorted(glob.glob('%s/**/ha-repartition/results-*.jsonl' % ddir, recursive=True))
+    return sorted(glob.glob(ha_repartition.results_fname('%s/**/ha-repartition' % ddir, '*'), recursive=True))
 
 
 def ha_group_dir(job):

@@ -289,7 +289,7 @@ def create_ha_repartition_jobs_action(args):
     def count_collapsed(candidates):
         return ha_repartition.count_ha_collapsed(candidates, args, glfo, n_concurrent)
     n_bundles = ha_n_bundles(n_concurrent) if args.ha_max_bundles is None else args.ha_max_bundles
-    specs, jobs, bundles = ha_repartition.prepare_all(disjoint_dir, manifest['groups'], args.locus, n_bundles, count_collapsed=count_collapsed, n_procs=n_concurrent, memory=pool_memory(args))
+    specs, jobs, bundles = ha_repartition.prepare_all(disjoint_dir, manifest['groups'], args.locus, n_bundles, count_collapsed=count_collapsed, n_procs=n_concurrent, memory_bytes=pool_memory(args))
     print('  wrote %d per-cluster HA jobs across %d groups to %s, in %d bundles listed in %s' % (len(jobs), len(specs), ha_repartition.task_list_fname(disjoint_dir, args.locus), len(bundles), ha_repartition.bundle_list_fname(disjoint_dir, args.locus)))
 
 # ----------------------------------------------------------------------------------------
@@ -316,7 +316,7 @@ def run_ha_repartition_jobs_action(args):
 # ----------------------------------------------------------------------------------------
 def assemble_ha_groups(args, disjoint_dir, locus, specs, n_procs):
     # assemble every group's HA re-partition, then remove what the HA step wrote for its own use
-    rels = ha_repartition.assemble_all(specs, n_procs=n_procs, memory=pool_memory(args))
+    rels = ha_repartition.assemble_all(specs, n_procs=n_procs, memory_bytes=pool_memory(args))
     if not args.keep_intermediates:
         ha_repartition.remove_intermediates(disjoint_dir, specs, locus)
     return rels
@@ -338,7 +338,7 @@ def create_partition_refine_jobs_action(args):
     disjoint_dir = _disjoint_locus_dir(args)
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     specs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], args.locus)
-    naive_thr = partition_refinement.locuswide_threshold(disjoint_dir, specs, args.locus, n_procs=single_proc_concurrency(args), memory=pool_memory(args))
+    naive_thr = partition_refinement.locuswide_threshold(disjoint_dir, specs, args.locus, n_procs=single_proc_concurrency(args), memory_bytes=pool_memory(args))
     if naive_thr is None:
         print('  %d groups to refine, no naive threshold needed for %s' % (len(specs), args.locus))
     else:
@@ -2063,7 +2063,7 @@ def run_all_loci(args, ig_or_tr='ig'):
             rspecs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], ltmp)
             refined = [os.path.exists(spec['refined_out']) for spec in rspecs]
             if not args.dry_run and (args.rerun_refine or not all(refined)):  # with every group refined nothing reads the threshold, and a finished run has removed it
-                partition_refinement.locuswide_threshold(disjoint_dir, rspecs, ltmp, overwrite=args.rerun_refine, n_procs=ha_concurrency, memory=pool_memory(args))
+                partition_refinement.locuswide_threshold(disjoint_dir, rspecs, ltmp, overwrite=args.rerun_refine, n_procs=ha_concurrency, memory_bytes=pool_memory(args))
             n_bundles = min(len(rspecs), ha_n_bundles(ha_concurrency))
             serial_bundles, parallel_bundles = partition_refinement.refine_bundles(rspecs, n_bundles, REFINE_SERIAL_MIN_SEQS)
             for tier, bundles, tier_concurrency in [('serial (large group)', serial_bundles, 1), ('parallel', parallel_bundles, ha_concurrency)]:  # large groups first, one at a time

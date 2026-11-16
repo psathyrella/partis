@@ -25,16 +25,16 @@ import hashlib
 import io
 import json
 import math
-import multiprocessing.connection
+import multiprocessing
 import os
 import random
 import shutil
-import traceback
 
 import numpy
 
 Bundle = collections.namedtuple('Bundle', 'job_start job_count n_procs')  # one contiguous task-list slice
 TASK_FIELDS = ('cluster_id', 'infname', 'outdir', 'n_seqs', 'n_collapsed', 'n_procs')  # locus task list columns, the last three ints; infname is the group's fasta, outdir its HA dir
+GROUP_TASK_LIST_FNAME = 'task_list.txt'  # a group's own task list, in its HA dir
 MIN_CLUSTER_SIZE = 3
 HA_COST_EXPONENT = 1.7  # per-cluster HA cost grows faster than linearly in collapsed cluster size
 HA_COST_PER_SEQ = 2.  # and by this much per seq
@@ -134,7 +134,7 @@ def prepare(partition_fname, fasta_fname, sw_cache_fname, workdir, min_cluster_s
                      'n_collapsed': n_collapsed, 'n_procs': HA_MULTIPROC_N_PROCS if multiproc else 1})
     if n_no_naive > 0:
         print('    %s ha-repartition prepare found no sw naive for %d cluster seqs in %s, so they do not count toward n_collapsed' % (utils.wrnstr(), n_no_naive, sw_cache_fname))
-    _write_atomic(os.path.join(workdir, 'task_list.txt'), task_lines(jobs))
+    _write_atomic(os.path.join(workdir, GROUP_TASK_LIST_FNAME), task_lines(jobs))
     return jobs
 
 
@@ -255,70 +255,6 @@ def _write_atomic(path, lines):
     os.replace(tmp, path)
 
 
-def _send_result(conn, fcn, args):
-    # in a group's own process: send fcn(*args), or what it raised, with the process's peak memory
-    from partis import utils
-    try:
-        res, err = fcn(*args), None
-    except Exception as e:
-        res, err = None, (e, traceback.format_exc())
-    conn.send((res, err, utils.peak_rss()))
-
-
-def map_groups(fcn, gargs, n_procs, infnames, memory=None):
-    """[fcn(*a) for a in gargs], each group in its own process, up to n_procs at a time and within
-    <memory> bytes (default: the job's). infnames lists, per group, the files it reads. A group is
-    estimated at the bytes of its files times the largest peak memory per byte among the finished
-    groups at least as large. The largest group runs first and alone. The others start largest
-    first, each once its estimate, those of the running groups and what this process holds sum
-    to <memory> at most. A group that does not fit by itself runs alone."""
-    from partis import utils
-    if n_procs <= 1 or len(gargs) <= 1:
-        return [fcn(*a) for a in gargs]
-    if memory is None:
-        memory = utils.job_memory()
-    nbytes = [sum(os.path.getsize(f) for f in fnames) for fnames in infnames]
-    todo = sorted(range(len(gargs)), key=lambda i: nbytes[i], reverse=True)
-    results, running, rates = [None] * len(gargs), {}, []  # running: {pipe: (group index, process)}, rates: (bytes, peak per byte) of each finished group
-    ctx = multiprocessing.get_context('fork')  # groups are disjoint and each writes only its own files
-
-    def estimate(i):
-        return nbytes[i] * max(rate for nb, rate in rates if nb >= nbytes[i])
-
-    def fits(i):
-        free = memory - utils.current_rss()
-        if len(running) == 0:
-            if len(rates) > 0 and estimate(i) > free:
-                print('    %s the group that reads %s runs alone: estimated at %.1f GB, with %.1f GB for the groups' % (utils.wrnstr(), infnames[i][0], estimate(i) / 2**30, free / 2**30))
-            return True
-        return len(rates) > 0 and sum(estimate(j) for j, _ in running.values()) + estimate(i) <= free
-
-    try:
-        while len(todo) > 0 or len(running) > 0:
-            while len(todo) > 0 and len(running) < n_procs and fits(todo[0]):
-                recv, send = ctx.Pipe(duplex=False)
-                proc = ctx.Process(target=_send_result, args=(send, fcn, gargs[todo[0]]))
-                proc.start()
-                send.close()  # so the pipe ends with the process
-                running[recv] = (todo.pop(0), proc)
-            for conn in multiprocessing.connection.wait(list(running)):
-                i, proc = running.pop(conn)
-                try:
-                    results[i], err, peak = conn.recv()
-                except (EOFError, OSError):  # OSError when the process ended partway through its result
-                    proc.join()
-                    raise Exception('the process of the group that reads %s ended with exit code %s and no result (-9 is a kill, as when memory runs out)' % (infnames[i][0], proc.exitcode))
-                conn.close()
-                proc.join()
-                if err is not None:
-                    raise err[0] from Exception(err[1])
-                rates.append((nbytes[i], peak / max(1, nbytes[i])))
-    finally:
-        for _, proc in running.values():
-            proc.terminate()
-    return results
-
-
 def _prepare_group(spec, min_cluster_size, multiproc_min_collapsed):
     # prepare() on one group, returning what it printed so the caller prints it in group order
     with contextlib.redirect_stdout(io.StringIO()) as out:
@@ -327,8 +263,8 @@ def _prepare_group(spec, min_cluster_size, multiproc_min_collapsed):
     return jobs, out.getvalue()
 
 
-def prepare_all(disjoint_dir, groups, locus, n_bundles, count_collapsed=None, min_cluster_size=MIN_CLUSTER_SIZE, multiproc_min_collapsed=HA_MULTIPROC_MIN_COLLAPSED, write_plan=True, n_procs=1, memory=None):
-    """Plan the per-cluster HA jobs of every group, n_procs groups at a time within <memory> bytes, and write a locus-level
+def prepare_all(disjoint_dir, groups, locus, n_bundles, count_collapsed=None, min_cluster_size=MIN_CLUSTER_SIZE, multiproc_min_collapsed=HA_MULTIPROC_MIN_COLLAPSED, write_plan=True, n_procs=1, memory_bytes=None):
+    """Plan the per-cluster HA jobs of every group, n_procs groups at a time within <memory_bytes>, and write a locus-level
     task list (one line per cluster: cluster_id, infname, outdir, n_seqs, n_collapsed, n_procs) in
     bundle order, and a bundle list (job_start, job_count, n_procs per line). Groups whose
     HA re-partition already exists emit no jobs. A multi-proc candidate (sw naive count
@@ -336,12 +272,13 @@ def prepare_all(disjoint_dir, groups, locus, n_bundles, count_collapsed=None, mi
     which returns HA's collapsed count per candidate in order, confirms it (with count_collapsed
     None the sw count stands unconfirmed). With write_plan False the task list and bundle list
     are not written, so a later run makes its own plan. Returns (specs, jobs, bundles)."""
+    from partis import utils
     if locus != 'igh':  # multi-proc HA is validated on heavy chain only
         multiproc_min_collapsed = None
     specs = group_specs(disjoint_dir, groups, locus)
     todo = [s for s in specs if not os.path.exists(s['harep_out'])]  # existence is ha-repartition's completion signal, so a truncated output is never re-made
-    results = map_groups(_prepare_group, [(s, min_cluster_size, multiproc_min_collapsed) for s in todo], n_procs,
-                         [[s['vsearch'], s['sw_cache']] for s in todo], memory)
+    results = utils.map_groups(_prepare_group, [(s, min_cluster_size, multiproc_min_collapsed) for s in todo], n_procs,
+                               [[s['vsearch'], s['sw_cache']] for s in todo], memory_bytes)
     all_jobs = []
     for spec, (jobs, printed) in zip(todo, results):
         print(printed, end='')
@@ -491,6 +428,12 @@ def _run_sw(parter):
     parter.run_waterer(look_for_cachefile=False, write_cachefile=False, count_parameters=False)
 
 
+def _run_sw_and_partition(parter):
+    # partition() keeps the sw info it finds
+    _run_sw(parter)
+    parter.run(['partition'])
+
+
 def _ha_collapsed_count(ijob, seqs, args, glfo):
     # run HA's sw and naive seq caching steps on one cluster's (uid, seq) pairs, then its collapse
     from partis import utils
@@ -570,10 +513,7 @@ def run_jobs_in_process(jobs, args, glfo, timing_csv=None, job_start=0):
         workdir = '%s/ha-work-%d' % (base_workdir, i)
         outfname, rfname = '%s-partition.yaml' % workdir, results_fname(job['outdir'], job_start)
         parter = _cluster_driver(seqs, args, glfo, outfname, workdir, job['n_procs'])
-        def run_cluster():  # partition() keeps the sw info it finds
-            _run_sw(parter)
-            parter.run(['partition'])
-        if _run_unless_no_sw_pass(run_cluster, parter):
+        if _run_unless_no_sw_pass(lambda: _run_sw_and_partition(parter), parter):
             parter.clean()
             partition = _load_best_partition(outfname)
             os.remove(outfname)
@@ -607,13 +547,14 @@ def _assemble_group(spec, min_cluster_size):
     return out.getvalue()
 
 
-def assemble_all(specs, min_cluster_size=MIN_CLUSTER_SIZE, n_procs=1, memory=None):
+def assemble_all(specs, min_cluster_size=MIN_CLUSTER_SIZE, n_procs=1, memory_bytes=None):
     """Assemble each group's HA re-partition (writing ha-repartition-<locus>.yaml
-    where missing), n_procs groups at a time within <memory> bytes (see map_groups). Returns [(group, harep_out_rel), ...] so the
+    where missing), n_procs groups at a time within <memory_bytes> (see utils.map_groups). Returns [(group, harep_out_rel), ...] so the
     caller can repoint downstream inputs to the re-partitioned partitions."""
+    from partis import utils
     todo = [s for s in specs if not os.path.exists(s['harep_out'])]  # existence is ha-repartition's completion signal
     infnames = [[s['vsearch']] + glob.glob(results_fname(s['workdir'], '*')) for s in todo]
-    for printed in map_groups(_assemble_group, [(s, min_cluster_size) for s in todo], n_procs, infnames, memory):
+    for printed in utils.map_groups(_assemble_group, [(s, min_cluster_size) for s in todo], n_procs, infnames, memory_bytes):
         print(printed, end='')
     return [(spec['group'], spec['harep_out_rel']) for spec in specs]
 
@@ -622,15 +563,12 @@ def remove_intermediates(disjoint_dir, specs, locus):
     """Remove what the HA step wrote for its own use: each assembled group's result lines and
     task list (and its HA dir, if that empties it), then, once every group is assembled, the
     locus task list, bundle list and bundle markers. The timing csv stays."""
+    from partis import utils
     done = [s for s in specs if os.path.exists(s['harep_out'])]  # a group's results go only after its re-partition is written
     for spec in done:
-        for fname in glob.glob(results_fname(spec['workdir'], '*')) + [os.path.join(spec['workdir'], 'task_list.txt')]:
-            if os.path.exists(fname):
-                os.remove(fname)
+        utils.clean_files(glob.glob(results_fname(spec['workdir'], '*')) + [os.path.join(spec['workdir'], GROUP_TASK_LIST_FNAME)], expect_missing=True)
         with contextlib.suppress(OSError):  # stays if it holds anything else
             os.rmdir(spec['workdir'])
     if len(done) < len(specs):
         return
-    for fname in [task_list_fname(disjoint_dir, locus), bundle_list_fname(disjoint_dir, locus)] + glob.glob(bundle_marker_fname(disjoint_dir, '*', '*')):
-        if os.path.exists(fname):
-            os.remove(fname)
+    utils.clean_files([task_list_fname(disjoint_dir, locus), bundle_list_fname(disjoint_dir, locus)] + glob.glob(bundle_marker_fname(disjoint_dir, '*', '*')), expect_missing=True)

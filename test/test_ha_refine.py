@@ -197,7 +197,7 @@ def test_stage_precedence(tmp_path):
 @pytest.fixture
 def counted_threshold(monkeypatch):
     calls = []
-    def fake_estimate(specs, n_procs=1, memory=None):
+    def fake_estimate(specs, n_procs=1, memory_bytes=None):
         calls.append(len(specs))
         return 0.125 * len(calls)
     monkeypatch.setattr(prf, 'estimate_locuswide_threshold', fake_estimate)

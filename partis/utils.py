@@ -23,6 +23,7 @@ from collections import defaultdict
 import csv
 import subprocess
 import multiprocessing
+import multiprocessing.connection
 import copy
 import traceback
 import json
@@ -1544,13 +1545,18 @@ def choose_non_dup_id(uid, n_duplicate_uids, input_info):  # NOTE calling fcn ha
 # NOTE the consensus seqs will (obviously) be *different* afterwards
 def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting dont_deep_copy is obviously *really* *dangerous*
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
-    singlefo = {}
+    return synthesize_line_from_iseqs(line, [iseq], dont_deep_copy=dont_deep_copy)
+
+# ----------------------------------------------------------------------------------------
+def synthesize_line_from_iseqs(line, iseqs, dont_deep_copy=False):  # see synthesize_single_seq_line() for dont_deep_copy
+    """ without modifying <line>, make a copy of it with only the sequences at <iseqs>, in that order """
+    subfo = {}
     for key in line:
         if key in linekeys['per_seq']:
-            singlefo[key] = [line[key][iseq], ]  # used to also deepcopy the per-seq value, but it's really slow and i really think there's no reason to
+            subfo[key] = [line[key][i] for i in iseqs]  # used to also deepcopy the per-seq value, but it's really slow and i really think there's no reason to
         else:
-            singlefo[key] = line[key] if dont_deep_copy else copy.deepcopy(line[key])
-    return singlefo
+            subfo[key] = line[key] if dont_deep_copy else copy.deepcopy(line[key])
+    return subfo
 
 # ----------------------------------------------------------------------------------------
 # <reco_info> just needs to be an annotation dict with single-sequence annotations
@@ -1575,8 +1581,8 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False, iseqs=
             if warn and any(v != cvals[0] for v in cvals):  # eh, maybe i don't need to raise an exception here? Although generally you sure shouldn't be merging them if they differ
                 print('    %s multiple values for key \'%s\' when synthesizing multi-seq line (just using the first one): %s' % (wrnstr(), col, '')) #cvals))
             cval = cvals[0]
-        cvals_to_copy = cval if col in linekeys['per_seq'] else [cval]  # the per-seq list itself is already new
-        multifo[col] = cval if all(type(v) in atomic for v in cvals_to_copy) else copy.deepcopy(cval)
+        shared_vals = cval if col in linekeys['per_seq'] else [cval]  # what <cval> still shares with reco_info (the per-seq list itself is new)
+        multifo[col] = cval if all(type(v) in atomic for v in shared_vals) else copy.deepcopy(cval)
     return multifo
 
 # ----------------------------------------------------------------------------------------
@@ -6005,6 +6011,68 @@ def peak_rss():  # bytes, the most resident memory this process has held
 # ----------------------------------------------------------------------------------------
 def current_rss():  # bytes of resident memory this process holds now
     return psutil.Process().memory_info().rss
+
+# ----------------------------------------------------------------------------------------
+def _send_result(conn, fcn, args):
+    # in a group's own process: send fcn(*args), or what it raised, with the process's peak memory
+    try:
+        res, err = fcn(*args), None
+    except Exception as e:
+        res, err = None, (e, traceback.format_exc())
+    conn.send((res, err, peak_rss()))
+
+# ----------------------------------------------------------------------------------------
+def map_groups(fcn, gargs, n_procs, infnames, memory_bytes=None):
+    """[fcn(*a) for a in gargs], each group in its own process, up to n_procs at a time and within
+    <memory_bytes> (default: the job's). infnames lists, per group, the files it reads. A group is
+    estimated at the bytes of its files times the largest peak memory per byte among the finished
+    groups at least as large. The largest group runs first and alone. The others start largest
+    first, each once its estimate, those of the running groups and what this process holds sum
+    to <memory_bytes> at most. A group that does not fit by itself runs alone."""
+    if n_procs <= 1 or len(gargs) <= 1:
+        return [fcn(*a) for a in gargs]
+    if memory_bytes is None:
+        memory_bytes = job_memory()
+    nbytes = [sum(os.path.getsize(f) for f in fnames) for fnames in infnames]
+    todo = sorted(range(len(gargs)), key=lambda i: nbytes[i], reverse=True)
+    results, running, rates = [None] * len(gargs), {}, []  # running: {pipe: (group index, process)}, rates: (bytes, peak per byte) of each finished group
+    ctx = multiprocessing.get_context('fork')  # groups are disjoint and each writes only its own files
+
+    def estimate(i):
+        return nbytes[i] * max(rate for nb, rate in rates if nb >= nbytes[i])
+
+    def fits(i):
+        free = memory_bytes - current_rss()
+        if len(running) == 0:
+            if len(rates) > 0 and estimate(i) > free:
+                print('    %s the group that reads %s runs alone: estimated at %.1f GB, with %.1f GB for the groups' % (wrnstr(), infnames[i][0], estimate(i) / 2**30, free / 2**30))
+            return True
+        return len(rates) > 0 and sum(estimate(j) for j, _ in running.values()) + estimate(i) <= free
+
+    try:
+        while len(todo) > 0 or len(running) > 0:
+            while len(todo) > 0 and len(running) < n_procs and fits(todo[0]):
+                recv, send = ctx.Pipe(duplex=False)
+                proc = ctx.Process(target=_send_result, args=(send, fcn, gargs[todo[0]]))
+                proc.start()
+                send.close()  # so the pipe ends with the process
+                running[recv] = (todo.pop(0), proc)
+            for conn in multiprocessing.connection.wait(list(running)):
+                i, proc = running.pop(conn)
+                try:
+                    results[i], err, peak = conn.recv()
+                except (EOFError, OSError):  # OSError when the process ended partway through its result
+                    proc.join()
+                    raise Exception('the process of the group that reads %s ended with exit code %s and no result (-9 is a kill, as when memory runs out)' % (infnames[i][0], proc.exitcode))
+                conn.close()
+                proc.join()
+                if err is not None:
+                    raise err[0] from Exception(err[1])
+                rates.append((nbytes[i], peak / max(1, nbytes[i])))
+    finally:
+        for _, proc in running.values():
+            proc.terminate()
+    return results
 
 # ----------------------------------------------------------------------------------------
 def limit_procs(base_cmd_str, n_max_procs=None, sleep_time=1, procs=None, debug=False):  # <sleep_time> is seconds

@@ -22,7 +22,6 @@ integrated --partition-refine flag), which run run_jobs() over the disjoint grou
 """
 import bisect
 import contextlib
-import copy
 import csv
 import gc
 import io
@@ -139,10 +138,7 @@ def jaccard(muts1, muts2):
 
 
 def get_mutations_with_base(seq, naive):
-    if len(seq) != len(naive):
-        raise Exception('seq (%d) and naive (%d) different lengths' % (len(seq), len(naive)))
-    s, n = [np.frombuffer(x.encode('ascii'), dtype=np.uint8) for x in (seq, naive)]
-    return {i: seq[i] for i in np.flatnonzero((s != n) & (s != N_BYTE) & (n != N_BYTE)).tolist()}
+    return mutations_with_base_rows([seq], [naive])[0]
 
 
 def mutations_with_base_rows(seqs, naives, block=20000):
@@ -614,8 +610,8 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
     convergently-similar naives do not trip it. Disabled, with a log line, when no
     <length_cutoff> was derived, i.e. no parameter dir was passed.
     """
-    result = []  # per input cluster, the clusters it becomes
-    proposals = []  # (index in result, frags, frag_of_uid, muts_sw)
+    per_cluster = []  # per input cluster, the clusters it becomes
+    proposals = []  # (index in per_cluster, frags, frag_of_uid, muts_sw)
     ctr = defaultdict(int)
     length_veto_on = (length_cutoff is not None
                       and length_veto_min_shared is not None and length_veto_min_shared > 0)
@@ -630,12 +626,12 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
 
     for cluster in partition:
         if len(cluster) < min_cluster_size:
-            result.append([list(cluster)])
+            per_cluster.append([list(cluster)])
             ctr['below_min_size'] += 1
             continue
 
         if length_vetoed(cluster):
-            result.append([list(cluster)])
+            per_cluster.append([list(cluster)])
             ctr['length_veto'] += 1
             continue
 
@@ -643,11 +639,11 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
         cluster_naives = dict((u, uid_sw_naives[u]) for u in uid_list if u in uid_sw_naives)
 
         if len(set(cluster_naives.values())) <= 1:  # nothing to propose
-            result.append([list(cluster)])
+            per_cluster.append([list(cluster)])
             ctr['single_naive'] += 1
             continue
         if len(cluster_naives) < len(uid_list):  # a member with no naive cannot be grouped, so fail closed
-            result.append([list(cluster)])
+            per_cluster.append([list(cluster)])
             ctr['missing_naive'] += 1
             continue
 
@@ -657,19 +653,19 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
         proposed, n_snapped = snap_unsupported(list(groups.items()))
         ctr['snapped'] += n_snapped
         if len(proposed) <= 1:
-            result.append([list(cluster)])
+            per_cluster.append([list(cluster)])
             ctr['no_proposal'] += 1
             continue
 
         frags = [mem for _, mem in proposed]
         frag_of_uid = dict((u, i) for i, f in enumerate(frags) for u in f)
         muts_sw = dict((u, uid_muts_sw[u]) for u in uid_list if u in uid_muts_sw)
-        proposals.append((len(result), frags, frag_of_uid, muts_sw))
-        result.append([list(cluster)])  # kept unless the split is accepted below
+        proposals.append((len(per_cluster), frags, frag_of_uid, muts_sw))
+        per_cluster.append([list(cluster)])  # kept unless the split is accepted below
 
     # every proposal certified in one call, so small clusters share sparse products
     certified = certified_fragment_pairs([(frag_of_uid, muts_sw) for _, _, frag_of_uid, muts_sw in proposals], ej_floor)
-    for (i_result, frags, _, _), (n_certified, frag_pairs) in zip(proposals, certified):
+    for (i_cluster, frags, _, _), (n_certified, frag_pairs) in zip(proposals, certified):
         ffind, funion = _union_find(len(frags))
         for fa, fb in frag_pairs:
             funion(fa, fb)
@@ -681,18 +677,18 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
         groups_out = list(validated.values())
         if len(groups_out) > 1:
             ctr['accepted'] += 1
-            result[i_result] = groups_out
+            per_cluster[i_cluster] = groups_out
         else:
             ctr['rejected'] += 1
-    result = [c for clusters in result for c in clusters]
+    out_partition = [c for clusters in per_cluster for c in clusters]
 
     # held counts clusters the veto touched, not ones whose outcome it changed
     length_label = ', %d held (length veto)' % ctr['length_veto'] if ctr['length_veto'] > 0 else ''
     print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d skipped (no proposal), %d rejected (missing naive), %d skipped (below min cluster size)%s' % (
         ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['no_proposal'], ctr['missing_naive'], ctr['below_min_size'], length_label), flush=True)
     print('  %d members snapped, %d pairs certified, %d -> %d clusters' % (
-        ctr['snapped'], ctr['certified_pairs'], len(partition), len(result)), flush=True)
-    return result
+        ctr['snapped'], ctr['certified_pairs'], len(partition), len(out_partition)), flush=True)
+    return out_partition
 
 
 MERGE_FDR_TARGET = 0.05  # max estimated fdr, against the null, for the per-group p-value cutoff
@@ -1715,10 +1711,8 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, 
             n_skipped += 1
             continue
         # per-cell mutations vs the SW naive, for the proposer
-        uid_muts = {}
-        for uid in cluster:
-            if uid in uid_sw_naives and uid in uid_info:
-                uid_muts[uid] = get_mutations_with_base(uid_info[uid]['seq'], uid_sw_naives[uid])
+        known = [uid for uid in cluster if uid in uid_sw_naives and uid in uid_info]
+        uid_muts = dict(zip(known, mutations_with_base_rows([uid_info[u]['seq'] for u in known], [uid_sw_naives[u] for u in known])))
         n_input_seqs += len(cluster)
         clusters_uid_muts.append((cluster, uid_muts))
 
@@ -2132,7 +2126,7 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
         iseqs = _iseqs(uids)
         if any(iseqs[uid] is None or indelutils.has_indels_line(src, iseqs[uid]) for uid in uids):  # these need _annotate's reset_indel_genes
             return None
-        return _without_indels({key: [val[iseqs[uid]] for uid in uids] if key in utils.linekeys['per_seq'] else copy.deepcopy(val) for key, val in src.items()})
+        return _without_indels(utils.synthesize_line_from_iseqs(src, [iseqs[uid] for uid in uids]))
 
     def _pad_to_uniform_length(antns):
         # pad naive_seqs to uniform length per cdr3 class (a no-op when the input annotations
@@ -2238,9 +2232,8 @@ def bundle_marker_fname(disjoint_dir, job_start):
 def remove_intermediates(disjoint_dir, locus):
     # the threshold cache and the bundle markers, which nothing reads once the groups are assembled
     import glob
-    for fname in [locuswide_threshold_fname(disjoint_dir, locus)] + glob.glob(bundle_marker_fname(disjoint_dir, '*')):
-        if os.path.exists(fname):
-            os.remove(fname)
+    from . import utils
+    utils.clean_files([locuswide_threshold_fname(disjoint_dir, locus)] + glob.glob(bundle_marker_fname(disjoint_dir, '*')), expect_missing=True)
 
 
 def group_specs(disjoint_dir, groups, locus):
@@ -2285,13 +2278,13 @@ def _group_within_hammings(spec):
     return hammings, out.getvalue()
 
 
-def estimate_locuswide_threshold(specs, n_procs=1, memory=None):
+def estimate_locuswide_threshold(specs, n_procs=1, memory_bytes=None):
     """Estimate the naive threshold over the full-locus partition (all cdr3 groups in <specs>
-    merged), reading n_procs groups at a time within <memory> bytes. A global statistic, so estimate once here and pass
+    merged), reading n_procs groups at a time within <memory_bytes>. A global statistic, so estimate once here and pass
     into each per-group refine rather than letting refine_partition estimate it per-group."""
-    from .ha_repartition import map_groups
+    from . import utils
     within_hammings = []
-    for hammings, printed in map_groups(_group_within_hammings, [(spec,) for spec in specs], n_procs, [[spec['input'], spec['sw_cache']] for spec in specs], memory):
+    for hammings, printed in utils.map_groups(_group_within_hammings, [(spec,) for spec in specs], n_procs, [[spec['input'], spec['sw_cache']] for spec in specs], memory_bytes):
         print(printed, end='', flush=True)
         within_hammings.extend(hammings)
     return naive_threshold_from_hammings(within_hammings)
@@ -2301,12 +2294,12 @@ def locuswide_threshold_fname(disjoint_dir, locus):
     return '%s/naive-threshold-%s.json' % (disjoint_dir, locus)
 
 
-def locuswide_threshold(disjoint_dir, specs, locus, overwrite=False, estimate=True, n_procs=1, memory=None):
+def locuswide_threshold(disjoint_dir, specs, locus, overwrite=False, estimate=True, n_procs=1, memory_bytes=None):
     """Locus-wide naive threshold, cached beside the manifest, None where nothing reads it.
 
     Invalidated by a change in the spec count or in any input's mtime.
     estimate: if False, raise when the cache is missing or stale rather than estimate.
-    n_procs, memory: groups read at a time when estimating, and the bytes they may hold.
+    n_procs, memory_bytes: groups read at a time when estimating, and the bytes they may hold.
     """
     from . import utils
     if len(specs) == 0 or not utils.has_d_gene(locus):
@@ -2324,7 +2317,7 @@ def locuswide_threshold(disjoint_dir, specs, locus, overwrite=False, estimate=Tr
             print('  locus-wide threshold cache is stale, re-estimating: %s' % fname, flush=True)
     if not estimate:
         raise Exception('locus-wide threshold cache %s %s (run create-partition-refine-jobs first)' % (fname, 'is stale' if found else 'does not exist'))
-    cfo = dict(signal, threshold=repr(estimate_locuswide_threshold(specs, n_procs=n_procs, memory=memory)))  # repr so the float round trips exactly
+    cfo = dict(signal, threshold=repr(estimate_locuswide_threshold(specs, n_procs=n_procs, memory_bytes=memory_bytes)))  # repr so the float round trips exactly
     tmpfname = '%s.tmp.%d' % (fname, os.getpid())  # atomic, so concurrent slices race without corrupting
     with open(tmpfname, 'w') as tfile:
         json.dump(cfo, tfile)

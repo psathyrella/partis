@@ -346,8 +346,9 @@ def test_mutations_with_base_rows_match_per_seq():
     rng = random.Random(3)
     naives = [''.join(rng.choice('ACGTN') for _ in range(rng.choice([0, 1, 30, 31]))) for _ in range(40)]
     seqs = [''.join(rng.choice('ACGTN') if rng.random() < 0.3 else c for c in naive) for naive in naives]
-    per_seq = [list(prf.get_mutations_with_base(s, n).items()) for s, n in zip(seqs, naives)]
+    per_seq = [[(i, s) for i, (s, n) in enumerate(zip(seq, naive)) if s != n and prf.N_BASE not in (s, n)] for seq, naive in zip(seqs, naives)]  # base by base
     assert sum(len(m) for m in per_seq) > 0
+    assert [list(prf.get_mutations_with_base(s, n).items()) for s, n in zip(seqs, naives)] == per_seq
     for block in (1, 7, 20000):
         assert [list(m.items()) for m in prf.mutations_with_base_rows(seqs, naives, block=block)] == per_seq
     with pytest.raises(Exception, match='different lengths'):
@@ -552,7 +553,7 @@ def test_shared_passed_in_matches_computed():
         assert prf.weighted_shared_descent_pvalue(*args, shared=shared) == prf.weighted_shared_descent_pvalue(*args)
 
 
-def _run_pool(tmp_path, monkeypatch, groups, n_procs, memory):
+def _run_pool(tmp_path, monkeypatch, groups, n_procs, memory_bytes):
     """map_groups on <groups> of (name, input bytes, peak memory it reports, group whose start it
     waits for before it ends). Returns the names in result order and, per group, the groups
     running when it started (itself among them), from the order of the start and end lines."""
@@ -578,7 +579,7 @@ def _run_pool(tmp_path, monkeypatch, groups, n_procs, memory):
         infnames.append([str(tmp_path / ('%s.in' % name))])
         with open(infnames[-1][0], 'wb') as f:
             f.truncate(nbytes)
-    names = ha_repartition.map_groups(run, [(name, peak, wait_for) for name, _, peak, wait_for in groups], n_procs, infnames, memory)
+    names = utils.map_groups(run, [(name, peak, wait_for) for name, _, peak, wait_for in groups], n_procs, infnames, memory_bytes)
     running, at_start = set(), {}
     for what, name in (l.split() for l in open(log)):
         if what == 'start':
@@ -625,13 +626,13 @@ def test_group_pool_raises_what_a_group_raised(tmp_path):
 
     start = time.time()
     with pytest.raises(ValueError, match='bad group'):  # group 2 is running then, and is not waited for
-        ha_repartition.map_groups(run, [(0,), (1,), (2,)], 3, _pool_infnames(tmp_path, [300, 200, 100]), 2**50)
+        utils.map_groups(run, [(0,), (1,), (2,)], 3, _pool_infnames(tmp_path, [300, 200, 100]), 2**50)
     assert time.time() - start < 30
 
 
 def test_group_pool_raises_on_a_process_with_no_result(tmp_path):
     with pytest.raises(Exception, match='0.in ended with exit code 3 and no result'):
-        ha_repartition.map_groups(lambda i: os._exit(3), [(0,), (1,)], 2, _pool_infnames(tmp_path, [2, 1]))
+        utils.map_groups(lambda i: os._exit(3), [(0,), (1,)], 2, _pool_infnames(tmp_path, [2, 1]))
 
 
 def test_group_pool_raises_on_a_process_ended_partway_through_its_result(tmp_path, monkeypatch):
@@ -639,9 +640,9 @@ def test_group_pool_raises_on_a_process_ended_partway_through_its_result(tmp_pat
         os.write(conn.fileno(), struct.pack('!i', 100) + b'x')  # a 100 byte message, cut after one byte
         os._exit(3)
 
-    monkeypatch.setattr(ha_repartition, '_send_result', send_part)
+    monkeypatch.setattr(utils, '_send_result', send_part)
     with pytest.raises(Exception, match='0.in ended with exit code 3 and no result'):
-        ha_repartition.map_groups(lambda i: None, [(0,), (1,)], 2, _pool_infnames(tmp_path, [2, 1]))
+        utils.map_groups(lambda i: None, [(0,), (1,)], 2, _pool_infnames(tmp_path, [2, 1]))
 
 
 def test_job_memory(monkeypatch):

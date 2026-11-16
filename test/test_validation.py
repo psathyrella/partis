@@ -314,7 +314,7 @@ def test_ha_prepare_in_parallel_matches_serial(tmp_path, ha_only_dir, capsys):
 
 
 def test_ha_assemble_in_parallel_matches_serial(tmp_path, ha_only_dir, capsys):
-    def assembled(name, n_procs, memory=None):
+    def assembled(name, n_procs, memory_bytes=None):
         outdir = copy_dir(ha_only_dir, tmp_path / name)
         ddir, manifest = locus_manifest(outdir, 'igh')
         specs = ha_repartition.group_specs(ddir, manifest['groups'], 'igh')
@@ -324,12 +324,12 @@ def test_ha_assemble_in_parallel_matches_serial(tmp_path, ha_only_dir, capsys):
         results = read_ha_results(rfname)
         max([c for res in results for c in res['partition']], key=len).pop()  # a result that misses a uid, so its group prints a warning
         write_ha_results(rfname, results)
-        rels = ha_repartition.assemble_all(specs, n_procs=n_procs, memory=memory)
+        rels = ha_repartition.assemble_all(specs, n_procs=n_procs, memory_bytes=memory_bytes)
         return [rel for _, rel in rels], [open(s['harep_out']).read().replace(str(outdir), '') for s in specs], capsys.readouterr().out.replace(str(outdir), '')
     serial, parallel = assembled('serial', 1), assembled('parallel', 3)
     assert len(serial[1]) > 1 and 'miss some of their cluster' in serial[2]
     assert serial == parallel
-    no_room = assembled('no-room', 3, memory=1)  # every group alone, with a warning from the second on
+    no_room = assembled('no-room', 3, memory_bytes=1)  # every group alone, with a warning from the second on
     assert no_room[:2] == serial[:2] and no_room[2].count('runs alone') == len(serial[1]) - 1
 
 
