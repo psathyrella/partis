@@ -207,13 +207,15 @@ def get_seqfile_info(x, is_data=False):
 # <seq_fcn>: gets each (uid, seq), and <input_info> then has only the uids
 def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False, more_input_info=None, dont_add_implicit_info=False, seq_fcn=None):
     # NOTE renamed this from get_seqfile_info() since I'm changing the return values, but I don't want to update the calls everywhere (e.g. in compareutils)
+    if seq_fcn is not None and (not is_data or more_input_info is not None or (args is not None and args.input_metafnames is not None)):
+        raise Exception('seq_fcn can\'t be used with simulation, more_input_info or --input-metafnames, since they add to lines that <input_info> then doesn\'t have')
     yaml_glfo = None
     suffix = utils.getsuffix(infname)
     if suffix in delimit_info:
         seqfile = open(infname)  # closes on function exit. no, this isn't the best way to do this
         reader = csv.DictReader(seqfile, delimiter=delimit_info[suffix])
         sanitize_uids = True
-    elif suffix in ['.fa', '.fasta', '.fq', '.fastq', '.fastx']:
+    elif suffix in utils.FASTX_SUFFIXES + ['.fastx']:
         add_info = args is not None and args.name_column is not None and 'fasta-info-index' in args.name_column
         reader = (utils.read_fastx if seq_fcn is None else utils.iter_fastx)(infname, name_key='unique_ids', seq_key='input_seqs', add_info=add_info, sanitize_uids=True, n_max_queries=n_max_queries,  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
                                   queries=(args.queries if (args is not None and not args.abbreviate) else None), sanitize_seqs=args.sanitize_input_seqs)  # NOTE also can't filter on args.queries here if we're also translating

@@ -8,6 +8,7 @@ import json
 import time
 import heapq
 import shutil
+import functools
 import collections
 import multiprocessing
 
@@ -321,9 +322,13 @@ def _split_procs(sizes, budget):
     return best[1], best[2]
 
 # ----------------------------------------------------------------------------------------
+def _r1_cluster_fname(workdir):  # the --uc file of a group's round 1 vsearch job
+    return workdir + '/vsearch-clusters.txt'
+
+# ----------------------------------------------------------------------------------------
 def _build_round1_vsearch_cmds(specs, hi_bound, outdir, min_group_size, n_procs):
     # build vsearch greedy clustering commands for each CDR3 group above min_group_size
-    # returns cmdfos (largest group first), their thread counts, n concurrent jobs, vsearch_groups (c3len -> workdir), small_groups (set of c3len)
+    # returns cmdfos (largest group first), r1_threads (c3len -> n threads), n concurrent jobs, vsearch_groups (c3len -> workdir), small_groups (set of c3len)
     vsearch_binary = utils.get_vsearch_binary()
     cmdfos = []
     vsearch_groups = {}
@@ -336,6 +341,7 @@ def _build_round1_vsearch_cmds(specs, hi_bound, outdir, min_group_size, n_procs)
         big_groups.append((c3len, spec))
     big_groups.sort(key=lambda g: g[1]['n_naive'], reverse=True)  # largest first, so the long pole starts first
     threads, n_jobs = _split_procs([spec['n_naive'] for _, spec in big_groups], n_procs)
+    r1_threads = {}
     for (c3len, spec), n_threads in zip(big_groups, threads):
         workdir = '%s/groups/cdr3-%d/_vsearch_work' % (outdir, c3len)
         utils.prep_dir(workdir)
@@ -347,12 +353,13 @@ def _build_round1_vsearch_cmds(specs, hi_bound, outdir, min_group_size, n_procs)
                         f.write('>%s\n%s\n' % (sfo['name'], sfo['naive_seq']))
         else:
             infname = spec['naive_fasta']
-        outfname = workdir + '/vsearch-clusters.txt'
+        outfname = _r1_cluster_fname(workdir)
         cmd = '%s --cluster_fast %s --id %s --uc %s --gapopen 1000I/2E --match 2 --mismatch -4 --threads %d' % (
             vsearch_binary, infname, str(1. - hi_bound), outfname, n_threads)
         cmdfos.append({'cmd_str': cmd, 'outfname': outfname, 'workdir': workdir})
         vsearch_groups[c3len] = workdir
-    return cmdfos, threads, n_jobs, vsearch_groups, small_groups
+        r1_threads[c3len] = n_threads
+    return cmdfos, r1_threads, n_jobs, vsearch_groups, small_groups
 
 # ----------------------------------------------------------------------------------------
 def _run_round2_tcm(specs, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs):
@@ -430,10 +437,11 @@ def _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, write_cache):
     return group_infos
 
 # ----------------------------------------------------------------------------------------
-def _write_hfrac_group(c3len, spec, r1_results, comps, max_bin_size, min_group_size, outdir, locus, glfo, uid_to_antn, frags):
+def _write_hfrac_group(c3len, spec, r1_results, comps, frags, *, max_bin_size, min_group_size, outdir, locus, glfo, uid_to_antn):
     # split one CDR3 group into sub-groups and write them. returns (group infos, n round 1 clusters, n components, n bins)
     # <r1_results> None: below the hfrac minimum, stays whole. <frags>: per-subset event fragments, else annotations are in <uid_to_antn>
     if frags is None:
+        assert uid_to_antn is not None and spec.get('seqfos') is not None
         seqfos = spec['seqfos']
         def write_cache(fname, uids):
             utils.write_annotations(fname, glfo, [uid_to_antn[u] for u in uids if u in uid_to_antn], utils.sw_cache_headers)
@@ -485,7 +493,7 @@ def _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=None, fra
         print('        running %d vsearch hfrac jobs (%d concurrent, %d procs)' % (len(cmdfos), n_r1_jobs, n_procs))
         utils.run_cmds(cmdfos, n_max_procs=n_r1_jobs)
         print('          vsearch time: %.1f (cdr3 length, threads, sec from start to end: %s)' % (time.time() - start, '  '.join(
-            '%d %d %.0f' % (c3len, n_threads, os.path.getmtime(cfo['outfname']) - start) for c3len, n_threads, cfo in zip(vsearch_groups, r1_threads, cmdfos))))
+            '%d %d %.0f' % (c3len, r1_threads[c3len], os.path.getmtime(_r1_cluster_fname(workdir)) - start) for c3len, workdir in vsearch_groups.items())))
     else:
         print('        note: --hfrac has no effect: no cdr3 group qualifies for hfrac vsearch (--hfrac-min-seqs %d, largest group %d seqs)' % (min_group_size, max([s['n_seqs'] for s in specs.values()], default=0)))
 
@@ -494,8 +502,7 @@ def _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=None, fra
     for c3len in sorted(specs):
         if c3len in small_groups:
             continue
-        cluster_file = '%s/vsearch-clusters.txt' % vsearch_groups[c3len]
-        r1_by_c3len[c3len] = _read_vsearch_uc_with_centroids(cluster_file)
+        r1_by_c3len[c3len] = _read_vsearch_uc_with_centroids(_r1_cluster_fname(vsearch_groups[c3len]))
 
     # round 2 (optional): TCM on centroids
     comps_by_c3len, r2_workdirs = {}, {}
@@ -507,12 +514,12 @@ def _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=None, fra
     # build and write sub-groups per CDR3 group
     start = time.time()
     c3lens = sorted(specs)
-    gargs = [(c3len, specs[c3len], r1_by_c3len.get(c3len), comps_by_c3len.get(c3len), max_bin_size, min_group_size, outdir, locus, glfo, in_memory_antns,
-              None if fragments is None else fragments[c3len]) for c3len in c3lens]
+    write_group = functools.partial(_write_hfrac_group, max_bin_size=max_bin_size, min_group_size=min_group_size, outdir=outdir, locus=locus, glfo=glfo, uid_to_antn=in_memory_antns)
+    gargs = [(c3len, specs[c3len], r1_by_c3len.get(c3len), comps_by_c3len.get(c3len), None if fragments is None else fragments[c3len]) for c3len in c3lens]
     if fragments is None:
-        results = [_write_hfrac_group(*gargs_one) for gargs_one in gargs]
+        results = [write_group(*gargs_one) for gargs_one in gargs]
     else:  # several groups at a time
-        results = utils.map_groups(_write_hfrac_group, gargs, n_procs, [fragments[c3len] for c3len in c3lens])
+        results = utils.map_groups(write_group, gargs, n_procs, [fragments[c3len] for c3len in c3lens])
     for workdir in vsearch_groups.values():
         shutil.rmtree(workdir)
     for workdir in r2_workdirs.values():

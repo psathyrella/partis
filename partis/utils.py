@@ -1069,6 +1069,11 @@ def evenly_split_list(inlist, n_subsets, dbgstr='items'):
     return list_of_lists
 
 # ----------------------------------------------------------------------------------------
+def shuffle_and_split(inlist, n_subsets, dbgstr='items'):  # NOTE shuffles <inlist> in place
+    random.shuffle(inlist)
+    return evenly_split_list(inlist, n_subsets, dbgstr=dbgstr)
+
+# ----------------------------------------------------------------------------------------
 # chooses [sequences from] N droplets according to <n_max_queries> or <n_random_queries> (has to first group them by droplet id so that we choose both h and l seq together)
 # n_max_queries: take only this many (after random shuffling, see notes below), n_random_queries: take this many at random, n_subsets: split into this many groups
 # NOTE returns list of lists of seqfos if n_subsets is set (rather than a single list of seqfos)
@@ -1101,7 +1106,8 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
     if any(u not in sfdict for ql in drop_query_lists for u in ql):  # shouldn't happen any more (split loci wasn't properly removing uids), but probably still a good check to have
         missing_ids = [u for ql in drop_query_lists for u in ql if u not in sfdict]
         raise Exception('%d drop query list uid[s] missing from sfdict (size %d): %s' % (len(missing_ids), len(sfdict), ' '.join(missing_ids)))
-    random.shuffle(drop_query_lists)  # we always want to shuffle, since sometimes e.g. all unpaired igh are first when alphabetized by droplet id
+    if n_subsets is None:  # else shuffle_and_split() does it below
+        random.shuffle(drop_query_lists)  # we always want to shuffle, since sometimes e.g. all unpaired igh are first when alphabetized by droplet id
     if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense
         final_qlists = drop_query_lists[:n_max_queries]
         returnfo = get_final_seqfos(final_qlists, '--n-max-queries', '(first %d, after random shuffling)' % n_max_queries)
@@ -1109,7 +1115,7 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         final_qlists = np_rand_choice(drop_query_lists, size=n_random_queries, replace=False)
         returnfo = get_final_seqfos(final_qlists, '--n-random-queries', '(uniform randomly)')
     elif n_subsets is not None:
-        list_of_fqlists = evenly_split_list(drop_query_lists, n_subsets, dbgstr='droplets')
+        list_of_fqlists = shuffle_and_split(drop_query_lists, n_subsets, dbgstr='droplets')
         returnfo = []
         for isub, final_qlists in enumerate(list_of_fqlists):
             returnfo.append(get_final_seqfos(final_qlists, '  isub %d'%isub, 'in order (after random shuffling)'))
@@ -7747,20 +7753,30 @@ def write_subset_fastas(seqfname, sub_uids, outfnames):
     tmpfnames = ['%s.tmp' % f for f in outfnames]
     for tfn in tmpfnames:
         mkdir(tfn, isfile=True)
-    tfiles = [open(f, 'w') for f in tmpfnames]
-    with open(seqfname) as seqfile:
-        for line in seqfile:
-            isub = isubs.get(line[:line.index('\t')])  # None if the uid isn't in any list
-            if isub is not None:
-                tfiles[isub].write(line)
-    for tfile in tfiles:
-        tfile.close()
-    hashes = []
-    for uids, tfn, ofn in zip(sub_uids, tmpfnames, outfnames):
-        with open(tfn) as tfile:
-            seqs = dict(l.rstrip('\n').split('\t') for l in tfile)
-        hashes.append(write_fasta(ofn, [{'name' : u, 'seq' : seqs[u]} for u in uids], return_hash=True))
-        os.remove(tfn)
+    try:
+        tfiles = [open(f, 'w') for f in tmpfnames]
+        try:
+            with open(seqfname) as seqfile:
+                for line in seqfile:
+                    isub = isubs.get(line[:line.index('\t')])  # None if the uid isn't in any list
+                    if isub is not None:
+                        tfiles[isub].write(line)
+        finally:
+            for tfile in tfiles:
+                tfile.close()
+        hashes = []
+        for uids, tfn, ofn in zip(sub_uids, tmpfnames, outfnames):
+            with open(tfn) as tfile:
+                seqs = dict(l.rstrip('\n').split('\t') for l in tfile)
+            missing = [u for u in uids if u not in seqs]
+            if len(missing) > 0:
+                raise Exception('%d uid%s for %s not in %s (first: %s)' % (len(missing), plural(len(missing)), ofn, seqfname, missing[0]))
+            hashes.append(write_fasta(ofn, [{'name' : u, 'seq' : seqs[u]} for u in uids], return_hash=True))
+            os.remove(tfn)
+    finally:  # the ones an exception left
+        for tfn in tmpfnames:
+            if os.path.exists(tfn):
+                os.remove(tfn)
     return hashes
 
 # ----------------------------------------------------------------------------------------
@@ -7778,14 +7794,17 @@ def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftyp
         raise Exception('this is a standard yaml output file (not just a list of seq infos), so needs to be read with utils.read_yaml_output(): %s' % fname)
     return seqfos
 
+FASTA_SUFFIXES, FASTQ_SUFFIXES = ['.fa', '.fasta'], ['.fq', '.fastq']
+FASTX_SUFFIXES = FASTA_SUFFIXES + FASTQ_SUFFIXES  # what iter_fastx() reads
+
 # ----------------------------------------------------------------------------------------
 # yields one seqfo per sequence of a fasta or fastq file
 def iter_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, quiet=False):
     if ftype is None:
         suffix = getsuffix(fname)
-        if suffix == '.fa' or suffix == '.fasta':
+        if suffix in FASTA_SUFFIXES:
             ftype = 'fa'
-        elif suffix == '.fq' or suffix == '.fastq':
+        elif suffix in FASTQ_SUFFIXES:
             ftype = 'fq'
         else:
             raise Exception('unhandled file type: %s' % suffix)
@@ -7831,8 +7850,8 @@ def iter_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
             else:
                 raise Exception('unhandled ftype %s' % ftype)
 
-            if not seqline:
-                break
+            if not seqline:  # a fasta header with no sequence after it
+                raise Exception('no sequence after header line in %s:\n    %s' % (fname, headline.strip()))
 
             iline += 1
             if istartstop is not None:
@@ -8489,6 +8508,13 @@ def get_yamlfo_for_output(line, headers, glfo=None):
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
+def yaml_output_dict(glfo, partition_lines, events, dont_write_git_info=False):  # top level of a yaml output file. NOTE write_yaml_output_from_event_strs() needs the events last
+    return {'version-info' : {'partis-yaml' : 0.1, 'partis-git' : '' if dont_write_git_info else get_version_info()},
+            'germline-info' : glfo,
+            'partitions' : partition_lines,
+            'events' : events}
+
+# ----------------------------------------------------------------------------------------
 def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False, dont_write_git_info=False):
     # ----------------------------------------------------------------------------------------
     def check_ids():  # really just want to check that there's *some* overlap between the partitions and annotations. It's normal that there's annotations for only some uids in the partition, but if there is a partition, at least some of its uids should be in the annotations (usually the uids with annotations is a strict subset, but sometimes there might be annotations for uids from somewhere else)
@@ -8503,14 +8529,10 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
         partition_lines = []
     check_ids()
 
-    version_info = {'partis-yaml' : 0.1, 'partis-git' : '' if dont_write_git_info else get_version_info()}
     yaml_annotations = [get_yamlfo_for_output(l, headers, glfo=glfo) for l in annotation_list]
     if failed_queries is not None:
         yaml_annotations += failed_queries
-    yamldata = {'version-info' : version_info,
-                'germline-info' : glfo,
-                'partitions' : partition_lines,
-                'events' : yaml_annotations}
+    yamldata = yaml_output_dict(glfo, partition_lines, yaml_annotations, dont_write_git_info=dont_write_git_info)
     if use_pyyaml:  # slower, but easier to read by hand for debugging (use this instead of the json version to make more human-readable files)
         with open(fname, 'w') as yamlfile:
             yaml.dump(yamldata, yamlfile, width=400, Dumper=Dumper, default_flow_style=False, allow_unicode=False)  # set <allow_unicode> to false so the file isn't cluttered up with !!python.unicode stuff
@@ -8522,13 +8544,14 @@ def write_yaml_output_from_event_strs(fname, glfo, uids, event_strs, dont_write_
     # the file write_annotations() writes for the single-sequence annotations of <uids>, from the json text of each one's event
     from . import clusterpath
     partition_lines = clusterpath.ClusterPath(partition=[[u] for u in uids]).get_partition_lines()
-    version_info = {'partis-yaml' : 0.1, 'partis-git' : '' if dont_write_git_info else get_version_info()}
-    head = json.dumps({'version-info' : version_info, 'germline-info' : glfo, 'partitions' : partition_lines, 'events' : []})
+    head = json.dumps(yaml_output_dict(glfo, partition_lines, [], dont_write_git_info=dont_write_git_info))
+    assert head.endswith('"events": []}')
+    n_per_write = 10000  # so the joined text of all events is never held at once
     mkdir(fname, isfile=True)
     with open(fname, 'w') as yamlfile:
         yamlfile.write(head[:-2])  # up to the opening bracket of the events
-        for istart in range(0, len(event_strs), 10000):
-            yamlfile.write((', ' if istart > 0 else '') + ', '.join(event_strs[istart : istart + 10000]))
+        for istart in range(0, len(event_strs), n_per_write):
+            yamlfile.write((', ' if istart > 0 else '') + ', '.join(event_strs[istart : istart + n_per_write]))
         yamlfile.write(']}')
 
 # ----------------------------------------------------------------------------------------
@@ -8712,8 +8735,10 @@ def read_json_yaml(fname):  # try to read <fname> as json (since it's faster), o
             yamlfo = yaml.load(yamlfile, Loader=Loader)  # use this instead of the json version to make more human-readable files
     return yamlfo
 
+YAML_HEAD_CHARS = 2**22  # chars read from the start of a yaml output file to find its germline info
+
 # ----------------------------------------------------------------------------------------
-def read_yaml_glfo(fname, head_chars=2**22):
+def read_yaml_glfo(fname, head_chars=YAML_HEAD_CHARS):
     # germline info of a yaml output file, parsing only the head of the file if the germline info is within it
     decoder, skip_space = json.JSONDecoder(), re.compile(r'\s*').match
     with open(fname) as yamlfile:

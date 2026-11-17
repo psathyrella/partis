@@ -765,51 +765,60 @@ def subset_cache_parameters(args):
         utils.replace_in_arglist(clist, '--n-procs', str(n_procs))
         return ' '.join(clist)
     # ----------------------------------------------------------------------------------------
-    def write_subsets(infname):
-        tmp_seed_id = args.seed_unique_id  # a list of two here
-        args.seed_unique_id = None
-        no_pairing_info = args.no_pairing_info or not args.paired_loci
-        # no pairing, meta or seed info: seqs go through a file rather than memory, and <sfo_lists> holds uids
-        on_disk = no_pairing_info and args.input_metafnames is None and tmp_seed_id is None and args.queries_to_include is None and utils.getsuffix(infname) in ['.fa', '.fasta', '.fq', '.fastq']
-        if on_disk:
-            seqfname = '%s/input-seqs.tsv' % utils.parameter_subset_root(base)
-            utils.mkdir(seqfname, isfile=True)
+    def check_no_empty_subsets(sub_lists, n_seqs, infname):
+        n_empty = len([s for s in sub_lists if len(s) == 0])
+        if n_empty > 0:
+            raise Exception('%d of %d subsets are empty: --n-subsets %d is too large for the %d seqs in %s' % (n_empty, len(sub_lists), args.n_subsets, n_seqs, infname))
+    # ----------------------------------------------------------------------------------------
+    # the two split fcns write the subset fastas, and return the size and the fasta hash of each subset
+    def split_on_disk(infname):  # seqs go through a file rather than memory
+        seqfname = '%s/input-seqs.tsv' % utils.parameter_subset_root(base)
+        utils.mkdir(seqfname, isfile=True)
+        try:
             with open(seqfname, 'w') as seqfile:
                 input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True, seq_fcn=lambda uid, seq: seqfile.write('%s\t%s\n' % (uid, seq)))
-        else:
-            input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)
+            n_seqs = len(input_info)
+            print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'cache-parameters'), n_seqs, args.n_subsets, infname))
+            uid_lists = utils.shuffle_and_split(list(input_info), args.n_subsets, dbgstr='droplets')  # same order as the split in memory
+            del input_info  # only the uids, which <uid_lists> has
+            check_no_empty_subsets(uid_lists, n_seqs, infname)
+            hashes = utils.write_subset_fastas(seqfname, uid_lists, [input_fn(i) for i in range(args.n_subsets)])
+        finally:
+            if os.path.exists(seqfname):
+                os.remove(seqfname)
+        return [len(l) for l in uid_lists], hashes
+    # ----------------------------------------------------------------------------------------
+    def split_in_memory(infname, no_pairing_info):
+        tmp_seed_id = args.seed_unique_id  # a list of two here
+        args.seed_unique_id = None
+        input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)
         args.seed_unique_id = tmp_seed_id
         print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'cache-parameters'), len(input_info), args.n_subsets, infname))
-        if on_disk:
-            uids = list(input_info)
-            random.shuffle(uids)  # same order as the split in memory
-            sfo_lists = utils.evenly_split_list(uids, args.n_subsets, dbgstr='droplets')
-        else:
-            input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
-            sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
-                                                    seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=no_pairing_info, debug=True)
-        n_empty = len([s for s in sfo_lists if len(s) == 0])
-        if n_empty > 0:
-            raise Exception('%d of %d subsets are empty: --n-subsets %d is too large for the %d seqs in %s' % (n_empty, len(sfo_lists), args.n_subsets, len(input_info), infname))
-        if on_disk:
-            input_info = None  # only the uids, which <sfo_lists> has
-            hashes = utils.write_subset_fastas(seqfname, sfo_lists, [input_fn(i) for i in range(args.n_subsets)])
-            os.remove(seqfname)
-        else:
-            meta_keys = set(utils.input_metafile_keys.values())  # strip input_info to what the per-subset meta.yaml needs
-            for uid, tline in input_info.items():
-                input_info[uid] = {k : v for k, v in tline.items() if k in meta_keys or k == 'unique_ids'}
-        subsets = []
+        input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
+        sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
+                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=no_pairing_info, debug=True)
+        check_no_empty_subsets(sfo_lists, len(input_info), infname)
+        meta_keys = set(utils.input_metafile_keys.values())  # strip input_info to what the per-subset meta.yaml needs
+        for uid, tline in input_info.items():
+            input_info[uid] = {k : v for k, v in tline.items() if k in meta_keys or k == 'unique_ids'}
+        hashes = []
         for isub, sfos in enumerate(sfo_lists):
-            xxh3 = hashes[isub] if on_disk else utils.write_fasta(input_fn(isub), sfos, return_hash=True)
+            hashes.append(utils.write_fasta(input_fn(isub), sfos, return_hash=True))
             if args.input_metafnames is not None:
                 metafos = {}
                 for sfo in sfos:
                     assert len(input_info[sfo['name']]['unique_ids']) == 1
                     metafos[sfo['name']] = {mk : input_info[sfo['name']][lk][0] for mk, lk in utils.input_metafile_keys.items() if lk in input_info[sfo['name']]}
                 utils.jsdump('%s/meta.yaml'%sdir(isub), metafos)
-            subsets.append({'path' : os.path.relpath(sdir(isub), utils.parameter_subset_root(base)), 'input_fasta' : os.path.relpath(input_fn(isub), utils.parameter_subset_root(base)),
-                            'n_input_sequences' : len(sfos), 'xxh3' : xxh3})
+        return [len(l) for l in sfo_lists], hashes
+    # ----------------------------------------------------------------------------------------
+    def write_subsets(infname):
+        no_pairing_info = args.no_pairing_info or not args.paired_loci
+        # no pairing, meta or seed info, and a fasta or fastq file: the split on disk
+        on_disk = no_pairing_info and args.input_metafnames is None and args.seed_unique_id is None and args.queries_to_include is None and utils.getsuffix(infname) in utils.FASTX_SUFFIXES
+        sizes, hashes = split_on_disk(infname) if on_disk else split_in_memory(infname, no_pairing_info)
+        subsets = [{'path' : os.path.relpath(sdir(isub), utils.parameter_subset_root(base)), 'input_fasta' : os.path.relpath(input_fn(isub), utils.parameter_subset_root(base)),
+                    'n_input_sequences' : sizes[isub], 'xxh3' : hashes[isub]} for isub in range(args.n_subsets)]
         print('    wrote %d subset input files to %s (index: %s)' % (len(subsets), utils.parameter_subset_root(base), utils.write_subset_index(base, subsets, split_inputs(args, infname))))
     # ----------------------------------------------------------------------------------------
     def subset_outfname(isub):  # the path a subset run writes for whichever of its loci had sequences

@@ -3,9 +3,8 @@ import json
 import os
 
 import pytest
-import yaml
 
-from _helpers import HFRAC_ARGS, PAIRED_PARAM_DIR, copy_dir, disjoint_dir, edit_yaml, fasta_uids, input_uids, locus_manifest, output_partition_uids, partition_uids, read_yaml, run_partis
+from _helpers import HFRAC_ARGS, PAIRED_PARAM_DIR, copy_dir, disjoint_dir, edit_yaml, fasta_uids, input_uids, locus_manifest, output_partition_uids, partition_uids, read_yaml, run_partis, write_yaml
 from partis import disjointgrouper as dg
 from partis import utils
 
@@ -252,7 +251,7 @@ def test_resolve_sw_cache_paths(tmp_path):
 
 
 def test_read_yaml_glfo(tmp_path, monkeypatch):
-    yamlfo = {'version-info' : {'partis-yaml' : 0.1, 'partis-git' : ''}, 'germline-info' : {'locus' : 'igh', 'seqs' : {'v' : {'a' : 'ACGT', 'b{' : 'A"C'}}}, 'partitions' : [], 'events' : [{'unique_ids' : ['x']}] * 50}
+    yamlfo = utils.yaml_output_dict({'locus' : 'igh', 'seqs' : {'v' : {'a' : 'ACGT', 'b{' : 'A"C'}}}, [], [{'unique_ids' : ['x']}] * 50, dont_write_git_info=True)
     fname, late_fname = str(tmp_path / 'out.yaml'), str(tmp_path / 'late.yaml')
     with open(fname, 'w') as yfile:
         yfile.write(json.dumps(yamlfo))
@@ -260,8 +259,7 @@ def test_read_yaml_glfo(tmp_path, monkeypatch):
         yfile.write(json.dumps({k : yamlfo[k] for k in ['version-info', 'events', 'germline-info']}))
     assert utils.read_yaml_glfo(fname, head_chars=20) == yamlfo['germline-info']  # not within the head: the whole file is read
     assert utils.read_yaml_glfo(late_fname, head_chars=200) == yamlfo['germline-info']
-    with open(late_fname, 'w') as yfile:  # not json
-        yaml.dump(yamlfo, yfile)
+    write_yaml(late_fname, yamlfo)  # not json
     assert utils.read_yaml_glfo(late_fname) == yamlfo['germline-info']
     monkeypatch.setattr(utils, 'read_json_yaml', lambda fn: pytest.fail('read the whole file'))
     assert utils.read_yaml_glfo(fname) == yamlfo['germline-info']
