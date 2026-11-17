@@ -6,11 +6,20 @@ from partis.disjointgrouper import _split_procs
 
 
 def test_one_big_group_gets_most_threads():
-    # big group gets its proportional share of the budget, the rest one thread each until the budget is used
+    # big group gets every thread the small ones do not need to end before it, the rest one thread each
     threads, n_jobs = _split_procs([2100000] + [50000] * 19, 16)
-    assert threads[0] == 11
-    assert n_jobs == 6
+    assert threads[0] == 12
+    assert set(threads[1:]) == {1}
+    assert n_jobs == 5
     assert sum(threads[:n_jobs]) == 16
+
+
+def test_small_groups_wait_so_the_largest_get_two_threads():
+    # 15 groups on 16 procs: one thread each would leave the largest running long after the small ones end
+    sizes = [451, 425, 411, 406, 394, 279, 271, 248, 206, 189, 155, 105, 98, 93, 67]
+    threads, n_jobs = _split_procs(sizes, 16)
+    assert threads == [2] * 5 + [1] * 10
+    assert n_jobs == 11
 
 
 def test_equal_small_groups_get_one_thread_each():

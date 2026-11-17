@@ -7741,6 +7741,29 @@ def write_fasta(fname, seqfos, name_key='name', seq_key='seq', return_hash=False
     return None if hasher is None else hasher.hexdigest()
 
 # ----------------------------------------------------------------------------------------
+# one fasta per list of uids in <sub_uids>, seqs from <seqfname> ("uid<tab>seq" lines), holding one fasta's seqs at a time
+def write_subset_fastas(seqfname, sub_uids, outfnames):
+    isubs = {u : i for i, uids in enumerate(sub_uids) for u in uids}
+    tmpfnames = ['%s.tmp' % f for f in outfnames]
+    for tfn in tmpfnames:
+        mkdir(tfn, isfile=True)
+    tfiles = [open(f, 'w') for f in tmpfnames]
+    with open(seqfname) as seqfile:
+        for line in seqfile:
+            isub = isubs.get(line[:line.index('\t')])  # None if the uid isn't in any list
+            if isub is not None:
+                tfiles[isub].write(line)
+    for tfile in tfiles:
+        tfile.close()
+    hashes = []
+    for uids, tfn, ofn in zip(sub_uids, tmpfnames, outfnames):
+        with open(tfn) as tfile:
+            seqs = dict(l.rstrip('\n').split('\t') for l in tfile)
+        hashes.append(write_fasta(ofn, [{'name' : u, 'seq' : seqs[u]} for u in uids], return_hash=True))
+        os.remove(tfn)
+    return hashes
+
+# ----------------------------------------------------------------------------------------
 # NOTE replacement for (some cases of) read_fastx()
 def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None): NOTE maybe add these args?
     if getsuffix(fname) not in ['.json', '.yaml']:
@@ -7756,8 +7779,8 @@ def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftyp
     return seqfos
 
 # ----------------------------------------------------------------------------------------
-# if <look_for_tuples> is set, look for uids that are actually string-converted python tuples, and add each entry in the tuple as a duplicate sequence. Can also pass in a list <tuple_info> if you need to do more with the info afterwards (this is to handle gctree writing fasta files with broken names; see usage also in datascripts/meta/taraki-XXX)
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None, look_for_tuples=False, tuple_info=None, quiet=False):
+# yields one seqfo per sequence of a fasta or fastq file
+def iter_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, quiet=False):
     if ftype is None:
         suffix = getsuffix(fname)
         if suffix == '.fa' or suffix == '.fasta':
@@ -7767,17 +7790,14 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
         else:
             raise Exception('unhandled file type: %s' % suffix)
 
-    finfo = []
     iline = -1  # index of the query/seq that we're currently reading in the fasta
-    n_fasta_queries = 0  # number of queries so far added to <finfo> (I guess I could just use len(finfo) at this point)
+    n_fasta_queries = 0  # number of queries so far yielded
     missing_queries = set(queries) if queries is not None else None
     already_printed_forbidden_character_warning, already_printed_warn_char_warning = False, False
     with open(fname) as fastafile:
-        startpos = None
+        nextline = None  # the next header line, which we had to read to see where the last sequence ended
         while True:
-            if startpos is not None:  # rewind since the last time through we had to look to see when the next header line appeared
-                fastafile.seek(startpos)
-            headline = fastafile.readline()
+            headline = fastafile.readline() if nextline is None else nextline
             if not headline:
                 break
             if headline.strip() == '':  # skip a blank line
@@ -7795,8 +7815,6 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                         break
                     if nextline[0] == '>':
                         break
-                    else:
-                        startpos = fastafile.tell()  # i.e. very line that doesn't begin with '>' increments <startpos>
                     seqlines.append(nextline)
                     nextline = fastafile.readline()
                 seqline = ''.join([l.strip() for l in seqlines]) if len(seqlines) > 0 else None
@@ -7858,7 +7876,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 if any(c not in alphabet for c in seqfo[seq_key]):
                     unexpected_chars = set([ch for ch in seqfo[seq_key] if ch not in alphabet])
                     raise Exception('unexpected character%s %s (not among %s) in input sequence with id %s:\n  %s' % (plural(len(unexpected_chars)), ', '.join([('\'%s\'' % ch) for ch in unexpected_chars]), alphabet, seqfo[name_key], seqfo[seq_key]))
-            finfo.append(seqfo)
+            yield seqfo
 
             n_fasta_queries += 1
             if n_max_queries > 0 and n_fasta_queries >= n_max_queries:
@@ -7869,6 +7887,12 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
         print('    stopped after reading %d sequences from %s' % (n_max_queries, fname))
     if queries is not None:
         print('    only looked for %d specified sequences in %s' % (len(queries), fname))
+
+# ----------------------------------------------------------------------------------------
+# if <look_for_tuples> is set, look for uids that are actually string-converted python tuples, and add each entry in the tuple as a duplicate sequence. Can also pass in a list <tuple_info> if you need to do more with the info afterwards (this is to handle gctree writing fasta files with broken names; see usage also in datascripts/meta/taraki-XXX)
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None, look_for_tuples=False, tuple_info=None, quiet=False):
+    finfo = list(iter_fastx(fname, name_key=name_key, seq_key=seq_key, add_info=add_info, dont_split_infostrs=dont_split_infostrs, sanitize_uids=sanitize_uids, sanitize_seqs=sanitize_seqs, queries=queries,
+                            n_max_queries=n_max_queries, istartstop=istartstop, ftype=ftype, quiet=quiet))
 
     if n_random_queries is not None:
         if n_random_queries > len(finfo):
@@ -8494,6 +8518,20 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
         jsdump(fname, yamldata) #, sort_keys=True, indent=4)
 
 # ----------------------------------------------------------------------------------------
+def write_yaml_output_from_event_strs(fname, glfo, uids, event_strs, dont_write_git_info=False):
+    # the file write_annotations() writes for the single-sequence annotations of <uids>, from the json text of each one's event
+    from . import clusterpath
+    partition_lines = clusterpath.ClusterPath(partition=[[u] for u in uids]).get_partition_lines()
+    version_info = {'partis-yaml' : 0.1, 'partis-git' : '' if dont_write_git_info else get_version_info()}
+    head = json.dumps({'version-info' : version_info, 'germline-info' : glfo, 'partitions' : partition_lines, 'events' : []})
+    mkdir(fname, isfile=True)
+    with open(fname, 'w') as yamlfile:
+        yamlfile.write(head[:-2])  # up to the opening bracket of the events
+        for istart in range(0, len(event_strs), 10000):
+            yamlfile.write((', ' if istart > 0 else '') + ', '.join(event_strs[istart : istart + 10000]))
+        yamlfile.write(']}')
+
+# ----------------------------------------------------------------------------------------
 def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_add_implicit_info):
     annotation_list = []
     n_queries_read = 0
@@ -8673,6 +8711,30 @@ def read_json_yaml(fname):  # try to read <fname> as json (since it's faster), o
             yamlfile.seek(0)
             yamlfo = yaml.load(yamlfile, Loader=Loader)  # use this instead of the json version to make more human-readable files
     return yamlfo
+
+# ----------------------------------------------------------------------------------------
+def read_yaml_glfo(fname, head_chars=2**22):
+    # germline info of a yaml output file, parsing only the head of the file if the germline info is within it
+    decoder, skip_space = json.JSONDecoder(), re.compile(r'\s*').match
+    with open(fname) as yamlfile:
+        head = yamlfile.read(head_chars)
+
+    def after(ipos, char):  # index of the token after <char>, which has to be the next token
+        ipos = skip_space(head, ipos).end()
+        if head[ipos : ipos + 1] != char:
+            raise ValueError()
+        return skip_space(head, ipos + 1).end()
+
+    try:
+        ipos = after(0, '{')
+        while True:  # top-level keys, in file order
+            key, ipos = decoder.raw_decode(head, ipos)
+            val, ipos = decoder.raw_decode(head, after(ipos, ':'))
+            if key == 'germline-info':
+                return val
+            ipos = after(ipos, ',')
+    except ValueError:  # not json, or the germline info is not within the head
+        return read_json_yaml(fname)['germline-info']
 
 # ----------------------------------------------------------------------------------------
 def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):

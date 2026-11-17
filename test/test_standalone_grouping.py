@@ -1,10 +1,13 @@
 import collections
+import json
 import os
 
 import pytest
+import yaml
 
 from _helpers import HFRAC_ARGS, PAIRED_PARAM_DIR, copy_dir, disjoint_dir, edit_yaml, fasta_uids, input_uids, locus_manifest, output_partition_uids, partition_uids, read_yaml, run_partis
 from partis import disjointgrouper as dg
+from partis import utils
 
 # ----------------------------------------------------------------------------------------
 # create-disjoint-groups and assemble-groups, run standalone
@@ -246,6 +249,37 @@ def test_resolve_sw_cache_paths(tmp_path):
     swfn = tmp_path / dg.SW_CACHE_FNAME
     swfn.write_text('')
     assert dg.resolve_sw_cache_paths(str(swfn)) == ([str(swfn)], [None])
+
+
+def test_read_yaml_glfo(tmp_path, monkeypatch):
+    yamlfo = {'version-info' : {'partis-yaml' : 0.1, 'partis-git' : ''}, 'germline-info' : {'locus' : 'igh', 'seqs' : {'v' : {'a' : 'ACGT', 'b{' : 'A"C'}}}, 'partitions' : [], 'events' : [{'unique_ids' : ['x']}] * 50}
+    fname, late_fname = str(tmp_path / 'out.yaml'), str(tmp_path / 'late.yaml')
+    with open(fname, 'w') as yfile:
+        yfile.write(json.dumps(yamlfo))
+    with open(late_fname, 'w') as yfile:  # germline info after the events
+        yfile.write(json.dumps({k : yamlfo[k] for k in ['version-info', 'events', 'germline-info']}))
+    assert utils.read_yaml_glfo(fname, head_chars=20) == yamlfo['germline-info']  # not within the head: the whole file is read
+    assert utils.read_yaml_glfo(late_fname, head_chars=200) == yamlfo['germline-info']
+    with open(late_fname, 'w') as yfile:  # not json
+        yaml.dump(yamlfo, yfile)
+    assert utils.read_yaml_glfo(late_fname) == yamlfo['germline-info']
+    monkeypatch.setattr(utils, 'read_json_yaml', lambda fn: pytest.fail('read the whole file'))
+    assert utils.read_yaml_glfo(fname) == yamlfo['germline-info']
+    assert utils.read_yaml_glfo(fname, head_chars=json.dumps(yamlfo).index('"partitions"')) == yamlfo['germline-info']
+
+
+def test_write_yaml_output_from_event_strs(tmp_path):
+    # same file as write_annotations(), and an sw cache event read and written again keeps its text
+    glfo, antns, _ = utils.read_yaml_output('%s/igh/%s' % (PAIRED_PARAM_DIR, dg.SW_CACHE_FNAME), dont_add_implicit_info=True)
+    assert len(antns) > 0
+    fnames = [str(tmp_path / ('%s.yaml' % n)) for n in ['annotations', 'event-strs', 'reread']]
+    utils.write_annotations(fnames[0], glfo, antns, utils.sw_cache_headers)
+    event_strs = [json.dumps(utils.get_yamlfo_for_output(l, utils.sw_cache_headers, glfo=glfo)) for l in antns]
+    utils.write_yaml_output_from_event_strs(fnames[1], glfo, [l['unique_ids'][0] for l in antns], event_strs)
+    reglfo, reantns, _ = utils.read_yaml_output(fnames[0], dont_add_implicit_info=True)
+    utils.write_annotations(fnames[2], reglfo, reantns, utils.sw_cache_headers)
+    texts = [open(fn).read() for fn in fnames]
+    assert texts[0] == texts[1] == texts[2]
 
 
 def test_read_vsearch_uc_with_centroids(tmp_path):

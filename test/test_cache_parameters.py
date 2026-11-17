@@ -1,6 +1,7 @@
 import csv
 import glob
 import os
+import random
 import re
 import shutil
 
@@ -68,7 +69,41 @@ def test_write_subsets_only(tmp_path, form):
         n_written += len(fasta_uids('%s/input-seqs.fa' % sdir))
         assert not utils.subset_is_marked_complete(sdir)
         assert not os.path.exists('%s/parameters' % sdir)
+        assert sorted(os.listdir(sdir)) == ['input-seqs.fa'] + (['meta.yaml'] if form == 'paired' else [])
     assert n_written == n_input
+    utils.check_subset_inputs(str(basedir), range(N_SUBSETS))
+    assert len(os.listdir(utils.parameter_subset_root(str(basedir)))) == N_SUBSETS + 1  # the subset dirs and the index
+
+
+def test_subset_fastas_from_seq_file(tmp_path):
+    # same fastas as subset_paired_queries() and write_fasta() on seqs held in memory
+    sfos = utils.read_fastx(UNPAIRED_IGH_FNAME)
+    seqfname = str(tmp_path / 'seqs.tsv')
+    with open(seqfname, 'w') as seqfile:
+        seqfile.write(''.join('%s\t%s\n' % (s['name'], s['seq']) for s in reversed(sfos)) + 'in-no-subset\tACGT\n')
+    random.seed(1)
+    mem_lists = utils.subset_paired_queries(sfos, None, None, n_subsets=N_SUBSETS, no_pairing_info=True)
+    random.seed(1)
+    uids = [s['name'] for s in sfos]
+    random.shuffle(uids)
+    sub_uids = utils.evenly_split_list(uids, N_SUBSETS)
+    mem_fnames, file_fnames = [[str(tmp_path / d / ('%d.fa' % i)) for i in range(N_SUBSETS)] for d in ['mem', 'file']]
+    mem_hashes = [utils.write_fasta(f, l, return_hash=True) for f, l in zip(mem_fnames, mem_lists)]
+    assert utils.write_subset_fastas(seqfname, sub_uids, file_fnames) == mem_hashes
+    for mfn, ffn in zip(mem_fnames, file_fnames):
+        with open(mfn) as mfile, open(ffn) as ffile:
+            assert mfile.read() == ffile.read()
+    assert sorted(os.listdir(str(tmp_path / 'file'))) == sorted(os.listdir(str(tmp_path / 'mem')))
+
+
+def test_fastx_sequence_ends(tmp_path):
+    # wrapped sequences and blank lines, and reading stops at a header with no sequence
+    fname = str(tmp_path / 'in.fa')
+    with open(fname, 'w') as ffile:
+        ffile.write('\n>a x|y\nacg\nTT\n\n>b\nGG\n>c\n>d\nAA\n')
+    expected = [{'name' : 'a', 'seq' : 'ACGTT', 'infostrs' : ['a', 'x', 'y']}, {'name' : 'b', 'seq' : 'GG', 'infostrs' : ['b']}]
+    assert utils.read_fastx(fname) == expected
+    assert list(utils.iter_fastx(fname)) == expected
 
 
 def test_merge_action_paired(tmp_path, chunked_param_dir):

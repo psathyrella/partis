@@ -768,21 +768,40 @@ def subset_cache_parameters(args):
     def write_subsets(infname):
         tmp_seed_id = args.seed_unique_id  # a list of two here
         args.seed_unique_id = None
-        input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)
+        no_pairing_info = args.no_pairing_info or not args.paired_loci
+        # no pairing, meta or seed info: seqs go through a file rather than memory, and <sfo_lists> holds uids
+        on_disk = no_pairing_info and args.input_metafnames is None and tmp_seed_id is None and args.queries_to_include is None and utils.getsuffix(infname) in ['.fa', '.fasta', '.fq', '.fastq']
+        if on_disk:
+            seqfname = '%s/input-seqs.tsv' % utils.parameter_subset_root(base)
+            utils.mkdir(seqfname, isfile=True)
+            with open(seqfname, 'w') as seqfile:
+                input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True, seq_fcn=lambda uid, seq: seqfile.write('%s\t%s\n' % (uid, seq)))
+        else:
+            input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)
         args.seed_unique_id = tmp_seed_id
         print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'cache-parameters'), len(input_info), args.n_subsets, infname))
-        input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
-        sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
-                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=args.no_pairing_info or not args.paired_loci, debug=True)
+        if on_disk:
+            uids = list(input_info)
+            random.shuffle(uids)  # same order as the split in memory
+            sfo_lists = utils.evenly_split_list(uids, args.n_subsets, dbgstr='droplets')
+        else:
+            input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
+            sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
+                                                    seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=no_pairing_info, debug=True)
         n_empty = len([s for s in sfo_lists if len(s) == 0])
         if n_empty > 0:
             raise Exception('%d of %d subsets are empty: --n-subsets %d is too large for the %d seqs in %s' % (n_empty, len(sfo_lists), args.n_subsets, len(input_info), infname))
-        meta_keys = set(utils.input_metafile_keys.values())  # strip input_info to what the per-subset meta.yaml needs
-        for uid, tline in input_info.items():
-            input_info[uid] = {k : v for k, v in tline.items() if k in meta_keys or k == 'unique_ids'}
+        if on_disk:
+            input_info = None  # only the uids, which <sfo_lists> has
+            hashes = utils.write_subset_fastas(seqfname, sfo_lists, [input_fn(i) for i in range(args.n_subsets)])
+            os.remove(seqfname)
+        else:
+            meta_keys = set(utils.input_metafile_keys.values())  # strip input_info to what the per-subset meta.yaml needs
+            for uid, tline in input_info.items():
+                input_info[uid] = {k : v for k, v in tline.items() if k in meta_keys or k == 'unique_ids'}
         subsets = []
         for isub, sfos in enumerate(sfo_lists):
-            xxh3 = utils.write_fasta(input_fn(isub), sfos, return_hash=True)
+            xxh3 = hashes[isub] if on_disk else utils.write_fasta(input_fn(isub), sfos, return_hash=True)
             if args.input_metafnames is not None:
                 metafos = {}
                 for sfo in sfos:

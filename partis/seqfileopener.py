@@ -204,7 +204,8 @@ def get_seqfile_info(x, is_data=False):
     raise Exception('renamed and changed returned vals (see below)')
 
 # ----------------------------------------------------------------------------------------
-def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False, more_input_info=None, dont_add_implicit_info=False):
+# <seq_fcn>: gets each (uid, seq), and <input_info> then has only the uids
+def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=None, quiet=False, more_input_info=None, dont_add_implicit_info=False, seq_fcn=None):
     # NOTE renamed this from get_seqfile_info() since I'm changing the return values, but I don't want to update the calls everywhere (e.g. in compareutils)
     yaml_glfo = None
     suffix = utils.getsuffix(infname)
@@ -214,7 +215,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
         sanitize_uids = True
     elif suffix in ['.fa', '.fasta', '.fq', '.fastq', '.fastx']:
         add_info = args is not None and args.name_column is not None and 'fasta-info-index' in args.name_column
-        reader = utils.read_fastx(infname, name_key='unique_ids', seq_key='input_seqs', add_info=add_info, sanitize_uids=True, n_max_queries=n_max_queries,  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
+        reader = (utils.read_fastx if seq_fcn is None else utils.iter_fastx)(infname, name_key='unique_ids', seq_key='input_seqs', add_info=add_info, sanitize_uids=True, n_max_queries=n_max_queries,  # NOTE don't use istarstop kw arg here, 'cause it fucks with the istartstop treatment in the loop below
                                   queries=(args.queries if (args is not None and not args.abbreviate) else None), sanitize_seqs=args.sanitize_input_seqs)  # NOTE also can't filter on args.queries here if we're also translating
         sanitize_uids = False  # already did it, so don't need to do it below (unless fasta-info-index is set, in which case the above will have sanitized the wrong thing...
     elif suffix == '.yaml':
@@ -225,7 +226,7 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
     else:
         raise Exception('unhandled file extension \'%s\' on file \'%s\'' % (suffix, infname))
 
-    input_info = OrderedDict()
+    input_info = OrderedDict() if seq_fcn is None else {}
     reco_info = None
     if not is_data:
         reco_info = OrderedDict()
@@ -303,7 +304,11 @@ def read_sequence_file(infname, is_data, n_max_queries=-1, args=None, simglfo=No
             raise Exception('unexpected character%s %s (not among %s) in input sequence with id %s (maybe should set --sanitize-input-seqs?):\n  %s' % (utils.plural(len(unexpected_chars)), ', '.join([('\'%s\'' % ch) for ch in unexpected_chars]), utils.alphabet, uid, inseq))
 
         # da business
-        input_info[uid] = {'unique_ids' : [uid, ], 'seqs' : [inseq, ]}
+        if seq_fcn is None:
+            input_info[uid] = {'unique_ids' : [uid, ], 'seqs' : [inseq, ]}
+        else:
+            seq_fcn(uid, inseq)
+            input_info[uid] = None
 
         if not is_data:
             if 'v_gene' not in line and not dont_add_implicit_info:
