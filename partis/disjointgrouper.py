@@ -387,7 +387,7 @@ def _run_round2_tcm(specs, r1_by_c3len, merge_factor, hi_bound, outdir, n_procs)
             continue
         r2_candidates.append((c3len, centroid_naives))
     r2_candidates.sort(key=lambda g: len(g[1]), reverse=True)  # largest first, so the long pole starts first
-    r2_threads, n_procs2 = _split_procs([len(cn) for _, cn in r2_candidates], n_procs)
+    r2_threads, n_procs2 = _split_procs([len(cn) ** 2 for _, cn in r2_candidates], n_procs)  # all pairs, so the work goes with the square
     for (c3len, centroid_naives), n_threads in zip(r2_candidates, r2_threads):
         r2_workdir = '%s/groups/cdr3-%d/_round2_tcm' % (outdir, c3len)
         cmdfo, pairs_fname = _build_round2_tcm_cmd(centroid_naives, round2_threshold, r2_workdir, n_threads)

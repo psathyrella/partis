@@ -1,7 +1,9 @@
 import random
+import re
 
 import pytest
 
+from partis import disjointgrouper
 from partis.disjointgrouper import _split_procs
 
 
@@ -42,6 +44,23 @@ def test_invariants_on_random_sizes():
         assert min(threads) >= 1
         assert 1 <= n_jobs <= len(sizes)
         assert sum(threads[:n_jobs]) <= budget
+
+
+def test_round2_threads_follow_the_squared_centroid_counts(tmp_path, monkeypatch):
+    # on the counts this plan would be 4, 2, 1, 1 threads with 4 jobs at once
+    n_centroids = {30 : 60, 33 : 30, 36 : 20, 39 : 5}
+    specs, r1_by_c3len = {}, {}
+    for c3len, n in n_centroids.items():
+        uids = ['c%d-%d' % (c3len, i) for i in range(n)]
+        specs[c3len] = {'seqfos' : [{'name' : u, 'naive_seq' : 'ACGT'} for u in uids], 'naive_fasta' : None}
+        r1_by_c3len[c3len] = [(u, [u]) for u in uids]
+    ran = {}
+    monkeypatch.setattr(disjointgrouper.utils, 'run_cmds', lambda cmdfos, n_max_procs: ran.update(cmdfos=cmdfos, n_max_procs=n_max_procs))
+    comps, _ = disjointgrouper._run_round2_tcm(specs, r1_by_c3len, 3., 0.07, str(tmp_path), 8)
+    threads = {int(re.search(r'cdr3-(\d+)/', c['workdir']).group(1)) : int(re.search(r'--threads (\d+)', c['cmd_str']).group(1)) for c in ran['cmdfos']}
+    assert threads == {30 : 6, 33 : 1, 36 : 1, 39 : 1}
+    assert ran['n_max_procs'] == 3
+    assert {c3len : len(cs) for c3len, cs in comps.items()} == n_centroids  # no pairs file, so every centroid is its own component
 
 
 @pytest.mark.parametrize('sizes, budget, expected', [
