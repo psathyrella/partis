@@ -654,4 +654,8 @@ def test_job_memory(monkeypatch):
     assert utils.job_memory() == 3000 * 2**20
     monkeypatch.setenv('SLURM_MEM_PER_NODE', '2048')
     assert utils.job_memory() == 2048 * 2**20
+    monkeypatch.setenv('SLURM_MEM_PER_NODE', '0')  # all of the node, so not a bound
+    assert utils.job_memory() == 3000 * 2**20
+    monkeypatch.setenv('SLURM_MEM_PER_CPU', '0')
+    assert utils.job_memory() == psutil.virtual_memory().total
     assert 2**20 < utils.peak_rss() < psutil.virtual_memory().total and 0.05 < utils.current_rss() / utils.peak_rss() < 1.5  # both in bytes

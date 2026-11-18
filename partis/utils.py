@@ -6004,9 +6004,9 @@ def n_available_cpus():  # cpus available to this process (respects slurm/cgroup
 
 # ----------------------------------------------------------------------------------------
 def job_memory():  # bytes of memory this job may use: its slurm allocation if it has one, else the machine's
-    if os.getenv('SLURM_MEM_PER_NODE') is not None:  # in MB, as is the per cpu one
+    if int(os.getenv('SLURM_MEM_PER_NODE', 0)) > 0:  # in MB, as is the per cpu one; 0 is all of the node
         return int(os.getenv('SLURM_MEM_PER_NODE')) * 2**20
-    if os.getenv('SLURM_MEM_PER_CPU') is not None:
+    if int(os.getenv('SLURM_MEM_PER_CPU', 0)) > 0:
         return int(os.getenv('SLURM_MEM_PER_CPU')) * n_available_cpus() * 2**20
     return psutil.virtual_memory().total
 
@@ -6076,8 +6076,10 @@ def map_groups(fcn, gargs, n_procs, infnames, memory_bytes=None):
                     raise err[0] from Exception(err[1])
                 rates.append((nbytes[i], peak / max(1, nbytes[i])))
     finally:
-        for _, proc in running.values():
+        for conn, (_, proc) in running.items():
             proc.terminate()
+            proc.join()
+            conn.close()
     return results
 
 # ----------------------------------------------------------------------------------------

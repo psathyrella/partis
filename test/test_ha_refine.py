@@ -168,6 +168,21 @@ def test_cluster_inside_one_annotation_written_as_from_its_uids(tmp_path, plain_
     assert filecmp.cmp(*fnames, shallow=False)
 
 
+def test_cluster_that_is_one_whole_annotation_written_as_from_its_uids(tmp_path, plain_multifile_partition_dir):
+    ddir, manifest = locus_manifest(plain_multifile_partition_dir, 'igh')
+    spec = max(prf.group_specs(ddir, manifest['groups'], 'igh'), key=lambda s: s['group']['sequence_count'])
+    inp = prf.read_refine_inputs(spec['input'], spec['sw_cache'])
+    antns = inp['uid_part_antns']
+    def whole(cluster):  # all of its annotation, in order, with no indel
+        return antns[cluster[0]]['unique_ids'] == cluster and not any(indelutils.has_indels_line(antns[cluster[0]], i) for i in range(len(cluster)))
+    assert any(len(c) > 1 and whole(c) for c in inp['partition'])
+    per_uid = {u: utils.synthesize_single_seq_line(antns[u], antns[u]['unique_ids'].index(u)) for u in antns}  # no cluster of two is inside one of these
+    fnames = [str(tmp_path / ('%s.yaml' % tag)) for tag in ('one-annotation', 'per-uid')]
+    for fname, ant_info in zip(fnames, (antns, per_uid)):
+        prf.write_full_output(fname, inp['part_glfo'], inp['partition'], ant_info)
+    assert filecmp.cmp(*fnames, shallow=False)
+
+
 def write_stage_file(ddir, fasta_dir, stage):
     fname = '%s/%s/%s' % (ddir, fasta_dir, dg.stage_fname(stage, 'igh'))
     os.makedirs(os.path.dirname(fname), exist_ok=True)

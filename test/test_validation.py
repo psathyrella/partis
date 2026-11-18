@@ -198,6 +198,11 @@ def test_ha_jobs_without_parameter_dir(tmp_path):
     assert 'HA re-partition needs --parameter-dir' in log
 
 
+def test_ha_plan_with_no_bundles(tmp_path):
+    log = run_partis_fails(['create-ha-repartition-jobs', '--locus', 'igh', '--paired-outdir', str(tmp_path / 'out'), '--ha-max-bundles', '0'], str(tmp_path / 'partis.log'))
+    assert '--ha-max-bundles must be positive, but got 0' in log
+
+
 def test_ha_jobs_without_task_list(tmp_path):
     log = run_partis_fails(ha_job_args(tmp_path / 'out'), str(tmp_path / 'partis.log'))
     assert 'HA task list %s does not exist (run create-ha-repartition-jobs first)' % ha_repartition.task_list_fname(disjoint_dir(tmp_path / 'out', 'igh'), 'igh') in log

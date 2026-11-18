@@ -282,6 +282,8 @@ def setup_ha_job(args):
 def create_ha_repartition_jobs_action(args):
     # standalone entry point: plan the per-cluster HA jobs in a locus task list and a bundle list, for
     # external array orchestration (run-ha-repartition-jobs on each bundle, then assemble-ha-repartition)
+    if args.ha_max_bundles is not None and args.ha_max_bundles < 1:
+        raise Exception('--ha-max-bundles must be positive, but got %d' % args.ha_max_bundles)
     disjoint_dir = _disjoint_locus_dir(args)
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     n_concurrent = single_proc_concurrency(args)
