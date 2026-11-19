@@ -2,7 +2,6 @@ from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
 import os
 import collections
-import json
 import math
 import numpy
 
@@ -45,7 +44,8 @@ class FamilyShmCounter(object):
             freq, nmut = utils.hamming_fraction(naive_seq, mseq, also_return_distance=True)
             n_muted.append(nmut)
             freqs.append(freq)
-            halves.append(split_half_freqs(naive_seq, mseq))
+            if len(info['unique_ids']) > 1:  # singletons add nothing to the split-half sums
+                halves.append(split_half_freqs(naive_seq, mseq))
         self.seq_n_muted.update(n_muted)
         sbin = get_bin(len(n_muted))
         self.fam_mean_n_muted[sbin].append(numpy.mean(n_muted))
@@ -95,9 +95,7 @@ def split_half_freqs(naive_seq, mseq):  # mutated fraction in each of the two ha
     return [(muted & h).sum() / float(max(1, (ok & h).sum())) for h in (in_a, ~in_a)]
 
 # ----------------------------------------------------------------------------------------
-def merge_counts(fshm_list, weights=None):  # sum the counts in several read_counts() results (e.g. for pooling samples), each multiplied by its weight
-    if weights is None:
-        weights = [1. for _ in fshm_list]
+def merge_counts(fshm_list, weights):  # sum the counts in several FamilyShmCounter.to_dict() results (e.g. for pooling samples), each multiplied by its weight
     merged = {'size-bins' : bin_strs, 'mean-percentile-counts' : {b : [0.] * n_percentile_bins for b in bin_strs},
               'within-family' : {b : {'sum-sq-dev' : 0., 'sum-n-mean-sq' : 0.} for b in bin_strs[1:]}, 'split-half' : {'sum-cov' : 0., 'sum-sq-dev' : 0.}}
     for fshm, wgt in zip(fshm_list, weights):
@@ -113,27 +111,36 @@ def merge_counts(fshm_list, weights=None):  # sum the counts in several read_cou
     return merged
 
 # ----------------------------------------------------------------------------------------
-class FamilyShm(object):  # reads family-shm.yaml from a parameter dir, falling back to the pooled one in scratch-parameters, for the whole file if there isn't one, or for each size bin that has no families
-    def __init__(self, parameter_dir, locus, debug=False):
-        pooled_fn = '%s/data/recombinator/scratch-parameters/%s/hmm/%s' % (utils.get_partis_dir(), locus, fname)
-        own_fn = '%s/%s' % (parameter_dir, fname) if parameter_dir is not None else None
+def pooled_fname(locus):
+    return '%s/data/recombinator/scratch-parameters/%s/hmm/%s' % (utils.get_partis_dir(), locus, fname)
+
+# ----------------------------------------------------------------------------------------
+def read_family_shm(parameter_dir, locus, debug=False):  # returns a FamilyShm from the parameter dir's family-shm.yaml or the pooled one for <locus>, or None (with a warning) if neither exists, e.g. for tr loci, which have no pooled one
+    own_fn = '%s/%s' % (parameter_dir, fname) if parameter_dir is not None else None
+    if (own_fn is None or not os.path.exists(own_fn)) and not os.path.exists(pooled_fname(locus)):
+        print('  %s no %s in parameter dir %s or pooled for %s, so each family\'s mean shm won\'t depend on its size, and leaves within each family will have the same depth' % (utils.wrnstr(), fname, parameter_dir, locus))
+        return None
+    return FamilyShm(own_fn, pooled_fname(locus), debug=debug)
+
+# ----------------------------------------------------------------------------------------
+class FamilyShm(object):  # reads family-shm.yaml from a parameter dir (<own_fn>), falling back to the pooled one in scratch-parameters (<pooled_fn>), for the whole file if there isn't one, or for each size bin that has no families
+    def __init__(self, own_fn, pooled_fn, debug=False):
         self.srcs = {}  # size bin -> file it came from
-        def jload(fn):  # written as json by utils.jsdump() (json is also yaml)
-            with open(fn) as jfile:
-                return json.load(jfile)
-        pooled = jload(pooled_fn) if os.path.exists(pooled_fn) else None
-        own = jload(own_fn) if own_fn is not None and os.path.exists(own_fn) else None
-        if own is None and pooled is None:
-            raise Exception('no %s in either parameter dir %s or pooled scratch parameters %s (set --no-family-shm-parameters to simulate without it)' % (fname, parameter_dir, pooled_fn))
+        pooled = utils.read_json_yaml(pooled_fn) if os.path.exists(pooled_fn) else None
+        own = utils.read_json_yaml(own_fn) if own_fn is not None and os.path.exists(own_fn) else None
+        assert own is not None or pooled is not None  # read_family_shm() checks this
         self.pct_probs, self.relvars = {}, {}
         for sbin in bin_strs:
-            fshm = own if own is not None and sum(own['mean-percentile-counts'][sbin]) > 0 else pooled
+            fshm = own if own is not None and (pooled is None or sum(own['mean-percentile-counts'][sbin]) > 0) else pooled
             self.srcs[sbin] = own_fn if fshm is own else pooled_fn
             counts = numpy.array(fshm['mean-percentile-counts'][sbin], dtype=float)
+            if counts.sum() == 0:  # no families of this size in the only file there is: use a uniform percentile (the same draw as without family shm parameters), and add no within-family variance
+                counts = numpy.ones(n_percentile_bins)
+                self.srcs[sbin] = 'none (no families of this size in %s)' % self.srcs[sbin]
             self.pct_probs[sbin] = counts / counts.sum()
             if sbin != bin_strs[0]:
                 wsums = fshm['within-family'][sbin]
-                self.relvars[sbin] = wsums['sum-sq-dev'] / wsums['sum-n-mean-sq'] if wsums['sum-n-mean-sq'] > 0 else 0.
+                self.relvars[sbin] = wsums['sum-sq-dev'] / wsums['sum-n-mean-sq'] if wsums['sum-n-mean-sq'] > 0 and not self.srcs[sbin].startswith('none') else 0.
         fshm = own if own is not None else pooled  # the split-half fraction is one number over all family sizes
         self.split_half_fn = own_fn if fshm is own else pooled_fn
         shsums = fshm['split-half']
@@ -167,7 +174,7 @@ def value_at_percentile(pct, values, probs):  # inverse of the mid-cdf used in F
 def add_within_family_variance(treestr, target_relvar):  # multiply each branch by an independent lognormal factor with mean 1, with variance chosen so the expected relative variance (variance / mean^2) of leaf depths is <target_relvar>, then rescale to the original mean depth
     # For an ultrametric tree and independent mean-1 factors with variance v, the expected variance over leaves of leaf depth is v * sum over branches of length^2 * f * (1 - f), where f is the fraction of leaves below the branch
     dtree = treeutils.get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
-    n_leaves = len(dtree.leaf_nodes())
+    n_leaves = treeutils.get_n_leaves(dtree)
     depth = treeutils.get_mean_leaf_height(tree=dtree)
     ssum = 0.
     for node in dtree.preorder_node_iter():

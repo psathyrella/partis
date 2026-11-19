@@ -30,7 +30,7 @@ class TreeGenerator(object):
         self.init_n_leaves()
         self.fshm = None  # family-level shm parameters: each family's mean shm depends on its size, and leaves within a family have different depths (see familyshm.py)
         if not self.args.no_family_shm_parameters and not self.args.same_mute_freq_for_all_seqs:
-            self.fshm = familyshm.FamilyShm(self.parameter_dir if not self.args.mutate_from_scratch else None, utils.non_none([self.args.locus, 'igh']), debug=self.args.debug)  # tree generation for paired loci gets no --locus, and uses heavy chain parameters (see bin/partis)
+            self.fshm = familyshm.read_family_shm(self.parameter_dir if not self.args.mutate_from_scratch else None, utils.non_none([self.args.locus, 'igh']), debug=self.args.debug)  # tree generation for paired loci gets no --locus, and uses heavy chain parameters (see bin/partis)
 
     #----------------------------------------------------------------------------------------
     def convert_observed_changes_to_branch_length(self, mute_freq):
@@ -142,6 +142,7 @@ class TreeGenerator(object):
     def choose_full_sequence_branch_length(self, n_leaves):
         if self.fshm is not None:  # the family mean's percentile in the per-sequence distribution depends on family size
             return familyshm.value_at_percentile(self.fshm.choose_percentile(n_leaves), self.branch_lengths['all']['lengths'], self.branch_lengths['all']['probs'])
+        # NOTE the rest of this fcn is only used with --no-family-shm-parameters (or without family shm parameters): with them, the percentile within the distribution of sequence ages depends on family size, and within-family variation comes from add_within_family_variance()
         # NOTE this chooses the age of the *tree* from the distribution of *sequence* ages, which is wrong, but maybe an ok compromise.
         # The root of the problem is that there's two shm distributions (of seqs within families, and of family means), but we only have good options to control the second.
         # Distribution of seq shm within each family is controlled by the tree shape (and for our treesim trees, is [almost?] just a delta fcn/ultrametric), whereas distribution of family means is controlled by all our actual simulation options.
@@ -261,7 +262,7 @@ class TreeGenerator(object):
                     dtree.seed_node.edge_length = 0.
                 old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
                 treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
-                age = self.choose_full_sequence_branch_length(len(dtree.leaf_nodes()))  # input trees keep their own within-family variation
+                age = self.choose_full_sequence_branch_length(treeutils.get_n_leaves(dtree))  # input trees keep their own within-family variation
                 if age > 0 and treeutils.get_mean_leaf_height(tree=dtree) == 0:  # all branch lengths are zero, so rescale_tree() can't give it a nonzero depth
                     n_zero_depth += 1
                 if self.args.debug > 1:  # it's easier to keep this debug line separate up here than make a tmp variable to keep track of the old height

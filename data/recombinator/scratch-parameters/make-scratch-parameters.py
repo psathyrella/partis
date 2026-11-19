@@ -2,7 +2,7 @@
 # Builds the per-locus SHM parameter dirs in this directory (<locus>/hmm/) by pooling the per-gene, per-position
 # mutation counts that partis cache-parameters already wrote for a set of public, mutated human samples. See README.md.
 #   ./make-scratch-parameters.py --base-dir <dir containing the datasets in datasets.csv>
-import argparse, csv, glob, json, os, random, sys, collections
+import argparse, csv, glob, os, random, sys, collections
 partis_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(1, partis_dir)
 from partis import utils, glutils, fraction_uncertainty, familyshm
@@ -161,8 +161,7 @@ def family_shm_fnames(hdir, locus):  # family-level shm parameters for the sampl
 def count_family_shm(hdir, locus):
     mhfn, pfn = family_shm_fnames(hdir, locus)
     if os.path.exists(mhfn):
-        with open(mhfn) as mfile:
-            return json.load(mfile)
+        return utils.read_json_yaml(mhfn)
     _, antn_list, _ = utils.read_yaml_output(pfn)
     counter = familyshm.FamilyShmCounter()  # the same counting that parameter counting does on a partition
     for line in antn_list:
