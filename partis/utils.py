@@ -6979,7 +6979,7 @@ def get_mean_mfreq(parameter_dir, region='all', n_muted_hist=None, binned_fallba
         n_muted_hist = Hist(fname='%s/%s-mean-n-muted.csv' % (parameter_dir, region))
     mfreq = estimate_mean_mfreq(parameter_dir, region, mfname, n_muted_hist, debug=debug) if os.path.exists(mfname) and n_muted_hist is not None else None
     if mfreq is None and binned_fallback:
-        if (parameter_dir, region) not in binned_mfreq_warned:  # hmm writer calls this once per gene
+        if (parameter_dir, region) not in binned_mfreq_warned:
             binned_mfreq_warned.add((parameter_dir, region))
             print('  %s could not determine exact mean mute freq for %s in %s, using binned mean' % (wrnstr(), region, parameter_dir))
         mfreq = Hist(fname=mfname).get_mean(ignore_overflows=True)

@@ -225,7 +225,7 @@ class HMM(object):
 
 # ----------------------------------------------------------------------------------------
 class HmmWriter(object):
-    def __init__(self, base_indir, outdir, gene_name, glfo, args, debug=False):
+    def __init__(self, base_indir, outdir, gene_name, glfo, args, mean_mfreq=None, debug=False):  # <mean_mfreq>: utils.get_mean_mfreq(base_indir), read here if None
         # debug = gene_name in ['IGHD3-10*01', 'IGHJ2*01']  # True
         self.region = utils.get_region(gene_name)
         self.raw_name = gene_name  # i.e. unsanitized
@@ -241,7 +241,7 @@ class HmmWriter(object):
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
         self.n_max_to_interpolate = 20  # we interpolate for empty insertion + deletion bins if neighboring (non-empty) bins have fewer than this many entries (i.e. if filled bins have at least this many entries, we _don't_ interpolate between them)
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
-        self.mute_freq_bounds = {'lo' : 0.001, 'hi' : 0.35}  # don't let any position mutate less frequently than 0.1% of the time, or more frequently than half the time
+        self.mute_freq_bounds = {'lo' : 0.001, 'hi' : 0.35}  # don't let any position mutate less frequently than 0.1% of the time, or more frequently than 35% of the time
         # NOTE the prior for positional mute freqs (self.default_mute_freq) is set below, once we've read the sample's mean mute freq
 
         self.enforced_flat_mfreq_length = {  # i.e. distance over which the mute freqs are typically screwed up. I'm not really sure why these vary so much, but it's probably to do with how the s-w step works
@@ -278,7 +278,7 @@ class HmmWriter(object):
 
         self.erosion_probs = self.read_erosion_info(approved_genes)
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(approved_genes)
-        self.overall_mute_freq = min(self.mute_freq_bounds['hi'], max(self.mute_freq_bounds['lo'], utils.get_mean_mfreq(self.indir)))  # clamped so an unmutated sample does not give bcrham a zero rescale denominator
+        self.overall_mute_freq = min(self.mute_freq_bounds['hi'], max(self.mute_freq_bounds['lo'], utils.get_mean_mfreq(self.indir) if mean_mfreq is None else mean_mfreq))  # clamped so an unmutated sample does not give bcrham a zero rescale denominator
         self.mute_freqs = paramutils.read_mute_freqs_with_weights(self.indir, approved_genes, overall_mute_freq=self.overall_mute_freq, debug=self.debug)  # weighted averages over genes
         self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus, debug=self.debug)  # raw per-{ACGT} counts NOTE do *not* set <approved_genes> here (see note in paramutils)
         self.default_mute_freq = self.overall_mute_freq  # prior for positional mute freqs (positions with few or no observations): the sample's own mean, within the positional bounds. bcrham rescales each query by (query mute freq) / overall_mute_freq, so after rescaling a position we know nothing about gets the query's own mute freq (previously a fixed 0.1, which in e.g. a naive sample pulled thin alleles far above their well-observed siblings, see psathyrella/partis#414)

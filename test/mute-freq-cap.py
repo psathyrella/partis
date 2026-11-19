@@ -2,10 +2,13 @@
 # Checks the cap that paramutils.read_mute_freqs_with_weights() puts on the substitution it makes for
 # a position with zero observed mutations (see psathyrella/partis#411). Builds a parameter dir with
 # chosen per-base counts rather than running partis, so it takes a second and doesn't need binaries.
+# Also checks the order in which utils.get_mean_mfreq() tries its sources.
 #   ./test/mute-freq-cap.py
 from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
+import contextlib
 import csv
+import io
 import os
 import shutil
 import sys
@@ -59,6 +62,37 @@ def mute_freq_at(n_obs, sample_mute_freq, mute_freq=0., exact_mean=True):
         shutil.rmtree(workdir)
 
 # ----------------------------------------------------------------------------------------
+def write_hist(fname, low_edges, contents):
+    # <low_edges> and <contents> include the under- and overflow rows
+    with open(fname, utils.csv_wmode()) as hfile:
+        writer = csv.DictWriter(hfile, ['bin_low_edge', 'contents', 'binlabel', 'error'])
+        writer.writeheader()
+        for low_edge, content in zip(low_edges, contents):
+            writer.writerow({'bin_low_edge' : low_edge, 'contents' : content, 'binlabel' : '', 'error' : 0.})
+
+# ----------------------------------------------------------------------------------------
+def mean_mfreq_from(exact=None, mfreq_contents=None, n_muted=None, n_calls=1, **kwargs):
+    # get_mean_mfreq() on a dir holding only the given sources, plus how many times it warned over <n_calls>
+    workdir = tempfile.mkdtemp(prefix='mute-freq-cap-')
+    try:
+        if exact is not None:
+            with open('%s/%s' % (workdir, utils.mute_freq_sum_fname), utils.csv_wmode()) as sfile:
+                writer = csv.DictWriter(sfile, ['region', 'sum', 'n_seqs'])
+                writer.writeheader()
+                writer.writerow({'region' : 'all', 'sum' : 1000 * exact, 'n_seqs' : 1000})
+        if mfreq_contents is not None:  # three bins of width 0.04
+            write_hist(workdir + '/all-mean-mute-freqs.csv', [-0.04, 0., 0.04, 0.08, 0.12], [0.] + mfreq_contents + [0.])
+        if n_muted is not None:  # one bin for each of 0 to 10 mutations
+            write_hist(workdir + '/all-mean-n-muted.csv', [n - 1.5 for n in range(13)], [0.] + [n_muted.get(n, 0.) for n in range(11)] + [0.])
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            returned = [utils.get_mean_mfreq(workdir, **kwargs) for _ in range(n_calls)]
+        assert len(set(returned)) == 1
+        return returned[0], out.getvalue().count('using binned mean')
+    finally:
+        shutil.rmtree(workdir)
+
+# ----------------------------------------------------------------------------------------
 def check(label, condition, detail):
     print('    %s  %-58s %s' % (utils.color('green', 'ok ') if condition else utils.color('red', 'FAIL'), label, detail))
     return condition
@@ -106,6 +140,21 @@ def run_tests():
     print('  older parameter dir, binned hist only:')
     returned = mute_freq_at(2, sample_mute_freq, exact_mean=False)  # n where the cap binds
     passed.append(check('cap falls back to the binned mean', abs(returned - sample_mute_freq) < utils.eps, '%.5f' % returned))
+
+    # get_mean_mfreq() tries the exact sum, then the estimate from the two hists, then the binned mean
+    # half the sequences have 1 of 100 positions mutated, half have 10: exact mean 0.055, binned mean 0.06
+    print('  sources for the mean mute freq:')
+    mfreq_contents, n_muted = [0.5, 0., 0.5], {1 : 0.5, 10 : 0.5}
+    returned, n_warn = mean_mfreq_from(exact=0.03, mfreq_contents=mfreq_contents, n_muted=n_muted)
+    passed.append(check('exact sum wins over the hists', abs(returned - 0.03) < utils.eps and n_warn == 0, '%.5f, %d warnings' % (returned, n_warn)))
+    returned, n_warn = mean_mfreq_from(mfreq_contents=mfreq_contents, n_muted=n_muted)
+    passed.append(check('no exact sum: estimate from the hists', abs(returned - 0.055) < 1e-5 and n_warn == 0, '%.5f, %d warnings' % (returned, n_warn)))
+    returned, n_warn = mean_mfreq_from(mfreq_contents=mfreq_contents, n_calls=3)
+    passed.append(check('no n-muted hist: binned mean, one warning', abs(returned - 0.06) < utils.eps and n_warn == 1, '%.5f, %d warnings in 3 calls' % (returned, n_warn)))
+    returned, n_warn = mean_mfreq_from(mfreq_contents=[1., 0., 0.], n_muted={1 : 1.}, n_calls=3)  # nothing above the first bin
+    passed.append(check('hists cannot tell: binned mean, one warning', abs(returned - 0.02) < utils.eps and n_warn == 1, '%.5f, %d warnings in 3 calls' % (returned, n_warn)))
+    returned, n_warn = mean_mfreq_from(mfreq_contents=mfreq_contents, binned_fallback=False)
+    passed.append(check('binned fallback off: None, no warning', returned is None and n_warn == 0, '%s, %d warnings' % (returned, n_warn)))
 
     print('  %d/%d checks passed' % (sum(passed), len(passed)))
     return all(passed)

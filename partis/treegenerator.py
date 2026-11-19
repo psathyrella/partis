@@ -84,6 +84,12 @@ class TreeGenerator(object):
         return hist
 
     #----------------------------------------------------------------------------------------
+    def get_branch_length_ratio(self, region):
+        # regional over whole-sequence mean branch length, zero for an unmutated parameter dir (which recombinator reads as no mutation)
+        all_mean = self.branch_lengths['all']['mean']
+        return self.branch_lengths[region]['mean'] / all_mean if all_mean > 0 else 0.
+
+    #----------------------------------------------------------------------------------------
     def set_branch_lengths(self):
         self.branch_lengths = {}
         for mtype in ['all'] + utils.regions:
@@ -180,7 +186,7 @@ class TreeGenerator(object):
             if self.args.debug:
                 print('        mean branch lengths from %s' % (self.parameter_dir if self.parameter_dir is not None else 'scratch'))
                 for mtype in ['all',] + utils.regions:
-                    print('         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean']))
+                    print('         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.get_branch_length_ratio(mtype)))
 
         ages, treestrs = [], []
 
@@ -289,7 +295,7 @@ class TreeGenerator(object):
 
         # each tree is written with branch length the mean branch length over the whole sequence (which is different for each tree), but recombinator also needs the relative length for each region (which is the same, it's an average over the whole repertoire)
         if utils.getsuffix(outfname) == '.yaml':
-            yamlfo = {'branch-length-ratios' : {r : self.branch_lengths[r]['mean'] / self.branch_lengths['all']['mean'] for r in utils.regions},
+            yamlfo = {'branch-length-ratios' : {r : self.get_branch_length_ratio(r) for r in utils.regions},
                       'trees' : treestrs}
             utils.jsdump(outfname, yamlfo)
         elif utils.getsuffix(outfname) == '.nwk':
