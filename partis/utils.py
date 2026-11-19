@@ -5256,9 +5256,8 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         mean_mut_fns = ['%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
         mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
         makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine (the mean comes from mute_freq_sum_fname, summed over subsets below)
-        sum_fns = ['%s/parameters/%s/hmm/%s' % (subdfn(i), ltmp, mute_freq_sum_fname) for i in range(n_subsets)]
-        sum_fns = [f for f in sum_fns if os.path.exists(f)]
-        if len(sum_fns) > 0:  # sum over subsets, so get_mean_mfreq() can give the exact mean for the merged dir
+        sum_fns = ['%s/%s' % (os.path.dirname(f), mute_freq_sum_fname) for f in mean_mut_fns]
+        if all(os.path.exists(f) for f in sum_fns):  # sum over subsets, so get_mean_mfreq() can give the exact mean for the merged dir (skipped if any subset lacks the file, since a partial sum would be read as exact)
             mf_sums = OrderedDict()
             for sfn in sum_fns:
                 with open(sfn) as sfile:
