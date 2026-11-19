@@ -16,7 +16,14 @@ With `--rearrange-from-scratch` and neither `--shm-parameter-dir` nor `--mutate-
 
 `make-scratch-parameters.py` pools the per-gene, per-position mutation counts that `partis cache-parameters` already wrote for public, mutated, human samples. It runs no partis inference itself.
 
-1. For each locus, it takes the parameter dirs listed in a dataset list (`--dataset-fname`, a csv with columns `locus`, `dataset`, `glob` (a pattern matching the dataset's samples' parameter dirs, relative to `--base-dir`), `source` and `exclude` (a string that excludes any matching dir)). It lists public datasets only. Since it says where the processed samples are on our filesystem, it isn't in the repo. It skips samples whose mean mutation frequency is below `--min-mean-mute-freq` (default 0.02), which are mostly naive.
+1. For each locus, it takes the parameter dirs listed in a dataset list (`--dataset-fname`), a csv of public datasets with columns:
+   - `locus`;
+   - `dataset`: the dataset's name, which groups its samples for step 2;
+   - `glob`: a pattern matching the parameter dirs of the dataset's samples, relative to `--base-dir`;
+   - `source`: where the data is published, copied to the sample lists;
+   - `exclude`: if not empty, parameter dirs whose path contains it are skipped.
+
+   The list isn't in the repo, because its globs name where our processed samples are. It skips samples whose mean mutation frequency is below `--min-mean-mute-freq` (default 0.02), which are mostly naive.
 2. It goes round the datasets in turn, adding one randomly chosen sample from each, until the locus has `--max-seqs` sequences (default 1M). A sample with more than `--max-seqs-per-sample` sequences (default 10k) has its counts scaled down to that size, so no small set of very deep samples dominates.
 3. It keeps only genes that are in partis's default germline set (`data/germlines/human`) with an identical sequence. That drops each sample's inferred alleles and keeps positions aligned across samples.
    Like any parameter dir inferred from real data, the tables inherit whatever each sample's germline inference missed.
@@ -29,7 +36,7 @@ To rebuild, from a machine that has the processed samples:
 
 ### Samples in the current tables
 
-Number of samples, and weighted number of sequences (each sample's sequences times its weight from step 2), from each public source, from the sample lists written by the build that made the current tables:
+Number of samples, and weighted number of sequences (each sample's sequences times its weight from step 2), from each public source, from the sample lists in `--sample-list-dir` of the build that made the current tables:
 
 | source | locus | per-position tables: samples | weighted seqs | family-level shm parameters: samples | weighted seqs |
 |---|---|---|---|---|---|
