@@ -10,7 +10,7 @@ import sys
 
 import pytest
 
-from _helpers import BACKEND, LOCI, N_PROCS, PAIRED_PARAM_DIR, REPO_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, copy_dir, disjoint_dir, drop_ha_results, fixture_log, ha_group_dir, ha_result_files, locus_manifest, manifest_fname, merge_subsets_args, paired_partition_args, read_ha_results, read_log, run_partis, run_partis_fails, write_ha_results
+from _helpers import BACKEND, HFRAC_ARGS, LOCI, N_PROCS, PAIRED_PARAM_DIR, REPO_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, copy_dir, disjoint_dir, drop_ha_results, fixture_log, ha_group_dir, ha_result_files, locus_manifest, manifest_fname, merge_subsets_args, paired_partition_args, read_ha_results, read_log, run_partis, run_partis_fails, write_ha_results
 from partis import disjointgrouper as dg
 from partis import ha_repartition
 from partis import clusterpath
@@ -541,6 +541,38 @@ def test_ha_sw_cache_cleanup_stays_in_the_workdir(tmp_path, ha_only_dir, monkeyp
     _run_partis_in_process(['run-ha-repartition-jobs'] + args + ['--job-start', '0', '--workdir', str(workdir)])
     assert len(cleaned) > 0 and all(os.path.realpath(path).startswith('%s/' % os.path.realpath(workdir)) for path in cleaned)
     assert swfn.exists()
+
+
+def test_ha_tasks_sharing_a_workdir_use_separate_dirs(tmp_path, ha_only_dir, monkeypatch):
+    # two slices of the task list given one --workdir must not run a cluster in the same dir
+    outdir, _ = ha_copy_with_first_job_to_do(ha_only_dir, tmp_path)
+    jobs = ha_repartition.read_task_list(ha_repartition.task_list_fname(disjoint_dir(outdir, 'igh'), 'igh'))[:2]
+    assert len(jobs) == 2
+    for job in jobs:
+        drop_ha_results(ha_group_dir(job), [job['cluster_id']])
+    real_driver, used = ha_repartition._cluster_driver, []
+    def driver(seqs, args, glfo, outfname, workdir, n_procs):
+        used.append(workdir)
+        return real_driver(seqs, args, glfo, outfname, workdir, n_procs)
+    monkeypatch.setattr(ha_repartition, '_cluster_driver', driver)
+    for job_start in range(2):
+        _run_partis_in_process(ha_job_args(outdir, job_start=job_start) + ['--workdir', str(tmp_path / 'wd')])
+    assert len(used) == 2 and used[0] != used[1]
+    assert ha_repartition.jobs_todo(jobs) == []
+
+
+@pytest.mark.parametrize('use_hfrac', [False, True])
+def test_pool_memory_reaches_the_grouping(tmp_path, chunked_param_index_dir, monkeypatch, use_hfrac):
+    # --pool-memory-gb bounds the groups that grouping writes several at a time
+    from partis import utils
+    real_map, memory = utils.map_groups, []
+    def map_groups(*a, **kw):
+        memory.append(kw.get('memory_bytes'))
+        return real_map(*a, **kw)
+    monkeypatch.setattr(utils, 'map_groups', map_groups)
+    _run_partis_in_process(['create-disjoint-groups', '--locus', 'igh', '--parameter-dir', str(chunked_param_index_dir / 'parameters'), '--paired-outdir', str(tmp_path / 'out'),
+                            '--pool-memory-gb', '4'] + (HFRAC_ARGS if use_hfrac else []))
+    assert len(memory) > 0 and set(memory) == {4 * 2**30}
 
 
 def test_ha_collapsed_count_matches_partition(tmp_path, ha_only_dir, monkeypatch):

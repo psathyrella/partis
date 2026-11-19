@@ -28,6 +28,7 @@ import math
 import os
 import random
 import shutil
+import uuid
 
 import numpy
 
@@ -437,7 +438,7 @@ def _run_sw_and_partition(parter):
 def _ha_collapsed_count(ijob, seqs, args, glfo):
     # run HA's sw and naive seq caching steps on one cluster's (uid, seq) pairs, then its collapse
     from partis import utils
-    parter = _cluster_driver(seqs, args, glfo, None, '%s/ha-collapse-%d' % (args.workdir, ijob), 1)  # one proc each, the pool runs them in parallel
+    parter = _cluster_driver(seqs, args, glfo, None, '%s/ha-collapse-%d-%s' % (args.workdir, ijob, uuid.uuid4().hex), 1)  # one proc each, the pool runs them in parallel
     sw_passed = True
     try:
         sw_passed = _run_unless_no_sw_pass(lambda: _run_sw(parter), parter)
@@ -511,7 +512,7 @@ def run_jobs_in_process(jobs, args, glfo, timing_csv=None, job_start=0):
     for i, job in enumerate(todo):
         seqs = cluster_seqs(job, args.locus, inputs)
         t0 = time.time()
-        workdir = '%s/ha-work-%d' % (base_workdir, i)
+        workdir = '%s/ha-work-%d-%s' % (base_workdir, i, uuid.uuid4().hex)  # unique, since tasks can share a --workdir
         outfname, rfname = '%s-partition.yaml' % workdir, results_fname(job['outdir'], job_start)
         parter = _cluster_driver(seqs, args, glfo, outfname, workdir, job['n_procs'])
         if _run_unless_no_sw_pass(lambda: _run_sw_and_partition(parter), parter):

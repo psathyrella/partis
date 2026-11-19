@@ -224,7 +224,7 @@ def group_disjoint_dir(args, locus, sw_cache_paths, disjoint_dir, parameter_dir,
     if manifest is not None:
         print('%s %s: manifest with the same inputs exists, skipping grouping: %s/%s' % (utils.color('blue_bkg', 'create-disjoint-groups'), locus, disjoint_dir, disjointgrouper.MANIFEST_FNAME))
         return manifest
-    return disjointgrouper.create_cdr3_groups(locus, sw_cache_paths, disjoint_dir, parameter_dir, inputs, n_procs=proc_budget(args), n_subset_workers=args.n_multi_cache_workers, **gkwargs)
+    return disjointgrouper.create_cdr3_groups(locus, sw_cache_paths, disjoint_dir, parameter_dir, inputs, n_procs=proc_budget(args), n_subset_workers=args.n_multi_cache_workers, memory_bytes=pool_memory(args), **gkwargs)
 
 # ----------------------------------------------------------------------------------------
 def assemble_groups_action(args):
@@ -2521,7 +2521,7 @@ subargs['partition'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_t
 subargs['partition'].append({'name' : '--partition-refine', 'kwargs' : {'action' : 'store_true', 'help' : 'With --disjoint-groups, run post-partition refinement (partis.partition_refinement) on each group before assembling: heavy chain splits then merges, light chain splits only. Reads each group\'s partition + sw-cache and writes a refined partition; no SW/HMM is re-run.'}})
 keep_intermediates_arg = {'name' : '--keep-intermediates', 'kwargs' : {'action' : 'store_true', 'help' : 'With --disjoint-groups, keep the files that the HA re-partition and partition-refine steps write for their own use (per-group HA result lines and task lists, the locus task list, bundle list and bundle markers, the refine threshold cache), which are otherwise removed once the step that reads them has written its output. For development.'}}
 subargs['partition'].append(keep_intermediates_arg)
-pool_memory_arg = {'name' : '--pool-memory-gb', 'kwargs' : {'type' : float, 'default' : None, 'help' : 'With --disjoint-groups, memory in GB for the steps that run several groups at once, each in its own process (the HA re-partition setup and assembly, the refine threshold). A group\'s memory is estimated from the size of its input files and from what the finished groups took, and it starts only once the running ones leave room for it. Default: the memory of the slurm job, or the machine\'s if there is none.'}}
+pool_memory_arg = {'name' : '--pool-memory-gb', 'kwargs' : {'type' : float, 'default' : None, 'help' : 'With --disjoint-groups, memory in GB for the steps that run several groups at once, each in its own process (the writing of the groups from per-subset sw caches, the HA re-partition setup and assembly, the refine threshold). A group\'s memory is estimated from the size of its input files and from what the finished groups took, and it starts only once the running ones leave room for it. Default: the memory of the slurm job, or the machine\'s if there is none.'}}
 subargs['partition'].append(pool_memory_arg)
 subargs['partition'].append({'name' : '--rerun-refine', 'kwargs' : {'action' : 'store_true', 'help' : argparse.SUPPRESS}})  # TODO temporary, remove before disjoint-grouping merges into dev: redo refine only
 subargs['partition'].append({'name' : '--ha-repartition', 'kwargs' : {'action' : 'store_true', 'help' : 'With --disjoint-groups, HA re-partition each group before partition-refine/assemble: keep-or-split HA on every vsearch cluster >= 3, then merge the sub-clusters. Runs as independent per-cluster jobs.'}})
@@ -2536,7 +2536,7 @@ subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : i
 for tmpact in ['partition', 'cache-parameters']:
     subargs[tmpact].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each concurrent job (the disjoint group partition jobs of \'partition --disjoint-groups\', or the subset jobs of \'cache-parameters --n-subsets\'), overriding the default split of --n-procs among --n-max-procs concurrent jobs. Setting this above the split can oversubscribe the available cpus (you get a warning, not an error).'}})
 
-subargs['create-disjoint-groups'] = []
+subargs['create-disjoint-groups'] = [pool_memory_arg]
 subargs['create-disjoint-groups'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'Further split CDR3 groups by naive hamming fraction into sub-groups.'}})
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})

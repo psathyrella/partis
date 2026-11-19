@@ -472,7 +472,7 @@ def _write_hfrac_group(c3len, spec, r1_results, comps, frags, *, max_bin_size, m
     return _write_subgroup_outputs(sub_groups_list, c3len, outdir, locus, write_cache), n_r1, n_comps, n_bins
 
 # ----------------------------------------------------------------------------------------
-def _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=None, fragments=None, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=1):
+def _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=None, fragments=None, merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=1, memory_bytes=None):
     # apply hfrac sub-grouping within each CDR3 group, write per-sub-group outputs
     # <specs>: per CDR3 length, n_seqs and n_naive, plus either in-memory seqfos or a naive fasta path
     # annotation_list set: single-cache in-memory path, everything is already loaded.
@@ -519,7 +519,7 @@ def _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=None, fra
     if fragments is None:
         results = [write_group(*gargs_one) for gargs_one in gargs]
     else:  # several groups at a time
-        results = utils.map_groups(write_group, gargs, n_procs, [fragments[c3len] for c3len in c3lens])
+        results = utils.map_groups(write_group, gargs, n_procs, [fragments[c3len] for c3len in c3lens], memory_bytes=memory_bytes)
     for workdir in vsearch_groups.values():
         shutil.rmtree(workdir)
     for workdir in r2_workdirs.values():
@@ -901,7 +901,7 @@ def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, su
         json.dump({'subset_counts' : subset_counts, 'subset_naive_counts' : subset_naive_counts, 'subset_failed' : subset_failed}, sfile)
 
 # ----------------------------------------------------------------------------------------
-def create_cdr3_groups(locus, sw_cache_path, outdir, parameter_dir, inputs, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None, n_subset_workers=MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT):
+def create_cdr3_groups(locus, sw_cache_path, outdir, parameter_dir, inputs, hfrac=False, hfrac_merge_factor=HFRAC_MERGE_FACTOR_DEFAULT, hfrac_max_bin_size=HFRAC_MAX_BIN_SIZE_DEFAULT, min_group_size=HFRAC_MIN_SEQS_DEFAULT, n_procs=None, n_subset_workers=MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT, memory_bytes=None):
     # read sw cache(s) for a single locus, group sequences by CDR3 length,
     # optionally sub-group by naive hamming fraction (--hfrac),
     # write per-group (or per-sub-group) fastas and sw-cache subsets, write manifest.
@@ -931,7 +931,7 @@ def create_cdr3_groups(locus, sw_cache_path, outdir, parameter_dir, inputs, hfra
         if hfrac:
             specs = collections.OrderedDict((c3len, {'n_seqs' : len(sfos), 'n_naive' : len([s for s in sfos if s.get('naive_seq', '')]), 'seqfos' : sfos, 'naive_fasta' : None})
                                             for c3len, sfos in sorted(groups.items()))
-            group_infos = _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs)
+            group_infos = _apply_hfrac(specs, hi_bound, outdir, locus, glfo, annotation_list=annotation_list, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs, memory_bytes=memory_bytes)
         else:
             group_infos = write_group_fastas(groups, outdir, locus)
             write_group_sw_caches(groups, glfo, annotation_list, outdir, locus)
@@ -1011,13 +1011,13 @@ def create_cdr3_groups(locus, sw_cache_path, outdir, parameter_dir, inputs, hfra
                 naive_fasta = '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_naive_fasta_fname())
                 concat_files(subset_naive_fastas[c3len], naive_fasta)
                 specs[c3len] = {'n_seqs' : group_counts[c3len], 'n_naive' : naive_counts[c3len], 'seqfos' : None, 'naive_fasta' : naive_fasta}
-            group_infos = _apply_hfrac(specs, hi_bound, outdir, locus, glfo, fragments=subset_fragments, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs)
+            group_infos = _apply_hfrac(specs, hi_bound, outdir, locus, glfo, fragments=subset_fragments, merge_factor=hfrac_merge_factor, max_bin_size=hfrac_max_bin_size, min_group_size=min_group_size, n_procs=n_procs, memory_bytes=memory_bytes)
             for c3len in c3lens:
                 os.remove(specs[c3len]['naive_fasta'])
         else:
             start = time.time()
             utils.map_groups(_write_group_cache, [(subset_fragments[c3len], '%s/groups/cdr3-%d/%s' % (outdir, c3len, group_sw_cache_fname(locus)), glfo) for c3len in c3lens],
-                             n_procs, [subset_fragments[c3len] for c3len in c3lens])
+                             n_procs, [subset_fragments[c3len] for c3len in c3lens], memory_bytes=memory_bytes)
             print('        group sw cache time: %.1f' % (time.time() - start))
 
     n_cdr3_groups = len(set(g['cdr3_length'] for g in group_infos)) if len(group_infos) > 0 else 0
