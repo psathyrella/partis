@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Checks the prior that hmmwriter.HmmWriter.process_mutation_info() uses for positions with too few
-# observations and for positions missing from the counts file: it should be the sample's own mean
-# mutation frequency, held within the per-position bounds, rather than a fixed 0.1. Copies the test
+# observations and for positions missing from the counts file: it should be the sample's own exact mean
+# mutation frequency (not the binned hist mean), held within the per-position bounds, rather than a fixed 0.1. Copies the test
 # parameter dir (only as a source of well-formed input files), replaces one gene's per-position counts
 # and the sample-wide mean with chosen values, and builds that gene's HmmWriter, so it takes a few
 # seconds and doesn't need binaries. Also checks that the light chain dummy d keeps its fixed 0.1.
@@ -55,8 +55,12 @@ def write_counts(pdir, germline_seq, sample_mute_freq):
 
 # ----------------------------------------------------------------------------------------
 def write_sample_mean(pdir, sample_mute_freq):
-    # sample-wide mean: one bin holding everything, centred on <sample_mute_freq>, so Hist.get_mean() returns that value
-    half = 0.5 * sample_mute_freq
+    # exact mean <sample_mute_freq>, binned hist (one bin) well above it, so the results show which was used
+    with open('%s/%s' % (pdir, utils.mute_freq_sum_fname), utils.csv_wmode()) as sfile:
+        writer = csv.DictWriter(sfile, ['region', 'sum', 'n_seqs'])
+        writer.writeheader()
+        writer.writerow({'region' : 'all', 'sum' : 1000 * sample_mute_freq, 'n_seqs' : 1000})
+    half = 0.5 * (sample_mute_freq + 0.02)
     with open('%s/all-mean-mute-freqs.csv' % pdir, utils.csv_wmode()) as hfile:
         writer = csv.DictWriter(hfile, ['bin_low_edge', 'contents', 'binlabel', 'error'])
         writer.writeheader()
@@ -97,15 +101,15 @@ def check(label, condition, detail):
 # ----------------------------------------------------------------------------------------
 def run_tests():
     passed = []
-    # naive (below the lower bound), typical, heavily mutated, and above the upper bound
-    for sample_mute_freq in [0.001, 0.005, 0.05, 0.2, 0.5]:
+    # unmutated, naive (below the lower bound), typical, heavily mutated, and above the upper bound
+    for sample_mute_freq in [0., 0.0005, 0.005, 0.05, 0.2, 0.5]:
         writer = build_writer(sample_mute_freq)
         bounds = writer.mute_freq_bounds
         prior = min(bounds['hi'], max(bounds['lo'], sample_mute_freq))
         # a thin position's own value is the #411 substitution for zero mutations in one observation, capped at the sample mean, then
         # held within the bounds; it gets weight 1 of <MIN_OBS> in the blend, and the prior gets the rest
         lo_err, hi_err = fraction_uncertainty.err(0, 1)
-        own = min(bounds['hi'], max(bounds['lo'], min(0.5 * (lo_err + hi_err), sample_mute_freq)))
+        own = min(bounds['hi'], max(bounds['lo'], min(0.5 * (lo_err + hi_err), prior)))
         expected = {'thin' : ((MIN_OBS - 1) * prior + own) / float(MIN_OBS), 'missing' : prior}
         print('  sample mean mute freq %.3f (expected prior %.3f):' % (sample_mute_freq, prior))
         for label, positions in [('thin', THIN_POSITIONS), ('missing', MISSING_POSITIONS)]:
@@ -115,12 +119,12 @@ def run_tests():
         well_covered = [writer.mute_freqs[p] for p in range(60, 80)]
         passed.append(check('well-covered positions keep their measured value', all(abs(v - WELL_COVERED_MUTE_FREQ) < utils.eps for v in well_covered),
                             'min %.5f max %.5f' % (min(well_covered), max(well_covered))))
-        passed.append(check('hmm still records the unclamped sample mean', abs(writer.hmm.extras['overall_mute_freq'] - sample_mute_freq) < utils.eps,
+        passed.append(check('hmm records the sample mean within the bounds', abs(writer.hmm.extras['overall_mute_freq'] - prior) < utils.eps,
                             '%.5f' % writer.hmm.extras['overall_mute_freq']))
 
     # the light chain dummy d keeps its fixed value, since its single base is a placeholder, not something the sample's mean describes
     print('  light chain dummy d (%s):' % glutils.dummy_d_genes[LIGHT_LOCUS])
-    for sample_mute_freq in [0.001, 0.005, 0.05, 0.2, 0.5]:
+    for sample_mute_freq in [0., 0.0005, 0.005, 0.05, 0.2, 0.5]:
         writer = build_dummy_d_writer(sample_mute_freq)
         passed.append(check('sample mean %.3f: dummy d stays at %.2f' % (sample_mute_freq, DUMMY_D_MUTE_FREQ), abs(writer.mute_freqs[0] - DUMMY_D_MUTE_FREQ) < utils.eps,
                             '%.5f' % writer.mute_freqs[0]))
