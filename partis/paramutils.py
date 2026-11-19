@@ -7,7 +7,6 @@ import sys
 
 from . import glutils
 from . import utils
-from .hist import Hist
 from io import open
 
 # ----------------------------------------------------------------------------------------
@@ -61,10 +60,11 @@ def read_mute_counts(indir, gene, locus, extra_genes=None, debug=False):  # NOTE
     return observed_counts  # raw per-{ACGT} counts for each position, summed over genes ("raw" as in not a weighted average over a bunch of genes as in read_mute_freqs_with_weights())
 
 # ----------------------------------------------------------------------------------------
-def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it would be nice to eventually align the genes before combining
+def read_mute_freqs_with_weights(indir, approved_genes, overall_mute_freq=None, debug=False):  # it would be nice to eventually align the genes before combining
     # returns:
     #  - mute_freqs: inverse error-weighted average mute freq over all genes for each position
     #     - also includes weighted and unweigthed means over positions
+    # <overall_mute_freq>: sample mean for the zero-count cap (from <indir> if None)
 
     if len(approved_genes) == 0:
         raise Exception('no approved genes')
@@ -76,7 +76,8 @@ def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it woul
         print('    reading mute freqs from %s for %d gene%s: %s' % (indir, len(approved_genes), utils.plural(len(approved_genes)), utils.color_genes(approved_genes)))
 
     # cap for the zero-count substitution below (see the comment there)
-    overall_mute_freq = Hist(fname=indir + '/all-mean-mute-freqs.csv').get_mean()
+    if overall_mute_freq is None:
+        overall_mute_freq = utils.get_mean_mfreq(indir)
 
     # add an observation for each position, for each gene where we observed that position NOTE this would be more sensible if they were aligned first
     observed_freqs = {}
@@ -99,8 +100,8 @@ def read_mute_freqs_with_weights(indir, approved_genes, debug=False):  # it woul
                     # goes as ~1.2/n. On near-unmutated (naive) data the measured freq is zero at
                     # essentially every position, so without this cap a gene's mute freqs -- and hence
                     # its per_gene_mute_freq -- are set by how many sequences were annotated rather than
-                    # by the sequences. Measured on human igk: a rare allele lands at 2-3.5x the 0.01
-                    # lower bound in a 50k sample and exactly 1.0x in a 1.02M one, and the hmm then
+                    # by the sequences. Measured on human igk: a rare allele lands at 2-3.5x the lower
+                    # bound (then 0.01) in a 50k sample and exactly 1.0x in a 1.02M one, and the hmm then
                     # treats an exact match to that allele as unlikely and hands its sequences to a
                     # common sibling, each picking up one spurious mutation where the two differ.
                     # A position with zero observed mutations should not be modelled as mutating more
