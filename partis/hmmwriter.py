@@ -740,7 +740,7 @@ class HmmWriter(object):
             self_transition_prob = 1. - nonzero_prob / mean_length
             assert self_transition_prob >= -utils.eps and self_transition_prob < 1.  # mean length given at least one base is nonzero_prob / mean_length, which is at least 1
             return max(0., self_transition_prob)
-        # NOTE the rest of this fcn is now only used for the fv and jf insertions, whose lengths come from germline gene lengths rather than counts
+        # NOTE the rest of this fcn is now only used for the fv and jf insertions, whose lengths come from germline gene lengths rather than counts. Their mean is floored at min_mean_unphysical_insertion_length (at least 1.5), so the 'mean length <= 1' branch below is no longer reached
         inverse_length = self.get_inverse_insert_length(insertion)
         if inverse_length < 1.0:  # if (mean length) > 1, approximate insertion length as a geometric distribution
             return 1.0 - inverse_length  # i.e. the prob of remaining in the insert state is [1 - 1/mean_insert_length]
@@ -793,7 +793,7 @@ class HmmWriter(object):
             assert False
 
         # If this is an 'init' state, we add a transition to 'insert' with probability the observed probability of a non-zero insertion
-        # Whereas if this is an 'insert' state, we add a *self*-transition with probability 1/<mean observed insert length>
+        # Whereas if this is an 'insert' state, we add a *self*-transition with probability 1/<mean observed insert length> (update: now 1 - (1 - p0) / <mean length> for real insertions, see get_insert_self_transition_prob())
         # update: now, we also multiply by the insertion content prob, since we now have four insert states (and can thus no longer use this prob in the emissions)
         if insertion != '' and region_entry_prob < 1.0:
             if not insertion in utils.boundaries:
