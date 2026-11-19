@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--base-dir', required=True, help='dir under which the globs in --dataset-fname are found')
 parser.add_argument('--dataset-fname', default=this_dir + '/datasets.csv')
 parser.add_argument('--outdir', default=this_dir)
-parser.add_argument('--sample-list-dir', help='dir in which to write <locus>/family-shm-samples.csv, the list of samples pooled for the family shm parameters (required when making them). It has local paths, so it should be outside the partis repo')
+parser.add_argument('--sample-list-dir', required=True, help='dir in which to write <locus>/family-shm-samples.csv, the list of samples pooled for the family shm parameters. It has local paths, so it should be outside the partis repo')
 parser.add_argument('--loci', default='igh:igk:igl')
 parser.add_argument('--max-seqs', type=int, default=1000000, help='stop adding samples once a locus has this many (weighted) sequences')
 parser.add_argument('--max-seqs-per-sample', type=int, default=10000, help='scale down the counts of any sample larger than this, so it contributes as if it had this many sequences (so many individuals contribute, rather than a few very deep ones)')
@@ -181,8 +181,6 @@ def count_family_shm(hdir, locus):  # the same counting that parameter counting 
     return counter.to_dict() if counter.has_families() else None
 
 def pool_family_shm(locus):  # each family's numbers are relative to its own sample (percentile, relative variance, fraction), so samples with different shm levels can be summed
-    if args.sample_list_dir is None:
-        raise Exception('--sample-list-dir is required when making family shm parameters')
     samples = choose_samples(locus, require_fcn=lambda h: has_partition(h, locus))  # a different set of samples than for the other parameters, since only some have partitions
     counted = [(sfo, count_family_shm(sfo['hdir'], locus)) for sfo in samples]
     counted = [(sfo, fshm) for sfo, fshm in counted if fshm is not None]
