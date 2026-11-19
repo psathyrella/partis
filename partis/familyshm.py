@@ -30,18 +30,21 @@ def get_bin(n):
     raise Exception('family size %d not in any size bin' % n)
 
 # ----------------------------------------------------------------------------------------
+def empty_sums():  # the sums FamilyShmCounter accumulates: within-family sums for each multi-seq size bin, and split-half sums
+    return {b : {'sum-sq-dev' : 0., 'sum-n-mean-sq' : 0.} for b in bin_strs[1:]}, {'sum-cov' : 0., 'sum-sq-dev' : 0.}
+
+# ----------------------------------------------------------------------------------------
 class FamilyShmCounter(object):
     def __init__(self):
         self.seq_n_muted = collections.Counter()  # n mutated (same definition as mutefreqer's all-mean-n-muted.csv) -> number of sequences, for every sequence in every family
         self.fam_mean_n_muted = {b : [] for b in bin_strs}  # size bin -> list of family mean n mutated
-        self.within_sums = {b : {'sum-sq-dev' : 0., 'sum-n-mean-sq' : 0.} for b in bin_strs[1:]}  # size bin -> sums over families of: sum over seqs of (mut freq - family mean)^2, and n seqs * (family mean)^2. Their ratio is the within-family relative variance
-        self.split_half_sums = {'sum-cov' : 0., 'sum-sq-dev' : 0.}  # over all multi-seq families: sum over seqs of (deviation from family mean in half a) * (in half b), and of (full-seq deviation)^2
+        self.within_sums, self.split_half_sums = empty_sums()  # within_sums: size bin -> sums over families of: sum over seqs of (mut freq - family mean)^2, and n seqs * (family mean)^2. Their ratio is the within-family relative variance
+        # split_half_sums: over all multi-seq families: sum over seqs of (deviation from family mean in half a) * (in half b), and of (full-seq deviation)^2
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
         n_seqs = len(info['unique_ids'])
-        subseqs = [utils.subset_iseq(info, iseq, restrict_to_region='') for iseq in range(n_seqs)]  # (naive seq, mutated seq) over the same positions as utils.get_mutation_rate_and_n_muted() (and so mutefreqer's all-mean-n-muted.csv)
-        freqs, n_muted = [numpy.array(v) for v in zip(*[utils.hamming_fraction(nseq, mseq, also_return_distance=True) for nseq, mseq in subseqs])]
+        freqs, n_muted = [numpy.array(v) for v in zip(*[utils.get_mutation_rate_and_n_muted(info, iseq) for iseq in range(n_seqs)])]  # same as mutefreqer's all-mean-n-muted.csv
         self.seq_n_muted.update(n_muted.tolist())
         sbin = get_bin(n_seqs)
         self.fam_mean_n_muted[sbin].append(n_muted.mean())
@@ -51,7 +54,7 @@ class FamilyShmCounter(object):
         sq_dev = numpy.sum((freqs - fmean)**2)
         self.within_sums[sbin]['sum-sq-dev'] += sq_dev
         self.within_sums[sbin]['sum-n-mean-sq'] += n_seqs * fmean**2
-        avals, bvals = [numpy.array(v) for v in zip(*[split_half_freqs(nseq, mseq) for nseq, mseq in subseqs])]
+        avals, bvals = [numpy.array(v) for v in zip(*[split_half_freqs(*utils.subset_iseq(info, iseq, restrict_to_region='')) for iseq in range(n_seqs)])]  # same positions as get_mutation_rate_and_n_muted()
         self.split_half_sums['sum-cov'] += numpy.sum((avals - avals.mean()) * (bvals - bvals.mean()))
         self.split_half_sums['sum-sq-dev'] += sq_dev
 
@@ -92,8 +95,8 @@ def split_half_freqs(naive_seq, mseq):  # mutated fraction in each of the two ha
 
 # ----------------------------------------------------------------------------------------
 def merge_counts(fshm_list, weights):  # sum the counts in several FamilyShmCounter.to_dict() results (e.g. for pooling samples), each multiplied by its weight
-    merged = {'size-bins' : bin_strs, 'mean-percentile-counts' : {b : [0.] * n_percentile_bins for b in bin_strs},
-              'within-family' : {b : {'sum-sq-dev' : 0., 'sum-n-mean-sq' : 0.} for b in bin_strs[1:]}, 'split-half' : {'sum-cov' : 0., 'sum-sq-dev' : 0.}}
+    within_sums, split_half_sums = empty_sums()
+    merged = {'size-bins' : bin_strs, 'mean-percentile-counts' : {b : [0.] * n_percentile_bins for b in bin_strs}, 'within-family' : within_sums, 'split-half' : split_half_sums}
     for fshm, wgt in zip(fshm_list, weights):
         if fshm['size-bins'] != bin_strs:
             raise Exception('size bins %s don\'t match %s' % (fshm['size-bins'], bin_strs))

@@ -24,7 +24,7 @@ class TreeGenerator(object):
         self.parameter_dir = parameter_dir
         self.n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
         self.n_leaf_hist = None
-        self.generate_trees_depth = 0.1  # depth of trees written with --generate-trees: they're only read back with --input-simulation-treefname, which replaces each tree's depth (read_input_tree_file()), so this only affects their shape, which for TreeSim's rates is the same for any depth up to ~0.15. Using a drawn depth instead would give zero-depth trees for unmutated bins, which can't be rescaled
+        self.generate_trees_depth = 0.1  # depth of trees written with --generate-trees (both those it generates and, with --input-simulation-treefname, those it reads): each locus's simulation then reads them back with --input-simulation-treefname, which replaces each tree's depth with the depth at the tree's shared percentile (read_input_tree_file()), so this only affects their shape, which for TreeSim's rates is the same for any depth up to ~0.15. Using a drawn depth instead would give zero-depth trees for unmutated bins, which can't be rescaled
 
         self.set_branch_lengths()  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         self.init_n_leaves()
@@ -274,21 +274,22 @@ class TreeGenerator(object):
                     dtree.seed_node.edge_length = 0.
                 old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
                 treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
+                n_leaves = treeutils.get_n_leaves(dtree)
                 if self.args.generate_trees:  # paired simulation with --input-simulation-treefname: give each input tree a depth percentile that heavy and light will share, and the same fixed depth as trees we generate (a depth from the percentile could be zero, which would lose the tree's shape)
                     if depth_pct is None:
-                        depth_pct = self.choose_depth_percentile(treeutils.get_n_leaves(dtree))
+                        depth_pct = self.choose_depth_percentile(n_leaves)
                     age = self.generate_trees_depth
                 elif depth_pct is not None:
                     age = self.depth_at_percentile(depth_pct)
                 else:
-                    age = self.choose_full_sequence_branch_length(treeutils.get_n_leaves(dtree))  # input trees keep their own within-family variation
+                    age = self.choose_full_sequence_branch_length(n_leaves)  # input trees keep their own within-family variation
                 if age > 0 and treeutils.get_mean_leaf_height(tree=dtree) == 0:  # all branch lengths are zero, so rescale_tree() can't give it a nonzero depth
                     n_zero_depth += 1
                 if self.args.debug > 1:  # it's easier to keep this debug line separate up here than make a tmp variable to keep track of the old height
                     print('    input tree %d (rescaled depth %.3f --> %.3f):' % (len(ages), treeutils.get_mean_leaf_height(tree=dtree), age))
                 treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
                 ages.append(age)
-                treestrs.append(treeutils.as_str(dtree) if not self.args.generate_trees else familyshm.set_depth_percentile(treeutils.as_str(dtree), depth_pct))
+                treestrs.append(familyshm.set_depth_percentile(treeutils.as_str(dtree), depth_pct) if self.args.generate_trees else treeutils.as_str(dtree))
                 if self.args.debug > 1:
                     print(utils.pad_lines(treeutils.get_ascii_tree(dtree)))
         if n_zero_depth > 0:

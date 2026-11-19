@@ -165,6 +165,7 @@ def partition_fname(hdir, locus):  # paired partition file of the sample whose p
         return None
     return paircluster.paired_fn(hdir[ : -len(sfx)], locus, suffix='.yaml', actstr='partition')
 
+# ----------------------------------------------------------------------------------------
 def has_partition(hdir, locus):
     pfn = partition_fname(hdir, locus)
     return pfn is not None and os.path.exists(pfn)
@@ -187,7 +188,7 @@ def pool_family_shm(locus):  # each family's numbers are relative to its own sam
     odir = '%s/%s/hmm' % (args.outdir, locus)
     utils.mkdir(odir)
     utils.jsdump('%s/%s' % (odir, familyshm.family_shm_fname), familyshm.merge_counts([f for _, f in counted], [sfo['weight'] for sfo in used]))  # same weight as for the other parameters, so a sample with more than --max-seqs-per-sample sequences counts as if it had that many
-    write_samples(locus, used, 'family-shm-samples.csv', 'family shm parameters ')
+    write_samples(locus, used, 'family-shm-samples.csv', 'family shm parameters from ')
 
 # ----------------------------------------------------------------------------------------
 for locus in args.loci:
