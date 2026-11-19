@@ -289,7 +289,7 @@ def create_ha_repartition_jobs_action(args):
     n_concurrent = single_proc_concurrency(args)
     glfo = setup_ha_job(args)
     def count_collapsed(candidates):
-        return ha_repartition.count_ha_collapsed(candidates, args, glfo, n_concurrent)
+        return ha_repartition.count_ha_collapsed(candidates, args, glfo, n_concurrent, memory_bytes=pool_memory(args))
     n_bundles = ha_n_bundles(n_concurrent) if args.ha_max_bundles is None else args.ha_max_bundles
     specs, jobs, bundles = ha_repartition.prepare_all(disjoint_dir, manifest['groups'], args.locus, n_bundles, count_collapsed=count_collapsed, n_procs=n_concurrent, memory_bytes=pool_memory(args))
     print('  wrote %d per-cluster HA jobs across %d groups to %s, in %d bundles listed in %s' % (len(jobs), len(specs), ha_repartition.task_list_fname(disjoint_dir, args.locus), len(bundles), ha_repartition.bundle_list_fname(disjoint_dir, args.locus)))

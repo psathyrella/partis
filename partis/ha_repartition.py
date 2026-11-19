@@ -25,7 +25,6 @@ import hashlib
 import io
 import json
 import math
-import multiprocessing
 import os
 import random
 import shutil
@@ -394,10 +393,11 @@ def cluster_seqs(job, locus, inputs):
 
 def _cluster_driver(seqs, args, glfo, outfname, workdir, n_procs):
     # PartitionDriver on one cluster's (uid, seq) pairs, reseeded so its result does not depend on bundling or order
-    from partis import seqfileopener
+    from partis import disjointgrouper, seqfileopener
     from partis.partitiondriver import PartitionDriver
     a = copy.copy(args)
     a.infname, a.outfname, a.workdir, a.n_procs = '%s.fa' % workdir, outfname, workdir, n_procs
+    a.sw_cachefname = '%s/%s' % (workdir, disjointgrouper.SW_CACHE_FNAME)  # sw with no cache lookup removes the cache it is pointed at, so point it into the workdir
     seed_all(args.random_seed)
     os.makedirs(os.path.dirname(a.infname), exist_ok=True)
     with open(a.infname, 'w') as f:  # the cluster's seqs as a fasta, removed after the read
@@ -450,13 +450,14 @@ def _ha_collapsed_count(ijob, seqs, args, glfo):
             parter.clean()
 
 
-def count_ha_collapsed(jobs, args, glfo, n_procs):
+def count_ha_collapsed(jobs, args, glfo, n_procs, memory_bytes=None):
     """HA's collapsed count (clusters of identical hmm naive seqs) for each job, in job order,
-    n_procs jobs at a time."""
+    n_procs jobs at a time within <memory_bytes> (see utils.map_groups, a job's size is its number of seqs)."""
+    from partis import utils
     inputs = {}
     seqs = [cluster_seqs(j, args.locus, inputs) for j in jobs]
-    with multiprocessing.get_context('fork').Pool(max(1, min(n_procs, len(jobs)))) as pool:
-        return pool.starmap(_ha_collapsed_count, [(i, s, args, glfo) for i, s in enumerate(seqs)])
+    return utils.map_groups(_ha_collapsed_count, [(i, s, args, glfo) for i, s in enumerate(seqs)], n_procs,
+                            [[j['infname']] for j in jobs], memory_bytes, sizes=[len(s) for s in seqs])
 
 
 def read_task_list(path):

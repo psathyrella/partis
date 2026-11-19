@@ -151,6 +151,23 @@ def test_truncated_partition_refused_as_refine_input(tmp_path, plain_multifile_p
         prf.read_refine_inputs(spec['input'], spec['sw_cache'])
 
 
+def test_cut_write_leaves_no_group_output(tmp_path, plain_multifile_partition_dir, monkeypatch):
+    ddir, manifest = locus_manifest(plain_multifile_partition_dir, 'igh')
+    spec = max(prf.group_specs(ddir, manifest['groups'], 'igh'), key=lambda s: s['group']['sequence_count'])
+    inp = prf.read_refine_inputs(spec['input'], spec['sw_cache'])
+    fname, real_write = str(tmp_path / 'out.yaml'), utils.write_annotations
+    def cut_write(*args, **kwargs):
+        real_write(*args, **kwargs)
+        raise Exception('cut after the write')
+    with monkeypatch.context() as patch:
+        patch.setattr(utils, 'write_annotations', cut_write)
+        with pytest.raises(Exception, match='cut after the write'):
+            prf.write_full_output(fname, inp['part_glfo'], inp['partition'], inp['uid_part_antns'])
+    assert not os.path.exists(fname)
+    prf.write_full_output(fname, inp['part_glfo'], inp['partition'], inp['uid_part_antns'])
+    assert os.listdir(tmp_path) == ['out.yaml']  # the rerun wrote over what the cut one left
+
+
 def test_cluster_inside_one_annotation_written_as_from_its_uids(tmp_path, plain_multifile_partition_dir):
     ddir, manifest = locus_manifest(plain_multifile_partition_dir, 'igh')
     spec = max(prf.group_specs(ddir, manifest['groups'], 'igh'), key=lambda s: s['group']['sequence_count'])

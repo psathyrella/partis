@@ -1,7 +1,11 @@
+import multiprocessing
 import os
 import random
 import re
+import resource
 import struct
+import subprocess
+import sys
 import time
 
 import numpy as np
@@ -558,7 +562,7 @@ def _run_pool(tmp_path, monkeypatch, groups, n_procs, memory_bytes):
     waits for before it ends). Returns the names in result order and, per group, the groups
     running when it started (itself among them), from the order of the start and end lines."""
     fake, log = {}, str(tmp_path / 'events')
-    monkeypatch.setattr(utils, 'peak_rss', lambda: fake['peak'])
+    monkeypatch.setattr(utils, 'peak_rss', lambda who=resource.RUSAGE_SELF: fake['peak'] if who == resource.RUSAGE_SELF else 0)
     monkeypatch.setattr(utils, 'current_rss', lambda: 0)
 
     def note(line):
@@ -608,6 +612,40 @@ def test_group_pool_rate_comes_from_groups_at_least_as_large(tmp_path, monkeypat
     names, at_start = _run_pool(tmp_path, monkeypatch, [('top', 1000, 1000, None), ('b', 500, 500, 'e'), ('c', 100, 300, 'b'), ('e', 100, 100, None)], 2, 800)
     assert names == ['top', 'b', 'c', 'e']
     assert at_start['e'] == {'b', 'e'} and all(len(running) <= 2 for running in at_start.values())
+
+
+def test_group_pool_takes_sizes_in_place_of_file_bytes(tmp_path, monkeypatch):
+    # largest by its file is c, by <sizes> a: a starts first
+    monkeypatch.setattr(utils, 'current_rss', lambda: 0)
+    order = str(tmp_path / 'order')
+    def run(name):
+        with open(order, 'a') as f:
+            f.write(name + '\n')
+        return name
+    names = utils.map_groups(run, [('a',), ('b',), ('c',)], 3, _pool_infnames(tmp_path, [1, 2, 3]), 2**50, sizes=[30, 20, 10])
+    assert names == ['a', 'b', 'c']  # results stay in group order
+    assert open(order).read().split()[0] == 'a'
+
+
+def test_group_pool_refuses_sizes_of_another_length(tmp_path):
+    with pytest.raises(Exception, match='2 sizes for 3 groups'):
+        utils.map_groups(lambda i: None, [(0,), (1,), (2,)], 2, _pool_infnames(tmp_path, [1, 1, 1]), sizes=[1, 2])
+
+
+def test_group_peak_memory_counts_its_subprocess():
+    def peak(fcn):
+        ctx = multiprocessing.get_context('fork')
+        recv, send = ctx.Pipe(duplex=False)
+        proc = ctx.Process(target=utils._send_result, args=(send, fcn, ()))
+        proc.start()
+        assert recv.poll(60)
+        _, err, peak_bytes = recv.recv()
+        proc.join()
+        assert err is None
+        return peak_bytes
+    held = 200 * 2**20
+    with_subproc = peak(lambda: subprocess.check_call([sys.executable, '-c', 'x = b"x" * %d' % held]))
+    assert with_subproc - peak(lambda: None) > held / 2
 
 
 def _pool_infnames(tmp_path, sizes):

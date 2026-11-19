@@ -2188,8 +2188,10 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
     outdir = os.path.dirname(outfname)
     if outdir and not os.path.exists(outdir):
         os.makedirs(outdir)
-    utils.write_annotations(outfname, glfo, annotation_list, utils.annotation_headers,
+    tmpfname = '%s.tmp%s' % (utils.getprefix(outfname), utils.getsuffix(outfname))  # keeps the suffix, which sets the format
+    utils.write_annotations(tmpfname, glfo, annotation_list, utils.annotation_headers,
                             partition_lines=partition_lines)
+    os.replace(tmpfname, outfname)  # a write that is cut leaves no output to count as done
     if n_dropped or n_fallback:
         msgs = []
         if n_dropped > 0:

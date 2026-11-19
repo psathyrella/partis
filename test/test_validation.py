@@ -14,6 +14,7 @@ from _helpers import BACKEND, LOCI, N_PROCS, PAIRED_PARAM_DIR, REPO_DIR, PAIRED_
 from partis import disjointgrouper as dg
 from partis import ha_repartition
 from partis import clusterpath
+from partis import waterer
 from partis.processargs import single_locus_actions
 
 
@@ -521,6 +522,27 @@ def _run_partis_in_process(args):
     runpy.run_path(os.path.join(REPO_DIR, 'bin', 'partis'), run_name='__main__')
 
 
+def test_ha_sw_cache_cleanup_stays_in_the_workdir(tmp_path, ha_only_dir, monkeypatch):
+    # sw on a cluster removes no cache outside its workdir: not the --sw-cachefname file, nor one in the parameter dir
+    outdir = copy_dir(ha_only_dir, tmp_path / 'out')
+    ddir, manifest = locus_manifest(outdir, 'igk')
+    for spec in ha_repartition.group_specs(ddir, manifest['groups'], 'igk'):
+        os.remove(spec['harep_out'])
+    drop_ha_results(ddir)
+    swfn, workdir, cleaned = tmp_path / 'sw-cache.yaml', tmp_path / 'wd', []
+    swfn.write_text('not read\n')
+    real_clean = waterer.Waterer.clean_cache
+    def clean_cache(self, cache_path):
+        cleaned.append(cache_path)
+        return real_clean(self, cache_path)
+    monkeypatch.setattr(waterer.Waterer, 'clean_cache', clean_cache)
+    args = ['--locus', 'igk', '--parameter-dir', os.path.join(PAIRED_PARAM_DIR, 'igk'), '--sw-cachefname', str(swfn), '--paired-outdir', str(outdir)]
+    _run_partis_in_process(['create-ha-repartition-jobs'] + args + ['--ha-max-bundles', '1'])
+    _run_partis_in_process(['run-ha-repartition-jobs'] + args + ['--job-start', '0', '--workdir', str(workdir)])
+    assert len(cleaned) > 0 and all(os.path.realpath(path).startswith('%s/' % os.path.realpath(workdir)) for path in cleaned)
+    assert swfn.exists()
+
+
 def test_ha_collapsed_count_matches_partition(tmp_path, ha_only_dir, monkeypatch):
     # the scheduling count must match the initial partition that partition builds
     outdir = copy_dir(ha_only_dir, tmp_path / 'out')
@@ -529,9 +551,10 @@ def test_ha_collapsed_count_matches_partition(tmp_path, ha_only_dir, monkeypatch
         os.remove(spec['harep_out'])
     drop_ha_results(ddir)
     real_prepare, real_count = ha_repartition.prepare_all, ha_repartition.count_ha_collapsed
-    counts = {}
-    def count(jobs, args, glfo, n_procs):
-        res = real_count(jobs, args, glfo, n_procs)
+    counts, memory = {}, []
+    def count(jobs, args, glfo, n_procs, memory_bytes=None):
+        memory.append(memory_bytes)
+        res = real_count(jobs, args, glfo, n_procs, memory_bytes=memory_bytes)
         inputs = {}
         assert res == [ha_repartition._ha_collapsed_count(i, ha_repartition.cluster_seqs(j, args.locus, inputs), args, glfo) for i, j in enumerate(jobs)]  # the pool against this process
         counts.update(((j['outdir'], j['cluster_id']), n) for j, n in zip(jobs, res))
@@ -539,10 +562,11 @@ def test_ha_collapsed_count_matches_partition(tmp_path, ha_only_dir, monkeypatch
     monkeypatch.setattr(ha_repartition, 'prepare_all', lambda *a, **kw: real_prepare(*a, **dict(kw, multiproc_min_collapsed=2)))
     monkeypatch.setattr(ha_repartition, 'count_ha_collapsed', count)
     pdir = os.path.join(PAIRED_PARAM_DIR, 'igh')
-    _run_partis_in_process(['create-ha-repartition-jobs', '--locus', 'igh', '--parameter-dir', pdir, '--paired-outdir', str(outdir)])
+    _run_partis_in_process(['create-ha-repartition-jobs', '--locus', 'igh', '--parameter-dir', pdir, '--paired-outdir', str(outdir), '--pool-memory-gb', '4'])
     jobs = ha_repartition.read_task_list(ha_repartition.task_list_fname(ddir, 'igh'))
     checked = [j for j in jobs if (j['outdir'], j['cluster_id']) in counts][:3]
     assert len(checked) > 0
+    assert set(memory) == {4 * 2**30}  # --pool-memory-gb reaches the count
     ha_repartition.write_task_list(ddir, 'igh', [dict(j, n_procs=1) for j in jobs])  # one proc, as the count runs
     initial = []
     real_add = clusterpath.ClusterPath.add_partition

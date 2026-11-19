@@ -6011,8 +6011,8 @@ def job_memory():  # bytes of memory this job may use: its slurm allocation if i
     return psutil.virtual_memory().total
 
 # ----------------------------------------------------------------------------------------
-def peak_rss():  # bytes, the most resident memory this process has held
-    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss * (1 if platform.system() == 'Darwin' else 1024)
+def peak_rss(who=resource.RUSAGE_SELF):  # bytes, the most resident memory this process has held, or its largest subprocess with RUSAGE_CHILDREN
+    return resource.getrusage(who).ru_maxrss * (1 if platform.system() == 'Darwin' else 1024)
 
 # ----------------------------------------------------------------------------------------
 def current_rss():  # bytes of resident memory this process holds now
@@ -6025,27 +6025,30 @@ def _send_result(conn, fcn, args):
         res, err = fcn(*args), None
     except Exception as e:
         res, err = None, (e, traceback.format_exc())
-    conn.send((res, err, peak_rss()))
+    conn.send((res, err, peak_rss() + peak_rss(resource.RUSAGE_CHILDREN)))  # with its largest subprocess, where sw and the hmm run
 
 # ----------------------------------------------------------------------------------------
-def map_groups(fcn, gargs, n_procs, infnames, memory_bytes=None):
+def map_groups(fcn, gargs, n_procs, infnames, memory_bytes=None, sizes=None):
     """[fcn(*a) for a in gargs], each group in its own process, up to n_procs at a time and within
     <memory_bytes> (default: the job's). infnames lists, per group, the files it reads. A group is
-    estimated at the bytes of its files times the largest peak memory per byte among the finished
-    groups at least as large. The largest group runs first and alone. The others start largest
+    estimated at its size (<sizes>, default: the bytes of its files) times the largest peak memory
+    per unit of size among the finished groups at least as large. The largest group runs first and alone. The others start largest
     first, each once its estimate, those of the running groups and what this process holds sum
     to <memory_bytes> at most. A group that does not fit by itself runs alone."""
     if n_procs <= 1 or len(gargs) <= 1:
         return [fcn(*a) for a in gargs]
     if memory_bytes is None:
         memory_bytes = job_memory()
-    nbytes = [sum(os.path.getsize(f) for f in fnames) for fnames in infnames]
-    todo = sorted(range(len(gargs)), key=lambda i: nbytes[i], reverse=True)
-    results, running, rates = [None] * len(gargs), {}, []  # running: {pipe: (group index, process)}, rates: (bytes, peak per byte) of each finished group
+    if sizes is None:
+        sizes = [sum(os.path.getsize(f) for f in fnames) for fnames in infnames]
+    if len(sizes) != len(gargs):
+        raise Exception('%d sizes for %d groups' % (len(sizes), len(gargs)))
+    todo = sorted(range(len(gargs)), key=lambda i: sizes[i], reverse=True)
+    results, running, rates = [None] * len(gargs), {}, []  # running: {pipe: (group index, process)}, rates: (size, peak per unit of size) of each finished group
     ctx = multiprocessing.get_context('fork')  # groups are disjoint and each writes only its own files
 
     def estimate(i):
-        return nbytes[i] * max(rate for nb, rate in rates if nb >= nbytes[i])
+        return sizes[i] * max(rate for size, rate in rates if size >= sizes[i])
 
     def fits(i):
         free = memory_bytes - current_rss()
@@ -6074,7 +6077,7 @@ def map_groups(fcn, gargs, n_procs, infnames, memory_bytes=None):
                 proc.join()
                 if err is not None:
                     raise err[0] from Exception(err[1])
-                rates.append((nbytes[i], peak / max(1, nbytes[i])))
+                rates.append((sizes[i], peak / max(1, sizes[i])))
     finally:
         for conn, (_, proc) in running.items():
             proc.terminate()
