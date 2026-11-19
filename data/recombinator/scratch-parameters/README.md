@@ -23,7 +23,7 @@ With `--rearrange-from-scratch` and neither `--shm-parameter-dir` nor `--mutate-
    - `source`: where the data is published, copied to the sample lists;
    - `exclude`: if not empty, parameter dirs whose path contains it are skipped.
 
-   The list isn't in the repo, because its globs name where our processed samples are. It skips samples whose mean mutation frequency is below `--min-mean-mute-freq` (default 0.02), which are mostly naive.
+   The list isn't in the repo, because its globs name where our processed samples are. The script skips samples whose mean mutation frequency is below `--min-mean-mute-freq` (default 0.02), which are mostly naive.
 2. It goes round the datasets in turn, adding one randomly chosen sample from each, until the locus has `--max-seqs` sequences (default 1M). A sample with more than `--max-seqs-per-sample` sequences (default 10k) has its counts scaled down to that size, so no small set of very deep samples dominates.
 3. It keeps only genes that are in partis's default germline set (`data/germlines/human`) with an identical sequence. That drops each sample's inferred alleles and keeps positions aligned across samples.
    Like any parameter dir inferred from real data, the tables inherit whatever each sample's germline inference missed.
