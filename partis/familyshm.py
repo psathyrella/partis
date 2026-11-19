@@ -157,6 +157,7 @@ class FamilyShm(object):  # reads family-shm.yaml from a parameter dir (<own_fn>
 
     # ----------------------------------------------------------------------------------------
     def target_relvar(self, n_leaves):  # relative variance of leaf depths to put in a tree with <n_leaves> leaves: the data's within-family relative variance, times the fraction of it that isn't from random mutation counts (bppseqgen adds those)
+        # NOTE this gives every family in a size bin the same target, so it matches data's mean within-family variance, but not its distribution over families: in data most families have low variance and a few have very high variance (e.g. in phad Donor-2 the 10% most spread pairs hold 60% of the squared deviation), so the typical simulated family varies more than the typical data family. It'd be more accurate to draw each family's target from a per-size-bin distribution
         return self.split_half_fraction * self.relvars[get_bin(n_leaves)]
 
 # ----------------------------------------------------------------------------------------
