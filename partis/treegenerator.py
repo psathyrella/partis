@@ -24,7 +24,7 @@ class TreeGenerator(object):
         self.parameter_dir = parameter_dir
         self.n_trees_each_run = '1'  # it would no doubt be faster to have this bigger than 1, but this makes it easier to vary the n-leaf distribution
         self.n_leaf_hist = None
-        self.generate_trees_depth = 0.1  # depth of trees written with --generate-trees (both those it generates and, with --input-simulation-treefname, those it reads): each locus's simulation then reads them back with --input-simulation-treefname, which replaces each tree's depth with the depth at the tree's shared percentile (read_input_tree_file()), so this only affects their shape, which for TreeSim's rates is the same for any depth up to ~0.15. Using a drawn depth instead would give zero-depth trees for unmutated bins, which can't be rescaled
+        self.generate_trees_depth = 0.1  # depth of every tree written with --generate-trees, including input trees it read from --input-simulation-treefname. Each locus's simulation reads them back and replaces each tree's depth with the depth at the tree's shared percentile (read_input_tree_file()), so this only affects their shape, which for TreeSim's rates is the same for any depth up to ~0.15. Using a drawn depth instead would give zero-depth trees for unmutated bins, which can't be rescaled
 
         self.set_branch_lengths()  # for each region (and 'all'), a list of branch lengths and a list of corresponding probabilities (i.e. two lists: bin centers and bin contents). Also, the mean of the hist.
         self.init_n_leaves()

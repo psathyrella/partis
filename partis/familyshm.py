@@ -38,8 +38,9 @@ class FamilyShmCounter(object):
     def __init__(self):
         self.seq_n_muted = collections.Counter()  # n mutated (same definition as mutefreqer's all-mean-n-muted.csv) -> number of sequences, for every sequence in every family
         self.fam_mean_n_muted = {b : [] for b in bin_strs}  # size bin -> list of family mean n mutated
-        self.within_sums, self.split_half_sums = empty_sums()  # within_sums: size bin -> sums over families of: sum over seqs of (mut freq - family mean)^2, and n seqs * (family mean)^2. Their ratio is the within-family relative variance
+        # within_sums: size bin -> sums over families of: sum over seqs of (mut freq - family mean)^2, and n seqs * (family mean)^2. Their ratio is the within-family relative variance
         # split_half_sums: over all multi-seq families: sum over seqs of (deviation from family mean in half a) * (in half b), and of (full-seq deviation)^2
+        self.within_sums, self.split_half_sums = empty_sums()
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):

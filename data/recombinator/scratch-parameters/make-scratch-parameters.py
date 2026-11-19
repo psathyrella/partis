@@ -13,6 +13,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--base-dir', required=True, help='dir under which the globs in --dataset-fname are found')
 parser.add_argument('--dataset-fname', default=this_dir + '/datasets.csv')
 parser.add_argument('--outdir', default=this_dir)
+parser.add_argument('--sample-list-dir', help='dir in which to write <locus>/family-shm-samples.csv, the list of samples pooled for the family shm parameters (required when making them). It has local paths, so it should be outside the partis repo')
 parser.add_argument('--loci', default='igh:igk:igl')
 parser.add_argument('--max-seqs', type=int, default=1000000, help='stop adding samples once a locus has this many (weighted) sequences')
 parser.add_argument('--max-seqs-per-sample', type=int, default=10000, help='scale down the counts of any sample larger than this, so it contributes as if it had this many sequences (so many individuals contribute, rather than a few very deep ones)')
@@ -58,13 +59,14 @@ def choose_samples(locus, require_fcn=None):  # go round robin over datasets, ad
     return chosen
 
 # ----------------------------------------------------------------------------------------
-def write_samples(locus, samples, fname, descr):  # write the list of samples used for <locus> to <fname>, and print a summary
-    with open('%s/%s/%s' % (args.outdir, locus, fname), utils.csv_wmode()) as sfile:
+def write_samples(odir, locus, samples, fname, descr):  # write the list of samples used for <locus> to <odir>/<locus>/<fname>, and print a summary
+    utils.mkdir('%s/%s' % (odir, locus))
+    with open('%s/%s/%s' % (odir, locus, fname), utils.csv_wmode()) as sfile:
         writer = csv.DictWriter(sfile, ['dataset', 'sample', 'n_seqs', 'weight', 'mean_mute_freq', 'source'])
         writer.writeheader()
         for sfo in samples:
             writer.writerow({'dataset' : sfo['dataset'], 'sample' : os.path.relpath(sfo['hdir'], args.base_dir), 'n_seqs' : sfo['n_seqs'], 'weight' : '%.4g' % sfo['weight'], 'mean_mute_freq' : '%.4f' % sfo['mean_mfreq'], 'source' : sfo['source']})
-    print('  %s: pooled %s%d samples (%d weighted seqs) from %s' % (locus, descr, len(samples), sum(s['weight'] * s['n_seqs'] for s in samples), ', '.join('%s %d' % (d, n) for d, n in collections.Counter(s['dataset'] for s in samples).items())))
+    print('  %s: pooled %d samples%s (%d weighted seqs) from %s' % (locus, len(samples), descr, sum(s['weight'] * s['n_seqs'] for s in samples), ', '.join('%s %d' % (d, n) for d, n in collections.Counter(s['dataset'] for s in samples).items())))
 
 # ----------------------------------------------------------------------------------------
 def pool_locus(locus, samples):
@@ -155,7 +157,7 @@ def pool_locus(locus, samples):
         for region, sfo in mf_sums.items():
             writer.writerow({'region' : region, 'sum' : '%.6g' % sfo['sum'], 'n_seqs' : int(round(sfo['n_seqs']))})
     glutils.write_glfo(odir + '/' + glutils.glfo_dir, default_glfo)
-    write_samples(locus, samples, 'samples.csv', '')
+    write_samples(args.outdir, locus, samples, 'samples.csv', '')
     print('       %d genes with mute freqs, skipped (not default alleles or different binning): %s' % (len(counts), dict(n_skipped)))
 
 # ----------------------------------------------------------------------------------------
@@ -179,6 +181,8 @@ def count_family_shm(hdir, locus):  # the same counting that parameter counting 
     return counter.to_dict() if counter.has_families() else None
 
 def pool_family_shm(locus):  # each family's numbers are relative to its own sample (percentile, relative variance, fraction), so samples with different shm levels can be summed
+    if args.sample_list_dir is None:
+        raise Exception('--sample-list-dir is required when making family shm parameters')
     samples = choose_samples(locus, require_fcn=lambda h: has_partition(h, locus))  # a different set of samples than for the other parameters, since only some have partitions
     counted = [(sfo, count_family_shm(sfo['hdir'], locus)) for sfo in samples]
     counted = [(sfo, fshm) for sfo, fshm in counted if fshm is not None]
@@ -188,7 +192,7 @@ def pool_family_shm(locus):  # each family's numbers are relative to its own sam
     odir = '%s/%s/hmm' % (args.outdir, locus)
     utils.mkdir(odir)
     utils.jsdump('%s/%s' % (odir, familyshm.family_shm_fname), familyshm.merge_counts([f for _, f in counted], [sfo['weight'] for sfo in used]))  # same weight as for the other parameters, so a sample with more than --max-seqs-per-sample sequences counts as if it had that many
-    write_samples(locus, used, 'family-shm-samples.csv', 'family shm parameters from ')
+    write_samples(args.sample_list_dir, locus, used, 'family-shm-samples.csv', ' for family shm parameters')
 
 # ----------------------------------------------------------------------------------------
 for locus in args.loci:
