@@ -736,10 +736,12 @@ def run_all_loci(args, ig_or_tr='ig'):
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
                 utils.replace_in_arglist(clist, '--random-seed', str(utils.hashint(ltmp + '+'.join(lpair) + rseedstr)))  # NOTE sends same seed to tree generation and igh, which i think is fine?
+                # with generate-trees, the trees aren't really associated with the locus, and this uses the heavy chain parameter dir for both heavy and light. That's fine, since it's only used for the n-leaf distribution and the family-level shm parameters (familyshm.py):
+                # generate-trees uses a fixed depth, gives each tree its within-family variation and a depth percentile, and each locus's simulation then rescales each tree to the depth at that percentile in its own parameter dir's per-sequence shm distribution (see treegenerator.generate_trees_depth)
                 for tstr in ['', 'reco-', 'shm-']:  # deal with simulation {,reco,shm}-parameter dir stuff
                     argstr = '--%sparameter-dir' % tstr
                     if utils.is_in_arglist(clist, argstr) > 0:
-                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))  # the trees aren't really associated with the locus if we're generating trees, and this uses the heavy chain parameter dir for both heavy and light. That's fine, since it's only used for the n-leaf distribution and the family-level shm parameters (familyshm.py): generate-trees uses a fixed depth, gives each tree its within-family variation and a depth percentile, and each locus's simulation then rescales each tree to the depth at that percentile in its own parameter dir's per-sequence shm distribution (see treegenerator.generate_trees_depth)
+                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))
             if tmpaction == 'generate-trees':
                 utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
                 utils.remove_from_arglist(clist, '--n-sim-events', has_arg=True)
@@ -753,8 +755,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 clist.append('--crash-on-duplicate-uids')  # single-chain subprocesses in paired mode should crash on duplicates
                 if args.action == 'simulate':
                     clist += ['--choose-trees-in-order', '--outfname', getofn(ltmp, lpair=lpair)]
-                    if args.input_simulation_treefname is None:
-                        clist += ['--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair)]
+                    utils.replace_in_arglist(clist, '--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair))  # trees from generate-trees (which, if --input-simulation-treefname was set, are those trees with depth percentiles added)
                     if args.paired_correlation_values is not None and not utils.has_d_gene(ltmp):
                         clist += ['--heavy-chain-event-fname', getofn('igh', lpair=lpair)]
                     if args.only_genes is not None:
@@ -1379,10 +1380,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             print('%s: simulating %d event%s' % (utils.color('blue', '+'.join(lpair)), get_n_events(l_locus, args.n_sim_events), utils.plural(get_n_events(l_locus, args.n_sim_events))))
             if get_n_events(l_locus, args.n_sim_events) == 0:
                 continue
-            if args.input_simulation_treefname is None:
-                run_step('generate-trees', h_locus, lpair=lpair)
-            else:
+            if args.input_simulation_treefname is not None:  # generate-trees then reads them, and gives each one a depth percentile that heavy and light share
                 print('    %s drawing input simulation trees from --input-simulation-treefname *in order* for both heavy and light (rather than randomly, as for single chain)' % utils.color('yellow', 'warning'))
+            run_step('generate-trees', h_locus, lpair=lpair)
             for ltmp in lpair:
                 run_step(args.action, ltmp, lpair=lpair)
         combine_simu_chains()

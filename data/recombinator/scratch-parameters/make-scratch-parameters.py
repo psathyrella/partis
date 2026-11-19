@@ -19,7 +19,7 @@ parser.add_argument('--max-seqs-per-sample', type=int, default=10000, help='scal
 parser.add_argument('--min-mean-mute-freq', type=float, default=0.02, help='skip samples whose mean mutation frequency is below this (mostly naive)')
 parser.add_argument('--random-seed', type=int, default=1)
 parser.add_argument('--germline-dir', default=partis_dir + '/data/germlines/human')
-parser.add_argument('--only-family-shm', action='store_true', help='only (re)make the family-level shm parameters (<locus>/hmm/%s), not the rest' % familyshm.fname)
+parser.add_argument('--only-family-shm', action='store_true', help='only (re)make the family-level shm parameters (<locus>/hmm/%s), not the rest' % familyshm.family_shm_fname)
 args = parser.parse_args()
 args.loci = utils.get_arg_list(args.loci)
 hist_fnames = ['%s-mean-%s.csv' % (r, t) for r in ['all'] + utils.regions for t in ['mute-freqs', 'n-muted']]
@@ -155,8 +155,11 @@ def pool_locus(locus, samples):
     print('       %d genes with mute freqs, skipped (not default alleles or different binning): %s' % (len(counts), dict(n_skipped)))
 
 # ----------------------------------------------------------------------------------------
-def partition_fname(hdir, locus):  # paired partition file of the sample whose parameter dir is <hdir> (samples with partitions are all paired output dirs, whose parameter dirs are <sample>/parameters/<locus>/hmm)
-    return paircluster.paired_fn(hdir.replace('/parameters/%s/hmm' % locus, ''), locus, suffix='.yaml', actstr='partition')
+def partition_fname(hdir, locus):  # paired partition file of the sample whose parameter dir is <hdir>, or None if <hdir> isn't in a paired output dir (<sample>/parameters/<locus>/hmm)
+    sfx = '/parameters/%s/hmm' % locus
+    if not hdir.rstrip('/').endswith(sfx):
+        return None
+    return paircluster.paired_fn(hdir.rstrip('/')[ : -len(sfx)], locus, suffix='.yaml', actstr='partition')
 
 def count_family_shm(hdir, locus):  # the same counting that parameter counting does on a partition, applied to the families in the sample's partition file
     _, antn_list, _ = utils.read_yaml_output(partition_fname(hdir, locus))
@@ -167,18 +170,15 @@ def count_family_shm(hdir, locus):  # the same counting that parameter counting 
     return counter.to_dict() if counter.has_families() else None
 
 def pool_family_shm(locus):  # each family's numbers are relative to its own sample (percentile, relative variance, fraction), so samples with different shm levels can be summed
-    samples = choose_samples(locus, require_fcn=lambda h: os.path.exists(partition_fname(h, locus)))
-    fshm_list, weights, used = [], [], []
-    for sfo in samples:
-        fshm = count_family_shm(sfo['hdir'], locus)
-        if fshm is None:
-            continue
-        fshm_list.append(fshm)
-        weights.append(sfo['weight'])  # same weight as for the other parameters, so a sample with more than --max-seqs-per-sample sequences counts as if it had that many
-        used.append(sfo)
+    samples = choose_samples(locus, require_fcn=lambda h: partition_fname(h, locus) is not None and os.path.exists(partition_fname(h, locus)))  # a different set of samples than for the other parameters, since only some have partitions
+    counted = [(sfo, count_family_shm(sfo['hdir'], locus)) for sfo in samples]
+    counted = [(sfo, fshm) for sfo, fshm in counted if fshm is not None]
+    if len(counted) == 0:
+        raise Exception('no samples with multi-sequence families in their partition files for %s' % locus)
+    used = [sfo for sfo, _ in counted]
     odir = '%s/%s/hmm' % (args.outdir, locus)
     utils.mkdir(odir)
-    utils.jsdump('%s/%s' % (odir, familyshm.fname), familyshm.merge_counts(fshm_list, weights=weights))
+    utils.jsdump('%s/%s' % (odir, familyshm.family_shm_fname), familyshm.merge_counts([f for _, f in counted], [sfo['weight'] for sfo in used]))  # same weight as for the other parameters, so a sample with more than --max-seqs-per-sample sequences counts as if it had that many
     with open('%s/%s/family-shm-samples.csv' % (args.outdir, locus), utils.csv_wmode()) as sfile:
         writer = csv.DictWriter(sfile, ['dataset', 'sample', 'n_seqs', 'weight', 'mean_mute_freq', 'source'])
         writer.writeheader()

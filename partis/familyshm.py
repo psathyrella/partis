@@ -13,10 +13,10 @@ from . import treeutils
 # Counted from multi-sequence annotations at parameter-counting time (cache-parameters --input-partition-fname, or partition --count-parameters), used by treegenerator.
 # All three quantities are relative (a percentile, a relative variance, and a fraction), so they can be pooled across samples with different shm levels (see data/recombinator/scratch-parameters/).
 
-fname = 'family-shm.yaml'
+family_shm_fname = 'family-shm.yaml'
 size_bins = [(1, 1), (2, 2), (3, 5), (6, 20), (21, None)]  # inclusive bounds (None: no upper bound). These are the bins in which #460 measured family means and within-family variance
 n_percentile_bins = 100  # resolution of the family mean percentile hists
-nuke_bytes = numpy.array([n.encode() for n in utils.nukes], dtype='S1')
+nuke_bytes = numpy.array([n.encode() for n in utils.nukes], dtype='S1')  # positions where either sequence has anything else (ambiguous bases or gaps) are skipped, as in utils.hamming_distance()
 split_half_block_len = 30  # the two halves of each sequence for the split-half covariance are alternating blocks of this many positions. Alternating single positions (odd/even) give a fraction 0.02-0.03 higher on real data, since hotspots and multi-base mutations span adjacent positions (measured for #460)
 
 # ----------------------------------------------------------------------------------------
@@ -39,26 +39,20 @@ class FamilyShmCounter(object):
 
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
-        n_muted, freqs, halves = [], [], []
-        for iseq in range(len(info['unique_ids'])):
-            naive_seq, mseq = utils.subset_iseq(info, iseq, restrict_to_region='')  # same positions as mutefreqer's all-mean-n-muted.csv
-            freq, nmut = utils.hamming_fraction(naive_seq, mseq, also_return_distance=True)
-            n_muted.append(nmut)
-            freqs.append(freq)
-            if len(info['unique_ids']) > 1:  # singletons add nothing to the split-half sums
-                halves.append(split_half_freqs(naive_seq, mseq))
-        self.seq_n_muted.update(n_muted)
-        sbin = get_bin(len(n_muted))
-        self.fam_mean_n_muted[sbin].append(numpy.mean(n_muted))
-        if len(freqs) < 2:
+        n_seqs = len(info['unique_ids'])
+        freqs, n_muted = [numpy.array(v) for v in zip(*[utils.get_mutation_rate_and_n_muted(info, iseq) for iseq in range(n_seqs)])]  # same as mutefreqer's all-mean-n-muted.csv
+        self.seq_n_muted.update(n_muted.tolist())
+        sbin = get_bin(n_seqs)
+        self.fam_mean_n_muted[sbin].append(n_muted.mean())
+        if n_seqs < 2:
             return
-        freqs = numpy.array(freqs)
         fmean = freqs.mean()
-        self.within_sums[sbin]['sum-sq-dev'] += numpy.sum((freqs - fmean)**2)
-        self.within_sums[sbin]['sum-n-mean-sq'] += len(freqs) * fmean**2
-        avals, bvals = [numpy.array(v) for v in zip(*halves)]
+        sq_dev = numpy.sum((freqs - fmean)**2)
+        self.within_sums[sbin]['sum-sq-dev'] += sq_dev
+        self.within_sums[sbin]['sum-n-mean-sq'] += n_seqs * fmean**2
+        avals, bvals = [numpy.array(v) for v in zip(*[split_half_freqs(*utils.subset_iseq(info, iseq, restrict_to_region='')) for iseq in range(n_seqs)])]
         self.split_half_sums['sum-cov'] += numpy.sum((avals - avals.mean()) * (bvals - bvals.mean()))
-        self.split_half_sums['sum-sq-dev'] += numpy.sum((freqs - fmean)**2)
+        self.split_half_sums['sum-sq-dev'] += sq_dev
 
     # ----------------------------------------------------------------------------------------
     def percentile_counts(self):  # for each size bin, a hist of each family mean's percentile within the per-sequence n-muted distribution
@@ -85,7 +79,7 @@ class FamilyShmCounter(object):
     # ----------------------------------------------------------------------------------------
     def write(self, outdir):
         if self.has_families():
-            utils.jsdump('%s/%s' % (outdir, fname), self.to_dict())
+            utils.jsdump('%s/%s' % (outdir, family_shm_fname), self.to_dict())
 
 # ----------------------------------------------------------------------------------------
 def split_half_freqs(naive_seq, mseq):  # mutated fraction in each of the two halves of the sequence (alternating blocks of split_half_block_len positions), ignoring ambiguous positions
@@ -112,36 +106,26 @@ def merge_counts(fshm_list, weights):  # sum the counts in several FamilyShmCoun
     return merged
 
 # ----------------------------------------------------------------------------------------
-def pooled_fname(locus):
-    return '%s/data/recombinator/scratch-parameters/%s/hmm/%s' % (utils.get_partis_dir(), locus, fname)
-
-# ----------------------------------------------------------------------------------------
-def read_family_shm(parameter_dir, locus, debug=False):  # returns a FamilyShm from the parameter dir's family-shm.yaml and/or the pooled one for <locus>
-    own_fn = '%s/%s' % (parameter_dir, fname) if parameter_dir is not None else None
-    if (own_fn is None or not os.path.exists(own_fn)) and not os.path.exists(pooled_fname(locus)):
-        raise Exception('no %s in parameter dir %s, and no pooled one for %s (%s). Count parameters on a partition (cache-parameters --input-partition-fname, or partition --count-parameters) to make one, or set --no-family-shm-parameters' % (fname, parameter_dir, locus, pooled_fname(locus)))
-    return FamilyShm(own_fn, pooled_fname(locus), debug=debug)
-
-# ----------------------------------------------------------------------------------------
-class FamilyShm(object):  # reads family-shm.yaml from a parameter dir (<own_fn>), falling back to the pooled one in scratch-parameters (<pooled_fn>), for the whole file if there isn't one, or for each size bin that has no families
-    def __init__(self, own_fn, pooled_fn, debug=False):
+class FamilyShm(object):  # reads family-shm.yaml from <parameter_dir>, falling back to the pooled one for <locus> in scratch-parameters, for the whole file if there isn't one, or for each size bin that has no families
+    def __init__(self, parameter_dir, locus, debug=False):
+        def read(fn):  # returns (file contents, file name), or (None, file name) if it isn't there
+            return (utils.read_json_yaml(fn) if fn is not None and os.path.exists(fn) else None), fn
+        own = read(None if parameter_dir is None else '%s/%s' % (parameter_dir, family_shm_fname))
+        pooled = read('%s/hmm/%s' % (utils.scratch_parameter_dir(locus=locus), family_shm_fname))
+        if own[0] is None and pooled[0] is None:
+            raise Exception('no %s in parameter dir %s, and no pooled one for %s (%s). Count parameters on a partition (cache-parameters --input-partition-fname, or partition --count-parameters) to make one, or set --no-family-shm-parameters' % (family_shm_fname, parameter_dir, locus, pooled[1]))
         self.srcs = {}  # size bin -> file it came from
-        pooled = utils.read_json_yaml(pooled_fn) if os.path.exists(pooled_fn) else None
-        own = utils.read_json_yaml(own_fn) if own_fn is not None and os.path.exists(own_fn) else None
-        assert own is not None or pooled is not None  # read_family_shm() checks this
         self.pct_probs, self.relvars = {}, {}
         for sbin in bin_strs:
-            fshm = own if own is not None and (pooled is None or sum(own['mean-percentile-counts'][sbin]) > 0) else pooled
-            self.srcs[sbin] = own_fn if fshm is own else pooled_fn
+            fshm, self.srcs[sbin] = own if own[0] is not None and (pooled[0] is None or sum(own[0]['mean-percentile-counts'][sbin]) > 0) else pooled
             counts = numpy.array(fshm['mean-percentile-counts'][sbin], dtype=float)
             if counts.sum() == 0:
-                raise Exception('no families of size %s in %s, and no pooled %s to fall back to (%s)' % (sbin, own_fn, fname, pooled_fn))
+                raise Exception('no families of size %s in %s, and no pooled %s to fall back to (%s)' % (sbin, own[1], family_shm_fname, pooled[1]))
             self.pct_probs[sbin] = counts / counts.sum()
             if sbin != bin_strs[0]:
                 wsums = fshm['within-family'][sbin]
                 self.relvars[sbin] = wsums['sum-sq-dev'] / wsums['sum-n-mean-sq'] if wsums['sum-n-mean-sq'] > 0 else 0.
-        fshm = own if own is not None else pooled  # the split-half fraction is one number over all family sizes
-        self.split_half_fn = own_fn if fshm is own else pooled_fn
+        fshm, self.split_half_fn = own if own[0] is not None else pooled  # the split-half fraction is one number over all family sizes
         shsums = fshm['split-half']
         self.split_half_fraction = min(1., max(0., shsums['sum-cov'] / shsums['sum-sq-dev'])) if shsums['sum-sq-dev'] > 0 else 0.
         if debug:
@@ -162,6 +146,7 @@ class FamilyShm(object):  # reads family-shm.yaml from a parameter dir (<own_fn>
 
 # ----------------------------------------------------------------------------------------
 def value_at_percentile(pct, values, probs):  # inverse of the mid-cdf used in FamilyShmCounter.percentile_counts(), for a binned distribution with bin centers <values>
+    # NOTE this interpolates between bin centers, whereas the draw without family shm parameters (the end of treegenerator.choose_full_sequence_branch_length()) returns bin centers. Interpolating is needed so a percentile converts back to the family mean it came from
     vals, mids, below = [], [], 0.
     for val, prob in zip(values, probs):
         if prob > 0:
@@ -176,11 +161,14 @@ def add_within_family_variance(treestr, target_relvar):  # multiply each branch 
     dtree = treeutils.get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
     n_leaves = treeutils.get_n_leaves(dtree)
     depth = treeutils.get_mean_leaf_height(tree=dtree)
+    n_below = {}  # number of leaves below each node
+    for node in dtree.postorder_node_iter():
+        n_below[node] = 1 if node.is_leaf() else sum(n_below[c] for c in node.child_node_iter())
     ssum = 0.
     for node in dtree.preorder_node_iter():
         if node is dtree.seed_node or node.edge_length is None:
             continue
-        frac = len(node.leaf_nodes()) / float(n_leaves)
+        frac = n_below[node] / float(n_leaves)
         ssum += node.edge_length**2 * frac * (1 - frac)
     if ssum <= 0 or depth <= 0 or target_relvar <= 0:
         return treestr
@@ -189,17 +177,17 @@ def add_within_family_variance(treestr, target_relvar):  # multiply each branch 
         if node is not dtree.seed_node and node.edge_length is not None and node.edge_length > 0:
             node.edge_length *= numpy.random.lognormal(-sigma**2 / 2, sigma)
     treeutils.rescale_tree(depth, dtree=dtree)
-    return dtree.as_string(schema='newick').strip()
+    return treeutils.as_str(dtree)
 
 # ----------------------------------------------------------------------------------------
 depth_pct_prefix = 'family-depth-percentile-'  # trees written with --generate-trees store each family's depth percentile as the root node's label, so it goes wherever the tree goes (e.g. when the tree file is split among subprocesses)
 def set_depth_percentile(treestr, pct):
     dtree = treeutils.get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
     dtree.seed_node.label = '%s%.8f' % (depth_pct_prefix, pct)
-    return dtree.as_string(schema='newick').strip()
+    return treeutils.as_str(dtree)
 
 def pop_depth_percentile(treestr):  # return the depth percentile in the root node's label (None if there isn't one), and the tree string without it (get_dendro_tree() drops internal node labels, so this works on the string)
-    mtch = re.search(r'%s([0-9.]+)' % depth_pct_prefix, treestr)
+    mtch = re.search(r'\)(%s([0-9.]+))(:[^(),:;]*)?;\s*$' % depth_pct_prefix, treestr)  # only the root's label, i.e. just after the last close paren and before the root's (optional) branch length
     if mtch is None:
         return None, treestr
-    return float(mtch.group(1)), treestr.replace(mtch.group(0), '')
+    return float(mtch.group(2)), treestr[ : mtch.start(1)] + treestr[mtch.end(1) : ]

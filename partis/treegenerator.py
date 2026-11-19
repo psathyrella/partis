@@ -30,7 +30,7 @@ class TreeGenerator(object):
         self.init_n_leaves()
         self.fshm = None  # family-level shm parameters: each family's mean shm depends on its size, and leaves within a family have different depths (see familyshm.py)
         if not self.args.no_family_shm_parameters and not self.args.same_mute_freq_for_all_seqs:
-            self.fshm = familyshm.read_family_shm(self.parameter_dir if not self.args.mutate_from_scratch else None, utils.non_none([self.args.locus, 'igh']), debug=self.args.debug)  # tree generation for paired loci gets no --locus, and uses heavy chain parameters (see bin/partis)
+            self.fshm = familyshm.FamilyShm(self.parameter_dir if not self.args.mutate_from_scratch else None, utils.non_none([self.args.locus, 'igh']), debug=self.args.debug)  # tree generation for paired loci gets no --locus, and uses heavy chain parameters (see bin/partis)
 
     #----------------------------------------------------------------------------------------
     def convert_observed_changes_to_branch_length(self, mute_freq):
@@ -283,7 +283,11 @@ class TreeGenerator(object):
                     print('    input tree %d (rescaled depth %.3f --> %.3f):' % (len(ages), treeutils.get_mean_leaf_height(tree=dtree), age))
                 treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
                 ages.append(age)
-                treestrs.append(dtree.as_string(schema='newick').strip())
+                treestrs.append(treeutils.as_str(dtree))
+                if self.args.generate_trees:  # paired simulation with --input-simulation-treefname: give each input tree a depth percentile that heavy and light will share (as in run_treesim())
+                    if depth_pct is None:
+                        depth_pct = self.fshm.choose_percentile(treeutils.get_n_leaves(dtree)) if self.fshm is not None else numpy.random.uniform()
+                    treestrs[-1] = familyshm.set_depth_percentile(treestrs[-1], depth_pct)
                 if self.args.debug > 1:
                     print(utils.pad_lines(treeutils.get_ascii_tree(dtree)))
         if n_zero_depth > 0:
