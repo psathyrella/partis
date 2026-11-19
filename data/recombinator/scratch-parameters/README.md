@@ -7,7 +7,8 @@ One partis SHM parameter dir per locus (`igh/`, `igk/`, `igl/`), for simulating 
 With `--rearrange-from-scratch` and neither `--shm-parameter-dir` nor `--mutate-from-scratch`, partis uses these by default, picking the dir for the locus. Rearrangement then comes from scratch, and mutation from these tables. The tables give:
 - each position's rate and the distribution of bases it mutates to (`hmm/mute-freqs/<gene>.csv`);
 - how many sequences each gene's numbers came from (`hmm/{v,d,j}_gene-probs.csv`);
-- the distribution of mutation levels across families (`hmm/*-mean-{mute-freqs,n-muted}.csv`).
+- the distribution of mutation levels across families (`hmm/*-mean-{mute-freqs,n-muted}.csv`);
+- family-level shm parameters (`hmm/family-shm.yaml`, see below).
 
 `--mutation-multiplier` scales the mutation level. Genes with fewer than `--min-observations-per-gene` observations here get averaged in with similar genes, as for any parameter dir.
 
@@ -25,6 +26,20 @@ With `--rearrange-from-scratch` and neither `--shm-parameter-dir` nor `--mutate-
 To rebuild, from a machine that has the processed samples:
 
     ./make-scratch-parameters.py --base-dir <dir containing the datasets in datasets.csv>
+
+## Family-level shm parameters
+
+`hmm/family-shm.yaml` (written by `partis/familyshm.py`) holds, for each family size bin (1, 2, 3-5, 6-20, 21+):
+- the distribution of each family mean's percentile within its sample's per-sequence mutation distribution, which simulation uses to draw each family's depth according to its size;
+- the within-family relative variance of mutation level (variance over the family's sequences divided by the squared family mean, summed over families);
+
+and, over all families, the split-half fraction: the share of within-family variance that does not come from random mutation counts, measured by splitting each sequence into alternating blocks of 30 positions and taking the covariance between the two halves' deviations from the family mean. Simulation multiplies each tree's branches by random factors so that its leaf depths have the within-family relative variance times this fraction (bppseqgen then adds the random mutation counts).
+
+A parameter dir only has this file if its parameters were counted on a partition (`cache-parameters --input-partition-fname`, or `partition --count-parameters`, which writes `multi-hmm/`). Simulation with a parameter dir that lacks it (or lacks families in some size bin) uses this pooled one instead. All three quantities are relative to each sample's own mutation level, so the pooled numbers apply to samples with any mutation level.
+
+The pool uses the samples in `datasets.csv` that have either `multi-hmm/family-shm.yaml` or a partition file (`<sample>/partition-<locus>.yaml`), chosen and weighted as in steps 1 and 2 above. For samples with only a partition file, it counts the file's annotations with the same code that parameter counting uses. `<locus>/family-shm-samples.csv` lists the samples. To remake only this file:
+
+    ./make-scratch-parameters.py --base-dir <dir> --only-family-shm
 
 These tables are from productive repertoires, so they include the effects of selection, not just the mutation process.
 
