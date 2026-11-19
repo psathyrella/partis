@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Builds the per-locus SHM parameter dirs in this directory (<locus>/hmm/) by pooling the per-gene, per-position
 # mutation counts that partis cache-parameters already wrote for a set of public, mutated human samples. See README.md.
-#   ./make-scratch-parameters.py --base-dir <dir containing the datasets in datasets.csv>
+#   ./make-scratch-parameters.py --base-dir <dir containing the datasets in datasets.csv> --sample-list-dir <dir outside the repo>
 import argparse, csv, glob, os, random, sys, collections
 partis_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(1, partis_dir)
