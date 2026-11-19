@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Builds the per-locus SHM parameter dirs in this directory (<locus>/hmm/) by pooling the per-gene, per-position
 # mutation counts that partis cache-parameters already wrote for a set of public, mutated human samples. See README.md.
-#   ./make-scratch-parameters.py --base-dir <dir containing the datasets in datasets.csv> --sample-list-dir <dir outside the repo>
+#   ./make-scratch-parameters.py --dataset-fname <dataset list> --base-dir <dir containing the datasets in it> --sample-list-dir <dir outside the repo>
 import argparse, csv, glob, os, random, sys, collections
 partis_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(1, partis_dir)
@@ -11,9 +11,9 @@ from partis.hist import Hist
 this_dir = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument('--base-dir', required=True, help='dir under which the globs in --dataset-fname are found')
-parser.add_argument('--dataset-fname', default=this_dir + '/datasets.csv')
+parser.add_argument('--dataset-fname', required=True, help='csv listing the datasets to pool (columns locus, dataset, glob, source, exclude), with globs relative to --base-dir. It refers to our filesystem, so it isn\'t in the partis repo')
 parser.add_argument('--outdir', default=this_dir)
-parser.add_argument('--sample-list-dir', required=True, help='dir in which to write <locus>/family-shm-samples.csv, the list of samples pooled for the family shm parameters. It has local paths, so it should be outside the partis repo')
+parser.add_argument('--sample-list-dir', required=True, help='dir in which to write the lists of samples pooled for each locus (<locus>/samples.csv, and <locus>/family-shm-samples.csv for the family shm parameters). They refer to our filesystem, so this should be outside the partis repo')
 parser.add_argument('--loci', default='igh:igk:igl')
 parser.add_argument('--max-seqs', type=int, default=1000000, help='stop adding samples once a locus has this many (weighted) sequences')
 parser.add_argument('--max-seqs-per-sample', type=int, default=10000, help='scale down the counts of any sample larger than this, so it contributes as if it had this many sequences (so many individuals contribute, rather than a few very deep ones)')
@@ -157,7 +157,7 @@ def pool_locus(locus, samples):
         for region, sfo in mf_sums.items():
             writer.writerow({'region' : region, 'sum' : '%.6g' % sfo['sum'], 'n_seqs' : int(round(sfo['n_seqs']))})
     glutils.write_glfo(odir + '/' + glutils.glfo_dir, default_glfo)
-    write_samples(args.outdir, locus, samples, 'samples.csv', '')
+    write_samples(args.sample_list_dir, locus, samples, 'samples.csv', '')
     print('       %d genes with mute freqs, skipped (not default alleles or different binning): %s' % (len(counts), dict(n_skipped)))
 
 # ----------------------------------------------------------------------------------------
