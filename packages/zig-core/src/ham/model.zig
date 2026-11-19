@@ -346,7 +346,7 @@ pub const Model = struct {
     pub fn rescaleOverallMuteFreq(self: *Model, allocator: std.mem.Allocator, overall_mute_freq: f64) !void {
         std.debug.assert(!std.math.isNegativeInf(overall_mute_freq));
         if (self.original_overall_mute_freq == 0.0) return error.ZeroOriginalMuteFreq;
-        const factor = @max(0.01, overall_mute_freq) / self.original_overall_mute_freq;
+        const factor = @max(0.001, overall_mute_freq) / self.original_overall_mute_freq; // floor protects against zero, same as C++
         for (self.states.items) |*st| try st.rescaleOverallMuteFreq(allocator, factor);
     }
 

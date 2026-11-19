@@ -2056,14 +2056,15 @@ class PartitionDriver(object):
         if self.args.debug:
             print('to %s' % parameter_dir + '/hmms', end=' ')
 
+        mean_mfreq = utils.get_mean_mfreq(parameter_dir)  # once here rather than in each writer
         if multiprocessing.cpu_count() * utils.memory_usage_fraction() > 0.8:  # already using a lot of memory, so don't to call multiprocessing, which will duplicate all the memory for each process
             for region in utils.regions:
                 for gene in self.glfo['seqs'][region]:
-                    writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
+                    writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args, mean_mfreq=mean_mfreq)
                     writer.write()
         else:
             def write_single_hmm(gene):
-                writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args)
+                writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args, mean_mfreq=mean_mfreq)
                 writer.write()
             procs = [multiprocessing.Process(target=write_single_hmm, args=(gene,))
                      for region in utils.regions for gene in self.glfo['seqs'][region]]
