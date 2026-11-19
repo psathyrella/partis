@@ -5,7 +5,7 @@
 import argparse, csv, glob, os, random, sys, collections
 partis_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(1, partis_dir)
-from partis import utils, glutils, fraction_uncertainty, familyshm
+from partis import utils, glutils, fraction_uncertainty, familyshm, paircluster
 from partis.hist import Hist
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -155,8 +155,8 @@ def pool_locus(locus, samples):
     print('       %d genes with mute freqs, skipped (not default alleles or different binning): %s' % (len(counts), dict(n_skipped)))
 
 # ----------------------------------------------------------------------------------------
-def partition_fname(hdir, locus):  # partition file of the sample whose parameter dir is <hdir> (<sample>/parameters/<locus>/hmm)
-    return '%s/partition-%s.yaml' % (os.path.dirname(os.path.dirname(os.path.dirname(hdir))), locus)
+def partition_fname(hdir, locus):  # paired partition file of the sample whose parameter dir is <hdir> (samples with partitions are all paired output dirs, whose parameter dirs are <sample>/parameters/<locus>/hmm)
+    return paircluster.paired_fn(hdir.replace('/parameters/%s/hmm' % locus, ''), locus, suffix='.yaml', actstr='partition')
 
 def count_family_shm(hdir, locus):  # the same counting that parameter counting does on a partition, applied to the families in the sample's partition file
     _, antn_list, _ = utils.read_yaml_output(partition_fname(hdir, locus))
