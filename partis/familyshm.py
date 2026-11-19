@@ -115,11 +115,10 @@ def pooled_fname(locus):
     return '%s/data/recombinator/scratch-parameters/%s/hmm/%s' % (utils.get_partis_dir(), locus, fname)
 
 # ----------------------------------------------------------------------------------------
-def read_family_shm(parameter_dir, locus, debug=False):  # returns a FamilyShm from the parameter dir's family-shm.yaml or the pooled one for <locus>, or None (with a warning) if neither exists, e.g. for tr loci, which have no pooled one
+def read_family_shm(parameter_dir, locus, debug=False):  # returns a FamilyShm from the parameter dir's family-shm.yaml and/or the pooled one for <locus>
     own_fn = '%s/%s' % (parameter_dir, fname) if parameter_dir is not None else None
     if (own_fn is None or not os.path.exists(own_fn)) and not os.path.exists(pooled_fname(locus)):
-        print('  %s no %s in parameter dir %s or pooled for %s, so each family\'s mean shm won\'t depend on its size, and leaves within each family will have the same depth' % (utils.wrnstr(), fname, parameter_dir, locus))
-        return None
+        raise Exception('no %s in parameter dir %s, and no pooled one for %s (%s). Count parameters on a partition (cache-parameters --input-partition-fname, or partition --count-parameters) to make one, or set --no-family-shm-parameters' % (fname, parameter_dir, locus, pooled_fname(locus)))
     return FamilyShm(own_fn, pooled_fname(locus), debug=debug)
 
 # ----------------------------------------------------------------------------------------
@@ -134,13 +133,12 @@ class FamilyShm(object):  # reads family-shm.yaml from a parameter dir (<own_fn>
             fshm = own if own is not None and (pooled is None or sum(own['mean-percentile-counts'][sbin]) > 0) else pooled
             self.srcs[sbin] = own_fn if fshm is own else pooled_fn
             counts = numpy.array(fshm['mean-percentile-counts'][sbin], dtype=float)
-            if counts.sum() == 0:  # no families of this size in the only file there is: use a uniform percentile (the same draw as without family shm parameters), and add no within-family variance
-                counts = numpy.ones(n_percentile_bins)
-                self.srcs[sbin] = 'none (no families of this size in %s)' % self.srcs[sbin]
+            if counts.sum() == 0:
+                raise Exception('no families of size %s in %s, and no pooled %s to fall back to (%s)' % (sbin, own_fn, fname, pooled_fn))
             self.pct_probs[sbin] = counts / counts.sum()
             if sbin != bin_strs[0]:
                 wsums = fshm['within-family'][sbin]
-                self.relvars[sbin] = wsums['sum-sq-dev'] / wsums['sum-n-mean-sq'] if wsums['sum-n-mean-sq'] > 0 and not self.srcs[sbin].startswith('none') else 0.
+                self.relvars[sbin] = wsums['sum-sq-dev'] / wsums['sum-n-mean-sq'] if wsums['sum-n-mean-sq'] > 0 else 0.
         fshm = own if own is not None else pooled  # the split-half fraction is one number over all family sizes
         self.split_half_fn = own_fn if fshm is own else pooled_fn
         shsums = fshm['split-half']
