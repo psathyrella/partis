@@ -5255,7 +5255,22 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
         mean_mut_fns = ['%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
         mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
-        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine (if you add the n-muted hists here, you also need to sum mute_freq_sum_fname over subsets rather than linking one subset's, since otherwise get_mean_mfreq() would give that one subset's mean)
+        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine (the mean comes from mute_freq_sum_fname, summed over subsets below)
+        sum_fns = ['%s/parameters/%s/hmm/%s' % (subdfn(i), ltmp, mute_freq_sum_fname) for i in range(n_subsets)]
+        sum_fns = [f for f in sum_fns if os.path.exists(f)]
+        if len(sum_fns) > 0:  # sum over subsets, so get_mean_mfreq() can give the exact mean for the merged dir
+            mf_sums = OrderedDict()
+            for sfn in sum_fns:
+                with open(sfn) as sfile:
+                    for line in csv.DictReader(sfile):
+                        rsum = mf_sums.setdefault(line['region'], {'sum' : 0., 'n_seqs' : 0})
+                        rsum['sum'] += float(line['sum'])
+                        rsum['n_seqs'] += int(line['n_seqs'])
+            with open('%s/parameters/%s/hmm/%s' % (merged_odir, ltmp, mute_freq_sum_fname), csv_wmode()) as sfile:
+                writer = csv.DictWriter(sfile, ['region', 'sum', 'n_seqs'])
+                writer.writeheader()
+                for region, rsum in mf_sums.items():
+                    writer.writerow({'region' : region, 'sum' : rsum['sum'], 'n_seqs' : rsum['n_seqs']})
         merged_glfo, merged_gene_counts = None, {r : defaultdict(int) for r in regions}
         def gpfn(dname, l, r): return '%s/parameters/%s/hmm/%s_gene-probs.csv' % (dname, l, r)
         for isub in range(n_subsets):
