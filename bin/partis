@@ -736,10 +736,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
                 utils.replace_in_arglist(clist, '--random-seed', str(utils.hashint(ltmp + '+'.join(lpair) + rseedstr)))  # NOTE sends same seed to tree generation and igh, which i think is fine?
+                # generate-trees uses the heavy chain parameter dir for both heavy and light, since it only uses it for the n-leaf distribution and the family shm parameters (see treegenerator.generate_trees_depth and choose_depth_percentile())
                 for tstr in ['', 'reco-', 'shm-']:  # deal with simulation {,reco,shm}-parameter dir stuff
                     argstr = '--%sparameter-dir' % tstr
                     if utils.is_in_arglist(clist, argstr) > 0:
-                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))  # the trees aren't really associated with the locus if we're generating trees, and this uses the heavy chain parameter dir for both heavy and light. That's fine, since it's only used for the n-leaf distribution: generate-trees uses a fixed depth, and each locus's simulation then rescales each tree to a depth from its own parameter dir (see treegenerator.generate_trees_depth)
+                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))
             if tmpaction == 'generate-trees':
                 utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
                 utils.remove_from_arglist(clist, '--n-sim-events', has_arg=True)
@@ -753,8 +754,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 clist.append('--crash-on-duplicate-uids')  # single-chain subprocesses in paired mode should crash on duplicates
                 if args.action == 'simulate':
                     clist += ['--choose-trees-in-order', '--outfname', getofn(ltmp, lpair=lpair)]
-                    if args.input_simulation_treefname is None:
-                        clist += ['--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair)]
+                    utils.replace_in_arglist(clist, '--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair))  # trees from generate-trees (which, if --input-simulation-treefname was set, are those trees with depth percentiles added)
                     if args.paired_correlation_values is not None and not utils.has_d_gene(ltmp):
                         clist += ['--heavy-chain-event-fname', getofn('igh', lpair=lpair)]
                     if args.only_genes is not None:
@@ -1379,10 +1379,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             print('%s: simulating %d event%s' % (utils.color('blue', '+'.join(lpair)), get_n_events(l_locus, args.n_sim_events), utils.plural(get_n_events(l_locus, args.n_sim_events))))
             if get_n_events(l_locus, args.n_sim_events) == 0:
                 continue
-            if args.input_simulation_treefname is None:
-                run_step('generate-trees', h_locus, lpair=lpair)
-            else:
+            if args.input_simulation_treefname is not None:  # generate-trees then reads them, and gives each one a depth percentile that heavy and light share
                 print('    %s drawing input simulation trees from --input-simulation-treefname *in order* for both heavy and light (rather than randomly, as for single chain)' % utils.color('yellow', 'warning'))
+            run_step('generate-trees', h_locus, lpair=lpair)
             for ltmp in lpair:
                 run_step(args.action, ltmp, lpair=lpair)
         combine_simu_chains()
@@ -1786,6 +1785,7 @@ subargs['simulate'].append({'name' : '--reco-parameter-dir', 'kwargs' : {'help' 
 subargs['simulate'].append({'name' : '--scratch-mute-freq', 'kwargs' : {'type' : float, 'default' : 0.05, 'help' : 'shm fraction/rate (tree depth passed to bpp) used by --mutate-from-scratch. Note that to get very large average values you need to also set --same-mute-freq-for-all-seqs (and maybe --flat-mute-freq), since saturation means that the high end of the spectrum ends up getting pushed down while the low end doesn\'t.'}})
 subargs['simulate'].append({'name' : '--flat-mute-freq', 'kwargs' : {'action' : 'store_true', 'help' : 'use the same shm fraction/rate (--scratch-mute-freq) for all positions (in practice it\'s not that much flatter than the Gamma that is used by default --mutate-from-scratch). For use with --mutate-from-scratch.'}})
 subargs['simulate'].append({'name' : '--same-mute-freq-for-all-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'use the same shm rate (--scratch-mute-freq) for all families and all sequences. This only actually directly determines the mean family shm (so "-for-all-families" might be a better name), but since for the options we need TreeSim can only give ultrametric trees, this is the only lever we have. For use with --mutate-from-scratch. Note that this means we tell bppseqgen to use the same expected rate for every sequence -- there\'s still variance in the resulting number of output mutation per sequence. See note in treegenerator.choose_full_sequence_branch_length().'}})
+subargs['simulate'].append({'name' : '--no-family-shm-parameters', 'kwargs' : {'action' : 'store_true', 'help' : 'don\'t use family-level shm parameters (family-shm.yaml in the shm parameter dir, or if it isn\'t there, the pooled one in data/recombinator/scratch-parameters/<locus>/hmm/). By default, each family\'s mean shm is drawn depending on the family\'s size, and each tree gets within-family variation in leaf depth (see partis/familyshm.py and issue #460). With this set (or with --same-mute-freq-for-all-seqs), each family\'s mean shm is drawn from the per-sequence shm distribution regardless of size, and all leaves in a tree have the same depth.'}})
 subargs['simulate'].append({'name' : '--correlation-values', 'kwargs' : {'help' : 'By default, scratch rearrangement has no correlations between parameters, but this arg lets you turn them on. Each correlation is specified as a \'.\'-separated pair of parameter names, separated by \',\' from a float in [0, 1] specifying the magnitude of the correlation, with multiple correlations separated by \':\', e.g. \'v_gene.d_gene,0.1:d_gene.j_gene,0.7\'. Currently allowed parameter pairs are %s. Note that the correlation model is just one (fairly arbitrary) choice for how to set things up, for details consult the code. Note also that non-scratch simulation, i.e. from inferred parameters, includes correlations among all parameters.' % ', '.join(str(p) for p in utils.available_simu_correlations)}})
 subargs['simulate'].append({'name' : '--paired-correlation-values', 'kwargs' : {'help' : 'like --correlation-values, except that the first parameter is in the heavy chain rearrangmeent, and the second is in the light chain rearrangement.'}})
 subargs['simulate'].append({'name' : '--heavy-chain-event-fname', 'kwargs' : {'help' : 'for internal use by --paired-correlation-values: file with heavy chain events so the light chain rearrangement knows what was in the heavy chain rearrangement.'}})
