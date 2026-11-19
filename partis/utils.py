@@ -4382,6 +4382,10 @@ def get_mutation_rate(line, iseq, restrict_to_region=''):
     return hamming_fraction(naive_seq, muted_seq)
 
 # ----------------------------------------------------------------------------------------
+def scratch_parameter_dir(locus=None):  # pooled shm parameters that come with partis, for simulation without a sample's own parameter dir (see data/recombinator/scratch-parameters/README.md)
+    return '%s/data/recombinator/scratch-parameters%s' % (get_partis_dir(), '' if locus is None else '/' + locus)
+
+# ----------------------------------------------------------------------------------------
 def get_mutation_rate_and_n_muted(line, iseq, restrict_to_region='', exclusion_3p=None):
     naive_seq, muted_seq = subset_iseq(line, iseq, restrict_to_region=restrict_to_region, exclusion_3p=exclusion_3p)
     fraction, distance = hamming_fraction(naive_seq, muted_seq, also_return_distance=True)

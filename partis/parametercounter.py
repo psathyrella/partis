@@ -13,6 +13,7 @@ from . import hutils
 from . import plotconfig
 from .mutefreqer import MuteFreqer
 from .corrcounter import CorrCounter
+from .familyshm import FamilyShmCounter
 from . import indelutils
 from io import open
 
@@ -24,6 +25,7 @@ class ParameterCounter(object):
         self.glfo = glfo
         self.args = args
         self.mfreqer = MuteFreqer(self.glfo, exclusions=args.region_end_exclusions, args=args)
+        self.fshmcounter = FamilyShmCounter()  # family-level shm parameters (only written if there are multi-sequence families)
         self.corrcounter = CorrCounter() if count_correlations else None  # NOTE if you want paired h/l correlations you have to use corr counter outside of the parameter counter
         self.reco_total = 0  # total number of recombination events
         self.mute_total = 0  # total number of sequences
@@ -121,6 +123,7 @@ class ParameterCounter(object):
         self.sub_increment('aa_cdr3_length', (info['cdr3_length'] // 3, ))  # oh, jeez, this has to be a tuple to match the index columns, that's ugly
         self.sub_increment('non_vj_length', (utils.get_non_vj_len(info), ))
         self.sub_increment('cluster_size', (len(info['unique_ids']), ))
+        self.fshmcounter.increment(info)
 
         for bound in utils.boundaries:
             for nuke in info[bound + '_insertion']:
@@ -212,6 +215,7 @@ class ParameterCounter(object):
             os.rmdir(base_outdir + '/correlations')
 
         self.mfreqer.write(base_outdir, base_outdir + '/mute-freqs')
+        self.fshmcounter.write(base_outdir)
         genes_with_counts = [g[0] for r in utils.regions for g in self.counts[r + '_gene'].keys()]
         glutils.write_glfo(base_outdir + '/' + glutils.glfo_dir, self.glfo, only_genes=genes_with_counts, debug=False)
 
