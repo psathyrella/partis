@@ -739,7 +739,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 for tstr in ['', 'reco-', 'shm-']:  # deal with simulation {,reco,shm}-parameter dir stuff
                     argstr = '--%sparameter-dir' % tstr
                     if utils.is_in_arglist(clist, argstr) > 0:
-                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))  # the trees aren't really associated with the locus if we're generating trees, and this uses the heavy chain parameter dir for both heavy and light. That's fine, since it's only used for the n-leaf distribution: generate-trees uses a fixed depth, and each locus's simulation then rescales each tree to a depth from its own parameter dir (see treegenerator.generate_trees_depth)
+                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))  # the trees aren't really associated with the locus if we're generating trees, and this uses the heavy chain parameter dir for both heavy and light. That's fine, since it's only used for the n-leaf distribution and the family-level shm parameters (familyshm.py): generate-trees uses a fixed depth, gives each tree its within-family variation and a depth percentile, and each locus's simulation then rescales each tree to the depth at that percentile in its own parameter dir's per-sequence shm distribution (see treegenerator.generate_trees_depth)
             if tmpaction == 'generate-trees':
                 utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
                 utils.remove_from_arglist(clist, '--n-sim-events', has_arg=True)

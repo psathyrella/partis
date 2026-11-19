@@ -37,7 +37,7 @@ and, over all families, the split-half fraction: the share of within-family vari
 
 A parameter dir only has this file if its parameters were counted on a partition (`cache-parameters --input-partition-fname`, or `partition --count-parameters`, which writes `multi-hmm/`). Simulation with a parameter dir that lacks it (or lacks families in some size bin) uses this pooled one instead. All three quantities are relative to each sample's own mutation level, so the pooled numbers apply to samples with any mutation level.
 
-The pool uses the samples in `datasets.csv` that have either `multi-hmm/family-shm.yaml` or a partition file (`<sample>/partition-<locus>.yaml`), chosen and weighted as in steps 1 and 2 above. For samples with only a partition file, it counts the file's annotations with the same code that parameter counting uses. `<locus>/family-shm-samples.csv` lists the samples. To remake only this file:
+The pool uses the samples in `datasets.csv` that have a partition file (`<sample>/partition-<locus>.yaml`), chosen and weighted as in steps 1 and 2 above. It counts each partition file's families with the same code that parameter counting on a partition uses. `<locus>/family-shm-samples.csv` lists the samples. To remake only this file:
 
     ./make-scratch-parameters.py --base-dir <dir> --only-family-shm
 

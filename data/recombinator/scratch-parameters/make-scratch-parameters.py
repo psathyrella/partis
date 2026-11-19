@@ -155,22 +155,19 @@ def pool_locus(locus, samples):
     print('       %d genes with mute freqs, skipped (not default alleles or different binning): %s' % (len(counts), dict(n_skipped)))
 
 # ----------------------------------------------------------------------------------------
-def family_shm_fnames(hdir, locus):  # family-level shm parameters for the sample with parameter dir <hdir> (<sample>/parameters/<locus>/hmm): from partition parameter counting if it was run (multi-hmm), otherwise the sample's partition file
-    return '%s/multi-hmm/%s' % (os.path.dirname(hdir), familyshm.fname), '%s/partition-%s.yaml' % (os.path.dirname(os.path.dirname(os.path.dirname(hdir))), locus)
+def partition_fname(hdir, locus):  # partition file of the sample whose parameter dir is <hdir> (<sample>/parameters/<locus>/hmm)
+    return '%s/partition-%s.yaml' % (os.path.dirname(os.path.dirname(os.path.dirname(hdir))), locus)
 
-def count_family_shm(hdir, locus):
-    mhfn, pfn = family_shm_fnames(hdir, locus)
-    if os.path.exists(mhfn):
-        return utils.read_json_yaml(mhfn)
-    _, antn_list, _ = utils.read_yaml_output(pfn)
-    counter = familyshm.FamilyShmCounter()  # the same counting that parameter counting does on a partition
+def count_family_shm(hdir, locus):  # the same counting that parameter counting does on a partition, applied to the families in the sample's partition file
+    _, antn_list, _ = utils.read_yaml_output(partition_fname(hdir, locus))
+    counter = familyshm.FamilyShmCounter()
     for line in antn_list:
         if not line.get('invalid', False):
             counter.increment(line)
     return counter.to_dict() if counter.has_families() else None
 
 def pool_family_shm(locus):  # each family's numbers are relative to its own sample (percentile, relative variance, fraction), so samples with different shm levels can be summed
-    samples = choose_samples(locus, require_fcn=lambda h: any(os.path.exists(f) for f in family_shm_fnames(h, locus)))
+    samples = choose_samples(locus, require_fcn=lambda h: os.path.exists(partition_fname(h, locus)))
     fshm_list, weights, used = [], [], []
     for sfo in samples:
         fshm = count_family_shm(sfo['hdir'], locus)

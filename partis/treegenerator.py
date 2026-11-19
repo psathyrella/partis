@@ -139,9 +139,13 @@ class TreeGenerator(object):
                 self.final_nldist = self.args.default_scratch_n_leaf_distribution
 
     #----------------------------------------------------------------------------------------
+    def depth_at_percentile(self, pct):  # tree depth at percentile <pct> of this parameter dir's per-sequence shm distribution
+        return familyshm.value_at_percentile(pct, self.branch_lengths['all']['lengths'], self.branch_lengths['all']['probs'])
+
+    #----------------------------------------------------------------------------------------
     def choose_full_sequence_branch_length(self, n_leaves):
         if self.fshm is not None:  # the family mean's percentile in the per-sequence distribution depends on family size
-            return familyshm.value_at_percentile(self.fshm.choose_percentile(n_leaves), self.branch_lengths['all']['lengths'], self.branch_lengths['all']['probs'])
+            return self.depth_at_percentile(self.fshm.choose_percentile(n_leaves))
         # NOTE the rest of this fcn is only used with --no-family-shm-parameters (or without family shm parameters): with them, the percentile within the distribution of sequence ages depends on family size, and within-family variation comes from add_within_family_variance()
         # NOTE this chooses the age of the *tree* from the distribution of *sequence* ages, which is wrong, but maybe an ok compromise.
         # The root of the problem is that there's two shm distributions (of seqs within families, and of family means), but we only have good options to control the second.
@@ -189,7 +193,7 @@ class TreeGenerator(object):
                 for mtype in ['all',] + utils.regions:
                     print('         %4s %7.3f (ratio %7.3f)' % (mtype, self.branch_lengths[mtype]['mean'], self.branch_lengths[mtype]['mean'] / self.branch_lengths['all']['mean']))
 
-        ages, treestrs, n_leaf_list = [], [], []
+        ages, treestrs, n_leaf_list, depth_pcts = [], [], [], []
 
         cmd_lines = []
         pkgname = 'TreeSim'  # TreeSimGM when root_mrca_weibull_parameter is set, otherwise TreeSim
@@ -202,6 +206,10 @@ class TreeGenerator(object):
             age = self.choose_full_sequence_branch_length(n_leaves) if not self.args.generate_trees else self.generate_trees_depth
             ages.append(age)
             n_leaf_list.append(n_leaves)
+            if self.args.generate_trees:  # i.e. paired: choose each family's depth percentile here, so heavy and light use the same one (each converts it to a depth with its own per-sequence distribution), so a family's mean shm is correlated between heavy and light
+                depth_pcts.append(self.fshm.choose_percentile(n_leaves) if self.fshm is not None else numpy.random.uniform())
+            else:
+                depth_pcts.append(None)
             if n_leaves == 1:  # add singleton trees by hand
                 treestrs.append('t1:%f;' % age)
                 continue
@@ -242,6 +250,8 @@ class TreeGenerator(object):
             treestrs[itree] = treeutils.rescale_tree(ages[itree], treestr=treestrs[itree])
             if self.fshm is not None and n_leaf_list[itree] > 1:  # TreeSim trees are ultrametric, so add the within-family variation in leaf depth here (with --generate-trees, light chain then gets the heavy chain's, since it reads these trees)
                 treestrs[itree] = familyshm.add_within_family_variance(treestrs[itree], self.fshm.target_relvar(n_leaf_list[itree]))
+            if depth_pcts[itree] is not None:
+                treestrs[itree] = familyshm.set_depth_percentile(treestrs[itree], depth_pcts[itree])
 
         return ages, treestrs
 
@@ -257,12 +267,16 @@ class TreeGenerator(object):
                 tstr = line.strip()
                 if tstr == '':  # skip empty lines
                     continue
+                depth_pct, tstr = familyshm.pop_depth_percentile(tstr)  # set if the trees were made with --generate-trees, i.e. paired simulation
                 dtree = treeutils.get_dendro_tree(treestr=tstr, suppress_internal_node_taxa=True)
                 if dtree.seed_node.edge_length is None:  # make sure root edge length is set (otherwise bppseqgen barfs)
                     dtree.seed_node.edge_length = 0.
                 old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
                 treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
-                age = self.choose_full_sequence_branch_length(treeutils.get_n_leaves(dtree))  # input trees keep their own within-family variation
+                if depth_pct is not None:
+                    age = self.depth_at_percentile(depth_pct)
+                else:
+                    age = self.choose_full_sequence_branch_length(treeutils.get_n_leaves(dtree))  # input trees keep their own within-family variation
                 if age > 0 and treeutils.get_mean_leaf_height(tree=dtree) == 0:  # all branch lengths are zero, so rescale_tree() can't give it a nonzero depth
                     n_zero_depth += 1
                 if self.args.debug > 1:  # it's easier to keep this debug line separate up here than make a tmp variable to keep track of the old height

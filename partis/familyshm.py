@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
 import os
+import re
 import collections
 import math
 import numpy
@@ -188,3 +189,16 @@ def add_within_family_variance(treestr, target_relvar):  # multiply each branch 
             node.edge_length *= numpy.random.lognormal(-sigma**2 / 2, sigma)
     treeutils.rescale_tree(depth, dtree=dtree)
     return dtree.as_string(schema='newick').strip()
+
+# ----------------------------------------------------------------------------------------
+depth_pct_prefix = 'family-depth-percentile-'  # trees written with --generate-trees store each family's depth percentile as the root node's label, so it goes wherever the tree goes (e.g. when the tree file is split among subprocesses)
+def set_depth_percentile(treestr, pct):
+    dtree = treeutils.get_dendro_tree(treestr=treestr, suppress_internal_node_taxa=True)
+    dtree.seed_node.label = '%s%.8f' % (depth_pct_prefix, pct)
+    return dtree.as_string(schema='newick').strip()
+
+def pop_depth_percentile(treestr):  # return the depth percentile in the root node's label (None if there isn't one), and the tree string without it (get_dendro_tree() drops internal node labels, so this works on the string)
+    mtch = re.search(r'%s([0-9.]+)' % depth_pct_prefix, treestr)
+    if mtch is None:
+        return None, treestr
+    return float(mtch.group(1)), treestr.replace(mtch.group(0), '')
