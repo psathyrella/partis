@@ -40,7 +40,8 @@ class FamilyShmCounter(object):
     # ----------------------------------------------------------------------------------------
     def increment(self, info):
         n_seqs = len(info['unique_ids'])
-        freqs, n_muted = [numpy.array(v) for v in zip(*[utils.get_mutation_rate_and_n_muted(info, iseq) for iseq in range(n_seqs)])]  # same as mutefreqer's all-mean-n-muted.csv
+        subseqs = [utils.subset_iseq(info, iseq, restrict_to_region='') for iseq in range(n_seqs)]  # (naive seq, mutated seq) over the same positions as utils.get_mutation_rate_and_n_muted() (and so mutefreqer's all-mean-n-muted.csv)
+        freqs, n_muted = [numpy.array(v) for v in zip(*[utils.hamming_fraction(nseq, mseq, also_return_distance=True) for nseq, mseq in subseqs])]
         self.seq_n_muted.update(n_muted.tolist())
         sbin = get_bin(n_seqs)
         self.fam_mean_n_muted[sbin].append(n_muted.mean())
@@ -50,7 +51,7 @@ class FamilyShmCounter(object):
         sq_dev = numpy.sum((freqs - fmean)**2)
         self.within_sums[sbin]['sum-sq-dev'] += sq_dev
         self.within_sums[sbin]['sum-n-mean-sq'] += n_seqs * fmean**2
-        avals, bvals = [numpy.array(v) for v in zip(*[split_half_freqs(*utils.subset_iseq(info, iseq, restrict_to_region='')) for iseq in range(n_seqs)])]
+        avals, bvals = [numpy.array(v) for v in zip(*[split_half_freqs(nseq, mseq) for nseq, mseq in subseqs])]
         self.split_half_sums['sum-cov'] += numpy.sum((avals - avals.mean()) * (bvals - bvals.mean()))
         self.split_half_sums['sum-sq-dev'] += sq_dev
 

@@ -143,6 +143,10 @@ class TreeGenerator(object):
         return familyshm.value_at_percentile(pct, self.branch_lengths['all']['lengths'], self.branch_lengths['all']['probs'])
 
     #----------------------------------------------------------------------------------------
+    def choose_depth_percentile(self, n_leaves):  # for --generate-trees (i.e. paired): each family's depth percentile, which heavy and light share (each converts it to a depth with its own per-sequence distribution), so a family's mean shm is correlated between heavy and light
+        return self.fshm.choose_percentile(n_leaves) if self.fshm is not None else numpy.random.uniform()
+
+    #----------------------------------------------------------------------------------------
     def choose_full_sequence_branch_length(self, n_leaves):
         if self.fshm is not None:  # the family mean's percentile in the per-sequence distribution depends on family size
             return self.depth_at_percentile(self.fshm.choose_percentile(n_leaves))
@@ -206,10 +210,7 @@ class TreeGenerator(object):
             age = self.choose_full_sequence_branch_length(n_leaves) if not self.args.generate_trees else self.generate_trees_depth
             ages.append(age)
             n_leaf_list.append(n_leaves)
-            if self.args.generate_trees:  # i.e. paired: choose each family's depth percentile here, so heavy and light use the same one (each converts it to a depth with its own per-sequence distribution), so a family's mean shm is correlated between heavy and light
-                depth_pcts.append(self.fshm.choose_percentile(n_leaves) if self.fshm is not None else numpy.random.uniform())
-            else:
-                depth_pcts.append(None)
+            depth_pcts.append(self.choose_depth_percentile(n_leaves) if self.args.generate_trees else None)
             if n_leaves == 1:  # add singleton trees by hand
                 treestrs.append('t1:%f;' % age)
                 continue
@@ -273,7 +274,11 @@ class TreeGenerator(object):
                     dtree.seed_node.edge_length = 0.
                 old_new_label_pairs = [(l.taxon.label, 't%d' % (i+1)) for i, l in enumerate(dtree.leaf_node_iter())]
                 treeutils.translate_labels(dtree, old_new_label_pairs)  # rename the leaves to t1, t2, etc. (it would be nice to not have to do this, but a bunch of stuff in recombinator uses this  to check that e.g. bppseqgen didn't screw up the ordering)
-                if depth_pct is not None:
+                if self.args.generate_trees:  # paired simulation with --input-simulation-treefname: give each input tree a depth percentile that heavy and light will share, and the same fixed depth as trees we generate (a depth from the percentile could be zero, which would lose the tree's shape)
+                    if depth_pct is None:
+                        depth_pct = self.choose_depth_percentile(treeutils.get_n_leaves(dtree))
+                    age = self.generate_trees_depth
+                elif depth_pct is not None:
                     age = self.depth_at_percentile(depth_pct)
                 else:
                     age = self.choose_full_sequence_branch_length(treeutils.get_n_leaves(dtree))  # input trees keep their own within-family variation
@@ -283,11 +288,7 @@ class TreeGenerator(object):
                     print('    input tree %d (rescaled depth %.3f --> %.3f):' % (len(ages), treeutils.get_mean_leaf_height(tree=dtree), age))
                 treeutils.rescale_tree(age, dtree=dtree)  # I think this gets rescaled again for each event, so we could probably in principle avoid this rescaling, but if the input depth is greater than one stuff starts breaking, so may as well do it now
                 ages.append(age)
-                treestrs.append(treeutils.as_str(dtree))
-                if self.args.generate_trees:  # paired simulation with --input-simulation-treefname: give each input tree a depth percentile that heavy and light will share (as in run_treesim())
-                    if depth_pct is None:
-                        depth_pct = self.fshm.choose_percentile(treeutils.get_n_leaves(dtree)) if self.fshm is not None else numpy.random.uniform()
-                    treestrs[-1] = familyshm.set_depth_percentile(treestrs[-1], depth_pct)
+                treestrs.append(treeutils.as_str(dtree) if not self.args.generate_trees else familyshm.set_depth_percentile(treeutils.as_str(dtree), depth_pct))
                 if self.args.debug > 1:
                     print(utils.pad_lines(treeutils.get_ascii_tree(dtree)))
         if n_zero_depth > 0:
