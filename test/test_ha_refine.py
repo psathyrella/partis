@@ -104,7 +104,7 @@ def test_standalone_refine_jobs_in_slices(tmp_path, plain_multifile_partition_di
     ddir, manifest = locus_manifest(outdir, locus)
     n_groups = len(manifest['groups'])
     assert n_groups > 1
-    run_partis(['create-partition-refine-jobs', '--locus', locus, '--paired-outdir', str(outdir)], str(tmp_path / 'create.log'))
+    run_partis(['create-partition-refine-jobs', '--locus', locus, '--parameter-dir', os.path.join(PAIRED_PARAM_DIR, locus), '--paired-outdir', str(outdir)], str(tmp_path / 'create.log'))
     run_partis(refine_job_args(outdir, locus, job_count=1), str(tmp_path / 'refine-0.log'))
     run_partis(refine_job_args(outdir, locus, job_start=1), str(tmp_path / 'refine-1.log'))
     assert all(group_stage_exists(outdir, locus, dg.STAGE_REFINE))
@@ -120,6 +120,28 @@ def test_standalone_refine_needs_threshold(tmp_path, plain_multifile_partition_d
     outdir = copy_dir(plain_multifile_partition_dir, tmp_path / 'out')
     log = run_partis_fails(refine_job_args(outdir, 'igh', job_count=1), str(tmp_path / 'refine.log'))
     assert 'does not exist (run create-partition-refine-jobs first)' in log
+
+
+def test_standalone_refine_create_needs_parameter_dir(tmp_path, plain_multifile_partition_dir):
+    outdir = copy_dir(plain_multifile_partition_dir, tmp_path / 'out')
+    log = run_partis_fails(['create-partition-refine-jobs', '--locus', 'igh', '--paired-outdir', str(outdir)], str(tmp_path / 'create.log'))
+    assert '\'create-partition-refine-jobs\' needs --parameter-dir' in log
+
+
+def test_standalone_refine_compares_parameter_dir(tmp_path, plain_multifile_partition_dir):
+    outdir = copy_dir(plain_multifile_partition_dir, tmp_path / 'out')
+    pdir = str(copy_dir(os.path.join(PAIRED_PARAM_DIR, 'igk'), tmp_path / 'igk-params'))
+    run_partis(refine_job_args(outdir, 'igk', pdir=pdir, job_count=1), str(tmp_path / 'copy.log'))  # a copy at another path passes
+    open('%s/hmm/extra' % pdir, 'w').close()
+    log = run_partis_fails(refine_job_args(outdir, 'igk', pdir=pdir, job_start=1), str(tmp_path / 'other.log'))
+    assert '%s/hmm is not among the manifest\'s inputs' % pdir in log
+    assert sum(group_stage_exists(outdir, 'igk', dg.STAGE_REFINE)) == 1  # nothing refined after the first slice
+
+
+def test_refine_jobs_with_parent_parameter_dir(tmp_path, plain_multifile_partition_dir):
+    outdir = copy_dir(plain_multifile_partition_dir, tmp_path / 'out')
+    run_partis(refine_job_args(outdir, 'igk', pdir=PAIRED_PARAM_DIR, job_count=1), str(tmp_path / 'refine.log'))
+    assert sum(group_stage_exists(outdir, 'igk', dg.STAGE_REFINE)) == 1
 
 
 # ----------------------------------------------------------------------------------------

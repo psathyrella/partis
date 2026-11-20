@@ -822,6 +822,14 @@ def hfrac_mfreq_dir(parameter_dir, locus):
     raise Exception('could not find %s in %s (checked {locus}/sw, {locus}/hmm, sw, hmm)' % (MEAN_MFREQ_FNAME, parameter_dir))
 
 # ----------------------------------------------------------------------------------------
+def stage_input_dirs(locus_pdir, ptype_dir=None):
+    # dirs of <locus_pdir> read by the stages after grouping
+    stage_dirs = ['%s/hmm' % locus_pdir]
+    if ptype_dir is not None and ptype_dir not in stage_dirs:  # multi-hmm/ or sw/, read by the HA jobs
+        stage_dirs.append(ptype_dir)
+    return stage_dirs
+
+# ----------------------------------------------------------------------------------------
 def grouping_inputs(sw_cache_path, parameter_dir, locus, locus_pdir, hfrac, hfrac_merge_factor, hfrac_max_bin_size, min_group_size, ptype_dir=None):
     # hashes of the files the unit reads plus the args that change the groups, compared on re-run
     # <locus_pdir>: locus parameter dir whose hmm/ the later stages read (None to skip), <ptype_dir>: its --parameter-type subdir; <parameter_dir> is only read with <hfrac>
@@ -836,10 +844,7 @@ def grouping_inputs(sw_cache_path, parameter_dir, locus, locus_pdir, hfrac, hfra
             if os.path.exists(mfreq_fname):  # older parameter dirs have no sums file
                 files.append(utils.input_entry(mfreq_fname))
     if locus_pdir is not None:
-        stage_dirs = ['%s/hmm' % locus_pdir]
-        if ptype_dir is not None and ptype_dir not in stage_dirs:  # multi-hmm/ or sw/, read by the HA jobs
-            stage_dirs.append(ptype_dir)
-        files += [utils.input_entry(d, utils.xxh3_dir_hash(d)) for d in stage_dirs]
+        files += [utils.input_entry(d, utils.xxh3_dir_hash(d)) for d in stage_input_dirs(locus_pdir, ptype_dir)]
     gargs = {'hfrac' : hfrac}
     if hfrac:  # the knobs do nothing without it
         gargs.update({'hfrac_merge_factor' : hfrac_merge_factor, 'hfrac_max_bin_size' : hfrac_max_bin_size, 'hfrac_min_seqs' : min_group_size})
@@ -874,6 +879,45 @@ def prepare_disjoint_dir(disjoint_dir, inputs, overwrite, outputs=None):
     if len(diffs) > 0:
         raise Exception('disjoint dir %s was grouped from different inputs (--overwrite to redo it, or use a new --paired-outdir): %s' % (disjoint_dir, '; '.join(diffs)))
     return manifest
+
+# ----------------------------------------------------------------------------------------
+def _stage_dir_diffs(recorded, sdir, shash=None):
+    # <sdir> has to be a recorded path, or have a recorded dir's content (hashed here if <shash> is None)
+    if sdir in [f['path'] for f in recorded]:
+        return []
+    if (utils.xxh3_dir_hash(sdir) if shash is None else shash) in [f['xxh3'] for f in recorded]:
+        return []
+    return ['%s is not among the manifest\'s inputs (group with the same --parameter-dir)' % sdir]
+
+# ----------------------------------------------------------------------------------------
+def _raise_on_input_diffs(disjoint_dir, diffs):
+    if len(diffs) > 0:
+        raise Exception('disjoint dir %s was grouped from different inputs (redo the grouping with --overwrite, or use a new --paired-outdir): %s' % (disjoint_dir, '; '.join(diffs)))
+
+# ----------------------------------------------------------------------------------------
+def check_stage_dirs_recorded(manifest, disjoint_dir, stage_dirs):
+    # for the run actions, after check_manifest_inputs() in the create action: a recorded path is not hashed again
+    recorded = manifest['grouping-info']['inputs']['files']
+    _raise_on_input_diffs(disjoint_dir, [d for sdir in stage_dirs for d in _stage_dir_diffs(recorded, os.path.abspath(sdir))])
+
+# ----------------------------------------------------------------------------------------
+def check_manifest_inputs(manifest, disjoint_dir, stage_dirs):
+    # raise if a recorded input has changed since grouping, or a dir in <stage_dirs> (read by the calling action) does not have a recorded dir's content
+    recorded = manifest['grouping-info']['inputs']['files']
+    stage_hashes = {os.path.abspath(d) : utils.xxh3_dir_hash(d) for d in stage_dirs}
+    diffs, gone = [], []
+    for finfo in recorded:
+        path = finfo['path']
+        if path in stage_hashes or os.path.exists(path):
+            if (stage_hashes[path] if path in stage_hashes else utils.xxh3_path_hash(path)) != finfo['xxh3']:
+                diffs.append('%s has changed since grouping' % path)
+        elif finfo['xxh3'] not in stage_hashes.values():  # paths may move, content may not
+            gone.append(path)
+    for sdir, shash in stage_hashes.items():
+        diffs += _stage_dir_diffs(recorded, sdir, shash)
+    if len(gone) > 0:
+        print('  %s inputs in the manifest of %s do not exist, so they are not compared: %s' % (utils.wrnstr(), disjoint_dir, ' '.join(gone)))
+    _raise_on_input_diffs(disjoint_dir, diffs)
 
 # ----------------------------------------------------------------------------------------
 def _process_one_subset_cache(isubset, swpath, locus, name_map, outdir, glfo, summary_path, expected, hfrac=False):

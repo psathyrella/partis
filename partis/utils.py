@@ -5321,6 +5321,10 @@ def xxh3_dir_hash(dirname):
     return hasher.hexdigest()
 
 # ----------------------------------------------------------------------------------------
+def xxh3_path_hash(path):
+    return xxh3_dir_hash(path) if os.path.isdir(path) else xxh3_file_hash(path)
+
+# ----------------------------------------------------------------------------------------
 def check_file_against_index(fname, expected_xxh3, expected_count, markers, cstr, unit='events'):
     # compare a file's own hash and count to what the index recorded for it
     xxh3, n_found = hash_and_count(fname, markers)
@@ -5463,6 +5467,15 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
         if len(sub_swfs) == 0:
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
             continue
+        mean_mut_fns = ['%s/hmm/all-mean-mute-freqs.csv' % pdir(subdfn(i), ltmp) for i in range(n_subsets)]
+        mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
+        sum_fns = ['%s/%s' % (os.path.dirname(f), mute_freq_sum_fname) for f in mean_mut_fns]
+        sub_sums = None
+        if len(sum_fns) > 0 and all(os.path.exists(f) for f in sum_fns):  # sum over subsets, so get_mean_mfreq() can give the exact mean for the merged dir (skipped if any subset lacks the file, since a partial sum would be read as exact)
+            sub_sums = [read_mute_freq_sums(sfn) for sfn in sum_fns]  # before anything is written, so a damaged file leaves the merged dir as it was
+            odd_fns = [sfn for sfn, ssums in zip(sum_fns, sub_sums) if set(ssums) != set(sub_sums[0])]  # a region missing from one subset would give a partial sum
+            if len(odd_fns) > 0:
+                raise Exception('subset sums files with other regions than %s: %s' % (sum_fns[0], ' '.join(odd_fns)))
         mkdir(pdir(merged_odir, ltmp))
         if skip_sw_merge:
             print('       %s: skipping sw-cache merge' % locstr(ltmp))
@@ -5486,17 +5499,13 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
                     merged_hist.add(sub_hist)
             if merged_hist is not None:
                 merged_hist.write('%s/hmm/%s' % (pdir(merged_odir, ltmp), hfname))
-        mean_mut_fns = ['%s/hmm/all-mean-mute-freqs.csv' % pdir(subdfn(i), ltmp) for i in range(n_subsets)]
-        mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
-        sum_fns = ['%s/%s' % (os.path.dirname(f), mute_freq_sum_fname) for f in mean_mut_fns]
-        if len(sum_fns) > 0 and all(os.path.exists(f) for f in sum_fns):  # sum over subsets, so get_mean_mfreq() can give the exact mean for the merged dir (skipped if any subset lacks the file, since a partial sum would be read as exact)
+        if sub_sums is not None:
             mf_sums = OrderedDict()
-            for sfn in sum_fns:
-                with open(sfn) as sfile:
-                    for line in csv.DictReader(sfile):
-                        rsum = mf_sums.setdefault(line['region'], {'sum' : 0., 'n_seqs' : 0})
-                        rsum['sum'] += float(line['sum'])
-                        rsum['n_seqs'] += int(line['n_seqs'])
+            for ssums in sub_sums:
+                for region, (mfsum, n_seqs) in ssums.items():
+                    rsum = mf_sums.setdefault(region, {'sum' : 0., 'n_seqs' : 0})
+                    rsum['sum'] += mfsum
+                    rsum['n_seqs'] += n_seqs
             with open('%s/hmm/%s' % (pdir(merged_odir, ltmp), mute_freq_sum_fname), csv_wmode()) as sfile:
                 writer = csv.DictWriter(sfile, ['region', 'sum', 'n_seqs'])
                 writer.writeheader()
@@ -7450,16 +7459,32 @@ def mean_mfreq_fnames(parameter_dir, region='all'):
     # the files get_mean_mfreq() reads: mute freq hist, sums, n muted hist
     return ['%s/%s-mean-mute-freqs.csv' % (parameter_dir, region), '%s/%s' % (parameter_dir, mute_freq_sum_fname), '%s/%s-mean-n-muted.csv' % (parameter_dir, region)]
 
+def read_mute_freq_sums(sfn):
+    # {region : (sum, n_seqs)} from a sums file, raising if it has no rows or one cannot be read
+    sums = OrderedDict()
+    with open(sfn) as sfile:
+        for iline, line in enumerate(csv.DictReader(sfile)):
+            try:
+                sums[line['region']] = (float(line['sum']), int(line['n_seqs']))
+            except (KeyError, TypeError, ValueError) as err:
+                raise Exception('could not read row %d of %s (%s: %s)' % (iline + 1, sfn, type(err).__name__, err))
+    if len(sums) == 0:
+        raise Exception('no rows in %s' % sfn)
+    return sums
+
 def get_mean_mfreq(parameter_dir, region='all', n_muted_hist=None, binned_fallback=True, debug=False):
     # mean over sequences of the fraction of positions mutated in <region> ('all' for the whole sequence): exact from mute_freq_sum_fname, else estimated from the hists (older parameter dirs)
     # if neither works, the binned hist mean (with a warning) if <binned_fallback> is set, else None
+    # raises if the sums file exists but cannot be read or has no row for <region>
     from .hist import Hist
     mfname, sfn, nmfname = mean_mfreq_fnames(parameter_dir, region)
     if os.path.exists(sfn):
-        with open(sfn) as sfile:
-            for line in csv.DictReader(sfile):
-                if line['region'] == region and int(line['n_seqs']) > 0:
-                    return float(line['sum']) / int(line['n_seqs'])
+        sums = read_mute_freq_sums(sfn)
+        if region not in sums:
+            raise Exception('no row for region \'%s\' in %s' % (region, sfn))
+        mfsum, n_seqs = sums[region]
+        if n_seqs > 0:  # zero if no sequences were counted
+            return mfsum / n_seqs
     if n_muted_hist is None and os.path.exists(nmfname):
         n_muted_hist = Hist(fname=nmfname)
     mfreq = estimate_mean_mfreq(parameter_dir, region, mfname, n_muted_hist, debug=debug) if os.path.exists(mfname) and n_muted_hist is not None else None
