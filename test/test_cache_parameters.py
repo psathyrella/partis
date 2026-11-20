@@ -1,12 +1,14 @@
 import csv
 import glob
 import os
+import random
 import re
 import shutil
 
 import pytest
 
 from _helpers import LOCI, MIN_ANNOTATED_FRAC, N_PROCS, N_SUBSETS, PAIRED_DATA_DIR, PAIRED_SIMU_DIR, UNPAIRED_IGH_FNAME, check_subsets_complete, copy_dir, fasta_uids, fixture_log, input_uids, merge_subsets_args, read_log, run_partis, run_partis_fails, sw_cache_uids
+from partis import seqfileopener
 from partis import utils
 from partis.disjointgrouper import SW_CACHE_FNAME, SW_CACHE_INDEX_FNAME
 
@@ -68,7 +70,129 @@ def test_write_subsets_only(tmp_path, form):
         n_written += len(fasta_uids('%s/input-seqs.fa' % sdir))
         assert not utils.subset_is_marked_complete(sdir)
         assert not os.path.exists('%s/parameters' % sdir)
+        assert sorted(os.listdir(sdir)) == ['input-seqs.fa'] + (['meta.yaml'] if form == 'paired' else [])
     assert n_written == n_input
+    utils.check_subset_inputs(str(basedir), range(N_SUBSETS))
+    assert len(os.listdir(utils.parameter_subset_root(str(basedir)))) == N_SUBSETS + 1  # the subset dirs and the index
+
+
+@pytest.mark.parametrize('case', ['n-random-queries', 'repeated-uid', 'abbreviate', 'queries-to-include'])
+def test_write_subsets_only_options(tmp_path, case):
+    # each sequence that is read lands in the subsets once (queries-to-include: the split in memory)
+    sfos = utils.read_fastx(UNPAIRED_IGH_FNAME)
+    in_names = set(s['name'] for s in sfos)
+    infname, extra_args, n_expected = UNPAIRED_IGH_FNAME, [], len(sfos)
+    if case == 'n-random-queries':
+        n_expected = len(sfos) // 2
+        extra_args = ['--n-random-queries', str(n_expected)]
+    elif case == 'repeated-uid':
+        infname, n_expected = str(tmp_path / 'in.fa'), len(sfos) + 1
+        utils.write_fasta(infname, sfos + [sfos[0]])
+    elif case == 'abbreviate':
+        extra_args = ['--abbreviate']
+    elif case == 'queries-to-include':
+        extra_args = ['--queries-to-include', sfos[0]['name']]
+    basedir = str(tmp_path / 'params')
+    run_partis(['cache-parameters', '--n-subsets', str(N_SUBSETS), '--write-subsets-only', '--infname', infname, '--parameter-dir', basedir] + extra_args, str(tmp_path / 'partis.log'))
+    sub_names = [[s['name'] for s in utils.read_fastx('%s/input-seqs.fa' % utils.parameter_subset_dir(basedir, i))] for i in range(N_SUBSETS)]
+    names = set(n for l in sub_names for n in l)
+    assert len(names) == n_expected
+    if case == 'queries-to-include':  # the query is added to each subset that lacks it
+        assert all(sfos[0]['name'] in l for l in sub_names)
+        assert sum(len(l) for l in sub_names) == n_expected + N_SUBSETS - 1
+    else:
+        assert sum(len(l) for l in sub_names) == n_expected
+    if case == 'abbreviate':
+        assert names.isdisjoint(in_names)
+    elif case == 'repeated-uid':
+        assert in_names < names
+    else:
+        assert names <= in_names
+    utils.check_subset_inputs(basedir, range(N_SUBSETS))
+
+
+def test_subset_fastas_from_seq_file(tmp_path):
+    # same fastas as subset_paired_queries() and write_fasta() on seqs held in memory
+    sfos = utils.read_fastx(UNPAIRED_IGH_FNAME)
+    seqfname = str(tmp_path / 'seqs.tsv')
+    with open(seqfname, 'w') as seqfile:
+        seqfile.write(''.join('%s\t%s\n' % (s['name'], s['seq']) for s in reversed(sfos)) + 'in-no-subset\tACGT\n')
+    random.seed(1)
+    mem_lists = utils.subset_paired_queries(sfos, None, None, n_subsets=N_SUBSETS, no_pairing_info=True)
+    random.seed(1)
+    sub_uids = utils.shuffle_and_split([s['name'] for s in sfos], N_SUBSETS)
+    mem_fnames, file_fnames = [[str(tmp_path / d / ('%d.fa' % i)) for i in range(N_SUBSETS)] for d in ['mem', 'file']]
+    mem_hashes = [utils.write_fasta(f, l, return_hash=True) for f, l in zip(mem_fnames, mem_lists)]
+    assert utils.write_subset_fastas(seqfname, sub_uids, file_fnames) == mem_hashes
+    for mfn, ffn in zip(mem_fnames, file_fnames):
+        with open(mfn) as mfile, open(ffn) as ffile:
+            assert mfile.read() == ffile.read()
+    assert sorted(os.listdir(str(tmp_path / 'file'))) == sorted(os.listdir(str(tmp_path / 'mem')))
+
+
+def test_subset_paired_queries_n_max():
+    # the first n of the shuffled seqs
+    sfos = utils.read_fastx(UNPAIRED_IGH_FNAME)
+    random.seed(1)
+    chosen = utils.subset_paired_queries(sfos, None, None, n_max_queries=10, no_pairing_info=True)
+    random.seed(1)
+    names = [s['name'] for s in sfos]
+    random.shuffle(names)
+    assert [s['name'] for s in chosen] == names[:10]
+
+
+def test_subset_fastas_uid_with_no_line(tmp_path):
+    seqfname = str(tmp_path / 'seqs.tsv')
+    with open(seqfname, 'w') as seqfile:
+        seqfile.write('a\tACGT\n')
+    with pytest.raises(Exception, match='1 uid for .* not in .*first: b'):
+        utils.write_subset_fastas(seqfname, [['a', 'b']], [str(tmp_path / '0.fa')])
+    assert os.listdir(str(tmp_path)) == ['seqs.tsv']  # no tmp file left
+
+
+def test_seq_fcn_only_for_plain_data():
+    with pytest.raises(Exception, match='seq_fcn can\'t be used'):
+        seqfileopener.read_sequence_file(UNPAIRED_IGH_FNAME, False, seq_fcn=lambda uid, seq: None)
+
+
+def test_fastx_sequence_ends(tmp_path):
+    # wrapped sequences and blank lines
+    fname = str(tmp_path / 'in.fa')
+    with open(fname, 'w') as ffile:
+        ffile.write('\n>a x|y\nacg\nTT\n\n>b\nGG\n')
+    expected = [{'name' : 'a', 'seq' : 'ACGTT', 'infostrs' : ['a', 'x', 'y']}, {'name' : 'b', 'seq' : 'GG', 'infostrs' : ['b']}]
+    assert utils.read_fastx(fname) == expected
+    assert list(utils.iter_fastx(fname)) == expected
+
+
+def test_fastx_fastq_and_selection(tmp_path):
+    fa, fq = str(tmp_path / 'in.fa'), str(tmp_path / 'in.fq')
+    with open(fa, 'w') as ffile:
+        ffile.write('>a\nAC\n>b\nGG\n>c\nTT\n>d\nCA\n')
+    with open(fq, 'w') as ffile:
+        ffile.write('@a x\nac\n+\nII\n@b\nGG\n+\nII\n')
+
+    def names(fname, **kwargs):
+        res = [s['name'] for s in utils.iter_fastx(fname, **kwargs)]
+        assert res == [s['name'] for s in utils.read_fastx(fname, **kwargs)]
+        return res
+
+    assert list(utils.iter_fastx(fq)) == [{'name' : 'a', 'seq' : 'AC', 'infostrs' : ['a', 'x']}, {'name' : 'b', 'seq' : 'GG', 'infostrs' : ['b']}]
+    assert names(fa, queries=['c', 'b']) == ['b', 'c']
+    assert names(fa, istartstop=(1, 3)) == ['b', 'c']
+    assert names(fa, n_max_queries=2) == ['a', 'b']
+
+
+@pytest.mark.parametrize('text', ['>a\nAC\n>b\n>c\nGG\n', '>a\nAC\n>b\n\n>c\nGG\n', '>a\nAC\n>b\n', '>a\n>b\nGG\n'])
+def test_fastx_header_with_no_sequence(tmp_path, text):
+    # an error, not the end of the file
+    fname = str(tmp_path / 'in.fa')
+    with open(fname, 'w') as ffile:
+        ffile.write(text)
+    with pytest.raises(Exception, match='no sequence after header line'):
+        utils.read_fastx(fname)
+    with pytest.raises(Exception, match='no sequence after header line'):
+        list(utils.iter_fastx(fname))
 
 
 def test_merge_action_paired(tmp_path, chunked_param_dir):

@@ -21,7 +21,10 @@ junction guard. Driven by the run-partition-refine-jobs action (and the
 integrated --partition-refine flag), which run run_jobs() over the disjoint groups.
 """
 import bisect
+import contextlib
 import csv
+import gc
+import io
 import itertools
 import json
 import math
@@ -135,13 +138,28 @@ def jaccard(muts1, muts2):
 
 
 def get_mutations_with_base(seq, naive):
-    if len(seq) != len(naive):
-        raise Exception('seq (%d) and naive (%d) different lengths' % (len(seq), len(naive)))
-    muts = {}
-    for i, (s, n) in enumerate(zip(seq, naive)):
-        if s != n and s != N_BASE and n != N_BASE:
-            muts[i] = s
-    return muts
+    return mutations_with_base_rows([seq], [naive])[0]
+
+
+def mutations_with_base_rows(seqs, naives, block=20000):
+    """Per (seq, naive), {position: seq base} where the two differ and neither is N, <block> rows of one length at a time."""
+    out = [None] * len(seqs)
+    by_len = defaultdict(list)
+    for i, (seq, naive) in enumerate(zip(seqs, naives)):
+        if len(seq) != len(naive):
+            raise Exception('seq (%d) and naive (%d) different lengths' % (len(seq), len(naive)))
+        by_len[len(seq)].append(i)
+    for seq_len, idx in by_len.items():
+        for start in range(0, len(idx), block):
+            rows = idx[start : start + block]
+            s, n = [np.frombuffer(''.join([x[i] for i in rows]).encode('ascii'), dtype=np.uint8).reshape(len(rows), seq_len) for x in (seqs, naives)]
+            irow, pos = np.nonzero((s != n) & (s != N_BYTE) & (n != N_BYTE))
+            bases, pos = s[irow, pos].tobytes().decode('ascii'), pos.tolist()
+            first = 0
+            for i, last in zip(rows, np.cumsum(np.bincount(irow, minlength=len(rows))).tolist()):
+                out[i] = dict(zip(pos[first:last], bases[first:last]))
+                first = last
+    return out
 
 
 NAIVE_THRESHOLD_FALLBACK = 0.01  # used only when no cluster is big enough to fit a threshold on
@@ -165,7 +183,8 @@ def all_pair_hammings(naives):
     return np.concatenate([hamming_frac_rows(enc, ia, ib) for ia, ib in upper_triangle_pair_blocks(len(naives), HAMMING_PAIR_BLOCK)])
 
 
-def estimate_naive_threshold(partition, uid_sw_naives):
+def within_cluster_naive_hammings(partition, uid_sw_naives):
+    """hamming_frac of every pair of distinct sw naives in a cluster, one array per cluster."""
     within_hammings = []
     for cluster in partition:
         if len(cluster) < 3:
@@ -176,6 +195,11 @@ def estimate_naive_threshold(partition, uid_sw_naives):
         if len(unique_naives) < 2:
             continue
         within_hammings.append(all_pair_hammings(unique_naives))
+    return within_hammings
+
+
+def naive_threshold_from_hammings(within_hammings):
+    """Naive threshold fitted on the arrays from within_cluster_naive_hammings()."""
     if len(within_hammings) == 0:
         from partis import utils
         print('  %s no within-cluster naive pairs, so the merge threshold falls back to %.3f rather than being fitted' % (utils.wrnstr(), NAIVE_THRESHOLD_FALLBACK), flush=True)
@@ -190,6 +214,10 @@ def estimate_naive_threshold(partition, uid_sw_naives):
         within_hammings[i_median], p90, within_hammings.max()))
     print('  adaptive naive threshold (p90): %.4f' % p90)
     return p90
+
+
+def estimate_naive_threshold(partition, uid_sw_naives):
+    return naive_threshold_from_hammings(within_cluster_naive_hammings(partition, uid_sw_naives))
 
 
 def get_fragment_naive(uids, uid_sw_naives):
@@ -254,13 +282,16 @@ def get_cluster_fingerprint(uids, uid_to_muts_with_base):
 FINGERPRINT_MIN_COUNT_FLOOR = 2
 
 
-def mutation_carrier(frag_uids, pos, base, uid_to_muts_with_base):
-    """uid in <frag_uids> that carries (pos, base), or None."""
+def first_carriers(frag_uids, uid_to_muts_with_base):
+    """{(pos, base): first uid in <frag_uids> that carries it}."""
+    first = {}
     for uid in frag_uids:
         muts = uid_to_muts_with_base.get(uid)
-        if muts is not None and muts.get(pos) == base:
-            return uid
-    return None
+        if muts is not None:
+            for entry in muts.items():
+                if entry not in first:
+                    first[entry] = uid
+    return first
 
 
 # shared-mutation fraction at which a cross-fragment pair certifies common descent
@@ -307,20 +338,25 @@ def snap_unsupported(groups):
     return list(out.items()), n_snapped
 
 
-def mutation_incidence(uids, uid_muts):
-    """(by_key, by_pos): 0/1 sparse matrices of each uid against its (position, base) mutations
-    and against its mutated positions. None when no uid carries a mutation."""
-    rows, key_cols, pos_cols, key_idx, pos_idx = [], [], [], {}, {}
-    for i_uid, uid in enumerate(uids):
-        for pos, base in uid_muts[uid].items():
-            rows.append(i_uid)
-            key_cols.append(key_idx.setdefault((pos, base), len(key_idx)))
-            pos_cols.append(pos_idx.setdefault(pos, len(pos_idx)))
+def mutation_incidence(clusters):
+    """(by_key, by_pos): 0/1 sparse matrices of each uid of <clusters> ((uids, uid_muts) each, one row
+    per uid in order) against its (position, base) mutations and against its mutated positions. Each
+    cluster has columns of its own. None when no uid carries a mutation."""
+    rows, key_cols, pos_cols = [], [], []
+    n_uids = n_keys = n_pos = 0
+    for uids, uid_muts in clusters:
+        key_idx, pos_idx = {}, {}
+        for i_uid, uid in enumerate(uids, start=n_uids):
+            for pos, base in uid_muts[uid].items():
+                rows.append(i_uid)
+                key_cols.append(n_keys + key_idx.setdefault((pos, base), len(key_idx)))
+                pos_cols.append(n_pos + pos_idx.setdefault(pos, len(pos_idx)))
+        n_uids, n_keys, n_pos = n_uids + len(uids), n_keys + len(key_idx), n_pos + len(pos_idx)
     if not rows:
         return None
     ones = np.ones(len(rows), dtype=np.int32)
-    return (sparse.csr_matrix((ones, (rows, key_cols)), shape=(len(uids), len(key_idx))),
-            sparse.csr_matrix((ones, (rows, pos_cols)), shape=(len(uids), len(pos_idx))))
+    return (sparse.csr_matrix((ones, (rows, key_cols)), shape=(n_uids, n_keys)),
+            sparse.csr_matrix((ones, (rows, pos_cols)), shape=(n_uids, n_pos)))
 
 
 def shared_positions(by_pos, ia, ib, n_pos_max):
@@ -331,22 +367,23 @@ def shared_positions(by_pos, ia, ib, n_pos_max):
                            for s in range(0, len(ia), block)])
 
 
-def certified_fragment_pairs(frag_of_uid, uid_muts, ej_floor):
-    """(number of certifying uid pairs, set of (fragment, fragment) pairs they join). A cross-fragment
-    uid pair certifies when its shared base-specific mutations over the union of its mutated
-    positions (enhanced jaccard) reach <ej_floor>."""
-    uids = [u for u in uid_muts if u in frag_of_uid]
-    incidence = mutation_incidence(uids, uid_muts) if len(uids) >= 2 else None
+def _certified_in_batch(batch, ej_floor):
+    """certified_fragment_pairs() of the (uids, frag_of_uid, uid_muts) clusters of <batch>, in shared products."""
+    n_certified, frag_pairs = np.zeros(len(batch), dtype=np.int64), [set() for _ in batch]
+    incidence = mutation_incidence([(uids, uid_muts) for uids, _, uid_muts in batch])
     if incidence is None:
-        return 0, set()
+        return list(zip(n_certified.tolist(), frag_pairs))
     by_key, by_pos = incidence
-    frag = np.array([frag_of_uid[u] for u in uids])
+    clus = np.repeat(np.arange(len(batch)), [len(uids) for uids, _, _ in batch])
+    frag = np.array([frag_of_uid[u] for uids, frag_of_uid, _ in batch for u in uids])
+    n_frag = int(frag.max()) + 1
+    clus_frag = clus * n_frag + frag
+    pair_keys = set()  # certified (cluster, fragment, fragment), each as one int
     n_pos = np.diff(by_pos.indptr)
     n_pos_max = n_pos.max()
-    n_certified, frag_pairs = 0, set()
-    block = max(1, CROSS_PAIRS_BLOCK_ENTRIES // len(uids))
-    for start in range(0, len(uids), block):  # each block against itself and later uids only, the upper triangle
-        shared = (by_key[start : start + block] @ by_key[start:].T).tocoo()
+    block = max(1, CROSS_PAIRS_BLOCK_ENTRIES // len(frag))
+    for start in range(0, len(frag), block):  # each block against itself and later uids only, the upper triangle
+        shared = (by_key[start : start + block] @ by_key[start:].T).tocoo()  # no column is shared across clusters
         ia, ib, n_shared = shared.row + start, shared.col + start, shared.data
         keep = (ib > ia) & (frag[ia] != frag[ib])
         ia, ib, n_shared = ia[keep], ib[keep], n_shared[keep]
@@ -359,9 +396,36 @@ def certified_fragment_pairs(frag_of_uid, uid_muts, ej_floor):
         if len(undecided) > 0:
             same_pos = shared_positions(by_pos, ia[undecided], ib[undecided], n_pos_max)
             certified[undecided] = n_shared[undecided] / (n_a[undecided] + n_b[undecided] - same_pos) >= ej_floor
-        n_certified += int(certified.sum())
-        frag_pairs.update(zip(frag[ia[certified]].tolist(), frag[ib[certified]].tolist()))
-    return n_certified, frag_pairs
+        ia, ib = ia[certified], ib[certified]
+        n_certified += np.bincount(clus[ia], minlength=len(batch))
+        pair_keys.update(np.unique(clus_frag[ia] * n_frag + frag[ib]).tolist())
+    for key in pair_keys:
+        i_clus, fa = divmod(key // n_frag, n_frag)
+        frag_pairs[i_clus].add((fa, key % n_frag))
+    return list(zip(n_certified.tolist(), frag_pairs))
+
+
+def certified_fragment_pairs(clusters, ej_floor):
+    """(number of certifying uid pairs, set of (fragment, fragment) pairs they join) for each
+    (frag_of_uid, uid_muts) of <clusters>. A cross-fragment uid pair certifies when its shared
+    base-specific mutations over the union of its mutated positions (enhanced jaccard) reach <ej_floor>."""
+    out = [(0, set()) for _ in clusters]
+    todo = []  # (index in clusters, uids, frag_of_uid, uid_muts) where there is a pair to test
+    for i_clus, (frag_of_uid, uid_muts) in enumerate(clusters):
+        uids = [u for u in uid_muts if u in frag_of_uid]
+        if len(uids) >= 2:
+            todo.append((i_clus, uids, frag_of_uid, uid_muts))
+    max_uids = int(CROSS_PAIRS_BLOCK_ENTRIES ** 0.5)  # small clusters are batched up to here, so one block holds their product
+    start = 0
+    while start < len(todo):
+        stop, n_uids = start + 1, len(todo[start][1])
+        while stop < len(todo) and n_uids + len(todo[stop][1]) <= max_uids:
+            n_uids += len(todo[stop][1])
+            stop += 1
+        for (i_clus, _, _, _), certified in zip(todo[start:stop], _certified_in_batch([t[1:] for t in todo[start:stop]], ej_floor)):
+            out[i_clus] = certified
+        start = stop
+    return out
 
 
 # ----------------------------------------------------------------------------
@@ -546,7 +610,8 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
     convergently-similar naives do not trip it. Disabled, with a log line, when no
     <length_cutoff> was derived, i.e. no parameter dir was passed.
     """
-    result = []
+    per_cluster = []  # per input cluster, the clusters it becomes
+    proposals = []  # (index in per_cluster, frags, frag_of_uid, muts_sw)
     ctr = defaultdict(int)
     length_veto_on = (length_cutoff is not None
                       and length_veto_min_shared is not None and length_veto_min_shared > 0)
@@ -561,12 +626,12 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
 
     for cluster in partition:
         if len(cluster) < min_cluster_size:
-            result.append(list(cluster))
+            per_cluster.append([list(cluster)])
             ctr['below_min_size'] += 1
             continue
 
         if length_vetoed(cluster):
-            result.append(list(cluster))
+            per_cluster.append([list(cluster)])
             ctr['length_veto'] += 1
             continue
 
@@ -574,11 +639,11 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
         cluster_naives = dict((u, uid_sw_naives[u]) for u in uid_list if u in uid_sw_naives)
 
         if len(set(cluster_naives.values())) <= 1:  # nothing to propose
-            result.append(list(cluster))
+            per_cluster.append([list(cluster)])
             ctr['single_naive'] += 1
             continue
         if len(cluster_naives) < len(uid_list):  # a member with no naive cannot be grouped, so fail closed
-            result.append(list(cluster))
+            per_cluster.append([list(cluster)])
             ctr['missing_naive'] += 1
             continue
 
@@ -588,15 +653,20 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
         proposed, n_snapped = snap_unsupported(list(groups.items()))
         ctr['snapped'] += n_snapped
         if len(proposed) <= 1:
-            result.append(list(cluster))
+            per_cluster.append([list(cluster)])
             ctr['no_proposal'] += 1
             continue
 
         frags = [mem for _, mem in proposed]
-        ffind, funion = _union_find(len(frags))
         frag_of_uid = dict((u, i) for i, f in enumerate(frags) for u in f)
         muts_sw = dict((u, uid_muts_sw[u]) for u in uid_list if u in uid_muts_sw)
-        n_certified, frag_pairs = certified_fragment_pairs(frag_of_uid, muts_sw, ej_floor)
+        proposals.append((len(per_cluster), frags, frag_of_uid, muts_sw))
+        per_cluster.append([list(cluster)])  # kept unless the split is accepted below
+
+    # every proposal certified in one call, so small clusters share sparse products
+    certified = certified_fragment_pairs([(frag_of_uid, muts_sw) for _, _, frag_of_uid, muts_sw in proposals], ej_floor)
+    for (i_cluster, frags, _, _), (n_certified, frag_pairs) in zip(proposals, certified):
+        ffind, funion = _union_find(len(frags))
         for fa, fb in frag_pairs:
             funion(fa, fb)
         ctr['certified_pairs'] += n_certified
@@ -607,18 +677,18 @@ def split_on_naive_identity(partition, uid_sw_naives, uid_muts_sw, min_cluster_s
         groups_out = list(validated.values())
         if len(groups_out) > 1:
             ctr['accepted'] += 1
-            result.extend(groups_out)
+            per_cluster[i_cluster] = groups_out
         else:
             ctr['rejected'] += 1
-            result.append(list(cluster))
+    out_partition = [c for clusters in per_cluster for c in clusters]
 
     # held counts clusters the veto touched, not ones whose outcome it changed
     length_label = ', %d held (length veto)' % ctr['length_veto'] if ctr['length_veto'] > 0 else ''
     print('  naive-identity split: %d accepted, %d rejected (veto), %d skipped (single naive), %d skipped (no proposal), %d rejected (missing naive), %d skipped (below min cluster size)%s' % (
         ctr['accepted'], ctr['rejected'], ctr['single_naive'], ctr['no_proposal'], ctr['missing_naive'], ctr['below_min_size'], length_label), flush=True)
     print('  %d members snapped, %d pairs certified, %d -> %d clusters' % (
-        ctr['snapped'], ctr['certified_pairs'], len(partition), len(result)), flush=True)
-    return result
+        ctr['snapped'], ctr['certified_pairs'], len(partition), len(out_partition)), flush=True)
+    return out_partition
 
 
 MERGE_FDR_TARGET = 0.05  # max estimated fdr, against the null, for the per-group p-value cutoff
@@ -646,9 +716,11 @@ class _MergeEvidence(object):
     to the share of the group's fragments carrying it, so a systematic germline miscall that many
     unrelated fragments carry is no evidence."""
 
-    def __init__(self, frags, fps, uid_to_muts_with_base, get_uid_freqs, n_seqs):
+    def __init__(self, frags, fps, uid_to_muts_with_base, get_mut_freq, n_seqs, look_up=None):
+        """get_mut_freq(uid, pos, base): (frequency, n_obs or None) of one of uid's mutations.
+        look_up(uid), if set, is called on each lone mutated member, which can have no mutation to ask for."""
         self.frags, self.fps = frags, fps
-        self.muts, self.get_uid_freqs, self.n_seqs = uid_to_muts_with_base, get_uid_freqs, n_seqs
+        self.muts, self.get_mut_freq, self.look_up, self.n_seqs = uid_to_muts_with_base, get_mut_freq, look_up, n_seqs
         self.pcache = _PerUidPvalCache(n_seqs, WEIGHT_GRID_NATS)
         self.pair_p = {}
         self.adj_freqs = {}
@@ -665,25 +737,30 @@ class _MergeEvidence(object):
     def _consensus(self, i):
         # (muts, freqs, n_obs): the one mutated member's own, or the entries more members carry than chance
         frag, (fp, n_w) = self.frags[i], self.fps[i]
-        if n_w == 0:
-            return {}, {}, {}
-        if n_w == 1:
-            uid = next(u for u in frag if self.muts.get(u) is not None)
-            freqs, obs = self.get_uid_freqs(uid)
-            return dict(self.muts[uid]), freqs, obs
         muts, freqs, obs = {}, {}, {}
-        for pos, bases in fp.items():
-            base = max(bases, key=bases.get)
-            if bases[base] < FINGERPRINT_MIN_COUNT_FLOOR:
-                continue
-            fu, ou = self.get_uid_freqs(mutation_carrier(frag, pos, base, self.muts))
-            f = fu.get((pos, base), NO_GERMLINE_FREQ)
-            if bdtrc(bases[base] - 1, n_w, f) >= MERGE_CONSENSUS_ALPHA:  # P(X >= count), X ~ Binomial(n_w, f)
-                continue
+
+        def keep(pos, base, f, n_obs):
             muts[pos] = base
             freqs[(pos, base)] = f
-            if (pos, base) in ou:
-                obs[(pos, base)] = ou[(pos, base)]
+            if n_obs is not None:
+                obs[(pos, base)] = n_obs
+
+        if n_w == 1:
+            uid = next(u for u in frag if self.muts.get(u) is not None)
+            if self.look_up is not None:
+                self.look_up(uid)
+            for pos, base in self.muts[uid].items():
+                keep(pos, base, *self.get_mut_freq(uid, pos, base))
+        elif n_w > 1:
+            carriers = first_carriers(frag, self.muts)
+            for pos, bases in fp.items():
+                base = max(bases, key=bases.get)
+                if bases[base] < FINGERPRINT_MIN_COUNT_FLOOR:
+                    continue
+                f, n_obs = self.get_mut_freq(carriers[(pos, base)], pos, base)
+                if bdtrc(bases[base] - 1, n_w, f) >= MERGE_CONSENSUS_ALPHA:  # P(X >= count), X ~ Binomial(n_w, f)
+                    continue
+                keep(pos, base, f, n_obs)
         return muts, freqs, obs
 
     def _adjusted_freqs(self, i):
@@ -783,18 +860,23 @@ def naive_pairs_below(oh, mask, idx_a, idx_b, threshold, symmetric, chunk_size=2
     """Yield index pairs whose N-aware naive hamming frac is at or below <threshold>, blocked to
     bound memory. symmetric means idx_a and idx_b are the same set, so only one triangle is walked
     and each pair comes out once; otherwise the two sets must be disjoint."""
+    max_mism = int(threshold * mask.shape[1]) + 1  # no pair at or below the threshold has more mismatches
     for ca in range(0, len(idx_a), chunk_size):
         ra = idx_a[ca:ca + chunk_size]
         oh_a, mask_a = oh[ra], mask[ra]
         cb_start = ca if symmetric else 0
         for cb in range(cb_start, len(idx_b), chunk_size):
             rb = idx_b[cb:cb + chunk_size]
-            compared = (mask_a @ mask[rb].T).astype(np.int32)
-            matches = (oh_a @ oh[rb].T).astype(np.int32)
-            mism = compared - matches
-            dists = np.where(compared > 0, mism / np.maximum(compared, 1), 1.0)
-            for pa, pb in np.argwhere(dists <= threshold):
-                ia, ib = ra[pa], rb[pb]
+            if symmetric and cb == ca:
+                compared, matches = mask_a @ mask_a.T, oh_a @ oh_a.T
+            else:
+                compared, matches = mask_a @ mask[rb].T, oh_a @ oh[rb].T
+            pa, pb = np.nonzero(compared - matches <= max_mism)
+            n_cmp = compared[pa, pb].astype(np.int32)
+            mism = n_cmp - matches[pa, pb].astype(np.int32)
+            below = np.where(n_cmp > 0, mism / np.maximum(n_cmp, 1), 1.0) <= threshold
+            for ia, ib in zip(pa[below].tolist(), pb[below].tolist()):
+                ia, ib = ra[ia], rb[ib]
                 if symmetric and ia >= ib:
                     continue
                 yield (ia, ib) if ia < ib else (ib, ia)
@@ -1007,13 +1089,18 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
 
     counts = dict.fromkeys(MERGE_COUNT_KEYS, 0)
 
-    uid_freq_cache = {}
+    uid_frames = {}
     param_dir_counts = {}
 
-    def get_uid_freqs(uid):
-        if uid not in uid_freq_cache:
-            uid_freq_cache[uid] = uid_param_dir_freqs(uid, uid_to_muts_with_base.get(uid, {}), uid_part_antns, glfo, mute_freq_dir, counts=param_dir_counts)
-        return uid_freq_cache[uid]
+    def get_frame(uid):
+        if uid not in uid_frames:
+            uid_frames[uid] = uid_param_dir_frame(uid, uid_part_antns, glfo, counts=param_dir_counts)
+        return uid_frames[uid]
+
+    def get_mut_freq(uid, pos, base):
+        # parameter dir frequency of <base> at <pos> in <uid>, with no lookup of its other mutations
+        antn, bounds = get_frame(uid)
+        return param_dir_entry_freq(pos, base, antn, bounds, glfo, mute_freq_dir)
 
     # fragments of every cdr3 bucket pooled, since the group rate, null and cutoff are per refine group
     pool_frags, pool_fps, pool_naives, pool_vdjs = [], [], [], []
@@ -1030,7 +1117,7 @@ def merge_on_naive_similarity(split_partition, uid_info, uid_sw_naives,
         pool_naives.extend(frag_naives)
         pool_vdjs.extend(frag_vdjs)
 
-    evidence = _MergeEvidence(pool_frags, pool_fps, uid_to_muts_with_base, get_uid_freqs, sum(len(c) for c in split_partition))
+    evidence = _MergeEvidence(pool_frags, pool_fps, uid_to_muts_with_base, get_mut_freq, sum(len(c) for c in split_partition), look_up=get_frame)
     cand_ps = [evidence.pvalue(offset + i, offset + j) for _, offset, pairs in buckets if offset is not None for i, j in pairs]
     n_null = max(MERGE_NULL_PAIRS_MIN, MERGE_NULL_PAIRS_PER_CANDIDATE * len(cand_ps))
     null_ps = evidence.sample_null(n_null, pool_naives, pool_vdjs, naive_threshold)
@@ -1239,10 +1326,33 @@ def _t_obs(wb, shared):
     return sum(wb[pb][1] for pb in shared if pb in wb)
 
 
+TAIL_DP_LIST_MAX_BINS = 32  # a dp of at most this many bins runs on lists, not arrays
+
+
+def _tail_dp_on_lists(wb, t_obs):
+    """_tail_dp() without arrays: the same products and sums in the same order."""
+    dist = [0.0] * t_obs
+    dist[0] = 1.0
+    tail = 0.0
+    for p, nbin in wb.values():
+        if nbin == 0:
+            continue
+        for d in dist[max(t_obs - nbin, 0):]:
+            tail += d * p
+        q = 1.0 - p
+        nxt = [d * q for d in dist]
+        for k in range(t_obs - nbin):
+            nxt[nbin + k] += dist[k] * p
+        dist = nxt
+    return min(max(tail, 0.0), 1.0)
+
+
 def _tail_dp(wb, t_obs):
     """P(T >= t_obs) by the truncated dp over <wb>."""
     if t_obs <= 0:
         return 1.0
+    if t_obs <= TAIL_DP_LIST_MAX_BINS:
+        return _tail_dp_on_lists(wb, t_obs)
     dist = np.zeros(t_obs)
     dist[0] = 1.0
     tail = 0.0
@@ -1445,6 +1555,29 @@ def param_dir_mutation_freq(pos, base, antn, glfo, mute_freq_dir):
     return param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir)[0]
 
 
+def uid_param_dir_frame(uid, uid_part_antns, glfo, counts=None):
+    """(partition-frame annotation, its region bounds) of uid, each None where there is none.
+    <counts> as in uid_param_dir_freqs."""
+    antn = uid_part_antns.get(uid)
+    if antn is None:
+        if counts is not None:
+            counts['no_antn'] = counts.get('no_antn', 0) + 1
+        return None, None
+    bounds = param_dir_region_bounds(antn, glfo)
+    if counts is not None and bounds is None:
+        counts['gene_missing_from_glfo'] = counts.get('gene_missing_from_glfo', 0) + 1
+    return antn, bounds
+
+
+def param_dir_entry_freq(pos, base, antn, bounds, glfo, mute_freq_dir):
+    """(frequency, n_obs) of one mutation of the uid whose uid_param_dir_frame is (<antn>, <bounds>):
+    NO_GERMLINE_FREQ and None wherever there is no germline source or no annotation."""
+    if antn is None:
+        return NO_GERMLINE_FREQ, None
+    f, n_obs = param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir, bounds=bounds)
+    return (f if f is not None else NO_GERMLINE_FREQ), n_obs
+
+
 def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=None):
     """({(pos, base): freq}, {(pos, base): n_obs}) for one uid's own mutations, sourced
     from the parameter directory. NO_GERMLINE_FREQ wherever there is no germline source or
@@ -1456,18 +1589,10 @@ def uid_param_dir_freqs(uid, muts, uid_part_antns, glfo, mute_freq_dir, counts=N
     param_dir_region_bounds can't be built and every one of the uid's positions falls
     back to NO_GERMLINE_FREQ, not the smoothing floor, since there is no per-gene
     mute-freqs signal at all)."""
-    antn = uid_part_antns.get(uid)
-    if antn is None:
-        if counts is not None:
-            counts['no_antn'] = counts.get('no_antn', 0) + 1
-        return {(pos, base): NO_GERMLINE_FREQ for pos, base in muts.items()}, {}
-    bounds = param_dir_region_bounds(antn, glfo)
-    if counts is not None and bounds is None:
-        counts['gene_missing_from_glfo'] = counts.get('gene_missing_from_glfo', 0) + 1
+    antn, bounds = uid_param_dir_frame(uid, uid_part_antns, glfo, counts=counts)
     out, obs = {}, {}
     for pos, base in muts.items():
-        f, n_obs = param_dir_mutation_freq_and_obs(pos, base, antn, glfo, mute_freq_dir, bounds=bounds)
-        out[(pos, base)] = f if f is not None else NO_GERMLINE_FREQ
+        out[(pos, base)], n_obs = param_dir_entry_freq(pos, base, antn, bounds, glfo, mute_freq_dir)
         if n_obs is not None:
             obs[(pos, base)] = n_obs
     return out, obs
@@ -1586,10 +1711,8 @@ def split_on_shared_descent(partition, uid_info, uid_sw_naives, uid_part_antns, 
             n_skipped += 1
             continue
         # per-cell mutations vs the SW naive, for the proposer
-        uid_muts = {}
-        for uid in cluster:
-            if uid in uid_sw_naives and uid in uid_info:
-                uid_muts[uid] = get_mutations_with_base(uid_info[uid]['seq'], uid_sw_naives[uid])
+        known = [uid for uid in cluster if uid in uid_sw_naives and uid in uid_info]
+        uid_muts = dict(zip(known, mutations_with_base_rows([uid_info[u]['seq'] for u in known], [uid_sw_naives[u] for u in known])))
         n_input_seqs += len(cluster)
         clusters_uid_muts.append((cluster, uid_muts))
 
@@ -1744,11 +1867,11 @@ def refine_partition(partition, uid_info, uid_sw_naives, uid_rearr_features=None
     n_no_naive = sum(1 for uid in all_uids if uid not in uid_sw_naives)
     if n_no_naive > 0:  # validation keys off naives, so a split fails closed and keeps these fragments intact
         print('  warning: %d/%d input seqs have no sw naive (refine validates on naives; their fragments are kept intact)' % (n_no_naive, len(all_uids)), flush=True)
-    uid_to_muts_with_base, uid_to_muts_sw = {}, {}
-    for uid, info in uid_info.items():
-        uid_to_muts_with_base[uid] = get_mutations_with_base(info['seq'], info['naive'])
-        if uid in uid_sw_naives:  # mutations against each sequence's own sw naive
-            uid_to_muts_sw[uid] = get_mutations_with_base(info['seq'], uid_sw_naives[uid])
+    uids = list(uid_info)
+    sw_uids = [uid for uid in uids if uid in uid_sw_naives]
+    uid_to_muts_with_base = dict(zip(uids, mutations_with_base_rows([uid_info[u]['seq'] for u in uids], [uid_info[u]['naive'] for u in uids])))
+    # mutations against each sequence's own sw naive
+    uid_to_muts_sw = dict(zip(sw_uids, mutations_with_base_rows([uid_info[u]['seq'] for u in sw_uids], [uid_sw_naives[u] for u in sw_uids])))
 
     # resolved before any refinement, so the d-gene test gates all of it
     has_d = _partition_has_real_d(uid_rearr_features)
@@ -1831,8 +1954,9 @@ def pad_sw_naive(sw_seq, sw_naive, part_seq, ioff):
     nright = len(part_seq) - ioff - len(sw_seq)
     if ioff < 0 or nright < 0:
         return None
+    part_slice = part_seq[ioff : ioff + len(sw_seq)]
     # partis masks the odd base in the padded frame, e.g. a 1-base jf_insertion, so N matches anything
-    if any(p != N_BASE and p != s for p, s in zip(part_seq[ioff : ioff + len(sw_seq)], sw_seq)):
+    if part_slice != sw_seq and any(p != N_BASE and p != s for p, s in zip(part_slice, sw_seq)):
         return None
     padded = N_BASE * ioff + sw_naive + N_BASE * nright
     if len(padded) != len(part_seq):  # shm indel: different coord systems, padding cannot align them
@@ -1859,10 +1983,9 @@ def get_ir_seqs(antn, label):
 
 def read_refine_inputs(partition_fname, sw_cache_fname):
     """Read an existing partition file and sw-cache (no recompute) and build the
-    inputs refine_partition() needs, plus the per-sequence sw_info and the
-    partition annotations used to write full output. Returns a dict with keys:
-    glfo, part_glfo, partition, uid_info, uid_sw_naives, uid_rearr_features,
-    sw_info, uid_part_antns."""
+    inputs refine_partition() needs, plus the partition annotations used to write
+    full output. Returns a dict with keys: glfo, part_glfo, partition, uid_info,
+    uid_sw_naives, uid_rearr_features, uid_part_antns."""
     from partis import utils
     from partis import disjointgrouper
     # refine reads only stored keys
@@ -1900,7 +2023,7 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
         print('  %s dropped %d partitioned uids with no usable annotation before refining %s' % (utils.wrnstr(), n_unannotated, partition_fname), flush=True)
 
     sw_glfo, sw_antns, _ = utils.read_output(sw_cache_fname, dont_add_implicit_info=True)
-    sw_info, uid_sw_naives, uid_rearr_features = {}, {}, {}
+    uid_sw_naives, uid_rearr_features = {}, {}
     n_unalignable = 0
     for antn in sw_antns:  # the sw cache has no failed queries in it (waterer.write_cachefile)
         sw_seqs = get_ir_seqs(antn, 'sw cache')
@@ -1912,7 +2035,6 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
         d_5p_del, d_3p_del = get_antn_key(antn, 'd_5p_del', 'sw cache'), get_antn_key(antn, 'd_3p_del', 'sw cache')
         len_vd, len_dj = [len(get_antn_key(antn, '%s_insertion' % b, 'sw cache')) for b in ('vd', 'dj')]
         for i, uid in enumerate(antn['unique_ids']):
-            sw_info[uid] = antn
             uid_rearr_features[uid] = {'vdj': vdj, 'v_3p_del': v_3p_del, 'j_5p_del': j_5p_del,
                                        'd_5p_del': d_5p_del, 'd_3p_del': d_3p_del,
                                        'len_vd': len_vd, 'len_dj': len_dj}
@@ -1928,7 +2050,21 @@ def read_refine_inputs(partition_fname, sw_cache_fname):
         print('  %s could not align %d sw naives to the partition frame (dropped)' % (utils.wrnstr(), n_unalignable), flush=True)
     return {'glfo': sw_glfo, 'part_glfo': part_glfo, 'partition': partition, 'uid_info': uid_info,
             'uid_sw_naives': uid_sw_naives, 'uid_rearr_features': uid_rearr_features,
-            'sw_info': sw_info, 'uid_part_antns': uid_part_antns}
+            'uid_part_antns': uid_part_antns}
+
+
+def read_frozen_refine_inputs(partition_fname, sw_cache_fname):
+    """read_refine_inputs() with garbage collection off, and the result frozen so that later
+    collections skip it. Call gc.unfreeze() once the result is dropped."""
+    was_enabled = gc.isenabled()
+    gc.disable()
+    try:
+        inp = read_refine_inputs(partition_fname, sw_cache_fname)
+        gc.freeze()
+    finally:
+        if was_enabled:
+            gc.enable()
+    return inp
 
 
 def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine'):
@@ -1942,7 +2078,8 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
     fails is still emitted, as singletons, rather than dropped, so the written partition
     and annotation list always match, since paired clustering requires an annotation for every
     partition cluster. Uids whose annotation is invalid are dropped up front so one does
-    not shatter its cluster.
+    not shatter its cluster. A cluster whose uids are all in one annotation in <ant_info>,
+    with no indels, is written from that annotation (whole, or sliced) with no synthesis.
     label: names the calling stage in the drop message, since ha-repartition calls this too.
     Returns counts: n_written, n_dropped, n_fallback, n_fallback_uids."""
     import os
@@ -1950,23 +2087,46 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
     from partis import clusterpath
     from partis import indelutils
 
+    src_iseqs = {}  # id of a source annotation: {uid: index in it}
+    whole_ids = set()  # ids of the annotations from _whole_annotation
+
+    def _iseqs(uids):
+        iseqs = {}
+        for uid in uids:
+            src = ant_info[uid]
+            if id(src) not in src_iseqs:  # reversed, so a repeated uid keeps its first index
+                src_iseqs[id(src)] = {u: i for i, u in reversed(list(enumerate(src['unique_ids'])))}
+            iseqs[uid] = src_iseqs[id(src)].get(uid)
+        return iseqs
+
     def _annotate(uids):
-        antn = utils.synthesize_multi_seq_line_from_reco_info(uids, ant_info, warn=False)
+        antn = utils.synthesize_multi_seq_line_from_reco_info(uids, ant_info, warn=False, iseqs=_iseqs(uids))
         utils.remove_all_implicit_info(antn)
         utils.add_implicit_info(glfo, antn, reset_indel_genes=True)
         return antn
 
-    def _fast_singleton(uid):
-        # slice the stored annotation instead of rebuilding its implicit info, same result for one uid
-        src = ant_info[uid]
-        iseq = src['unique_ids'].index(uid)
-        if indelutils.has_indels_line(src, iseq):  # these need _annotate's reset_indel_genes
-            return None
-        antn = utils.synthesize_single_seq_line(src, iseq)
-        antn['indelfos'] = [indelutils.get_empty_indel()]
+    def _without_indels(antn):
+        antn['indelfos'] = [indelutils.get_empty_indel() for _ in antn['unique_ids']]
         for key in utils.special_indel_columns_for_output:  # writer takes key order from indelfos
             antn.pop(key, None)
         return antn
+
+    def _whole_annotation(uids):
+        # the source annotation itself, same result when the cluster is all of it
+        src = ant_info[uids[0]]
+        if src['unique_ids'] != uids or any(indelutils.has_indels_line(src, i) for i in range(len(uids))):
+            return None
+        return _without_indels(dict(src))
+
+    def _sliced(uids):
+        # slice the stored annotation that holds <uids> instead of rebuilding its implicit info, same result
+        src = ant_info[uids[0]]
+        if any(ant_info[uid] is not src for uid in uids):
+            return None
+        iseqs = _iseqs(uids)
+        if any(iseqs[uid] is None or indelutils.has_indels_line(src, iseqs[uid]) for uid in uids):  # these need _annotate's reset_indel_genes
+            return None
+        return _without_indels(utils.synthesize_line_from_iseqs(src, [iseqs[uid] for uid in uids]))
 
     def _pad_to_uniform_length(antns):
         # pad naive_seqs to uniform length per cdr3 class (a no-op when the input annotations
@@ -1982,13 +2142,15 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
             else:
                 maxfo[cdr3][0] = max(maxfo[cdr3][0], gl_cpos)
                 maxfo[cdr3][1] = max(maxfo[cdr3][1], gl_cpos_to_j_end)
-        for antn in antns:
+        for iantn, antn in enumerate(antns):
             cpos, seqlen = antn['codon_positions']['v'], len(antn['seqs'][0])
             padleft = maxfo[antn['cdr3_length']][0] - cpos
             padright = maxfo[antn['cdr3_length']][1] - (seqlen - cpos)
             if padleft < 0 or padright < 0:  # should never be negative (max minus value)
                 raise Exception('bad padding %d %d for cluster %s' % (padleft, padright, antn['unique_ids'][0]))
             if padleft != 0 or padright != 0:
+                if id(antn) in whole_ids:  # pad a synthesized copy, not the source annotation
+                    antn = antns[iantn] = _annotate(antn['unique_ids'])
                 utils.re_pad_atn(padleft, padright, antn, glfo)
 
     annotation_list, out_partition = [], []
@@ -2002,7 +2164,11 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
         if len(good) == 0:
             continue
         try:
-            antn = _fast_singleton(good[0]) if len(good) == 1 else None
+            antn = _whole_annotation(good)
+            if antn is not None:
+                whole_ids.add(id(antn))
+            else:
+                antn = _sliced(good)
             annotation_list.append(antn if antn is not None else _annotate(good))
             out_partition.append(list(good))
         except Exception as e:  # fall back to singletons on synthesis failure
@@ -2022,8 +2188,10 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
     outdir = os.path.dirname(outfname)
     if outdir and not os.path.exists(outdir):
         os.makedirs(outdir)
-    utils.write_annotations(outfname, glfo, annotation_list, utils.annotation_headers,
+    tmpfname = '%s.tmp%s' % (utils.getprefix(outfname), utils.getsuffix(outfname))  # keeps the suffix, which sets the format
+    utils.write_annotations(tmpfname, glfo, annotation_list, utils.annotation_headers,
                             partition_lines=partition_lines)
+    os.replace(tmpfname, outfname)  # a write that is cut leaves no output to count as done
     if n_dropped or n_fallback:
         msgs = []
         if n_dropped > 0:
@@ -2039,7 +2207,7 @@ def write_full_output(outfname, glfo, refined_partition, ant_info, label='refine
 # ----------------------------------------------------------------------------
 # Locus-level orchestration over the disjoint-groups manifest (mirrors the
 # ha_repartition module). The unit is the group (refine is pure-python, no per-cluster
-# fan-out), so there is no separate prepare step; assemble is assemble_groups.
+# fan-out), so the prepare step only caches the locus-wide threshold; assemble is assemble_groups.
 # ----------------------------------------------------------------------------
 def refine_bundles(specs, n_bundles, serial_min_seqs):
     """(serial, parallel) lists of (job_start, job_count) slices of <specs>. Each group with at least
@@ -2059,8 +2227,15 @@ def refine_bundles(specs, n_bundles, serial_min_seqs):
 
 def bundle_marker_fname(disjoint_dir, job_start):
     # done-marker for the group slice starting at <job_start>, written by the slice and looked
-    # for by whatever dispatched it
-    return '%s/refine-bundle-%d.done' % (disjoint_dir, job_start)
+    # for by whatever dispatched it ('*' globs)
+    return '%s/refine-bundle-%s.done' % (disjoint_dir, job_start)
+
+
+def remove_intermediates(disjoint_dir, locus):
+    # the threshold cache and the bundle markers, which nothing reads once the groups are assembled
+    import glob
+    from . import utils
+    utils.clean_files([locuswide_threshold_fname(disjoint_dir, locus)] + glob.glob(bundle_marker_fname(disjoint_dir, '*')), expect_missing=True)
 
 
 def group_specs(disjoint_dir, groups, locus):
@@ -2095,26 +2270,38 @@ def group_specs(disjoint_dir, groups, locus):
     return specs
 
 
-def estimate_locuswide_threshold(specs):
+def _group_within_hammings(spec):
+    # one group's within-cluster naive hammings, and what reading the group printed
+    with contextlib.redirect_stdout(io.StringIO()) as out:
+        inp = read_frozen_refine_inputs(spec['input'], spec['sw_cache'])
+        hammings = within_cluster_naive_hammings(inp['partition'], inp['uid_sw_naives'])
+        del inp  # one group in memory at a time
+        gc.unfreeze()
+    return hammings, out.getvalue()
+
+
+def estimate_locuswide_threshold(specs, n_procs=1, memory_bytes=None):
     """Estimate the naive threshold over the full-locus partition (all cdr3 groups in <specs>
-    merged). A global statistic, so estimate once here and pass into each per-group refine
-    rather than letting refine_partition estimate it per-group."""
-    partition, uid_sw_naives = [], {}
-    for spec in specs:
-        inp = read_refine_inputs(spec['input'], spec['sw_cache'])
-        partition.extend(inp['partition'])
-        uid_sw_naives.update(inp['uid_sw_naives'])
-    return estimate_naive_threshold(partition, uid_sw_naives)
+    merged), reading n_procs groups at a time within <memory_bytes>. A global statistic, so estimate once here and pass
+    into each per-group refine rather than letting refine_partition estimate it per-group."""
+    from . import utils
+    within_hammings = []
+    for hammings, printed in utils.map_groups(_group_within_hammings, [(spec,) for spec in specs], n_procs, [[spec['input'], spec['sw_cache']] for spec in specs], memory_bytes):
+        print(printed, end='', flush=True)
+        within_hammings.extend(hammings)
+    return naive_threshold_from_hammings(within_hammings)
 
 
 def locuswide_threshold_fname(disjoint_dir, locus):
     return '%s/naive-threshold-%s.json' % (disjoint_dir, locus)
 
 
-def locuswide_threshold(disjoint_dir, specs, locus, overwrite=False):
+def locuswide_threshold(disjoint_dir, specs, locus, overwrite=False, estimate=True, n_procs=1, memory_bytes=None):
     """Locus-wide naive threshold, cached beside the manifest, None where nothing reads it.
 
     Invalidated by a change in the spec count or in any input's mtime.
+    estimate: if False, raise when the cache is missing or stale rather than estimate.
+    n_procs, memory_bytes: groups read at a time when estimating, and the bytes they may hold.
     """
     from . import utils
     if len(specs) == 0 or not utils.has_d_gene(locus):
@@ -2122,13 +2309,17 @@ def locuswide_threshold(disjoint_dir, specs, locus, overwrite=False):
     mtimes = [os.path.getmtime(spec['input']) for spec in specs]
     signal = {'n_specs': len(specs), 'input_mtime_max': max(mtimes), 'input_mtime_sum': sum(mtimes)}
     fname = locuswide_threshold_fname(disjoint_dir, locus)
-    if not overwrite and os.path.exists(fname):
+    found = os.path.exists(fname)
+    if not overwrite and found:
         with open(fname) as tfile:
             cfo = json.load(tfile)
         if all(cfo.get(key) == val for key, val in signal.items()):
             return float(cfo['threshold'])
-        print('  locus-wide threshold cache is stale, re-estimating: %s' % fname, flush=True)
-    cfo = dict(signal, threshold=repr(estimate_locuswide_threshold(specs)))  # repr so the float round trips exactly
+        if estimate:
+            print('  locus-wide threshold cache is stale, re-estimating: %s' % fname, flush=True)
+    if not estimate:
+        raise Exception('locus-wide threshold cache %s %s (run create-partition-refine-jobs first)' % (fname, 'is stale' if found else 'does not exist'))
+    cfo = dict(signal, threshold=repr(estimate_locuswide_threshold(specs, n_procs=n_procs, memory_bytes=memory_bytes)))  # repr so the float round trips exactly
     tmpfname = '%s.tmp.%d' % (fname, os.getpid())  # atomic, so concurrent slices race without corrupting
     with open(tmpfname, 'w') as tfile:
         json.dump(cfo, tfile)
@@ -2174,7 +2365,7 @@ def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter
         if utils.output_exists(oargs, spec['refined_out'], outlabel='refine', offset=4):
             continue
         tgroup = time.time()
-        inp = read_refine_inputs(spec['input'], spec['sw_cache'])
+        inp = read_frozen_refine_inputs(spec['input'], spec['sw_cache'])
         refined = refine_partition(
             inp['partition'], inp['uid_info'], inp['uid_sw_naives'],
             uid_rearr_features=inp['uid_rearr_features'],
@@ -2186,6 +2377,8 @@ def run_jobs(specs, naive_threshold=None, overwrite=False, locus=None, parameter
             # that resolves them has to be part_glfo, not the sw glfo inp['glfo'] (sw_cache_fname)
             glfo=inp['part_glfo'])
         cfo = write_full_output(spec['refined_out'], inp['part_glfo'], refined, inp['uid_part_antns'])
+        del inp, refined  # before the next group is read
+        gc.unfreeze()
         print('  timing: group %s total %.2f s' % (os.path.dirname(spec['refined_rel']), time.time() - tgroup), flush=True)
         n_run += 1
         for key, val in cfo.items():

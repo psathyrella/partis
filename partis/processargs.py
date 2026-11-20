@@ -12,9 +12,9 @@ from . import treeutils
 def get_dummy_outfname(workdir, locus=None):
     return '%s/XXX-dummy-simu%s.yaml' % (workdir, '-'+locus if locus is not None else '')
 
-actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info', 'write-fake-paired-annotations', 'create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs', 'merge-parameter-subsets']
+actions_not_requiring_input = ['simulate', 'view-output', 'merge-paired-partitions', 'view-annotations', 'view-partitions', 'view-cluster-annotations', 'plot-partitions', 'view-alternative-annotations', 'get-selection-metrics', 'get-linearham-info', 'write-fake-paired-annotations', 'create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'create-partition-refine-jobs', 'run-partition-refine-jobs', 'merge-parameter-subsets']
 
-single_locus_actions = ['create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'run-partition-refine-jobs']  # standalone disjoint-grouping actions; always take one --locus
+single_locus_actions = ['create-disjoint-groups', 'assemble-groups', 'create-ha-repartition-jobs', 'run-ha-repartition-jobs', 'assemble-ha-repartition', 'create-partition-refine-jobs', 'run-partition-refine-jobs']  # standalone disjoint-grouping actions; always take one --locus
 
 # ----------------------------------------------------------------------------------------
 # split this out so we can call it from both bin/partis and bin/test-germline-inference.py
@@ -555,7 +555,7 @@ def process(args):
         if args.reco_parameter_dir is None and not args.rearrange_from_scratch:
             raise Exception('have to either set --rearrange-from-scratch or --reco-parameter-dir (or --simulate-from-scratch)')
         if args.rearrange_from_scratch and args.shm_parameter_dir is None and not args.mutate_from_scratch:  # default to the pooled shm parameters that come with partis (see data/recombinator/scratch-parameters/README.md)
-            args.shm_parameter_dir = '%s/data/recombinator/scratch-parameters%s' % (utils.get_partis_dir(), '' if args.locus is None else '/' + args.locus)  # with --paired-loci the main proc has no locus and never reads this, but each locus's subproc sets its own (and tree generation, which gets no --locus, uses the default igh, i.e. heavy chain trees)
+            args.shm_parameter_dir = utils.scratch_parameter_dir(locus=args.locus)  # with --paired-loci the main proc has no locus and never reads this, but each locus's subproc sets its own (and tree generation, which gets no --locus, uses the default igh, i.e. heavy chain trees)
             if args.locus is not None:
                 print('  note: using pooled shm parameters from %s (set --shm-parameter-dir or --mutate-from-scratch to override)' % args.shm_parameter_dir)
         if args.shm_parameter_dir is None and not args.mutate_from_scratch:
@@ -630,11 +630,13 @@ def process(args):
 
         if args.allowed_cdr3_lengths is not None and not args.paired_loci and args.rearrange_from_scratch and any(l < 30 for l in args.allowed_cdr3_lengths):  # ick
             factor = 3
-            print('  note: asked for cdr3 lengths <30 with --rearrange-from-scratch set, so increasing scratch mean deletion lengths and decreasing scratch mean insertion lengths by factor of %.1f:' % factor)
+            print('  note: asked for cdr3 lengths <30 with --rearrange-from-scratch set, so increasing scratch mean deletion lengths and decreasing scratch mean insertion lengths (the part above 1) by factor of %.1f:' % factor)
+            # lengths are drawn as geometric(1/mean) - 1, so scale only the part above 1
             for tdict, tfact in zip([utils.scratch_mean_erosion_lengths[args.locus], utils.scratch_mean_insertion_lengths[args.locus]], [factor, 1./factor]):
                 for tstr in tdict:
-                    print('    %8s  %5.1f --> %5.1f' % (tstr, tdict[tstr], tfact * tdict[tstr]))
-                    tdict[tstr] *= tfact
+                    newval = 1 + tfact * (tdict[tstr] - 1) if tdict[tstr] > 0 else 0.
+                    print('    %8s  %5.1f --> %5.1f' % (tstr, tdict[tstr], newval))
+                    tdict[tstr] = newval
 
     if args.parameter_dir is not None and not args.paired_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
         args.parameter_dir = args.parameter_dir.rstrip('/')

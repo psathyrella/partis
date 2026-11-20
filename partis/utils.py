@@ -23,6 +23,7 @@ from collections import defaultdict
 import csv
 import subprocess
 import multiprocessing
+import multiprocessing.connection
 import copy
 import traceback
 import json
@@ -1068,6 +1069,11 @@ def evenly_split_list(inlist, n_subsets, dbgstr='items'):
     return list_of_lists
 
 # ----------------------------------------------------------------------------------------
+def shuffle_and_split(inlist, n_subsets, dbgstr='items'):  # NOTE shuffles <inlist> in place
+    random.shuffle(inlist)
+    return evenly_split_list(inlist, n_subsets, dbgstr=dbgstr)
+
+# ----------------------------------------------------------------------------------------
 # chooses [sequences from] N droplets according to <n_max_queries> or <n_random_queries> (has to first group them by droplet id so that we choose both h and l seq together)
 # n_max_queries: take only this many (after random shuffling, see notes below), n_random_queries: take this many at random, n_subsets: split into this many groups
 # NOTE returns list of lists of seqfos if n_subsets is set (rather than a single list of seqfos)
@@ -1100,7 +1106,8 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
     if any(u not in sfdict for ql in drop_query_lists for u in ql):  # shouldn't happen any more (split loci wasn't properly removing uids), but probably still a good check to have
         missing_ids = [u for ql in drop_query_lists for u in ql if u not in sfdict]
         raise Exception('%d drop query list uid[s] missing from sfdict (size %d): %s' % (len(missing_ids), len(sfdict), ' '.join(missing_ids)))
-    random.shuffle(drop_query_lists)  # we always want to shuffle, since sometimes e.g. all unpaired igh are first when alphabetized by droplet id
+    if n_subsets is None:  # else shuffle_and_split() does it below
+        random.shuffle(drop_query_lists)  # we always want to shuffle, since sometimes e.g. all unpaired igh are first when alphabetized by droplet id
     if n_max_queries != -1:  # NOTE not same order as input file, since that wouldn't/doesn't make any sense
         final_qlists = drop_query_lists[:n_max_queries]
         returnfo = get_final_seqfos(final_qlists, '--n-max-queries', '(first %d, after random shuffling)' % n_max_queries)
@@ -1108,7 +1115,7 @@ def subset_paired_queries(seqfos, droplet_id_separators, droplet_id_indices, n_m
         final_qlists = np_rand_choice(drop_query_lists, size=n_random_queries, replace=False)
         returnfo = get_final_seqfos(final_qlists, '--n-random-queries', '(uniform randomly)')
     elif n_subsets is not None:
-        list_of_fqlists = evenly_split_list(drop_query_lists, n_subsets, dbgstr='droplets')
+        list_of_fqlists = shuffle_and_split(drop_query_lists, n_subsets, dbgstr='droplets')
         returnfo = []
         for isub, final_qlists in enumerate(list_of_fqlists):
             returnfo.append(get_final_seqfos(final_qlists, '  isub %d'%isub, 'in order (after random shuffling)'))
@@ -1544,17 +1551,23 @@ def choose_non_dup_id(uid, n_duplicate_uids, input_info):  # NOTE calling fcn ha
 # NOTE the consensus seqs will (obviously) be *different* afterwards
 def synthesize_single_seq_line(line, iseq, dont_deep_copy=False):  # setting dont_deep_copy is obviously *really* *dangerous*
     """ without modifying <line>, make a copy of it corresponding to a single-sequence event with the <iseq>th sequence """
-    singlefo = {}
+    return synthesize_line_from_iseqs(line, [iseq], dont_deep_copy=dont_deep_copy)
+
+# ----------------------------------------------------------------------------------------
+def synthesize_line_from_iseqs(line, iseqs, dont_deep_copy=False):  # see synthesize_single_seq_line() for dont_deep_copy
+    """ without modifying <line>, make a copy of it with only the sequences at <iseqs>, in that order """
+    subfo = {}
     for key in line:
         if key in linekeys['per_seq']:
-            singlefo[key] = [line[key][iseq], ]  # used to also deepcopy the per-seq value, but it's really slow and i really think there's no reason to
+            subfo[key] = [line[key][i] for i in iseqs]  # used to also deepcopy the per-seq value, but it's really slow and i really think there's no reason to
         else:
-            singlefo[key] = line[key] if dont_deep_copy else copy.deepcopy(line[key])
-    return singlefo
+            subfo[key] = line[key] if dont_deep_copy else copy.deepcopy(line[key])
+    return subfo
 
 # ----------------------------------------------------------------------------------------
 # <reco_info> just needs to be an annotation dict with single-sequence annotations
-def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False): #, dont_deep_copy=False):  # assumes you already added all the implicit info
+# <iseqs>: optional {uid : its index in reco_info[uid]}, used in place of a search per key
+def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False, iseqs=None): #, dont_deep_copy=False):  # assumes you already added all the implicit info
     assert len(uids) > 0
     # invalid = False
     # if any(reco_info[u]['invalid'] for u in uids):
@@ -1562,15 +1575,20 @@ def synthesize_multi_seq_line_from_reco_info(uids, reco_info, warn=False): #, do
     #     invalid = True
     multikeys = set(k for u in uids for k in reco_info[u])  # need to have any key that's in any annotation
     multifo = {}
+    atomic = (str, int, float, bool, type(None))  # immutable, so nothing to copy
     for col in sorted(multikeys):
         if col in linekeys['per_seq']:
-            cval = [per_seq_val(reco_info[u], col, u, use_default=True, default_val=nullval(col)) for u in uids]
+            if iseqs is None:
+                cval = [per_seq_val(reco_info[u], col, u, use_default=True, default_val=nullval(col)) for u in uids]
+            else:
+                cval = [reco_info[u][col][iseqs[u]] if col in reco_info[u] and iseqs[u] is not None else nullval(col) for u in uids]
         else:  # would be nice to use linekeys['per_family'], but not all keys are in one or the other (e.g. linekeys['sw'] aren't in either)
             cvals = [reco_info[u][col] for u in uids if col in reco_info[u]]
             if warn and any(v != cvals[0] for v in cvals):  # eh, maybe i don't need to raise an exception here? Although generally you sure shouldn't be merging them if they differ
                 print('    %s multiple values for key \'%s\' when synthesizing multi-seq line (just using the first one): %s' % (wrnstr(), col, '')) #cvals))
             cval = cvals[0]
-        multifo[col] = copy.deepcopy(cval)
+        shared_vals = cval if col in linekeys['per_seq'] else [cval]  # what <cval> still shares with reco_info (the per-seq list itself is new)
+        multifo[col] = cval if all(type(v) in atomic for v in shared_vals) else copy.deepcopy(cval)
     return multifo
 
 # ----------------------------------------------------------------------------------------
@@ -4364,6 +4382,10 @@ def get_mutation_rate(line, iseq, restrict_to_region=''):
     return hamming_fraction(naive_seq, muted_seq)
 
 # ----------------------------------------------------------------------------------------
+def scratch_parameter_dir(locus=None):  # pooled shm parameters that come with partis, for simulation without a sample's own parameter dir (see data/recombinator/scratch-parameters/README.md)
+    return '%s/data/recombinator/scratch-parameters%s' % (get_partis_dir(), '' if locus is None else '/' + locus)
+
+# ----------------------------------------------------------------------------------------
 def get_mutation_rate_and_n_muted(line, iseq, restrict_to_region='', exclusion_3p=None):
     naive_seq, muted_seq = subset_iseq(line, iseq, restrict_to_region=restrict_to_region, exclusion_3p=exclusion_3p)
     fraction, distance = hamming_fraction(naive_seq, muted_seq, also_return_distance=True)
@@ -5459,9 +5481,10 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, args=None, include_hmm_
                     merged_hist.add(sub_hist)
             if merged_hist is not None:
                 merged_hist.write('%s/hmm/%s' % (pdir(merged_odir, ltmp), hfname))
-        sum_fns = ['%s/hmm/%s' % (pdir(subdfn(isub), ltmp), mute_freq_sum_fname) for isub in range(n_subsets)]
-        sum_fns = [f for f in sum_fns if os.path.exists(f)]
-        if len(sum_fns) > 0:  # sum over subsets like the hists above, so get_mean_mfreq() can give the exact mean for the merged dir
+        mean_mut_fns = ['%s/hmm/all-mean-mute-freqs.csv' % pdir(subdfn(i), ltmp) for i in range(n_subsets)]
+        mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
+        sum_fns = ['%s/%s' % (os.path.dirname(f), mute_freq_sum_fname) for f in mean_mut_fns]
+        if len(sum_fns) > 0 and all(os.path.exists(f) for f in sum_fns):  # sum over subsets, so get_mean_mfreq() can give the exact mean for the merged dir (skipped if any subset lacks the file, since a partial sum would be read as exact)
             mf_sums = OrderedDict()
             for sfn in sum_fns:
                 with open(sfn) as sfile:
@@ -5983,6 +6006,89 @@ def n_available_cpus():  # cpus available to this process (respects slurm/cgroup
         return len(os.sched_getaffinity(0))
     except (AttributeError, OSError):
         return multiprocessing.cpu_count()
+
+# ----------------------------------------------------------------------------------------
+def job_memory():  # bytes of memory this job may use: its slurm allocation if it has one, else the machine's
+    if int(os.getenv('SLURM_MEM_PER_NODE', 0)) > 0:  # in MB, as is the per cpu one; 0 is all of the node
+        return int(os.getenv('SLURM_MEM_PER_NODE')) * 2**20
+    if int(os.getenv('SLURM_MEM_PER_CPU', 0)) > 0:
+        return int(os.getenv('SLURM_MEM_PER_CPU')) * n_available_cpus() * 2**20
+    return psutil.virtual_memory().total
+
+# ----------------------------------------------------------------------------------------
+def peak_rss(who=resource.RUSAGE_SELF):  # bytes, the most resident memory this process has held, or its largest subprocess with RUSAGE_CHILDREN
+    return resource.getrusage(who).ru_maxrss * (1 if platform.system() == 'Darwin' else 1024)
+
+# ----------------------------------------------------------------------------------------
+def current_rss():  # bytes of resident memory this process holds now
+    return psutil.Process().memory_info().rss
+
+# ----------------------------------------------------------------------------------------
+def _send_result(conn, fcn, args):
+    # in a group's own process: send fcn(*args), or what it raised, with the process's peak memory
+    try:
+        res, err = fcn(*args), None
+    except Exception as e:
+        res, err = None, (e, traceback.format_exc())
+    conn.send((res, err, peak_rss() + peak_rss(resource.RUSAGE_CHILDREN)))  # with its largest subprocess, where sw and the hmm run
+
+# ----------------------------------------------------------------------------------------
+def map_groups(fcn, gargs, n_procs, infnames, memory_bytes=None, sizes=None):
+    """[fcn(*a) for a in gargs], each group in its own process, up to n_procs at a time and within
+    <memory_bytes> (default: the job's). infnames lists, per group, the files it reads. A group is
+    estimated at its size (<sizes>, default: the bytes of its files) times the largest peak memory
+    per unit of size among the finished groups at least as large. The largest group runs first and alone. The others start largest
+    first, each once its estimate, those of the running groups and what this process holds sum
+    to <memory_bytes> at most. A group that does not fit by itself runs alone."""
+    if n_procs <= 1 or len(gargs) <= 1:
+        return [fcn(*a) for a in gargs]
+    if memory_bytes is None:
+        memory_bytes = job_memory()
+    if sizes is None:
+        sizes = [sum(os.path.getsize(f) for f in fnames) for fnames in infnames]
+    if len(sizes) != len(gargs):
+        raise Exception('%d sizes for %d groups' % (len(sizes), len(gargs)))
+    todo = sorted(range(len(gargs)), key=lambda i: sizes[i], reverse=True)
+    results, running, rates = [None] * len(gargs), {}, []  # running: {pipe: (group index, process)}, rates: (size, peak per unit of size) of each finished group
+    ctx = multiprocessing.get_context('fork')  # groups are disjoint and each writes only its own files
+
+    def estimate(i):
+        return sizes[i] * max(rate for size, rate in rates if size >= sizes[i])
+
+    def fits(i):
+        free = memory_bytes - current_rss()
+        if len(running) == 0:
+            if len(rates) > 0 and estimate(i) > free:
+                print('    %s the group that reads %s runs alone: estimated at %.1f GB, with %.1f GB for the groups' % (wrnstr(), infnames[i][0], estimate(i) / 2**30, free / 2**30))
+            return True
+        return len(rates) > 0 and sum(estimate(j) for j, _ in running.values()) + estimate(i) <= free
+
+    try:
+        while len(todo) > 0 or len(running) > 0:
+            while len(todo) > 0 and len(running) < n_procs and fits(todo[0]):
+                recv, send = ctx.Pipe(duplex=False)
+                proc = ctx.Process(target=_send_result, args=(send, fcn, gargs[todo[0]]))
+                proc.start()
+                send.close()  # so the pipe ends with the process
+                running[recv] = (todo.pop(0), proc)
+            for conn in multiprocessing.connection.wait(list(running)):
+                i, proc = running.pop(conn)
+                try:
+                    results[i], err, peak = conn.recv()
+                except (EOFError, OSError):  # OSError when the process ended partway through its result
+                    proc.join()
+                    raise Exception('the process of the group that reads %s ended with exit code %s and no result (-9 is a kill, as when memory runs out)' % (infnames[i][0], proc.exitcode))
+                conn.close()
+                proc.join()
+                if err is not None:
+                    raise err[0] from Exception(err[1])
+                rates.append((sizes[i], peak / max(1, sizes[i])))
+    finally:
+        for conn, (_, proc) in running.items():
+            proc.terminate()
+            proc.join()
+            conn.close()
+    return results
 
 # ----------------------------------------------------------------------------------------
 def limit_procs(base_cmd_str, n_max_procs=None, sleep_time=1, procs=None, debug=False):  # <sleep_time> is seconds
@@ -7350,7 +7456,7 @@ def get_mean_mfreq(parameter_dir, region='all', n_muted_hist=None, binned_fallba
         n_muted_hist = Hist(fname='%s/%s-mean-n-muted.csv' % (parameter_dir, region))
     mfreq = estimate_mean_mfreq(parameter_dir, region, mfname, n_muted_hist, debug=debug) if os.path.exists(mfname) and n_muted_hist is not None else None
     if mfreq is None and binned_fallback:
-        if (parameter_dir, region) not in binned_mfreq_warned:  # hmm writer calls this once per gene
+        if (parameter_dir, region) not in binned_mfreq_warned:
             binned_mfreq_warned.add((parameter_dir, region))
             print('  %s could not determine exact mean mute freq for %s in %s, using binned mean' % (wrnstr(), region, parameter_dir))
         mfreq = Hist(fname=mfname).get_mean(ignore_overflows=True)
@@ -7663,6 +7769,39 @@ def write_fasta(fname, seqfos, name_key='name', seq_key='seq', return_hash=False
     return None if hasher is None else hasher.hexdigest()
 
 # ----------------------------------------------------------------------------------------
+# one fasta per list of uids in <sub_uids>, seqs from <seqfname> ("uid<tab>seq" lines), holding one fasta's seqs at a time
+def write_subset_fastas(seqfname, sub_uids, outfnames):
+    isubs = {u : i for i, uids in enumerate(sub_uids) for u in uids}
+    tmpfnames = ['%s.tmp' % f for f in outfnames]
+    for tfn in tmpfnames:
+        mkdir(tfn, isfile=True)
+    try:
+        tfiles = [open(f, 'w') for f in tmpfnames]
+        try:
+            with open(seqfname) as seqfile:
+                for line in seqfile:
+                    isub = isubs.get(line[:line.index('\t')])  # None if the uid isn't in any list
+                    if isub is not None:
+                        tfiles[isub].write(line)
+        finally:
+            for tfile in tfiles:
+                tfile.close()
+        hashes = []
+        for uids, tfn, ofn in zip(sub_uids, tmpfnames, outfnames):
+            with open(tfn) as tfile:
+                seqs = dict(l.rstrip('\n').split('\t') for l in tfile)
+            missing = [u for u in uids if u not in seqs]
+            if len(missing) > 0:
+                raise Exception('%d uid%s for %s not in %s (first: %s)' % (len(missing), plural(len(missing)), ofn, seqfname, missing[0]))
+            hashes.append(write_fasta(ofn, [{'name' : u, 'seq' : seqs[u]} for u in uids], return_hash=True))
+            os.remove(tfn)
+    finally:  # the ones an exception left
+        for tfn in tmpfnames:
+            if os.path.exists(tfn):
+                os.remove(tfn)
+    return hashes
+
+# ----------------------------------------------------------------------------------------
 # NOTE replacement for (some cases of) read_fastx()
 def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None): NOTE maybe add these args?
     if getsuffix(fname) not in ['.json', '.yaml']:
@@ -7677,29 +7816,29 @@ def read_seqfos(fname):  # queries=None, n_max_queries=-1, istartstop=None, ftyp
         raise Exception('this is a standard yaml output file (not just a list of seq infos), so needs to be read with utils.read_yaml_output(): %s' % fname)
     return seqfos
 
+FASTA_SUFFIXES, FASTQ_SUFFIXES = ['.fa', '.fasta'], ['.fq', '.fastq']
+FASTX_SUFFIXES = FASTA_SUFFIXES + FASTQ_SUFFIXES  # what iter_fastx() reads
+
 # ----------------------------------------------------------------------------------------
-# if <look_for_tuples> is set, look for uids that are actually string-converted python tuples, and add each entry in the tuple as a duplicate sequence. Can also pass in a list <tuple_info> if you need to do more with the info afterwards (this is to handle gctree writing fasta files with broken names; see usage also in datascripts/meta/taraki-XXX)
-def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None, look_for_tuples=False, tuple_info=None, quiet=False):
+# yields one seqfo per sequence of a fasta or fastq file
+def iter_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, quiet=False):
     if ftype is None:
         suffix = getsuffix(fname)
-        if suffix == '.fa' or suffix == '.fasta':
+        if suffix in FASTA_SUFFIXES:
             ftype = 'fa'
-        elif suffix == '.fq' or suffix == '.fastq':
+        elif suffix in FASTQ_SUFFIXES:
             ftype = 'fq'
         else:
             raise Exception('unhandled file type: %s' % suffix)
 
-    finfo = []
     iline = -1  # index of the query/seq that we're currently reading in the fasta
-    n_fasta_queries = 0  # number of queries so far added to <finfo> (I guess I could just use len(finfo) at this point)
+    n_fasta_queries = 0  # number of queries so far yielded
     missing_queries = set(queries) if queries is not None else None
     already_printed_forbidden_character_warning, already_printed_warn_char_warning = False, False
     with open(fname) as fastafile:
-        startpos = None
+        nextline = None  # the next header line, which we had to read to see where the last sequence ended
         while True:
-            if startpos is not None:  # rewind since the last time through we had to look to see when the next header line appeared
-                fastafile.seek(startpos)
-            headline = fastafile.readline()
+            headline = fastafile.readline() if nextline is None else nextline
             if not headline:
                 break
             if headline.strip() == '':  # skip a blank line
@@ -7717,8 +7856,6 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                         break
                     if nextline[0] == '>':
                         break
-                    else:
-                        startpos = fastafile.tell()  # i.e. very line that doesn't begin with '>' increments <startpos>
                     seqlines.append(nextline)
                     nextline = fastafile.readline()
                 seqline = ''.join([l.strip() for l in seqlines]) if len(seqlines) > 0 else None
@@ -7735,8 +7872,8 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
             else:
                 raise Exception('unhandled ftype %s' % ftype)
 
-            if not seqline:
-                break
+            if not seqline:  # a fasta header with no sequence after it
+                raise Exception('no sequence after header line in %s:\n    %s' % (fname, headline.strip()))
 
             iline += 1
             if istartstop is not None:
@@ -7780,7 +7917,7 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
                 if any(c not in alphabet for c in seqfo[seq_key]):
                     unexpected_chars = set([ch for ch in seqfo[seq_key] if ch not in alphabet])
                     raise Exception('unexpected character%s %s (not among %s) in input sequence with id %s:\n  %s' % (plural(len(unexpected_chars)), ', '.join([('\'%s\'' % ch) for ch in unexpected_chars]), alphabet, seqfo[name_key], seqfo[seq_key]))
-            finfo.append(seqfo)
+            yield seqfo
 
             n_fasta_queries += 1
             if n_max_queries > 0 and n_fasta_queries >= n_max_queries:
@@ -7791,6 +7928,12 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
         print('    stopped after reading %d sequences from %s' % (n_max_queries, fname))
     if queries is not None:
         print('    only looked for %d specified sequences in %s' % (len(queries), fname))
+
+# ----------------------------------------------------------------------------------------
+# if <look_for_tuples> is set, look for uids that are actually string-converted python tuples, and add each entry in the tuple as a duplicate sequence. Can also pass in a list <tuple_info> if you need to do more with the info afterwards (this is to handle gctree writing fasta files with broken names; see usage also in datascripts/meta/taraki-XXX)
+def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_infostrs=False, sanitize_uids=False, sanitize_seqs=False, queries=None, n_max_queries=-1, istartstop=None, ftype=None, n_random_queries=None, look_for_tuples=False, tuple_info=None, quiet=False):
+    finfo = list(iter_fastx(fname, name_key=name_key, seq_key=seq_key, add_info=add_info, dont_split_infostrs=dont_split_infostrs, sanitize_uids=sanitize_uids, sanitize_seqs=sanitize_seqs, queries=queries,
+                            n_max_queries=n_max_queries, istartstop=istartstop, ftype=ftype, quiet=quiet))
 
     if n_random_queries is not None:
         if n_random_queries > len(finfo):
@@ -8387,6 +8530,13 @@ def get_yamlfo_for_output(line, headers, glfo=None):
     return yamlfo
 
 # ----------------------------------------------------------------------------------------
+def yaml_output_dict(glfo, partition_lines, events, dont_write_git_info=False):  # top level of a yaml output file. NOTE write_yaml_output_from_event_strs() needs the events last
+    return {'version-info' : {'partis-yaml' : 0.1, 'partis-git' : '' if dont_write_git_info else get_version_info()},
+            'germline-info' : glfo,
+            'partitions' : partition_lines,
+            'events' : events}
+
+# ----------------------------------------------------------------------------------------
 def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_single_seqs=False, failed_queries=None, partition_lines=None, use_pyyaml=False, dont_write_git_info=False):
     # ----------------------------------------------------------------------------------------
     def check_ids():  # really just want to check that there's *some* overlap between the partitions and annotations. It's normal that there's annotations for only some uids in the partition, but if there is a partition, at least some of its uids should be in the annotations (usually the uids with annotations is a strict subset, but sometimes there might be annotations for uids from somewhere else)
@@ -8401,19 +8551,30 @@ def write_yaml_output(fname, headers, glfo=None, annotation_list=None, synth_sin
         partition_lines = []
     check_ids()
 
-    version_info = {'partis-yaml' : 0.1, 'partis-git' : '' if dont_write_git_info else get_version_info()}
     yaml_annotations = [get_yamlfo_for_output(l, headers, glfo=glfo) for l in annotation_list]
     if failed_queries is not None:
         yaml_annotations += failed_queries
-    yamldata = {'version-info' : version_info,
-                'germline-info' : glfo,
-                'partitions' : partition_lines,
-                'events' : yaml_annotations}
+    yamldata = yaml_output_dict(glfo, partition_lines, yaml_annotations, dont_write_git_info=dont_write_git_info)
     if use_pyyaml:  # slower, but easier to read by hand for debugging (use this instead of the json version to make more human-readable files)
         with open(fname, 'w') as yamlfile:
             yaml.dump(yamldata, yamlfile, width=400, Dumper=Dumper, default_flow_style=False, allow_unicode=False)  # set <allow_unicode> to false so the file isn't cluttered up with !!python.unicode stuff
     else:  # way tf faster than full yaml (only lost information is ordering in ordered dicts, but that's only per-gene support and germline info, neither of whose order we care much about)
         jsdump(fname, yamldata) #, sort_keys=True, indent=4)
+
+# ----------------------------------------------------------------------------------------
+def write_yaml_output_from_event_strs(fname, glfo, uids, event_strs, dont_write_git_info=False):
+    # the file write_annotations() writes for the single-sequence annotations of <uids>, from the json text of each one's event
+    from . import clusterpath
+    partition_lines = clusterpath.ClusterPath(partition=[[u] for u in uids]).get_partition_lines()
+    head = json.dumps(yaml_output_dict(glfo, partition_lines, [], dont_write_git_info=dont_write_git_info))
+    assert head.endswith('"events": []}')
+    n_per_write = 10000  # so the joined text of all events is never held at once
+    mkdir(fname, isfile=True)
+    with open(fname, 'w') as yamlfile:
+        yamlfile.write(head[:-2])  # up to the opening bracket of the events
+        for istart in range(0, len(event_strs), n_per_write):
+            yamlfile.write((', ' if istart > 0 else '') + ', '.join(event_strs[istart : istart + n_per_write]))
+        yamlfile.write(']}')
 
 # ----------------------------------------------------------------------------------------
 def parse_yaml_annotations(glfo, yamlfo, n_max_queries, synth_single_seqs, dont_add_implicit_info):
@@ -8595,6 +8756,32 @@ def read_json_yaml(fname):  # try to read <fname> as json (since it's faster), o
             yamlfile.seek(0)
             yamlfo = yaml.load(yamlfile, Loader=Loader)  # use this instead of the json version to make more human-readable files
     return yamlfo
+
+YAML_HEAD_CHARS = 2**22  # chars read from the start of a yaml output file to find its germline info
+
+# ----------------------------------------------------------------------------------------
+def read_yaml_glfo(fname, head_chars=YAML_HEAD_CHARS):
+    # germline info of a yaml output file, parsing only the head of the file if the germline info is within it
+    decoder, skip_space = json.JSONDecoder(), re.compile(r'\s*').match
+    with open(fname) as yamlfile:
+        head = yamlfile.read(head_chars)
+
+    def after(ipos, char):  # index of the token after <char>, which has to be the next token
+        ipos = skip_space(head, ipos).end()
+        if head[ipos : ipos + 1] != char:
+            raise ValueError()
+        return skip_space(head, ipos + 1).end()
+
+    try:
+        ipos = after(0, '{')
+        while True:  # top-level keys, in file order
+            key, ipos = decoder.raw_decode(head, ipos)
+            val, ipos = decoder.raw_decode(head, after(ipos, ':'))
+            if key == 'germline-info':
+                return val
+            ipos = after(ipos, ',')
+    except ValueError:  # not json, or the germline info is not within the head
+        return read_json_yaml(fname)['germline-info']
 
 # ----------------------------------------------------------------------------------------
 def read_yaml_output(fname, n_max_queries=-1, synth_single_seqs=False, dont_add_implicit_info=False, seed_unique_id=None, cpath=None, skip_annotations=False, debug=False):

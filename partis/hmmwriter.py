@@ -226,7 +226,7 @@ class HMM(object):
 
 # ----------------------------------------------------------------------------------------
 class HmmWriter(object):
-    def __init__(self, base_indir, outdir, gene_name, glfo, args, debug=False):
+    def __init__(self, base_indir, outdir, gene_name, glfo, args, mean_mfreq=None, debug=False):  # <mean_mfreq>: utils.get_mean_mfreq(base_indir), read here if None
         # debug = gene_name in ['IGHD3-10*01', 'IGHJ2*01']  # True
         self.region = utils.get_region(gene_name)
         self.raw_name = gene_name  # i.e. unsanitized
@@ -242,7 +242,7 @@ class HmmWriter(object):
         self.eps = 1e-6  # NOTE I also have an eps defined in utils, and they should in principle be combined
         self.n_max_to_interpolate = 20  # we interpolate for empty insertion + deletion bins if neighboring (non-empty) bins have fewer than this many entries (i.e. if filled bins have at least this many entries, we _don't_ interpolate between them)
         self.min_mean_unphysical_insertion_length = {'fv' : 1.5, 'jf' : 25}  # jf has to be quite a bit bigger, since besides account for the variation in J length from the tryp position to the end, it has to account for the difference in cdr3 lengths
-        self.mute_freq_bounds = {'lo' : 0.001, 'hi' : 0.35}  # don't let any position mutate less frequently than 0.1% of the time, or more frequently than half the time
+        self.mute_freq_bounds = {'lo' : 0.001, 'hi' : 0.35}  # don't let any position mutate less frequently than 0.1% of the time, or more frequently than 35% of the time
         # NOTE the prior for positional mute freqs (self.default_mute_freq) is set below, once we've read the sample's mean mute freq
 
         self.enforced_flat_mfreq_length = {  # i.e. distance over which the mute freqs are typically screwed up. I'm not really sure why these vary so much, but it's probably to do with how the s-w step works
@@ -279,7 +279,7 @@ class HmmWriter(object):
 
         self.erosion_probs = self.read_erosion_info(approved_genes)
         self.insertion_probs, self.insertion_content_probs = self.read_insertion_info(approved_genes)
-        self.overall_mute_freq = min(self.mute_freq_bounds['hi'], max(self.mute_freq_bounds['lo'], utils.get_mean_mfreq(self.indir)))  # clamped so an unmutated sample does not give bcrham a zero rescale denominator
+        self.overall_mute_freq = min(self.mute_freq_bounds['hi'], max(self.mute_freq_bounds['lo'], utils.get_mean_mfreq(self.indir) if mean_mfreq is None else mean_mfreq))  # clamped so an unmutated sample does not give bcrham a zero rescale denominator
         self.mute_freqs = paramutils.read_mute_freqs_with_weights(self.indir, approved_genes, overall_mute_freq=self.overall_mute_freq, debug=self.debug)  # weighted averages over genes
         self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus, debug=self.debug)  # raw per-{ACGT} counts NOTE do *not* set <approved_genes> here (see note in paramutils)
         self.default_mute_freq = self.overall_mute_freq  # prior for positional mute freqs (positions with few or no observations): the sample's own mean, within the positional bounds. bcrham rescales each query by (query mute freq) / overall_mute_freq, so after rescaling a position we know nothing about gets the query's own mute freq (previously a fixed 0.1, which in e.g. a naive sample pulled thin alleles far above their well-observed siblings, see psathyrella/partis#414)
@@ -731,6 +731,15 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def get_insert_self_transition_prob(self, insertion):
         """ Probability of insert state transitioning to itself """
+        if insertion in utils.boundaries:  # real insertions: the path skips the insertion with prob p0 (the zero bin), otherwise each inserted base is followed by another with prob s. So the mean length is (1 - p0) / (1 - s), and matching it to the observed mean gives s = 1 - (1 - p0) / mean (this is also the max likelihood s for the observed nonzero lengths)
+            nonzero_prob = 1. - self.insertion_probs[insertion].get(0, 0.)
+            mean_length = self.get_mean_insert_length(insertion)
+            if nonzero_prob < utils.eps or mean_length <= 0.:  # no nonzero insertions (only the light chain dummy d, since read_insertion_info() adds pseudocounts otherwise), so we never enter the insert state. Return 1, as the old version did, so these hmms don't change
+                return 1.
+            self_transition_prob = 1. - nonzero_prob / mean_length
+            assert self_transition_prob >= -utils.eps and self_transition_prob < 1.  # mean length given at least one base is nonzero_prob / mean_length, which is at least 1
+            return max(0., self_transition_prob)
+        # NOTE the rest of this fcn is now only used for the fv and jf insertions, whose lengths come from germline gene lengths rather than counts. Their mean is floored at min_mean_unphysical_insertion_length (at least 1.5), so the 'mean length <= 1' branch below is no longer reached
         inverse_length = self.get_inverse_insert_length(insertion)
         if inverse_length < 1.0:  # if (mean length) > 1, approximate insertion length as a geometric distribution
             return 1.0 - inverse_length  # i.e. the prob of remaining in the insert state is [1 - 1/mean_insert_length]
@@ -783,7 +792,7 @@ class HmmWriter(object):
             assert False
 
         # If this is an 'init' state, we add a transition to 'insert' with probability the observed probability of a non-zero insertion
-        # Whereas if this is an 'insert' state, we add a *self*-transition with probability 1/<mean observed insert length>
+        # Whereas if this is an 'insert' state, we add a *self*-transition with probability 1/<mean observed insert length> (update: now 1 - (1 - p0) / <mean length> for real insertions, see get_insert_self_transition_prob())
         # update: now, we also multiply by the insertion content prob, since we now have four insert states (and can thus no longer use this prob in the emissions)
         if insertion != '' and region_entry_prob < 1.0:
             if not insertion in utils.boundaries:
@@ -966,14 +975,15 @@ def write_hmms(parameter_dir, glfo, args):
     if args.debug:
         print('to %s' % parameter_dir + '/hmms', end=' ')
 
+    mean_mfreq = utils.get_mean_mfreq(parameter_dir)  # once here rather than in each writer
     if multiprocessing.cpu_count() * utils.memory_usage_fraction() > 0.8:  # already using a lot of memory, so don't to call multiprocessing, which will duplicate all the memory for each process
         for region in utils.regions:
             for gene in glfo['seqs'][region]:
-                writer = HmmWriter(parameter_dir, hmm_dir, gene, glfo, args)
+                writer = HmmWriter(parameter_dir, hmm_dir, gene, glfo, args, mean_mfreq=mean_mfreq)
                 writer.write()
     else:
         def write_single_hmm(gene):
-            writer = HmmWriter(parameter_dir, hmm_dir, gene, glfo, args)
+            writer = HmmWriter(parameter_dir, hmm_dir, gene, glfo, args, mean_mfreq=mean_mfreq)
             writer.write()
         procs = [multiprocessing.Process(target=write_single_hmm, name=gene, args=(gene,))
                  for region in utils.regions for gene in glfo['seqs'][region]]

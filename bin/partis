@@ -90,6 +90,11 @@ def single_proc_concurrency(args):
     return max(1, min(utils.n_available_cpus() - 1, args.n_procs))
 
 # ----------------------------------------------------------------------------------------
+def pool_memory(args):
+    # bytes for the steps that run several groups at once, None for the job's memory
+    return None if args.pool_memory_gb is None else int(args.pool_memory_gb * 2**30)
+
+# ----------------------------------------------------------------------------------------
 def ha_n_bundles(n_concurrent):
     return n_concurrent * BUNDLES_PER_PROC
 
@@ -127,10 +132,12 @@ def build_single_locus_cmd(tmpaction, ltmp, args, infname=None, outfname=None, p
     for argname in ['--get-selection-metrics', '--plot-partitions', '--count-parameters', '--count-correlations',
                     '--disjoint-groups', '--hfrac', '--partition-refine', '--ha-repartition', '--prepend-coverage-command',
                     '--plot-annotation-performance',  # requires --is-simu which is also stripped
-                    '--overwrite', '--rerun-refine']:  # the parent run applies these to the whole unit
+                    '--overwrite', '--rerun-refine', '--keep-intermediates']:  # the parent run applies these to the whole unit
         utils.remove_from_arglist(clist, argname)
     for argname in ['--n-subsets', '--n-max-procs', '--n-max-subprocs', '--n-sub-procs', '--hfrac-merge-factor', '--hfrac-max-bin-size', '--hfrac-min-seqs', '--n-multi-cache-workers']:
         utils.remove_from_arglist(clist, argname, has_arg=True)
+    if tmpaction != 'create-ha-repartition-jobs':  # the one job built here that runs groups in a pool
+        utils.remove_from_arglist(clist, '--pool-memory-gb', has_arg=True)
     # set action and locus
     clist[clist.index(args.action)] = tmpaction
     utils.insert_in_arglist(clist, ['--locus', ltmp], tmpaction)
@@ -217,7 +224,7 @@ def group_disjoint_dir(args, locus, sw_cache_paths, disjoint_dir, parameter_dir,
     if manifest is not None:
         print('%s %s: manifest with the same inputs exists, skipping grouping: %s/%s' % (utils.color('blue_bkg', 'create-disjoint-groups'), locus, disjoint_dir, disjointgrouper.MANIFEST_FNAME))
         return manifest
-    return disjointgrouper.create_cdr3_groups(locus, sw_cache_paths, disjoint_dir, parameter_dir, inputs, n_procs=proc_budget(args), n_subset_workers=args.n_multi_cache_workers, **gkwargs)
+    return disjointgrouper.create_cdr3_groups(locus, sw_cache_paths, disjoint_dir, parameter_dir, inputs, n_procs=proc_budget(args), n_subset_workers=args.n_multi_cache_workers, memory_bytes=pool_memory(args), **gkwargs)
 
 # ----------------------------------------------------------------------------------------
 def assemble_groups_action(args):
@@ -228,6 +235,15 @@ def assemble_groups_action(args):
         raise Exception('--outfname must be set for assemble-groups')
     disjoint_dir = disjoint_dir_for(args.paired_outdir, args.locus)
     disjointgrouper.assemble_groups(args.locus, disjoint_dir, args.outfname, multifile_min_seqs=args.multifile_min_seqs, multifile_max_seqs_per_file=args.multifile_max_seqs_per_file)
+    remove_refine_intermediates(args, disjoint_dir, args.locus)
+
+# ----------------------------------------------------------------------------------------
+def remove_refine_intermediates(args, disjoint_dir, locus):
+    # once the groups are assembled, remove what the refine step wrote for its own use
+    if args.keep_intermediates:
+        return
+    import partis.partition_refinement as partition_refinement
+    partition_refinement.remove_intermediates(disjoint_dir, locus)
 
 # ----------------------------------------------------------------------------------------
 def refined_single_chain_loci(getofn, loci):
@@ -264,15 +280,18 @@ def setup_ha_job(args):
 
 # ----------------------------------------------------------------------------------------
 def create_ha_repartition_jobs_action(args):
-    # standalone entry point: write per-cluster HA inputs, a locus task list and a bundle list, for
+    # standalone entry point: plan the per-cluster HA jobs in a locus task list and a bundle list, for
     # external array orchestration (run-ha-repartition-jobs on each bundle, then assemble-ha-repartition)
+    if args.ha_max_bundles is not None and args.ha_max_bundles < 1:
+        raise Exception('--ha-max-bundles must be positive, but got %d' % args.ha_max_bundles)
     disjoint_dir = _disjoint_locus_dir(args)
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     n_concurrent = single_proc_concurrency(args)
     glfo = setup_ha_job(args)
     def count_collapsed(candidates):
-        return ha_repartition.count_ha_collapsed(candidates, args, glfo, n_concurrent)
-    specs, jobs, bundles = ha_repartition.prepare_all(disjoint_dir, manifest['groups'], args.locus, ha_n_bundles(n_concurrent), count_collapsed=count_collapsed)
+        return ha_repartition.count_ha_collapsed(candidates, args, glfo, n_concurrent, memory_bytes=pool_memory(args))
+    n_bundles = ha_n_bundles(n_concurrent) if args.ha_max_bundles is None else args.ha_max_bundles
+    specs, jobs, bundles = ha_repartition.prepare_all(disjoint_dir, manifest['groups'], args.locus, n_bundles, count_collapsed=count_collapsed, n_procs=n_concurrent, memory_bytes=pool_memory(args))
     print('  wrote %d per-cluster HA jobs across %d groups to %s, in %d bundles listed in %s' % (len(jobs), len(specs), ha_repartition.task_list_fname(disjoint_dir, args.locus), len(bundles), ha_repartition.bundle_list_fname(disjoint_dir, args.locus)))
 
 # ----------------------------------------------------------------------------------------
@@ -292,9 +311,17 @@ def run_ha_repartition_jobs_action(args):
     stop = len(jobs) if args.job_count is None else args.job_start + args.job_count
     jobs = jobs[args.job_start : stop]
     timing_csv = '%s/ha-repartition-timing-%s.csv' % (disjoint_dir, args.locus)
-    ha_repartition.run_jobs_in_process(jobs, args, glfo, timing_csv=timing_csv)
+    ha_repartition.run_jobs_in_process(jobs, args, glfo, timing_csv=timing_csv, job_start=args.job_start)
     if len(jobs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
         open(ha_repartition.bundle_marker_fname(disjoint_dir, plan, args.job_start), 'w').close()
+
+# ----------------------------------------------------------------------------------------
+def assemble_ha_groups(args, disjoint_dir, locus, specs, n_procs):
+    # assemble every group's HA re-partition, then remove what the HA step wrote for its own use
+    rels = ha_repartition.assemble_all(specs, n_procs=n_procs, memory_bytes=pool_memory(args))
+    if not args.keep_intermediates:
+        ha_repartition.remove_intermediates(disjoint_dir, specs, locus)
+    return rels
 
 # ----------------------------------------------------------------------------------------
 def assemble_ha_repartition_action(args):
@@ -302,8 +329,22 @@ def assemble_ha_repartition_action(args):
     disjoint_dir = _disjoint_locus_dir(args)
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     specs = ha_repartition.group_specs(disjoint_dir, manifest['groups'], args.locus)
-    ha_repartition.assemble_all(specs)
+    assemble_ha_groups(args, disjoint_dir, args.locus, specs, single_proc_concurrency(args))
     print('  assembled %d group HA re-partitions' % len(specs))
+
+# ----------------------------------------------------------------------------------------
+def create_partition_refine_jobs_action(args):
+    # standalone entry point: estimate the locus-wide naive threshold and cache it beside the manifest,
+    # for external array orchestration (run-partition-refine-jobs on each slice, then assemble-groups)
+    import partis.partition_refinement as partition_refinement
+    disjoint_dir = _disjoint_locus_dir(args)
+    manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
+    specs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], args.locus)
+    naive_thr = partition_refinement.locuswide_threshold(disjoint_dir, specs, args.locus, n_procs=single_proc_concurrency(args), memory_bytes=pool_memory(args))
+    if naive_thr is None:
+        print('  %d groups to refine, no naive threshold needed for %s' % (len(specs), args.locus))
+    else:
+        print('  %d groups to refine, naive threshold %s in %s' % (len(specs), repr(naive_thr), partition_refinement.locuswide_threshold_fname(disjoint_dir, args.locus)))
 
 # ----------------------------------------------------------------------------------------
 def run_partition_refine_jobs_action(args):
@@ -315,14 +356,15 @@ def run_partition_refine_jobs_action(args):
     disjoint_dir = _disjoint_locus_dir(args)
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     specs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], args.locus)
-    # locus-wide threshold: estimate over all groups (before slicing) so a sliced task uses
-    # the same value as a whole-locus run.
-    # only the heavy merge reads it, and estimating it reads every group's input, so it is cached
-    naive_thr = partition_refinement.locuswide_threshold(disjoint_dir, specs, args.locus)
-    stop = len(specs) if args.job_count is None else args.job_start + args.job_count
-    specs = specs[args.job_start : stop]
     mute_freq_dir = os.path.join(args.parameter_dir, 'hmm', 'mute-freqs')
     partition_refinement.validate_mute_freq_tables(mute_freq_dir)
+    # locus-wide threshold: estimated over all groups (before slicing) so a sliced task uses
+    # the same value as a whole-locus run.
+    # only the heavy merge reads it, and estimating it reads every group's input, so it is cached
+    # by create-partition-refine-jobs and only read here
+    naive_thr = partition_refinement.locuswide_threshold(disjoint_dir, specs, args.locus, estimate=False)
+    stop = len(specs) if args.job_count is None else args.job_start + args.job_count
+    specs = specs[args.job_start : stop]
     partition_refinement.run_jobs(specs, naive_threshold=naive_thr, overwrite=args.rerun_refine, locus=args.locus,
                                   parameter_dir=args.parameter_dir, mute_freq_dir=mute_freq_dir)
     if len(specs) > 0:  # per-slice done-marker so internal run_cmds can detect completion
@@ -725,7 +767,30 @@ def subset_cache_parameters(args):
         utils.replace_in_arglist(clist, '--n-procs', str(n_procs))
         return ' '.join(clist)
     # ----------------------------------------------------------------------------------------
-    def write_subsets(infname):
+    def check_no_empty_subsets(sub_lists, n_seqs, infname):
+        n_empty = len([s for s in sub_lists if len(s) == 0])
+        if n_empty > 0:
+            raise Exception('%d of %d subsets are empty: --n-subsets %d is too large for the %d seqs in %s' % (n_empty, len(sub_lists), args.n_subsets, n_seqs, infname))
+    # ----------------------------------------------------------------------------------------
+    # the two split fcns write the subset fastas, and return the size and the fasta hash of each subset
+    def split_on_disk(infname):  # seqs go through a file rather than memory
+        seqfname = '%s/input-seqs.tsv' % utils.parameter_subset_root(base)
+        utils.mkdir(seqfname, isfile=True)
+        try:
+            with open(seqfname, 'w') as seqfile:
+                input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True, seq_fcn=lambda uid, seq: seqfile.write('%s\t%s\n' % (uid, seq)))
+            n_seqs = len(input_info)
+            print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'cache-parameters'), n_seqs, args.n_subsets, infname))
+            uid_lists = utils.shuffle_and_split(list(input_info), args.n_subsets, dbgstr='droplets')  # same order as the split in memory
+            del input_info  # only the uids, which <uid_lists> has
+            check_no_empty_subsets(uid_lists, n_seqs, infname)
+            hashes = utils.write_subset_fastas(seqfname, uid_lists, [input_fn(i) for i in range(args.n_subsets)])
+        finally:
+            if os.path.exists(seqfname):
+                os.remove(seqfname)
+        return [len(l) for l in uid_lists], hashes
+    # ----------------------------------------------------------------------------------------
+    def split_in_memory(infname, no_pairing_info):
         tmp_seed_id = args.seed_unique_id  # a list of two here
         args.seed_unique_id = None
         input_info, _, _ = seqfileopener.read_sequence_file(infname, True, n_max_queries=args.n_max_queries, args=args, dont_add_implicit_info=True)
@@ -733,24 +798,29 @@ def subset_cache_parameters(args):
         print('%s %d seqs with %d subsets from %s' % (utils.color('blue_bkg', 'cache-parameters'), len(input_info), args.n_subsets, infname))
         input_seqfos = [s for l in input_info.values() for s in utils.seqfos_from_line(l)]
         sfo_lists = utils.subset_paired_queries(input_seqfos, args.droplet_id_separators, args.droplet_id_indices, n_subsets=args.n_subsets, input_info=None if args.input_metafnames is None else input_info,
-                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=args.no_pairing_info or not args.paired_loci, debug=True)
-        n_empty = len([s for s in sfo_lists if len(s) == 0])
-        if n_empty > 0:
-            raise Exception('%d of %d subsets are empty: --n-subsets %d is too large for the %d seqs in %s' % (n_empty, len(sfo_lists), args.n_subsets, len(input_info), infname))
+                                                seed_unique_ids=args.seed_unique_id, queries_to_include=args.queries_to_include, no_pairing_info=no_pairing_info, debug=True)
+        check_no_empty_subsets(sfo_lists, len(input_info), infname)
         meta_keys = set(utils.input_metafile_keys.values())  # strip input_info to what the per-subset meta.yaml needs
         for uid, tline in input_info.items():
             input_info[uid] = {k : v for k, v in tline.items() if k in meta_keys or k == 'unique_ids'}
-        subsets = []
+        hashes = []
         for isub, sfos in enumerate(sfo_lists):
-            xxh3 = utils.write_fasta(input_fn(isub), sfos, return_hash=True)
+            hashes.append(utils.write_fasta(input_fn(isub), sfos, return_hash=True))
             if args.input_metafnames is not None:
                 metafos = {}
                 for sfo in sfos:
                     assert len(input_info[sfo['name']]['unique_ids']) == 1
                     metafos[sfo['name']] = {mk : input_info[sfo['name']][lk][0] for mk, lk in utils.input_metafile_keys.items() if lk in input_info[sfo['name']]}
                 utils.jsdump('%s/meta.yaml'%sdir(isub), metafos)
-            subsets.append({'path' : os.path.relpath(sdir(isub), utils.parameter_subset_root(base)), 'input_fasta' : os.path.relpath(input_fn(isub), utils.parameter_subset_root(base)),
-                            'n_input_sequences' : len(sfos), 'xxh3' : xxh3})
+        return [len(l) for l in sfo_lists], hashes
+    # ----------------------------------------------------------------------------------------
+    def write_subsets(infname):
+        no_pairing_info = args.no_pairing_info or not args.paired_loci
+        # no pairing, meta or seed info, and a fasta or fastq file: the split on disk
+        on_disk = no_pairing_info and args.input_metafnames is None and args.seed_unique_id is None and args.queries_to_include is None and utils.getsuffix(infname) in utils.FASTX_SUFFIXES
+        sizes, hashes = split_on_disk(infname) if on_disk else split_in_memory(infname, no_pairing_info)
+        subsets = [{'path' : os.path.relpath(sdir(isub), utils.parameter_subset_root(base)), 'input_fasta' : os.path.relpath(input_fn(isub), utils.parameter_subset_root(base)),
+                    'n_input_sequences' : sizes[isub], 'xxh3' : hashes[isub]} for isub in range(args.n_subsets)]
         print('    wrote %d subset input files to %s (index: %s)' % (len(subsets), utils.parameter_subset_root(base), utils.write_subset_index(base, subsets, split_inputs(args, infname))))
     # ----------------------------------------------------------------------------------------
     def subset_outfname(isub):  # the path a subset run writes for whichever of its loci had sequences
@@ -1246,10 +1316,11 @@ def run_all_loci(args, ig_or_tr='ig'):
                 rseedstr = utils.get_val_from_arglist(clist, '--random-seed') if '--random-seed' in clist else str(args.random_seed)  # could probably just use args.random_seed for both cases?
                 # need to send a different seed both to h+k and h+l, and to each of h/l within each locus pair (even if --random-seed wasn't set on the command line, since otherwise the subprocs will use the time, which may be the same). Note that sending the same seed to different locus simulations leaves them correlated, which screws up locus correlations [omfg UGH that bug was hard to find]  NOTE can't just increment it (e.g. have 1 for h+k and 2 for h+l), since then if there's multiple subprocs they'll potentially mostly have the same seeds [like this: utils.locus_pairs[ig_or_tr].index(lpair)]
                 utils.replace_in_arglist(clist, '--random-seed', str(utils.hashint(ltmp + '+'.join(lpair) + rseedstr)))  # NOTE sends same seed to tree generation and igh, which i think is fine?
+                # generate-trees uses the heavy chain parameter dir for both heavy and light, since it only uses it for the n-leaf distribution and the family shm parameters (see treegenerator.generate_trees_depth and choose_depth_percentile())
                 for tstr in ['', 'reco-', 'shm-']:  # deal with simulation {,reco,shm}-parameter dir stuff
                     argstr = '--%sparameter-dir' % tstr
                     if utils.is_in_arglist(clist, argstr) > 0:
-                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))  # the trees aren't really associated with the locus if we're generating trees, and this uses the heavy chain parameter dir for both heavy and light. That's fine, since it's only used for the n-leaf distribution: generate-trees uses a fixed depth, and each locus's simulation then rescales each tree to a depth from its own parameter dir (see treegenerator.generate_trees_depth)
+                        utils.replace_in_arglist(clist, argstr, getpdir(ltmp, bpdir=utils.get_val_from_arglist(clist, argstr), lpair=lpair))
             if tmpaction == 'generate-trees':
                 utils.remove_from_arglist(clist, '--n-procs', has_arg=True)
                 utils.remove_from_arglist(clist, '--n-sim-events', has_arg=True)
@@ -1264,8 +1335,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 if args.action == 'simulate':
                     clist += ['--choose-trees-in-order', '--outfname', getofn(ltmp, lpair=lpair)]
                     utils.replace_in_arglist(clist, '--uid-hash-len', str(args.uid_hash_len), insert_after='--choose-trees-in-order')  # forward resolved (global) hash len
-                    if args.input_simulation_treefname is None:
-                        clist += ['--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair)]
+                    utils.replace_in_arglist(clist, '--input-simulation-treefname', getofn(ltmp, trees=True, lpair=lpair))  # trees from generate-trees (which, if --input-simulation-treefname was set, are those trees with depth percentiles added)
                     if args.paired_correlation_values is not None and not utils.has_d_gene(ltmp):
                         clist += ['--heavy-chain-event-fname', getofn('igh', lpair=lpair)]
                     if args.only_genes is not None:
@@ -1990,7 +2060,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 harep_specs = ha_repartition.group_specs(disjoint_dir, manifest['groups'], ltmp)
                 harep_jobs = ha_repartition.read_task_list(ha_repartition.task_list_fname(disjoint_dir, ltmp))
                 bundles = ha_repartition.read_bundle_list(ha_repartition.bundle_list_fname(disjoint_dir, ltmp), len(harep_jobs))
-            n_todo = sum(1 for j in harep_jobs if not os.path.exists(j['outfname']))  # existence is each cluster's completion signal
+            n_todo = len(ha_repartition.jobs_todo(harep_jobs))
             ha_cmdfos, plan = {}, ha_repartition.plan_id(harep_jobs)
             for start, count, n_bundle_procs in bundles:
                 done_marker = ha_repartition.bundle_marker_fname(disjoint_dir, plan, start)
@@ -2008,7 +2078,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                     print('    running %d HA bundles at %d procs (%d concurrent, %d cluster jobs to do in all):' % (len(ha_cmdfos[n_bundle_procs]), n_bundle_procs, tier_concurrency, n_todo), end=' ')
                     utils.run_cmds(ha_cmdfos[n_bundle_procs], n_max_procs=tier_concurrency, debug='write', progress=True)
             if not args.dry_run:
-                for ginfo, harep_out_rel in ha_repartition.assemble_all(harep_specs):
+                for ginfo, harep_out_rel in assemble_ha_groups(args, disjoint_dir, ltmp, harep_specs, ha_concurrency):
                     ginfo['partition_path'] = harep_out_rel  # downstream uses the re-partitioned partition
 
         # step 2.5: partition-refine each group (optional). Reads each group's partition +
@@ -2021,8 +2091,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             partition_refinement.validate_mute_freq_tables(os.path.join(getpdir(ltmp), 'hmm', 'mute-freqs'))
             ha_concurrency = single_proc_concurrency(args)
             rspecs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], ltmp)
-            if not args.dry_run:
-                partition_refinement.locuswide_threshold(disjoint_dir, rspecs, ltmp, overwrite=args.rerun_refine)
+            refined = [os.path.exists(spec['refined_out']) for spec in rspecs]
+            if not args.dry_run and (args.rerun_refine or not all(refined)):  # with every group refined nothing reads the threshold, and a finished run has removed it
+                partition_refinement.locuswide_threshold(disjoint_dir, rspecs, ltmp, overwrite=args.rerun_refine, n_procs=ha_concurrency, memory_bytes=pool_memory(args))
             n_bundles = min(len(rspecs), ha_n_bundles(ha_concurrency))
             serial_bundles, parallel_bundles = partition_refinement.refine_bundles(rspecs, n_bundles, REFINE_SERIAL_MIN_SEQS)
             for tier, bundles, tier_concurrency in [('serial (large group)', serial_bundles, 1), ('parallel', parallel_bundles, ha_concurrency)]:  # large groups first, one at a time
@@ -2031,7 +2102,7 @@ def run_all_loci(args, ig_or_tr='ig'):
                 refine_cmdfos = []
                 for start, count in bundles:
                     done_marker = partition_refinement.bundle_marker_fname(disjoint_dir, start)
-                    if os.path.exists(done_marker) and not args.rerun_refine:  # otherwise --rerun-refine could not reach the groups in a finished bundle
+                    if (os.path.exists(done_marker) or all(refined[start : start + count])) and not args.rerun_refine:  # otherwise --rerun-refine could not reach the groups in a finished bundle
                         continue
                     cmd = build_single_locus_cmd('run-partition-refine-jobs', ltmp, args, parameter_dir=getpdir(ltmp),
                                                  extra_args=['--paired-outdir', getodir(),
@@ -2056,6 +2127,7 @@ def run_all_loci(args, ig_or_tr='ig'):
 
         # step 3: concatenate per-group partition results
         disjointgrouper.assemble_groups(ltmp, disjoint_dir, getofn(ltmp), multifile_min_seqs=args.multifile_min_seqs, multifile_max_seqs_per_file=args.multifile_max_seqs_per_file)
+        remove_refine_intermediates(args, disjoint_dir, ltmp)
 
     # ----------------------------------------------------------------------------------------
     if args.action == 'simulate':
@@ -2068,10 +2140,9 @@ def run_all_loci(args, ig_or_tr='ig'):
             print('%s: simulating %d event%s' % (utils.color('blue', '+'.join(lpair)), get_n_events(l_locus, args.n_sim_events), utils.plural(get_n_events(l_locus, args.n_sim_events))))
             if get_n_events(l_locus, args.n_sim_events) == 0:
                 continue
-            if args.input_simulation_treefname is None:
-                run_step('generate-trees', h_locus, lpair=lpair)
-            else:
+            if args.input_simulation_treefname is not None:  # generate-trees then reads them, and gives each one a depth percentile that heavy and light share
                 print('    %s drawing input simulation trees from --input-simulation-treefname *in order* for both heavy and light (rather than randomly, as for single chain)' % utils.color('yellow', 'warning'))
+            run_step('generate-trees', h_locus, lpair=lpair)
             for ltmp in lpair:
                 run_step(args.action, ltmp, lpair=lpair)
         combine_simu_chains()
@@ -2379,10 +2450,11 @@ subconfig = collections.OrderedDict((
     ('write-fake-paired-annotations',   {'func' : run_partitiondriver, 'help' : 'Read paired output from --paired-outdir, and write \'fake\' annotations by concatenating h and l seqs to file in the same dir (useful e.g. for phylo method input).'}),
     ('create-disjoint-groups',    {'func' : disjoint_group_action, 'help' : 'Split sequences into disjoint groups by cdr3 length for a single locus, writing per-group fastas, sw-cache subsets, and a manifest yaml. Requires --parameter-dir, --locus, and --paired-outdir.'}),
     ('assemble-groups',   {'func' : assemble_groups_action, 'help' : 'Validate and concatenate per-group partition outputs from disjoint grouping for a single locus. Requires --locus, --outfname, and --paired-outdir.'}),
-    ('create-ha-repartition-jobs', {'func' : create_ha_repartition_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), write per-cluster HA inputs, a task list and a bundle list (one task-list slice per line, with its procs) for external HA-re-partition array orchestration. Requires --locus, --paired-outdir and --parameter-dir.'}),
+    ('create-ha-repartition-jobs', {'func' : create_ha_repartition_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), plan the per-cluster HA jobs: write a task list and a bundle list (one task-list slice per line, with its procs) for external HA-re-partition array orchestration. Requires --locus, --paired-outdir and --parameter-dir.'}),
     ('run-ha-repartition-jobs',   {'func' : run_ha_repartition_jobs_action, 'help' : 'Run HA re-partition on a slice of the task list (one array task), controlled by --job-start and --job-count. Requires --locus, --parameter-dir, and --paired-outdir.'}),
     ('assemble-ha-repartition',   {'func' : assemble_ha_repartition_action, 'help' : 'Merge per-cluster HA results into per-group re-partitioned partitions for a single locus. Requires --locus and --paired-outdir.'}),
-    ('run-partition-refine-jobs',   {'func' : run_partition_refine_jobs_action, 'help' : 'Run post-partition refinement on a slice of the disjoint groups (single locus), controlled by --job-start and --job-count; reassemble with assemble-groups. Requires --locus, --parameter-dir (locus-level), and --paired-outdir.'}),
+    ('create-partition-refine-jobs', {'func' : create_partition_refine_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), estimate the locus-wide naive threshold that run-partition-refine-jobs reads. Requires --locus and --paired-outdir.'}),
+    ('run-partition-refine-jobs',   {'func' : run_partition_refine_jobs_action, 'help' : 'Run post-partition refinement on a slice of the disjoint groups (single locus), controlled by --job-start and --job-count, after create-partition-refine-jobs; reassemble with assemble-groups. Requires --locus, --parameter-dir (locus-level), and --paired-outdir.'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),
     ('view-partitions'  , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print partitions from an existing old-style partition output csv (for current yaml output files, use \'view-output\').'}),
@@ -2446,6 +2518,10 @@ subargs['partition'].append({'name' : '--continue-from-input-partition', 'kwargs
 subargs['partition'].append({'name' : '--disjoint-groups', 'kwargs' : {'action' : 'store_true', 'help' : 'Group sequences by CDR3 length, then partition each group independently and concatenate. Speeds up large single-chain partitions by splitting into guaranteed-disjoint subsets.'}})
 subargs['partition'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'When used with --disjoint-groups, further split CDR3 groups by naive hamming fraction into sub-groups. Reduces group sizes for better parallelism and potentially enables HA clustering on smaller sub-groups.'}})
 subargs['partition'].append({'name' : '--partition-refine', 'kwargs' : {'action' : 'store_true', 'help' : 'With --disjoint-groups, run post-partition refinement (partis.partition_refinement) on each group before assembling: heavy chain splits then merges, light chain splits only. Reads each group\'s partition + sw-cache and writes a refined partition; no SW/HMM is re-run.'}})
+keep_intermediates_arg = {'name' : '--keep-intermediates', 'kwargs' : {'action' : 'store_true', 'help' : 'With --disjoint-groups, keep the files that the HA re-partition and partition-refine steps write for their own use (per-group HA result lines and task lists, the locus task list, bundle list and bundle markers, the refine threshold cache), which are otherwise removed once the step that reads them has written its output. For development.'}}
+subargs['partition'].append(keep_intermediates_arg)
+pool_memory_arg = {'name' : '--pool-memory-gb', 'kwargs' : {'type' : float, 'default' : None, 'help' : 'With --disjoint-groups, memory in GB for the steps that run several groups at once, each in its own process (the writing of the groups from per-subset sw caches, the HA re-partition setup and assembly, the refine threshold). A group\'s memory is estimated from the size of its input files and from what the finished groups took, and it starts only once the running ones leave room for it. Default: the memory of the slurm job, or the machine\'s if there is none.'}}
+subargs['partition'].append(pool_memory_arg)
 subargs['partition'].append({'name' : '--rerun-refine', 'kwargs' : {'action' : 'store_true', 'help' : argparse.SUPPRESS}})  # TODO temporary, remove before disjoint-grouping merges into dev: redo refine only
 subargs['partition'].append({'name' : '--ha-repartition', 'kwargs' : {'action' : 'store_true', 'help' : 'With --disjoint-groups, HA re-partition each group before partition-refine/assemble: keep-or-split HA on every vsearch cluster >= 3, then merge the sub-clusters. Runs as independent per-cluster jobs.'}})
 subargs['partition'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
@@ -2459,7 +2535,7 @@ subargs['partition'].append({'name' : '--n-max-subprocs', 'kwargs' : {'type' : i
 for tmpact in ['partition', 'cache-parameters']:
     subargs[tmpact].append({'name' : '--n-sub-procs', 'kwargs' : {'type' : int, 'help' : 'Number of processes for each concurrent job (the disjoint group partition jobs of \'partition --disjoint-groups\', or the subset jobs of \'cache-parameters --n-subsets\'), overriding the default split of --n-procs among --n-max-procs concurrent jobs. Setting this above the split can oversubscribe the available cpus (you get a warning, not an error).'}})
 
-subargs['create-disjoint-groups'] = []
+subargs['create-disjoint-groups'] = [pool_memory_arg]
 subargs['create-disjoint-groups'].append({'name' : '--hfrac', 'kwargs' : {'action' : 'store_true', 'help' : 'Further split CDR3 groups by naive hamming fraction into sub-groups.'}})
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-merge-factor', 'kwargs' : {'type' : float, 'default' : disjointgrouper.HFRAC_MERGE_FACTOR_DEFAULT, 'help' : argparse.SUPPRESS}})  # dev/testing: hfrac round 2 threshold = factor * hi_bound; 0 disables round 2
 subargs['create-disjoint-groups'].append({'name' : '--hfrac-max-bin-size', 'kwargs' : {'type' : int, 'default' : disjointgrouper.HFRAC_MAX_BIN_SIZE_DEFAULT, 'help' : 'Maximum number of sequences per sub-group after hfrac merging. Set to 0 to disable.'}})
@@ -2467,16 +2543,18 @@ subargs['create-disjoint-groups'].append({'name' : '--hfrac-min-seqs', 'kwargs' 
 for tmpact in ['partition', 'create-disjoint-groups']:
     subargs[tmpact].append({'name' : '--n-multi-cache-workers', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTI_CACHE_N_SUBSET_WORKERS_DEFAULT, 'help' : 'Number of per-subset sw-caches read at once when grouping from the caches of \'cache-parameters --n-subsets\' (capped at --n-procs).'}})
 
-subargs['assemble-groups'] = []
+subargs['assemble-groups'] = [keep_intermediates_arg]
 subargs['assemble-groups'].append({'name' : '--multifile-min-seqs', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MIN_SEQS_DEFAULT, 'help' : 'Loci with more sequences than this assemble into a directory of partition files plus an index, rather than one merged file. Lower it to exercise the multifile path on a small sample.'}})
 subargs['assemble-groups'].append({'name' : '--multifile-max-seqs-per-file', 'kwargs' : {'type' : int, 'default' : disjointgrouper.MULTIFILE_MAX_SEQS_PER_FILE_DEFAULT, 'help' : 'Sequences per file in a multifile assembly. A soft cap: one CDR3 group is never spread over two files, so an indivisible group larger than this is written whole with a warning.'}})
 
-subargs['create-ha-repartition-jobs'] = []
-subargs['assemble-ha-repartition'] = []
+subargs['create-ha-repartition-jobs'] = [pool_memory_arg]
+subargs['create-ha-repartition-jobs'].append({'name' : '--ha-max-bundles', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'Upper bound on the single-proc HA bundles that a group\'s share of the estimated cost is taken of (the plan can hold a few more, since every group gets at least one, and holds fewer when a single cluster sets the run\'s length). Default: %d per proc of --n-procs. Set it to the number of array tasks wanted, so the plan does not depend on the procs of this job.' % BUNDLES_PER_PROC}})
+subargs['assemble-ha-repartition'] = [keep_intermediates_arg, pool_memory_arg]
 subargs['run-ha-repartition-jobs'] = []
 subargs['run-ha-repartition-jobs'].append({'name' : '--job-start', 'kwargs' : {'type' : int, 'default' : 0, 'help' : 'Index of the first task-list entry to run (for external array orchestration).'}})
 subargs['run-ha-repartition-jobs'].append({'name' : '--job-count', 'kwargs' : {'type' : int, 'default' : None, 'help' : 'Number of task-list entries to run starting at --job-start (per-cluster HA jobs bundled into one array task). Default runs to the end of the list.'}})
 
+subargs['create-partition-refine-jobs'] = [pool_memory_arg]
 subargs['run-partition-refine-jobs'] = []
 subargs['run-partition-refine-jobs'].append({'name' : '--job-start', 'kwargs' : {'type' : int, 'default' : 0, 'help' : 'Index of the first group to refine (for external array orchestration).'}})
 subargs['run-partition-refine-jobs'].append({'name' : '--rerun-refine', 'kwargs' : {'action' : 'store_true', 'help' : argparse.SUPPRESS}})  # TODO temporary, remove before disjoint-grouping merges into dev: redo refine only
@@ -2533,6 +2611,7 @@ subargs['simulate'].append({'name' : '--reco-parameter-dir', 'kwargs' : {'help' 
 subargs['simulate'].append({'name' : '--scratch-mute-freq', 'kwargs' : {'type' : float, 'default' : 0.05, 'help' : 'shm fraction/rate (tree depth passed to bpp) used by --mutate-from-scratch. Note that to get very large average values you need to also set --same-mute-freq-for-all-seqs (and maybe --flat-mute-freq), since saturation means that the high end of the spectrum ends up getting pushed down while the low end doesn\'t.'}})
 subargs['simulate'].append({'name' : '--flat-mute-freq', 'kwargs' : {'action' : 'store_true', 'help' : 'use the same shm fraction/rate (--scratch-mute-freq) for all positions (in practice it\'s not that much flatter than the Gamma that is used by default --mutate-from-scratch). For use with --mutate-from-scratch.'}})
 subargs['simulate'].append({'name' : '--same-mute-freq-for-all-seqs', 'kwargs' : {'action' : 'store_true', 'help' : 'use the same shm rate (--scratch-mute-freq) for all families and all sequences. This only actually directly determines the mean family shm (so "-for-all-families" might be a better name), but since for the options we need TreeSim can only give ultrametric trees, this is the only lever we have. For use with --mutate-from-scratch. Note that this means we tell bppseqgen to use the same expected rate for every sequence -- there\'s still variance in the resulting number of output mutation per sequence. See note in treegenerator.choose_full_sequence_branch_length().'}})
+subargs['simulate'].append({'name' : '--no-family-shm-parameters', 'kwargs' : {'action' : 'store_true', 'help' : 'don\'t use family-level shm parameters (family-shm.yaml in the shm parameter dir, or if it isn\'t there, the pooled one in data/recombinator/scratch-parameters/<locus>/hmm/). By default, each family\'s mean shm is drawn depending on the family\'s size, and each tree gets within-family variation in leaf depth (see partis/familyshm.py and issue #460). With this set (or with --same-mute-freq-for-all-seqs), each family\'s mean shm is drawn from the per-sequence shm distribution regardless of size, and all leaves in a tree have the same depth.'}})
 subargs['simulate'].append({'name' : '--correlation-values', 'kwargs' : {'help' : 'By default, scratch rearrangement has no correlations between parameters, but this arg lets you turn them on. Each correlation is specified as a \'.\'-separated pair of parameter names, separated by \',\' from a float in [0, 1] specifying the magnitude of the correlation, with multiple correlations separated by \':\', e.g. \'v_gene.d_gene,0.1:d_gene.j_gene,0.7\'. Currently allowed parameter pairs are %s. Note that the correlation model is just one (fairly arbitrary) choice for how to set things up, for details consult the code. Note also that non-scratch simulation, i.e. from inferred parameters, includes correlations among all parameters.' % ', '.join(str(p) for p in utils.available_simu_correlations)}})
 subargs['simulate'].append({'name' : '--paired-correlation-values', 'kwargs' : {'help' : 'like --correlation-values, except that the first parameter is in the heavy chain rearrangmeent, and the second is in the light chain rearrangement.'}})
 subargs['simulate'].append({'name' : '--heavy-chain-event-fname', 'kwargs' : {'help' : 'for internal use by --paired-correlation-values: file with heavy chain events so the light chain rearrangement knows what was in the heavy chain rearrangement.'}})

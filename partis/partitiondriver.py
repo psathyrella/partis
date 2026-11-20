@@ -1529,10 +1529,12 @@ class PartitionDriver(object):
                 print('        init     N prior  current    N     mean pw   subcluster')  # we call it "mean pw hfrac", but it's pairwise *within* each cluster, then the weighted average over clusters (i.e. the smaller it is the tighter/better the clusters are)
                 print('        size     splits    size     subcl   hfrac     sizes')
             clusters_to_run = []
+            run_keys = set()  # tuple of each cluster in <clusters_to_run>, for the membership checks
             for tclust in clusters_still_to_do:
                 if not self.subcl_split(len(tclust)):  # if <tclust> is small enough we don't need to split it up
-                    if tclust not in clusters_to_run:  # it should only be possible to have it already in there if we're adding <additional_clusters> from get_annotations_for_partitions() e.g. from --n-final-clusters or something
+                    if tuple(tclust) not in run_keys:  # it should only be possible to have it already in there if we're adding <additional_clusters> from get_annotations_for_partitions() e.g. from --n-final-clusters or something
                         clusters_to_run.append(tclust)
+                        run_keys.add(tuple(tclust))
                     if debug:
                         print('       %4d                   ' % len(tclust))
                 else:
@@ -1545,7 +1547,9 @@ class PartitionDriver(object):
                         subd_clusters[skey(tclust)] = []
                         subclusters = getsubclusters(tclust, shuffle=self.reco_info is not None and istep==0)  # the order of uids in each cluster that comes out of simulation is the order of leaves in the tree (i.e. they're sorted by similarity), so it's *extremely* important to shuffle them to get a fair comparison
                     subd_clusters[skey(tclust)].append(subclusters)
-                    clusters_to_run += [c for c in subclusters if c not in clusters_to_run]  # it should only be possible to have a <c> already in there if we're adding <additional_clusters> from get_annotations_for_partitions() e.g. from --n-final-clusters or something
+                    new_clusters = [c for c in subclusters if tuple(c) not in run_keys]  # it should only be possible to have a <c> already in there if we're adding <additional_clusters> from get_annotations_for_partitions() e.g. from --n-final-clusters or something
+                    clusters_to_run += new_clusters
+                    run_keys.update(tuple(c) for c in new_clusters)
                     if debug:
                         n_prev = len(subd_clusters[skey(tclust)]) - 1
                         mphfracs = [utils.mean_pairwise_hfrac([self.sw_info[u]['seqs'][0] for u in c]) for c in subclusters]

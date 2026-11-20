@@ -16,9 +16,10 @@
   - [create-disjoint-groups](#create-disjoint-groups) split sequences by CDR3 length for independent partition (standalone action for batch workflows)
   - [assemble-groups](#assemble-groups) concatenate per-group partition results (standalone action for batch workflows)
     - [multifile output](#multifile-output)
-  - [create-ha-repartition-jobs](#create-ha-repartition-jobs) write per-cluster inputs for HA re-partition (standalone action for batch workflows)
+  - [create-ha-repartition-jobs](#create-ha-repartition-jobs) plan the per-cluster jobs of HA re-partition (standalone action for batch workflows)
   - [run-ha-repartition-jobs](#run-ha-repartition-jobs) run HA re-partition on a slice of clusters (standalone action for batch workflows)
   - [assemble-ha-repartition](#assemble-ha-repartition) merge per-cluster HA results into per-group partitions (standalone action for batch workflows)
+  - [create-partition-refine-jobs](#create-partition-refine-jobs) estimate the naive threshold that refinement reads (standalone action for batch workflows)
   - [run-partition-refine-jobs](#run-partition-refine-jobs) run refinement on a slice of groups (standalone action for batch workflows)
   - [merge-paired-partitions](#merge-paired-partitions) use heavy/light pairing information to refine single-chain partitions (more [here](paired-loci.md))
   - [get-selection-metrics](#get-selection-metrics) calculate selection metrics (lbi, lbr, consensus distance, etc) on existing output file
@@ -144,9 +145,17 @@ To get paired clusters, re-run `partition` without these flags.
 The per-cluster HA and per-group refine runs are bundled into processes scaled to the job's cpu allocation (each loading germline info once, then looping over its work), independent of `--n-max-procs` (which governs the per-group partition jobs).
 These runs are single-proc, except that a heavy chain cluster with at least 500 distinct naive sequences after HA's collapse of identical naive sequences runs HA on 8 procs, alone in its own bundle; these bundles run first.
 The candidates are the clusters with at least 500 distinct naive sequences in the group's sw cache, and each is confirmed by running HA's sw and naive sequence steps on it when the jobs are created.
-The single-proc HA clusters are bundled largest first, balancing the estimated cost (distinct naive sequences to the power 1.7) across bundles.
-The 500, 8 and 1.7 are `HA_MULTIPROC_MIN_COLLAPSED`, `HA_MULTIPROC_N_PROCS` and `HA_COST_EXPONENT` in `partis/ha_repartition.py`.
-For running these steps as independent batch jobs, see [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), [`run-ha-repartition-jobs`](#run-ha-repartition-jobs), [`assemble-ha-repartition`](#assemble-ha-repartition), and [`run-partition-refine-jobs`](#run-partition-refine-jobs) below.
+The single-proc HA clusters are bundled costliest first, balancing the estimated cost (distinct naive sequences to the power 1.7, plus 2 per sequence) across bundles.
+A bundle holds clusters of one group and reads their sequences from that group's fasta, so no per-cluster input file is written; a group gets its share of the bundles by estimated cost, at least one, and no more than its cost over that of the costliest single-proc cluster, which sets the length of the run (that cluster is alone in its bundle when this last limit, not the share, sets its group's number of bundles).
+A bundle appends the best partition of each cluster it finishes as one line to a result file in the group's `ha-repartition/` directory, so no per-cluster output file is written either.
+Once a step has written its output, the files it wrote for its own use are removed: the HA result lines, task lists, bundle list and bundle markers after the groups' re-partitions, and the refine threshold cache and bundle markers after the final assembly. `--keep-intermediates` keeps them (for development).
+Four steps work on whole groups, several at once and each group in its own process: the writing of the groups when grouping from per-subset SW caches, the HA setup that plans the jobs, the HA assembly, and the estimate of the refine threshold.
+They keep within the memory of the job, which is its slurm memory request, or the machine's memory if it has none; `--pool-memory-gb` sets it by hand, for a job that shares its machine without a memory request.
+No fixed memory per sequence is assumed, since that changes with the data: the largest group runs first and alone, and its peak memory per byte of input files gives the first rate.
+Each later group is estimated at the bytes of its input files times the largest rate among the finished groups at least as large, and the groups start largest first, each one only once the running groups leave room for it.
+A group estimated over the whole memory runs alone, with a warning. This bounds the groups running together, not a single group, which is read whole.
+The 500, 8, 1.7 and 2 are `HA_MULTIPROC_MIN_COLLAPSED`, `HA_MULTIPROC_N_PROCS`, `HA_COST_EXPONENT` and `HA_COST_PER_SEQ` in `partis/ha_repartition.py`.
+For running these steps as independent batch jobs, see [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), [`run-ha-repartition-jobs`](#run-ha-repartition-jobs), [`assemble-ha-repartition`](#assemble-ha-repartition), [`create-partition-refine-jobs`](#create-partition-refine-jobs), and [`run-partition-refine-jobs`](#run-partition-refine-jobs) below.
 
 ##### limit maximum cluster size
 
@@ -211,6 +220,7 @@ By default it groups from the locus's `sw-cache.yaml`, or, if the parameter dire
 `--sw-cachefname` overrides this with either a single SW cache file or a directory holding `sw-cache-index.yaml`; each cache listed in an index is checked against the hash and sequence count recorded for it before it is read.
 When running `cache-parameters` on unpaired data for this purpose, pass `--paired-loci --no-pairing-info` so the parameter directory layout is compatible with downstream functions.
 At scale, use `--no-merged-sw-cache` rather than merging the per-subset caches into one file, which may not fit in memory.
+From per-subset caches the groups are written in parallel, up to `--n-procs` at a time, within the job's memory or `--pool-memory-gb` (see [above](#ha-re-partition-and-refinement)).
 The grouping step itself unions the germline sets of all the SW caches it reads, and writes every per-group cache against that union, so the groups all use one set of gene labels.
 It does not re-derive gene calls: each sequence keeps whatever gene SW assigned to it against its own part's germline set, so if you want calls made against a single germline set you have to merge the parameter directories before running SW.
 This is the standalone version of the grouping step in `--disjoint-groups` (see [above](#disjoint-groups)), intended for workflows where each step is submitted as a separate batch job.
@@ -227,6 +237,7 @@ partis create-disjoint-groups --locus igh --parameter-dir params/ \
 
 Concatenate per-group partition results from disjoint grouping into a single output file for one locus.
 Requires `--locus`, `--outfname`, and `--paired-outdir` (the same root passed to `create-disjoint-groups`).
+It then removes the threshold cache and the bundle markers of the refine jobs, unless `--keep-intermediates` is set.
 
 ```
 partis assemble-groups --locus igh --paired-outdir out/ --outfname out/partition-igh.yaml
@@ -302,9 +313,11 @@ For the same reason `--overwrite` does not overwrite one: a re-run whose output 
 
 ### create-ha-repartition-jobs
 
-Write the per-cluster inputs for [HA re-partition](#ha-re-partition-and-refinement) for a single locus: for every vsearch cluster of at least three sequences it writes a per-cluster FASTA, plus a task list `ha-repartition-task-list-<locus>.txt` enumerating all the per-cluster jobs (cluster id, input, output, sequence count, distinct naive sequence count, number of procs) in bundle order, and a bundle list `ha-repartition-bundles-<locus>.txt` (first job, job count, number of procs per bundle).
+Plan the per-cluster jobs of [HA re-partition](#ha-re-partition-and-refinement) for a single locus: a task list `ha-repartition-task-list-<locus>.txt` with a job for every vsearch cluster of at least three sequences (cluster id, the group's fasta, the group's `ha-repartition/` directory, sequence count, distinct naive sequence count, number of procs) in bundle order, and a bundle list `ha-repartition-bundles-<locus>.txt` (first job, job count, number of procs per bundle).
+The single-proc bundles are planned as in the integrated run, out of `--ha-max-bundles` (default eight per proc of `--n-procs`); set it to the number of array tasks you want, so that the plan does not depend on the procs of this job.
 Requires `--locus`, `--parameter-dir` (the locus-level parameter directory) and `--paired-outdir` (the disjoint-groups root produced by [`create-disjoint-groups`](#create-disjoint-groups)).
 This is the standalone version of the HA re-partition setup, intended for workflows where each step is submitted as a separate batch job.
+The groups are prepared in parallel, up to `--n-procs` at a time (and at most one fewer than the available cpus), within the job's memory or `--pool-memory-gb` (see [above](#ha-re-partition-and-refinement)).
 
 ```
 partis create-ha-repartition-jobs --locus igh --parameter-dir params/igh --paired-outdir out/
@@ -314,6 +327,7 @@ partis create-ha-repartition-jobs --locus igh --parameter-dir params/igh --paire
 
 Run HA re-partition on a slice of the task list written by [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), selected with `--job-start` and `--job-count`, so each batch (array) task handles one contiguous block of clusters; taking the slices from the bundle list gives each task one bundle, and a multi-proc bundle needs that many cpus (it stops with an error on fewer).
 Each invocation loads germline info once and clusters its assigned vsearch clusters in-process (the same code path as the integrated `--ha-repartition`), and appends per-cluster timing to `ha-repartition-timing-<locus>.csv`.
+The best partition of each finished cluster is appended as one line to `ha-repartition/results-<job start>.jsonl` in its group's directory, so a task that is killed keeps the clusters it finished, and a re-run (of the same slice or another) runs only the clusters with no result line.
 Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and `--paired-outdir`.
 
 ```
@@ -326,14 +340,28 @@ partis run-ha-repartition-jobs --locus igh --parameter-dir params/igh \
 Merge the per-cluster HA results into per-group re-partitioned partitions for a single locus (each over-merged cluster is replaced by its split; all others are kept unchanged). A sequence missing from its cluster's HA result is kept as a singleton, and a result holding sequences from outside its cluster stops assemble with an error.
 Requires `--locus` and `--paired-outdir`.
 Run this once all [`run-ha-repartition-jobs`](#run-ha-repartition-jobs) tasks have finished.
+The groups are assembled in parallel, up to `--n-procs` at a time (and at most one fewer than the available cpus), within the job's memory or `--pool-memory-gb` (see [above](#ha-re-partition-and-refinement)).
+It then removes the result lines, the task lists, the bundle list and the bundle markers (the timing file stays), unless `--keep-intermediates` is set.
 
 ```
 partis assemble-ha-repartition --locus igh --paired-outdir out/
 ```
 
+### create-partition-refine-jobs
+
+Estimate the naive threshold that [refinement](#ha-re-partition-and-refinement) uses on a heavy locus, over all the disjoint groups of a single locus, and write it to `naive-threshold-<locus>.json` beside the manifest. A light locus needs no threshold, so nothing is written for it.
+Requires `--locus` and `--paired-outdir`.
+Run this once, after the last partition step (HA re-partition if you run it) and before any [`run-partition-refine-jobs`](#run-partition-refine-jobs) task.
+It reads up to `--n-procs` groups at a time, each in its own process, within the job's memory or `--pool-memory-gb` (see [above](#ha-re-partition-and-refinement)).
+
+```
+partis create-partition-refine-jobs --locus igh --paired-outdir out/
+```
+
 ### run-partition-refine-jobs
 
 Run [refinement](#ha-re-partition-and-refinement) on a slice of the disjoint groups for a single locus, selected with `--job-start` and `--job-count`.
+On a heavy locus it reads the threshold written by [`create-partition-refine-jobs`](#create-partition-refine-jobs), and stops with an error if that is missing or was written for other partition files.
 It refines each group's HA re-partition (or the vsearch partition, if the HA step was not run) in-process and writes a refined partition per group; reassemble the results with [`assemble-groups`](#assemble-groups).
 Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and `--paired-outdir`.
 If partition files are not recorded in the manifest (e.g. when partition was run as standalone batch jobs), they are auto-discovered in the group directories.
@@ -569,7 +597,7 @@ There are two main partis-only simulation modes (with options for running hybrid
 
 Using 1. is generally preferred over 2., since in a number of ways (especially mutation) the results will more faithfully recreate a realistic BCR repertoire.
 Meanwhile 3. is required if you want to manipulate the details of the GC selection process (rather than parameters related to the results of the GC reaction, like number of leaves or tree depth).
-Note that with the options we need the tree simulation packages used for 1. and 2. (TreeSim/TreeSimGM) can only output ultrametric trees, so if you need to recapitulate shm distributions of sequences *within* families you should either use bcr-phylo or pass in your own trees (the shm distribution of all sequences in *all* families is fine either way, though).
+The tree simulation packages used for 1. and 2. (TreeSim/TreeSimGM) output ultrametric trees, so by default partis then gives each tree within-family variation in leaf depth, and draws each family's mean shm depending on the family's size, from family-level shm parameters (`family-shm.yaml`, see `partis/familyshm.py`). A parameter dir has these only if its parameters were counted on a partition (`cache-parameters --input-partition-fname`, or `partition --count-parameters`); otherwise, and for scratch simulation, the pooled ones in `data/recombinator/scratch-parameters/` are used (see the README there). Set `--no-family-shm-parameters` to turn this off. For control over the details of within-family shm (e.g. selection), use bcr-phylo or pass in your own trees.
 If you did not specify a parameter directory during inference, the parameters will still have been written to disk in a location printed to stdout (for instance, at the moment if the input file path was `/path/to/sample.fa` the parameters would have been written to `_output/_path_to_sample/`).
 You could thus for instance simulate based on this parameter dir with:
 
