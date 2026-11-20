@@ -41,3 +41,10 @@ Comments and TODOs are not 'cruft' to remove, they are purposefully placed to re
 Also do not remove functionality or checks that seem peripheral without CAREFULLY asking whether they should be removed.
 
 **NEVER* stage or commit files to git. Staging and committing is where I check your changes. You can use git diff and status commands as much as you like.
+
+## two backends
+
+bcrham and ig-sw exist twice: the C++/C originals (`packages/ham`, `packages/ig-sw`) and the zig reimplementation (`packages/zig-core`).
+Any change to one backend's behaviour (a constant, a floor, a formula, a default) must be made in the other in the same PR, so that `--zig` and the default give the same results.
+After such a change, run `partis-test.py --compare-backends` (and with `--paired`): it runs the tests with C++ and then zig, and fails if their outputs differ apart from logs and plots.
+CI runs the same comparison in the ubuntu C++ job.

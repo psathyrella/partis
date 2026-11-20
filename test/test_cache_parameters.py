@@ -35,7 +35,7 @@ def test_merged_mute_freq_sums(single_locus_chunked_dir):
         assert mn == sum(s[region][1] for s in sub_sums)
         assert msum == pytest.approx(sum(s[region][0] for s in sub_sums))
     pooled_mean = sum(s['all'][0] for s in sub_sums) / sum(s['all'][1] for s in sub_sums)
-    assert utils.get_mean_mfreq(str(single_locus_chunked_dir / 'hmm'), exact=True) == pytest.approx(pooled_mean)
+    assert utils.get_mean_mfreq(str(single_locus_chunked_dir / 'hmm')) == pytest.approx(pooled_mean)
 
 
 @pytest.mark.parametrize('locus', LOCI)

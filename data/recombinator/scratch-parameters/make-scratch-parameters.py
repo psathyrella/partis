@@ -1,30 +1,32 @@
 #!/usr/bin/env python
 # Builds the per-locus SHM parameter dirs in this directory (<locus>/hmm/) by pooling the per-gene, per-position
 # mutation counts that partis cache-parameters already wrote for a set of public, mutated human samples. See README.md.
-#   ./make-scratch-parameters.py --base-dir <dir containing the datasets in datasets.csv>
+#   ./make-scratch-parameters.py --dataset-fname <dataset list> --base-dir <dir containing the datasets in it> --sample-list-dir <dir outside the repo>
 import argparse, csv, glob, os, random, sys, collections
 partis_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 sys.path.insert(1, partis_dir)
-from partis import utils, glutils, fraction_uncertainty
+from partis import utils, glutils, fraction_uncertainty, familyshm, paircluster
 from partis.hist import Hist
 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 parser = argparse.ArgumentParser()
 parser.add_argument('--base-dir', required=True, help='dir under which the globs in --dataset-fname are found')
-parser.add_argument('--dataset-fname', default=this_dir + '/datasets.csv')
+parser.add_argument('--dataset-fname', required=True, help='csv listing the datasets to pool (columns locus, dataset, glob, source, exclude), with globs relative to --base-dir. It refers to our filesystem, so it isn\'t in the partis repo')
 parser.add_argument('--outdir', default=this_dir)
+parser.add_argument('--sample-list-dir', required=True, help='dir in which to write the lists of samples pooled for each locus (<locus>/samples.csv, and <locus>/family-shm-samples.csv for the family shm parameters). They refer to our filesystem, so this should be outside the partis repo')
 parser.add_argument('--loci', default='igh:igk:igl')
 parser.add_argument('--max-seqs', type=int, default=1000000, help='stop adding samples once a locus has this many (weighted) sequences')
 parser.add_argument('--max-seqs-per-sample', type=int, default=10000, help='scale down the counts of any sample larger than this, so it contributes as if it had this many sequences (so many individuals contribute, rather than a few very deep ones)')
 parser.add_argument('--min-mean-mute-freq', type=float, default=0.02, help='skip samples whose mean mutation frequency is below this (mostly naive)')
 parser.add_argument('--random-seed', type=int, default=1)
 parser.add_argument('--germline-dir', default=partis_dir + '/data/germlines/human')
+parser.add_argument('--only-family-shm', action='store_true', help='only (re)make the family-level shm parameters (<locus>/hmm/%s), not the rest' % familyshm.family_shm_fname)
 args = parser.parse_args()
 args.loci = utils.get_arg_list(args.loci)
 hist_fnames = ['%s-mean-%s.csv' % (r, t) for r in ['all'] + utils.regions for t in ['mute-freqs', 'n-muted']]
 
 # ----------------------------------------------------------------------------------------
-def choose_samples(locus):  # go round robin over datasets, adding one random sample from each in turn, until we have --max-seqs sequences
+def choose_samples(locus, require_fcn=None):  # go round robin over datasets, adding one random sample from each in turn, until we have --max-seqs sequences (only samples for which <require_fcn(hdir)> is true, if it's set)
     dsets = collections.OrderedDict()
     for line in csv.DictReader(open(args.dataset_fname)):
         if line['locus'] != locus:
@@ -34,8 +36,10 @@ def choose_samples(locus):  # go round robin over datasets, adding one random sa
                 continue
             if not all(os.path.exists('%s/%s' % (hdir, f)) for f in ['v_gene-probs.csv', 'all-mean-mute-freqs.csv', 'mute-freqs']):
                 continue
+            if require_fcn is not None and not require_fcn(hdir):
+                continue
             n_seqs = sum(int(l['count']) for l in csv.DictReader(open(hdir + '/v_gene-probs.csv')))
-            mean_mfreq = Hist(fname=hdir + '/all-mean-mute-freqs.csv').get_mean()
+            mean_mfreq = utils.get_mean_mfreq(hdir)
             if mean_mfreq < args.min_mean_mute_freq:
                 continue
             dsets.setdefault(line['dataset'], []).append({'hdir' : hdir, 'n_seqs' : n_seqs, 'mean_mfreq' : mean_mfreq, 'source' : line['source']})
@@ -53,6 +57,16 @@ def choose_samples(locus):  # go round robin over datasets, adding one random sa
             chosen.append(sfo)
             n_tot += sfo['weight'] * sfo['n_seqs']
     return chosen
+
+# ----------------------------------------------------------------------------------------
+def write_samples(odir, locus, samples, fname, descr):  # write the list of samples used for <locus> to <odir>/<locus>/<fname>, and print a summary
+    utils.mkdir('%s/%s' % (odir, locus))
+    with open('%s/%s/%s' % (odir, locus, fname), utils.csv_wmode()) as sfile:
+        writer = csv.DictWriter(sfile, ['dataset', 'sample', 'n_seqs', 'weight', 'mean_mute_freq', 'source'])
+        writer.writeheader()
+        for sfo in samples:
+            writer.writerow({'dataset' : sfo['dataset'], 'sample' : os.path.relpath(sfo['hdir'], args.base_dir), 'n_seqs' : sfo['n_seqs'], 'weight' : '%.4g' % sfo['weight'], 'mean_mute_freq' : '%.4f' % sfo['mean_mfreq'], 'source' : sfo['source']})
+    print('  %s: pooled %d samples%s (%d weighted seqs) from %s' % (locus, len(samples), descr, sum(s['weight'] * s['n_seqs'] for s in samples), ', '.join('%s %d' % (d, n) for d, n in collections.Counter(s['dataset'] for s in samples).items())))
 
 # ----------------------------------------------------------------------------------------
 def pool_locus(locus, samples):
@@ -102,7 +116,7 @@ def pool_locus(locus, samples):
                 n_skipped['mean mute freq (no n-muted hist)'] += 1
                 continue
             nmhist = Hist(fname=nmfn)
-            mean_mfreq = 0. if nmhist.get_mean() == 0 else utils.get_mean_mfreq(sfo['hdir'], region=region, exact=True, n_muted_hist=nmhist)  # zero mutations (e.g. light chain d)
+            mean_mfreq = 0. if nmhist.get_mean() == 0 else utils.get_mean_mfreq(sfo['hdir'], region=region, n_muted_hist=nmhist, binned_fallback=False)  # zero mutations (e.g. light chain d)
             if mean_mfreq is None:
                 n_skipped['mean mute freq (undeterminable)'] += 1
                 continue
@@ -143,15 +157,44 @@ def pool_locus(locus, samples):
         for region, sfo in mf_sums.items():
             writer.writerow({'region' : region, 'sum' : '%.6g' % sfo['sum'], 'n_seqs' : int(round(sfo['n_seqs']))})
     glutils.write_glfo(odir + '/' + glutils.glfo_dir, default_glfo)
-    with open('%s/%s/samples.csv' % (args.outdir, locus), utils.csv_wmode()) as sfile:
-        writer = csv.DictWriter(sfile, ['dataset', 'sample', 'n_seqs', 'weight', 'mean_mute_freq', 'source'])
-        writer.writeheader()
-        for sfo in samples:
-            writer.writerow({'dataset' : sfo['dataset'], 'sample' : os.path.relpath(sfo['hdir'], args.base_dir), 'n_seqs' : sfo['n_seqs'], 'weight' : '%.4g' % sfo['weight'], 'mean_mute_freq' : '%.4f' % sfo['mean_mfreq'], 'source' : sfo['source']})
-    print('  %s: pooled %d samples (%d weighted seqs) from %s' % (locus, len(samples), sum(s['weight'] * s['n_seqs'] for s in samples), ', '.join('%s %d' % (d, n) for d, n in collections.Counter(s['dataset'] for s in samples).items())))
+    write_samples(args.sample_list_dir, locus, samples, 'samples.csv', '')
     print('       %d genes with mute freqs, skipped (not default alleles or different binning): %s' % (len(counts), dict(n_skipped)))
 
 # ----------------------------------------------------------------------------------------
+def partition_fname(hdir, locus):  # paired partition file of the sample whose parameter dir is <hdir>, or None if <hdir> isn't in a paired output dir (<sample>/parameters/<locus>/hmm)
+    hdir, sfx = hdir.rstrip('/'), '/parameters/%s/hmm' % locus
+    if not hdir.endswith(sfx):
+        return None
+    return paircluster.paired_fn(hdir[ : -len(sfx)], locus, suffix='.yaml', actstr='partition')
+
+# ----------------------------------------------------------------------------------------
+def has_partition(hdir, locus):
+    pfn = partition_fname(hdir, locus)
+    return pfn is not None and os.path.exists(pfn)
+
+def count_family_shm(hdir, locus):  # the same counting that parameter counting does on a partition, applied to the families in the sample's partition file
+    _, antn_list, _ = utils.read_yaml_output(partition_fname(hdir, locus))
+    counter = familyshm.FamilyShmCounter()
+    for line in antn_list:
+        if not line.get('invalid', False):
+            counter.increment(line)
+    return counter.to_dict() if counter.has_families() else None
+
+def pool_family_shm(locus):  # each family's numbers are relative to its own sample (percentile, relative variance, fraction), so samples with different shm levels can be summed
+    samples = choose_samples(locus, require_fcn=lambda h: has_partition(h, locus))  # a different set of samples than for the other parameters, since only some have partitions
+    counted = [(sfo, count_family_shm(sfo['hdir'], locus)) for sfo in samples]
+    counted = [(sfo, fshm) for sfo, fshm in counted if fshm is not None]
+    if len(counted) == 0:
+        raise Exception('no samples with multi-sequence families in their partition files for %s' % locus)
+    used = [sfo for sfo, _ in counted]
+    odir = '%s/%s/hmm' % (args.outdir, locus)
+    utils.mkdir(odir)
+    utils.jsdump('%s/%s' % (odir, familyshm.family_shm_fname), familyshm.merge_counts([f for _, f in counted], [sfo['weight'] for sfo in used]))  # same weight as for the other parameters, so a sample with more than --max-seqs-per-sample sequences counts as if it had that many
+    write_samples(args.sample_list_dir, locus, used, 'family-shm-samples.csv', ' for family shm parameters')
+
+# ----------------------------------------------------------------------------------------
 for locus in args.loci:
-    samples = choose_samples(locus)
-    pool_locus(locus, samples)
+    if not args.only_family_shm:
+        samples = choose_samples(locus)
+        pool_locus(locus, samples)
+    pool_family_shm(locus)
