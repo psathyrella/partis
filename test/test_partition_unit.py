@@ -51,7 +51,8 @@ def test_changed_grouping_args_raise(hfrac_partition_dir, tmp_path, extra_args, 
     assert errstr in logstr
 
 
-@pytest.mark.parametrize('edited, recorded', [(dg.SW_CACHE_FNAME, dg.SW_CACHE_FNAME), ('sw/%s' % dg.MEAN_MFREQ_FNAME, 'sw/%s' % dg.MEAN_MFREQ_FNAME), ('hmm/%s' % dg.MEAN_MFREQ_FNAME, 'hmm')], ids=['sw-cache', 'hfrac-mfreq', 'hmm-dir'])
+@pytest.mark.parametrize('edited, recorded', [(dg.SW_CACHE_FNAME, dg.SW_CACHE_FNAME), ('sw/%s' % dg.MEAN_MFREQ_FNAME, 'sw/%s' % dg.MEAN_MFREQ_FNAME), ('sw/%s' % utils.mute_freq_sum_fname, 'sw/%s' % utils.mute_freq_sum_fname),
+                                              ('hmm/%s' % dg.MEAN_MFREQ_FNAME, 'hmm')], ids=['sw-cache', 'hfrac-mfreq', 'hfrac-sums', 'hmm-dir'])
 def test_changed_input_file_raises(hfrac_partition_dir, tmp_path, edited, recorded):
     outdir = copy_dir(hfrac_partition_dir, tmp_path / 'out')
     pdir = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters')
