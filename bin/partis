@@ -707,7 +707,7 @@ def split_inputs(args, infname):
         if isinstance(val, (list, tuple)):
             return list(val)
         raise Exception('split arg value %s has unhandled type %s' % (val, type(val)))
-    return {'files' : [{'path' : os.path.abspath(f), 'xxh3' : utils.xxh3_file_hash(f)} for f in fnames],
+    return {'files' : [utils.input_entry(f) for f in fnames],
             'args' : {a : yval(getattr(args, a)) for a in SPLIT_ARG_NAMES}}
 
 # ----------------------------------------------------------------------------------------

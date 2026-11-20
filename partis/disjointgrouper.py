@@ -18,7 +18,6 @@ from . import glutils
 MANIFEST_FNAME = 'manifest.yaml'
 MULTIFILE_INDEX_FNAME = 'index.yaml'
 MEAN_MFREQ_FNAME = 'all-mean-mute-freqs.csv'
-MEAN_N_MUTED_FNAME = 'all-mean-n-muted.csv'
 SW_CACHE_FNAME = 'sw-cache.yaml'
 SW_CACHE_INDEX_FNAME = 'sw-cache-index.yaml'  # written in place of sw-cache.yaml when the per-subset caches are not merged
 
@@ -829,16 +828,15 @@ def grouping_inputs(sw_cache_path, parameter_dir, locus, locus_pdir, hfrac, hfra
     paths, entries = resolve_sw_cache_paths(sw_cache_path)
     if entries[0] is None:
         utils.require_xxhash('recording the sw cache hash in the manifest')
-        files = [{'path' : os.path.abspath(paths[0]), 'xxh3' : utils.xxh3_file_hash(paths[0])}]
+        files = [utils.input_entry(paths[0])]
     else:  # index entries are checked against their files at grouping
-        files = [{'path' : os.path.abspath(p), 'xxh3' : e['xxh3']} for p, e in zip(paths, entries)]
+        files = [utils.input_entry(p, e['xxh3']) for p, e in zip(paths, entries)]
     if hfrac:  # sets the hfrac hamming bound
-        mfdir = hfrac_mfreq_dir(parameter_dir, locus)
-        for mfreq_fname in ['%s/%s' % (mfdir, b) for b in (MEAN_MFREQ_FNAME, utils.mute_freq_sum_fname, MEAN_N_MUTED_FNAME)]:
-            if os.path.exists(mfreq_fname):  # the files utils.get_mean_mfreq() reads
-                files.append({'path' : os.path.abspath(mfreq_fname), 'xxh3' : utils.xxh3_file_hash(mfreq_fname)})
+        for mfreq_fname in utils.mean_mfreq_fnames(hfrac_mfreq_dir(parameter_dir, locus)):
+            if os.path.exists(mfreq_fname):  # older parameter dirs have no sums file
+                files.append(utils.input_entry(mfreq_fname))
     if locus_pdir is not None:
-        files.append({'path' : os.path.abspath('%s/hmm' % locus_pdir), 'xxh3' : utils.xxh3_dir_hash('%s/hmm' % locus_pdir)})
+        files.append(utils.input_entry('%s/hmm' % locus_pdir, utils.xxh3_dir_hash('%s/hmm' % locus_pdir)))
     gargs = {'hfrac' : hfrac}
     if hfrac:  # the knobs do nothing without it
         gargs.update({'hfrac_merge_factor' : hfrac_merge_factor, 'hfrac_max_bin_size' : hfrac_max_bin_size, 'hfrac_min_seqs' : min_group_size})

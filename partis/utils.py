@@ -558,7 +558,7 @@ def get_single_entry(tl, errmsg=None):  # adding this very late, so there's a lo
 # j      53.6    48   62
 # cdr3   52.2    23   96  (from test/ output)
 # all   378.2   348  420
-mute_freq_sum_fname = 'mute-freq-sums.csv'  # in parameter dirs' hmm/: for each region, the sum of each sequence's exact mutation fraction, and the number of sequences (written by mutefreqer, read by get_mean_mfreq())
+mute_freq_sum_fname = 'mute-freq-sums.csv'  # in parameter dirs' sw/ and hmm/: for each region, the sum of each sequence's exact mutation fraction, and the number of sequences (written by mutefreqer, read by get_mean_mfreq())
 typical_lengths = {
     'v' : 297,
     'd' : 26,
@@ -5378,6 +5378,11 @@ def check_subset_inputs(basedir, isubs):
         check_file_against_index('%s/%s' % (parameter_subset_root(basedir), sfos[isub]['input_fasta']), sfos[isub]['xxh3'], sfos[isub]['n_input_sequences'], FASTA_SEQ_MARKERS, 'subset input', unit='sequences')
 
 # ----------------------------------------------------------------------------------------
+def input_entry(path, xxh3=None):
+    # one file (or dir, with its <xxh3>) of an input record; hashes the file unless <xxh3> is set
+    return {'path' : os.path.abspath(path), 'xxh3' : xxh3_file_hash(path) if xxh3 is None else xxh3}
+
+# ----------------------------------------------------------------------------------------
 def input_diffs(recorded, current, source):
     # differences between two {files, args} input records, <source> naming where <recorded> came from
     diffs = []
@@ -7441,19 +7446,22 @@ def intexterpolate(x1, y1, x2, y2, x):
 # ----------------------------------------------------------------------------------------
 binned_mfreq_warned = set()  # (parameter dir, region) pairs get_mean_mfreq() has warned about
 
+def mean_mfreq_fnames(parameter_dir, region='all'):
+    # the files get_mean_mfreq() reads: mute freq hist, sums, n muted hist
+    return ['%s/%s-mean-mute-freqs.csv' % (parameter_dir, region), '%s/%s' % (parameter_dir, mute_freq_sum_fname), '%s/%s-mean-n-muted.csv' % (parameter_dir, region)]
+
 def get_mean_mfreq(parameter_dir, region='all', n_muted_hist=None, binned_fallback=True, debug=False):
     # mean over sequences of the fraction of positions mutated in <region> ('all' for the whole sequence): exact from mute_freq_sum_fname, else estimated from the hists (older parameter dirs)
     # if neither works, the binned hist mean (with a warning) if <binned_fallback> is set, else None
     from .hist import Hist
-    mfname = '%s/%s-mean-mute-freqs.csv' % (parameter_dir, region)
-    sfn = '%s/%s' % (parameter_dir, mute_freq_sum_fname)
+    mfname, sfn, nmfname = mean_mfreq_fnames(parameter_dir, region)
     if os.path.exists(sfn):
         with open(sfn) as sfile:
             for line in csv.DictReader(sfile):
                 if line['region'] == region and int(line['n_seqs']) > 0:
                     return float(line['sum']) / int(line['n_seqs'])
-    if n_muted_hist is None and os.path.exists('%s/%s-mean-n-muted.csv' % (parameter_dir, region)):
-        n_muted_hist = Hist(fname='%s/%s-mean-n-muted.csv' % (parameter_dir, region))
+    if n_muted_hist is None and os.path.exists(nmfname):
+        n_muted_hist = Hist(fname=nmfname)
     mfreq = estimate_mean_mfreq(parameter_dir, region, mfname, n_muted_hist, debug=debug) if os.path.exists(mfname) and n_muted_hist is not None else None
     if mfreq is None and binned_fallback:
         if (parameter_dir, region) not in binned_mfreq_warned:
