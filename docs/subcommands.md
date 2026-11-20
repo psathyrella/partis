@@ -316,6 +316,9 @@ For the same reason `--overwrite` does not overwrite one: a re-run whose output 
 Plan the per-cluster jobs of [HA re-partition](#ha-re-partition-and-refinement) for a single locus: a task list `ha-repartition-task-list-<locus>.txt` with a job for every vsearch cluster of at least three sequences (cluster id, the group's fasta, the group's `ha-repartition/` directory, sequence count, distinct naive sequence count, number of procs) in bundle order, and a bundle list `ha-repartition-bundles-<locus>.txt` (first job, job count, number of procs per bundle).
 The single-proc bundles are planned as in the integrated run, out of `--ha-max-bundles` (default eight per proc of `--n-procs`); set it to the number of array tasks you want, so that the plan does not depend on the procs of this job.
 Requires `--locus`, `--parameter-dir` (the locus-level parameter directory) and `--paired-outdir` (the disjoint-groups root produced by [`create-disjoint-groups`](#create-disjoint-groups)).
+It first compares the inputs to the manifest's record (see [above](#disjoint-groups)), and raises an exception naming each difference: every recorded file and directory that still exists is hashed again, and the directories it reads from `--parameter-dir` must have the content the groups were made with (so a copy at another path is accepted, and a recorded path that does not exist is only reported).
+The per-task actions do not hash the recorded inputs again, so do not change them between this action and the array tasks.
+A disjoint-groups directory whose manifest has no record of the parameter directories (grouped with no `--parameter-dir`, or by a version that did not record them) has to be grouped again before these actions will run on it.
 This is the standalone version of the HA re-partition setup, intended for workflows where each step is submitted as a separate batch job.
 The groups are prepared in parallel, up to `--n-procs` at a time (and at most one fewer than the available cpus), within the job's memory or `--pool-memory-gb` (see [above](#ha-re-partition-and-refinement)).
 
@@ -329,6 +332,7 @@ Run HA re-partition on a slice of the task list written by [`create-ha-repartiti
 Each invocation loads germline info once and clusters its assigned vsearch clusters in-process (the same code path as the integrated `--ha-repartition`), and appends per-cluster timing to `ha-repartition-timing-<locus>.csv`.
 The best partition of each finished cluster is appended as one line to `ha-repartition/results-<job start>.jsonl` in its group's directory, so a task that is killed keeps the clusters it finished, and a re-run (of the same slice or another) runs only the clusters with no result line.
 Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and `--paired-outdir`.
+The directories it reads there (`hmm/`, and `multi-hmm/` or `sw/`) have to be the ones the groups were made with: at the paths the manifest records they are taken as compared by [`create-ha-repartition-jobs`](#create-ha-repartition-jobs), and at any other path they are hashed and have to have the same content.
 
 ```
 partis run-ha-repartition-jobs --locus igh --parameter-dir params/igh \
@@ -350,12 +354,13 @@ partis assemble-ha-repartition --locus igh --paired-outdir out/
 ### create-partition-refine-jobs
 
 Estimate the naive threshold that [refinement](#ha-re-partition-and-refinement) uses on a heavy locus, over all the disjoint groups of a single locus, and write it to `naive-threshold-<locus>.json` beside the manifest. A light locus needs no threshold, so nothing is written for it.
-Requires `--locus` and `--paired-outdir`.
+Requires `--locus`, `--parameter-dir` (the one [`run-partition-refine-jobs`](#run-partition-refine-jobs) will read), and `--paired-outdir`.
+It first compares the inputs to the manifest's record, as [`create-ha-repartition-jobs`](#create-ha-repartition-jobs) does, including that directory's `hmm/` against the one the groups were made with.
 Run this once, after the last partition step (HA re-partition if you run it) and before any [`run-partition-refine-jobs`](#run-partition-refine-jobs) task.
 It reads up to `--n-procs` groups at a time, each in its own process, within the job's memory or `--pool-memory-gb` (see [above](#ha-re-partition-and-refinement)).
 
 ```
-partis create-partition-refine-jobs --locus igh --paired-outdir out/
+partis create-partition-refine-jobs --locus igh --parameter-dir params/igh --paired-outdir out/
 ```
 
 ### run-partition-refine-jobs
@@ -364,6 +369,7 @@ Run [refinement](#ha-re-partition-and-refinement) on a slice of the disjoint gro
 On a heavy locus it reads the threshold written by [`create-partition-refine-jobs`](#create-partition-refine-jobs), and stops with an error if that is missing or was written for other partition files.
 It refines each group's HA re-partition (or the vsearch partition, if the HA step was not run) in-process and writes a refined partition per group; reassemble the results with [`assemble-groups`](#assemble-groups).
 Requires `--locus`, `--parameter-dir` (the locus-level parameter directory), and `--paired-outdir`.
+The directory's `hmm/` has to be the one the groups were made with: at the path the manifest records it is taken as compared by [`create-partition-refine-jobs`](#create-partition-refine-jobs), and at any other path it is hashed and has to have the same content.
 If partition files are not recorded in the manifest (e.g. when partition was run as standalone batch jobs), they are auto-discovered in the group directories.
 Groups whose refined output already exists are skipped, so an interrupted run can be resumed by re-running the same command.
 This is the standalone version of the refinement step in `--disjoint-groups`, intended for workflows where each step is submitted as a separate batch job.

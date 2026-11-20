@@ -244,6 +244,18 @@ def test_overwrite_remerge_switches_cache_form(tmp_path, chunked_param_dir, chun
             assert sw_cache_uids(pdir) == input_uids(locus)
 
 
+def test_merge_raises_on_damaged_subset_sums(tmp_path, chunked_param_dir):
+    basedir = copy_dir(chunked_param_dir, tmp_path / 'out')
+    sfn = '%s/parameters/igh/hmm/%s' % (utils.parameter_subset_dir(str(basedir), 0), utils.mute_freq_sum_fname)
+    with open(sfn, 'w') as sfile:
+        sfile.write('region,sum,n_seqs\n')
+    merged_swfn = str(basedir / 'parameters' / 'igh' / SW_CACHE_FNAME)
+    mtime = os.path.getmtime(merged_swfn)
+    log = run_partis_fails(merge_subsets_args(basedir, extra_args=['--overwrite']), str(tmp_path / 'merge.log'))
+    assert 'no rows in %s' % sfn in log
+    assert os.path.getmtime(merged_swfn) == mtime  # raised before anything was written
+
+
 def test_symlinked_hmm_refused_on_remerge(tmp_path, chunked_param_dir):
     basedir = copy_dir(chunked_param_dir, tmp_path / 'out')
     merged = sorted(glob.glob('%s/parameters/igh/hmm/hmms/*.yaml' % basedir))[0]

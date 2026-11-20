@@ -280,6 +280,11 @@ def setup_ha_job(args):
     return glutils.read_glfo(gldir, args.locus, only_genes=args.only_genes)
 
 # ----------------------------------------------------------------------------------------
+def ha_stage_dirs(args):
+    # parameter dirs the HA jobs read, after setup_ha_job()
+    return disjointgrouper.stage_input_dirs(args.parameter_dir, utils.parameter_type_subdir(args, args.parameter_dir))
+
+# ----------------------------------------------------------------------------------------
 def create_ha_repartition_jobs_action(args):
     # standalone entry point: plan the per-cluster HA jobs in a locus task list and a bundle list, for
     # external array orchestration (run-ha-repartition-jobs on each bundle, then assemble-ha-repartition)
@@ -289,6 +294,7 @@ def create_ha_repartition_jobs_action(args):
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     n_concurrent = single_proc_concurrency(args)
     glfo = setup_ha_job(args)
+    disjointgrouper.check_manifest_inputs(manifest, disjoint_dir, ha_stage_dirs(args))  # not in each bundle, which would hash the sw cache per array task
     def count_collapsed(candidates):
         return ha_repartition.count_ha_collapsed(candidates, args, glfo, n_concurrent, memory_bytes=pool_memory(args))
     n_bundles = ha_n_bundles(n_concurrent) if args.ha_max_bundles is None else args.ha_max_bundles
@@ -305,6 +311,8 @@ def run_ha_repartition_jobs_action(args):
     task_list = ha_repartition.task_list_fname(disjoint_dir, args.locus)
     if not os.path.exists(task_list):
         raise Exception('HA task list %s does not exist (run create-ha-repartition-jobs first)' % task_list)
+    manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
+    disjointgrouper.check_stage_dirs_recorded(manifest, disjoint_dir, ha_stage_dirs(args))
     jobs = ha_repartition.read_task_list(task_list)
     plan = ha_repartition.plan_id(jobs)
     if args.job_start >= len(jobs):
@@ -340,6 +348,10 @@ def create_partition_refine_jobs_action(args):
     import partis.partition_refinement as partition_refinement
     disjoint_dir = _disjoint_locus_dir(args)
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
+    if args.parameter_dir is None:  # not read here, but the refine jobs read its hmm/ with no comparison
+        raise Exception('\'create-partition-refine-jobs\' needs --parameter-dir (the one run-partition-refine-jobs reads), to compare its hmm/ with the manifest')
+    stage_dirs = disjointgrouper.stage_input_dirs(locus_parameter_dir(args.parameter_dir, args.locus))
+    disjointgrouper.check_manifest_inputs(manifest, disjoint_dir, stage_dirs)
     specs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], args.locus)
     naive_thr = partition_refinement.locuswide_threshold(disjoint_dir, specs, args.locus, n_procs=single_proc_concurrency(args), memory_bytes=pool_memory(args))
     if naive_thr is None:
@@ -352,13 +364,15 @@ def run_partition_refine_jobs_action(args):
     # standalone entry point: run refinement on a slice [--job-start, +--job-count) of the
     # manifest groups (one SLURM array task, or one bundle), in-process. Refine reads each
     # group's HA re-partition (or vsearch) partition + sw-cache and writes a refined partition;
-    # reassemble later with assemble-groups. --parameter-dir is the locus-level dir.
+    # reassemble later with assemble-groups. --parameter-dir is the locus-level dir (or its parent).
     import partis.partition_refinement as partition_refinement
     disjoint_dir = _disjoint_locus_dir(args)
     manifest = disjointgrouper.read_manifest('%s/%s' % (disjoint_dir, disjointgrouper.MANIFEST_FNAME))
     specs = partition_refinement.group_specs(disjoint_dir, manifest['groups'], args.locus)
+    args.parameter_dir = locus_parameter_dir(args.parameter_dir, args.locus)
     mute_freq_dir = os.path.join(args.parameter_dir, 'hmm', 'mute-freqs')
     partition_refinement.validate_mute_freq_tables(mute_freq_dir)
+    disjointgrouper.check_stage_dirs_recorded(manifest, disjoint_dir, disjointgrouper.stage_input_dirs(args.parameter_dir))
     # locus-wide threshold: estimated over all groups (before slicing) so a sliced task uses
     # the same value as a whole-locus run.
     # only the heavy merge reads it, and estimating it reads every group's input, so it is cached
@@ -2454,7 +2468,7 @@ subconfig = collections.OrderedDict((
     ('create-ha-repartition-jobs', {'func' : create_ha_repartition_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), plan the per-cluster HA jobs: write a task list and a bundle list (one task-list slice per line, with its procs) for external HA-re-partition array orchestration. Requires --locus, --paired-outdir and --parameter-dir.'}),
     ('run-ha-repartition-jobs',   {'func' : run_ha_repartition_jobs_action, 'help' : 'Run HA re-partition on a slice of the task list (one array task), controlled by --job-start and --job-count. Requires --locus, --parameter-dir, and --paired-outdir.'}),
     ('assemble-ha-repartition',   {'func' : assemble_ha_repartition_action, 'help' : 'Merge per-cluster HA results into per-group re-partitioned partitions for a single locus. Requires --locus and --paired-outdir.'}),
-    ('create-partition-refine-jobs', {'func' : create_partition_refine_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), estimate the locus-wide naive threshold that run-partition-refine-jobs reads. Requires --locus and --paired-outdir.'}),
+    ('create-partition-refine-jobs', {'func' : create_partition_refine_jobs_action, 'help' : 'For an existing disjoint-groups dir (single locus), estimate the locus-wide naive threshold that run-partition-refine-jobs reads. Requires --locus, --parameter-dir and --paired-outdir.'}),
     ('run-partition-refine-jobs',   {'func' : run_partition_refine_jobs_action, 'help' : 'Run post-partition refinement on a slice of the disjoint groups (single locus), controlled by --job-start and --job-count, after create-partition-refine-jobs; reassemble with assemble-groups. Requires --locus, --parameter-dir (locus-level), and --paired-outdir.'}),
     # deprecated actions:
     ('view-annotations' , {'func' : run_partitiondriver, 'help' : 'Mostly deprecated: Print annotations from an existing old-style annotation output csv (for current yaml output files, use \'view-output\').'}),

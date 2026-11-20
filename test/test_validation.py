@@ -194,6 +194,15 @@ def test_ha_jobs_with_sw_cache_index_only(tmp_path, ha_only_dir):
     assert ha_repartition.jobs_todo([job]) == []
 
 
+def test_ha_jobs_compare_parameter_dir(tmp_path, ha_only_dir):
+    outdir, job = ha_copy_with_first_job_to_do(ha_only_dir, tmp_path)
+    pdir = copy_dir(os.path.join(PAIRED_PARAM_DIR, 'igh'), tmp_path / 'igh')
+    open('%s/hmm/extra' % pdir, 'w').close()
+    log = run_partis_fails(ha_job_args(outdir, pdir=pdir), str(tmp_path / 'partis.log'))
+    assert '%s/hmm is not among the manifest\'s inputs' % pdir in log
+    assert ha_repartition.jobs_todo([job]) == [job]
+
+
 def test_ha_jobs_without_parameter_dir(tmp_path):
     log = run_partis_fails(['run-ha-repartition-jobs', '--locus', 'igh', '--paired-outdir', str(tmp_path / 'out'), '--job-start', '0'], str(tmp_path / 'partis.log'))
     assert 'HA re-partition needs --parameter-dir' in log

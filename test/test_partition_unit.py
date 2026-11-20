@@ -28,8 +28,17 @@ def stage_mtimes(outdir, locus, stage):
     return [os.path.getmtime(group_stage_path(ddir, g, stage, locus)) for g in manifest['groups']]
 
 
+def standalone_args(action, outdir, pdir=PAIRED_PARAM_DIR):
+    return [action, '--locus', 'igh', '--parameter-dir', str(pdir), '--paired-outdir', str(outdir)]
+
+
 def create_groups_args(outdir, extra_args=None):
-    return ['create-disjoint-groups', '--locus', 'igh', '--parameter-dir', PAIRED_PARAM_DIR, '--paired-outdir', str(outdir)] + (extra_args or [])
+    return standalone_args('create-disjoint-groups', outdir) + (extra_args or [])
+
+
+def append_newline(fname):
+    with open(fname, 'a') as efile:
+        efile.write('\n')
 
 
 @pytest.mark.parametrize('fixture, extra_args', [('hfrac_partition_dir', HFRAC_ARGS), ('ha_only_dir', ['--ha-repartition']), ('refine_only_dir', ['--partition-refine'])], ids=['hfrac', 'ha', 'refine'])
@@ -57,8 +66,7 @@ def test_changed_grouping_args_raise(hfrac_partition_dir, tmp_path, extra_args, 
 def test_changed_input_file_raises(hfrac_partition_dir, tmp_path, edited, recorded):
     outdir = copy_dir(hfrac_partition_dir, tmp_path / 'out')
     pdir = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters')
-    with open('%s/igh/%s' % (pdir, edited), 'a') as efile:
-        efile.write('\n')
+    append_newline('%s/igh/%s' % (pdir, edited))
     logstr = run_partis_fails(paired_partition_args(HFRAC_ARGS, param_dir=pdir, outdir=outdir), str(tmp_path / 'rerun.log'))
     assert re.search(r'grouped from different inputs .*: input files .*%s/igh/%s .* but manifest has' % (pdir, recorded), logstr)
 
@@ -160,8 +168,7 @@ def test_parameter_type_dir_hashed(tmp_path):
     copy_dir(hmm_dir, multi_dir)
     with_multi = hfrac_inputs(pdir, ptype_dir=multi_dir)
     assert [f['path'] for f in with_multi['files']] == [f['path'] for f in base['files']] + [multi_dir]
-    with open('%s/%s' % (multi_dir, dg.MEAN_MFREQ_FNAME), 'a') as efile:
-        efile.write('\n')
+    append_newline('%s/%s' % (multi_dir, dg.MEAN_MFREQ_FNAME))
     assert len(utils.input_diffs(with_multi, hfrac_inputs(pdir, ptype_dir=multi_dir), 'manifest')) == 1
 
 
@@ -171,6 +178,92 @@ def test_multi_hmm_dir_raises_on_rerun(hfrac_partition_dir, tmp_path):
     copy_dir('%s/igh/hmm' % pdir, '%s/igh/multi-hmm' % pdir)
     logstr = run_partis_fails(paired_partition_args(HFRAC_ARGS, param_dir=pdir, outdir=outdir), str(tmp_path / 'rerun.log'))
     assert re.search(r'grouped from different inputs .*: input files .*%s/igh/multi-hmm \(xxh3 .* but manifest has' % pdir, logstr)
+
+
+def test_check_manifest_inputs(tmp_path):
+    pdir = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters')
+    hmm_dir, swcache = '%s/igh/hmm' % pdir, '%s/igh/%s' % (pdir, dg.SW_CACHE_FNAME)
+    manifest = {'grouping-info' : {'inputs' : hfrac_inputs(pdir)}}
+    def raises(mfest, stage_dirs, *errstrs):
+        with pytest.raises(Exception, match='grouped from different inputs') as excinfo:
+            dg.check_manifest_inputs(mfest, 'ddir', stage_dirs)
+        return all(e in str(excinfo.value) for e in errstrs)
+    dg.check_manifest_inputs(manifest, 'ddir', [hmm_dir])
+    dg.check_manifest_inputs(manifest, 'ddir', [str(copy_dir(hmm_dir, tmp_path / 'hmm-copy'))])  # same content at another path
+    assert raises(manifest, ['%s/igh/sw' % pdir], '%s/igh/sw is not among the manifest' % pdir)
+    assert raises(manifest, [str(tmp_path / 'no-such-dir')], '%s is not among the manifest' % (tmp_path / 'no-such-dir'))
+    no_pdir = {'grouping-info' : {'inputs' : dg.grouping_inputs(swcache, None, 'igh', None, False, 1, 2, 3)}}  # grouped with no parameter dir
+    dg.check_manifest_inputs(no_pdir, 'ddir', [])
+    assert raises(no_pdir, [hmm_dir], '%s is not among the manifest' % hmm_dir)
+    append_newline(swcache)
+    append_newline('%s/%s' % (hmm_dir, dg.MEAN_MFREQ_FNAME))
+    assert raises(manifest, [hmm_dir], '%s has changed since grouping' % swcache, '%s has changed since grouping' % hmm_dir)
+    assert raises(manifest, [], '%s has changed since grouping' % hmm_dir)  # recorded paths are hashed with no stage dirs too
+
+
+def test_check_stage_dirs_recorded(tmp_path):
+    pdir = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters')
+    hmm_dir, swcache = '%s/igh/hmm' % pdir, '%s/igh/%s' % (pdir, dg.SW_CACHE_FNAME)
+    manifest = {'grouping-info' : {'inputs' : hfrac_inputs(pdir)}}
+    hmm_copy = str(copy_dir(hmm_dir, tmp_path / 'hmm-copy'))
+    dg.check_stage_dirs_recorded(manifest, 'ddir', [hmm_copy])  # same content at another path
+    append_newline('%s/%s' % (hmm_copy, dg.MEAN_MFREQ_FNAME))
+    with pytest.raises(Exception, match='%s is not among the manifest' % hmm_copy):
+        dg.check_stage_dirs_recorded(manifest, 'ddir', [hmm_copy])
+    no_pdir = {'grouping-info' : {'inputs' : dg.grouping_inputs(swcache, None, 'igh', None, False, 1, 2, 3)}}  # grouped with no parameter dir
+    with pytest.raises(Exception, match='%s is not among the manifest' % hmm_dir):
+        dg.check_stage_dirs_recorded(no_pdir, 'ddir', [hmm_dir])
+    append_newline('%s/%s' % (hmm_dir, dg.MEAN_MFREQ_FNAME))
+    dg.check_stage_dirs_recorded(manifest, 'ddir', [hmm_dir])  # a recorded path is not hashed
+
+
+def test_check_manifest_inputs_moved_parameter_dir(tmp_path, capsys):
+    pdir, moved = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters'), tmp_path / 'moved'
+    manifest = {'grouping-info' : {'inputs' : hfrac_inputs(pdir)}}
+    os.rename(str(pdir), str(moved))
+    dg.check_manifest_inputs(manifest, 'ddir', ['%s/igh/hmm' % moved])
+    outstr = capsys.readouterr().out
+    assert 'do not exist, so they are not compared' in outstr
+    assert '%s/igh/%s' % (pdir, dg.SW_CACHE_FNAME) in outstr and '%s/igh/hmm' % pdir not in outstr  # the moved hmm/ was compared
+    append_newline('%s/igh/hmm/%s' % (moved, dg.MEAN_MFREQ_FNAME))
+    with pytest.raises(Exception, match='is not among the manifest'):
+        dg.check_manifest_inputs(manifest, 'ddir', ['%s/igh/hmm' % moved])
+
+
+def test_check_manifest_inputs_no_hmm_dir(tmp_path):
+    # a parameter dir with only sw/ has its missing hmm/ recorded, and still passes
+    pdir = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters')
+    shutil.rmtree('%s/igh/hmm' % pdir)
+    stage_dirs = dg.stage_input_dirs('%s/igh' % pdir, '%s/igh/sw' % pdir)
+    manifest = {'grouping-info' : {'inputs' : hfrac_inputs(pdir, ptype_dir=stage_dirs[1])}}
+    dg.check_manifest_inputs(manifest, 'ddir', stage_dirs)
+
+
+def test_check_manifest_inputs_sw_cache_index(chunked_param_index_dir):
+    index_pdir = '%s/parameters/igh' % chunked_param_index_dir
+    manifest = {'grouping-info' : {'inputs' : dg.grouping_inputs(index_pdir, None, 'igh', index_pdir, False, 1, 2, 3)}}
+    assert len(manifest['grouping-info']['inputs']['files']) > 2  # more than one subset cache, plus hmm/
+    dg.check_manifest_inputs(manifest, 'ddir', dg.stage_input_dirs(index_pdir))
+
+
+@pytest.mark.parametrize('fixture, action', [('ha_only_dir', 'create-ha-repartition-jobs'), ('plain_multifile_partition_dir', 'create-partition-refine-jobs')], ids=['ha', 'refine'])
+def test_standalone_jobs_compare_parameter_dir(request, tmp_path, fixture, action):
+    outdir = copy_dir(request.getfixturevalue(fixture), tmp_path / 'out')
+    pdir = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters')
+    run_partis(standalone_args(action, outdir), str(tmp_path / 'same.log'))
+    run_partis(standalone_args(action, outdir, pdir), str(tmp_path / 'copy.log'))
+    append_newline('%s/igh/hmm/%s' % (pdir, dg.MEAN_MFREQ_FNAME))
+    logstr = run_partis_fails(standalone_args(action, outdir, pdir), str(tmp_path / 'other.log'))
+    assert re.search(r'grouped from different inputs .*%s is not among the manifest' % re.escape('%s/igh/hmm' % pdir), logstr)
+
+
+@pytest.mark.parametrize('action', ['create-ha-repartition-jobs', 'create-partition-refine-jobs'])
+def test_standalone_jobs_raise_on_changed_sw_cache(tmp_path, action):
+    pdir = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters')
+    run_partis(standalone_args('create-disjoint-groups', tmp_path / 'out', pdir), str(tmp_path / 'group.log'))
+    append_newline('%s/igh/%s' % (pdir, dg.SW_CACHE_FNAME))
+    logstr = run_partis_fails(standalone_args(action, tmp_path / 'out', pdir), str(tmp_path / 'changed.log'))
+    assert re.search(r'grouped from different inputs .*%s has changed since grouping' % re.escape('%s/igh/%s' % (pdir, dg.SW_CACHE_FNAME)), logstr)
 
 
 def test_grouping_inputs_hash_forms(chunked_param_dir, chunked_param_index_dir):

@@ -71,8 +71,9 @@ def write_hist(fname, low_edges, contents):
             writer.writerow({'bin_low_edge' : low_edge, 'contents' : content, 'binlabel' : '', 'error' : 0.})
 
 # ----------------------------------------------------------------------------------------
-def mean_mfreq_from(exact=None, mfreq_contents=None, n_muted=None, n_calls=1, **kwargs):
+def mean_mfreq_from(exact=None, mfreq_contents=None, n_muted=None, n_calls=1, sums=None, **kwargs):
     # get_mean_mfreq() on a dir holding only the given sources, plus how many times it warned over <n_calls>
+    # <sums>: raw contents of the sums file
     workdir = tempfile.mkdtemp(prefix='mute-freq-cap-')
     try:
         if exact is not None:
@@ -80,6 +81,9 @@ def mean_mfreq_from(exact=None, mfreq_contents=None, n_muted=None, n_calls=1, **
                 writer = csv.DictWriter(sfile, ['region', 'sum', 'n_seqs'])
                 writer.writeheader()
                 writer.writerow({'region' : 'all', 'sum' : 1000 * exact, 'n_seqs' : 1000})
+        if sums is not None:
+            with open('%s/%s' % (workdir, utils.mute_freq_sum_fname), utils.csv_wmode()) as sfile:
+                sfile.write(sums)
         if mfreq_contents is not None:  # three bins of width 0.04
             write_hist(workdir + '/all-mean-mute-freqs.csv', [-0.04, 0., 0.04, 0.08, 0.12], [0.] + mfreq_contents + [0.])
         if n_muted is not None:  # one bin for each of 0 to 10 mutations
@@ -155,6 +159,21 @@ def run_tests():
     passed.append(check('hists cannot tell: binned mean, one warning', abs(returned - 0.02) < utils.eps and n_warn == 1, '%.5f, %d warnings in 3 calls' % (returned, n_warn)))
     returned, n_warn = mean_mfreq_from(mfreq_contents=mfreq_contents, binned_fallback=False)
     passed.append(check('binned fallback off: None, no warning', returned is None and n_warn == 0, '%s, %d warnings' % (returned, n_warn)))
+
+    # a sums file that cannot be read, or has no row for the region, raises
+    print('  sums file that exists but cannot be used:')
+    header = 'region,sum,n_seqs\n'
+    for label, sums, region in [('empty', '', 'all'), ('header only', header, 'all'), ('no row for the region', header + 'v,30.0,1000\n', 'all'), ('row for all, v asked for', header + 'all,30.0,1000\n', 'v'),
+                                ('no region column', 'sum,n_seqs\n30.0,1000\n', 'all'), ('no n_seqs column', 'region,sum\nall,30.0\n', 'all'), ('row cut off', header + 'all,30.0', 'all'),
+                                ('sum not a number', header + 'all,abc,1000\n', 'all'), ('n_seqs not a number', header + 'all,30.0,xyz\n', 'all'), ('bad row for another region', header + 'all,30.0,1000\nv,abc,1000\n', 'all')]:
+        try:
+            mean_mfreq_from(sums=sums, mfreq_contents=mfreq_contents, n_muted=n_muted, region=region)
+            errstr = 'no exception'
+        except Exception as err:
+            errstr = '%s: %s' % (type(err).__name__, err)
+        passed.append(check('%s: raises, naming the file' % label, errstr.startswith('Exception: ') and utils.mute_freq_sum_fname in errstr, errstr.split('/')[-1][:60]))
+    returned, n_warn = mean_mfreq_from(sums=header + 'all,0.0,0\n', mfreq_contents=mfreq_contents, n_muted=n_muted)
+    passed.append(check('n_seqs 0: estimate from the hists', abs(returned - 0.055) < 1e-5 and n_warn == 0, '%.5f, %d warnings' % (returned, n_warn)))
 
     print('  %d/%d checks passed' % (sum(passed), len(passed)))
     return all(passed)
