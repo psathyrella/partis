@@ -822,20 +822,24 @@ def hfrac_mfreq_dir(parameter_dir, locus):
     raise Exception('could not find %s in %s (checked {locus}/sw, {locus}/hmm, sw, hmm)' % (MEAN_MFREQ_FNAME, parameter_dir))
 
 # ----------------------------------------------------------------------------------------
-def grouping_inputs(sw_cache_path, parameter_dir, locus, locus_pdir, hfrac, hfrac_merge_factor, hfrac_max_bin_size, min_group_size):
+def grouping_inputs(sw_cache_path, parameter_dir, locus, locus_pdir, hfrac, hfrac_merge_factor, hfrac_max_bin_size, min_group_size, ptype_dir=None):
     # hashes of the files the unit reads plus the args that change the groups, compared on re-run
-    # <locus_pdir>: locus parameter dir whose hmm/ the later stages read (None to skip); <parameter_dir> is only read with <hfrac>
+    # <locus_pdir>: locus parameter dir whose hmm/ the later stages read (None to skip), <ptype_dir>: its --parameter-type subdir; <parameter_dir> is only read with <hfrac>
     paths, entries = resolve_sw_cache_paths(sw_cache_path)
     if entries[0] is None:
         utils.require_xxhash('recording the sw cache hash in the manifest')
-        files = [{'path' : os.path.abspath(paths[0]), 'xxh3' : utils.xxh3_file_hash(paths[0])}]
+        files = [utils.input_entry(paths[0])]
     else:  # index entries are checked against their files at grouping
-        files = [{'path' : os.path.abspath(p), 'xxh3' : e['xxh3']} for p, e in zip(paths, entries)]
+        files = [utils.input_entry(p, e['xxh3']) for p, e in zip(paths, entries)]
     if hfrac:  # sets the hfrac hamming bound
-        mfreq_fname = '%s/%s' % (hfrac_mfreq_dir(parameter_dir, locus), MEAN_MFREQ_FNAME)
-        files.append({'path' : os.path.abspath(mfreq_fname), 'xxh3' : utils.xxh3_file_hash(mfreq_fname)})
+        for mfreq_fname in utils.mean_mfreq_fnames(hfrac_mfreq_dir(parameter_dir, locus)):
+            if os.path.exists(mfreq_fname):  # older parameter dirs have no sums file
+                files.append(utils.input_entry(mfreq_fname))
     if locus_pdir is not None:
-        files.append({'path' : os.path.abspath('%s/hmm' % locus_pdir), 'xxh3' : utils.xxh3_dir_hash('%s/hmm' % locus_pdir)})
+        stage_dirs = ['%s/hmm' % locus_pdir]
+        if ptype_dir is not None and ptype_dir not in stage_dirs:  # multi-hmm/ or sw/, read by the HA jobs
+            stage_dirs.append(ptype_dir)
+        files += [utils.input_entry(d, utils.xxh3_dir_hash(d)) for d in stage_dirs]
     gargs = {'hfrac' : hfrac}
     if hfrac:  # the knobs do nothing without it
         gargs.update({'hfrac_merge_factor' : hfrac_merge_factor, 'hfrac_max_bin_size' : hfrac_max_bin_size, 'hfrac_min_seqs' : min_group_size})
