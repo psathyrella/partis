@@ -91,14 +91,8 @@ class ParameterCounter(object):
             self.counts['seq_content'][nuke] += info['seqs'][iseq].count(nuke)
 
         # aa seq content stuff
-        nseq = info['seqs'][iseq]
-        if info['v_5p_del'] > 0:
-            nseq = info['v_5p_del'] * utils.ambig_base + nseq
-        if len(info['fv_insertion']) > 0:
-            nseq = nseq[len(info['fv_insertion']) :]
-        if len(nseq) % 3 != 0:
-            nseq += utils.ambig_base * (3 - (len(nseq) % 3))  # I think I could replace this with the new utils.pad_nuc_seq()
-        aaseq = utils.ltranslate(nseq)
+        codons, _ = utils.get_codon_list(info['seqs'][iseq], info['fv_insertion'], info['jf_insertion'], info['v_5p_del'])  # only complete codons from the start of V to the end of J, so N padding in fv_insertion and jf_insertion isn't translated (as X)
+        aaseq = utils.ltranslate(''.join(codons))
         for aa in self.all_aa:
             self.counts['seq_aa_content'][aa] += aaseq.count(aa)
 
