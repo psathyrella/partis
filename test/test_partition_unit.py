@@ -3,6 +3,7 @@ import os
 import random
 import re
 import resource
+import shutil
 import struct
 import subprocess
 import sys
@@ -127,6 +128,49 @@ def test_hfrac_knobs_ignored_without_hfrac():
     swcache = '%s/igh/%s' % (PAIRED_PARAM_DIR, dg.SW_CACHE_FNAME)
     assert dg.grouping_inputs(swcache, PAIRED_PARAM_DIR, 'igh', None, False, 1, 2, 3) == dg.grouping_inputs(swcache, PAIRED_PARAM_DIR, 'igh', None, False, 4, 5, 6)
     assert dg.grouping_inputs(swcache, PAIRED_PARAM_DIR, 'igh', None, True, 1, 2, 3) != dg.grouping_inputs(swcache, PAIRED_PARAM_DIR, 'igh', None, True, 4, 5, 6)
+
+
+def hfrac_inputs(pdir, ptype_dir=None):
+    return dg.grouping_inputs('%s/igh/%s' % (pdir, dg.SW_CACHE_FNAME), pdir, 'igh', '%s/igh' % pdir, True, 2, 3, 5, ptype_dir=ptype_dir)
+
+
+def test_sums_file_appears_or_disappears(tmp_path):
+    full, no_sums = [copy_dir(PAIRED_PARAM_DIR, tmp_path / name) for name in ['full', 'no-sums']]
+    os.remove('%s/igh/sw/%s' % (no_sums, utils.mute_freq_sum_fname))
+    with_sums, without_sums = hfrac_inputs(full), hfrac_inputs(no_sums)
+    assert len(with_sums['files']) == len(without_sums['files']) + 1
+    assert utils.input_diffs(without_sums, hfrac_inputs(no_sums), 'manifest') == []
+    assert len(utils.input_diffs(with_sums, without_sums, 'manifest')) == 1
+    assert len(utils.input_diffs(without_sums, with_sums, 'manifest')) == 1
+
+
+def test_hmm_only_layout(tmp_path):
+    pdir = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters')
+    shutil.rmtree('%s/igh/sw' % pdir)
+    mfreq_fnames = [f for f in utils.mean_mfreq_fnames('%s/igh/hmm' % pdir) if os.path.exists(f)]
+    assert len(mfreq_fnames) > 0
+    assert [f['path'] for f in hfrac_inputs(pdir)['files']][1:] == mfreq_fnames + ['%s/igh/hmm' % pdir]
+
+
+def test_parameter_type_dir_hashed(tmp_path):
+    pdir = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters')
+    hmm_dir, multi_dir = ['%s/igh/%s' % (pdir, sdir) for sdir in ['hmm', 'multi-hmm']]
+    base = hfrac_inputs(pdir)
+    assert hfrac_inputs(pdir, ptype_dir=hmm_dir) == base  # hmm/ is hashed once
+    copy_dir(hmm_dir, multi_dir)
+    with_multi = hfrac_inputs(pdir, ptype_dir=multi_dir)
+    assert [f['path'] for f in with_multi['files']] == [f['path'] for f in base['files']] + [multi_dir]
+    with open('%s/%s' % (multi_dir, dg.MEAN_MFREQ_FNAME), 'a') as efile:
+        efile.write('\n')
+    assert len(utils.input_diffs(with_multi, hfrac_inputs(pdir, ptype_dir=multi_dir), 'manifest')) == 1
+
+
+def test_multi_hmm_dir_raises_on_rerun(hfrac_partition_dir, tmp_path):
+    outdir = copy_dir(hfrac_partition_dir, tmp_path / 'out')
+    pdir = copy_dir(PAIRED_PARAM_DIR, tmp_path / 'parameters')
+    copy_dir('%s/igh/hmm' % pdir, '%s/igh/multi-hmm' % pdir)
+    logstr = run_partis_fails(paired_partition_args(HFRAC_ARGS, param_dir=pdir, outdir=outdir), str(tmp_path / 'rerun.log'))
+    assert re.search(r'grouped from different inputs .*: input files .*%s/igh/multi-hmm \(xxh3 .* but manifest has' % pdir, logstr)
 
 
 def test_grouping_inputs_hash_forms(chunked_param_dir, chunked_param_index_dir):
