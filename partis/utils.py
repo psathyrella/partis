@@ -3101,6 +3101,12 @@ def get_codon_list(seq, fv_insertion, jf_insertion, v_5p_del, debug=False):  # N
     return codons, [seq[:istart], seq[istop:]]
 
 #----------------------------------------------------------------------------------------
+def get_coding_seq(line, seq):  # return the part of <seq> from the start of v to the end of j, i.e. without the fv and jf insertions (which hold any N padding and non-coding bases)
+    if len(seq) < len(line['fv_insertion']) + len(line['jf_insertion']):
+        raise Exception('seq of length %d shorter than its fv and jf insertions (%d + %d) for %s' % (len(seq), len(line['fv_insertion']), len(line['jf_insertion']), ':'.join(line['unique_ids'])))
+    return seq[len(line['fv_insertion']) : len(seq) - len(line['jf_insertion'])]
+
+#----------------------------------------------------------------------------------------
 def is_there_a_stop_codon(seq, fv_insertion, jf_insertion, v_5p_del, return_n_stops=False, debug=False):
     """ true if there's a stop codon in frame with respect to the start of the V """
     codons, _ = get_codon_list(seq, fv_insertion, jf_insertion, v_5p_del, debug=debug)
@@ -4864,8 +4870,7 @@ def add_extra_column(key, info, outfo, glfo=None, definitely_add_all_columns_for
         # print outfo['unique_ids']
         # color_mutants(info['naive_seq'], outfo[key], print_result=True, align=True, extra_str='  ')
     elif key == 'full_coding_input_seqs':
-        def inpseq(i): return info['input_seqs'][iseq][len(info['fv_insertion']) : len(info['input_seqs'][iseq]) - len(info['jf_insertion'])]
-        full_coding_input_seqs = [info['v_5p_del'] * ambig_base + inpseq(iseq) + info['j_3p_del'] * ambig_base for iseq in range(len(info['unique_ids']))]
+        full_coding_input_seqs = [info['v_5p_del'] * ambig_base + get_coding_seq(info, inseq) + info['j_3p_del'] * ambig_base for inseq in info['input_seqs']]
         outfo[key] = full_coding_input_seqs
         # for iseq in range(len(info['unique_ids'])):
         #     print info['unique_ids'][iseq]

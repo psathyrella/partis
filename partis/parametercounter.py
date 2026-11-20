@@ -87,18 +87,13 @@ class ParameterCounter(object):
         """ increment parameters that differ for each sequence within the clonal family """
         self.mute_total += 1
         self.mfreqer.increment(info, iseq)
+        seq = info['seqs'][iseq]
+        coding_seq = utils.get_coding_seq(info, seq)
         for nuke in utils.nukes:
-            self.counts['seq_content'][nuke] += info['seqs'][iseq].count(nuke)
+            self.counts['seq_content'][nuke] += coding_seq.count(nuke)
 
-        # aa seq content stuff
-        nseq = info['seqs'][iseq]
-        if info['v_5p_del'] > 0:
-            nseq = info['v_5p_del'] * utils.ambig_base + nseq
-        if len(info['fv_insertion']) > 0:
-            nseq = nseq[len(info['fv_insertion']) :]
-        if len(nseq) % 3 != 0:
-            nseq += utils.ambig_base * (3 - (len(nseq) % 3))  # I think I could replace this with the new utils.pad_nuc_seq()
-        aaseq = utils.ltranslate(nseq)
+        codons, _ = utils.get_codon_list(seq, info['fv_insertion'], info['jf_insertion'], info['v_5p_del'])  # complete codons from start of v to end of j, in frame with the v (so unlike seq_content, this leaves out the partial codons at either end)
+        aaseq = utils.ltranslate(''.join(codons))
         for aa in self.all_aa:
             self.counts['seq_aa_content'][aa] += aaseq.count(aa)
 
