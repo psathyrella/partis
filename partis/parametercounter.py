@@ -88,11 +88,11 @@ class ParameterCounter(object):
         self.mute_total += 1
         self.mfreqer.increment(info, iseq)
         seq = info['seqs'][iseq]
-        coding_seq = seq[len(info['fv_insertion']) : len(seq) - len(info['jf_insertion'])]  # start of v to end of j (fv and jf insertions are padding or non-coding bases)
+        coding_seq = utils.get_coding_seq(info, seq)
         for nuke in utils.nukes:
             self.counts['seq_content'][nuke] += coding_seq.count(nuke)
 
-        codons, _ = utils.get_codon_list(seq, info['fv_insertion'], info['jf_insertion'], info['v_5p_del'])  # complete codons from start of v to end of j, in frame with the v
+        codons, _ = utils.get_codon_list(seq, info['fv_insertion'], info['jf_insertion'], info['v_5p_del'])  # complete codons from start of v to end of j, in frame with the v (so unlike seq_content, this leaves out the partial codons at either end)
         aaseq = utils.ltranslate(''.join(codons))
         for aa in self.all_aa:
             self.counts['seq_aa_content'][aa] += aaseq.count(aa)

@@ -746,10 +746,7 @@ def make_fake_hl_pair_antns(args, antn_pairs):  # maybe better to not require <a
         p_atn['naive_seq_aa'] = sumv(metric_pairs[0], 'naive_seq_aa', imtp)  # NOTE it's *really* important you don't end up translating the sum'd naive seq since i don't think they necessarily get concat'd in frame
         p_atn['n_mutations'] = [sumv(m, 'n_mutations', imtp) for m in metric_pairs]
         p_atn['shm_aa'] = [sumv(m, 'shm_aa', imtp) for m in metric_pairs]
-        def n_non_ambig(mfo, tch):  # number of positions that the single-locus mut_freqs divides by (i.e. excluding ambiguous bases, which includes the fv and jf insertions)
-            _, n_bases = utils.hamming_distance(gsval(mfo, tch, 'naive_seq'), gsval(mfo, tch, 'seqs'), return_len_excluding_ambig=True)
-            return n_bases
-        p_atn['mut_freqs'] = [n / float(sum(n_non_ambig(m, c) for c in 'hl')) for n, m in zip(p_atn['n_mutations'], metric_pairs)]
+        p_atn['mut_freqs'] = [utils.hamming_fraction(p_atn['naive_seq'], s) for s in p_atn['seqs']]  # same as single-locus mut_freqs: N positions (translation padding, and the fv and jf insertions, which are N in the naive seq) are skipped
         p_atn['has_shm_indels'] = [False for _ in metric_pairs]  # ick ick ick
         # NOTE if you add a key here, it also has to be added below in the args.add_unpaired_seqs_to_fake_paired_annotations block
         if 'multiplicities' in h_atn:  # <h_atn> is the same as m['h'], i should really settle on one of them
