@@ -3124,7 +3124,9 @@ def get_codon_list(seq, fv_insertion, jf_insertion, v_5p_del, debug=False):  # N
     return codons, [seq[:istart], seq[istop:]]
 
 #----------------------------------------------------------------------------------------
-def get_coding_seq(line, seq):  # return the part of <seq> from the start of v to the end of j (i.e. without the fv and jf insertions, which are padding or non-coding bases)
+def get_coding_seq(line, seq):  # return the part of <seq> from the start of v to the end of j, i.e. without the fv and jf insertions (which hold any N padding and non-coding bases)
+    if len(seq) < len(line['fv_insertion']) + len(line['jf_insertion']):
+        raise Exception('seq of length %d shorter than its fv and jf insertions (%d + %d) for %s' % (len(seq), len(line['fv_insertion']), len(line['jf_insertion']), ':'.join(line['unique_ids'])))
     return seq[len(line['fv_insertion']) : len(seq) - len(line['jf_insertion'])]
 
 #----------------------------------------------------------------------------------------
