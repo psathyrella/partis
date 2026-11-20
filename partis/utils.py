@@ -6435,7 +6435,7 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
             reason = 'seed uid %s isn\'t in the %s partition' % (seed_unique_id, true_label)
         else:
             reason = '%s partition is empty' % true_label
-        raise Exception('%sno uids to calculate correct cluster fractions over (%s)' % (dbg_str, reason))
+        raise Exception('no uids to calculate correct cluster fractions over%s (%s)' % ('' if dbg_str is None or dbg_str.strip() == '' else ' for %s' % dbg_str.strip(), reason))
     if n_uids > 1e6:
         raise Exception('you should start worrying about numerical precision if you\'re going to run on this many queries')
 
@@ -7102,7 +7102,8 @@ def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=Non
         antn = antn_dict[':'.join(sclust)]
         for iseq, uid in enumerate(antn['unique_ids']):
             pids = antn['paired-uids'][iseq]
-            # skip seqs with no pair info, and seqs from droplets with more than one cell (we read the input before pair cleaning, which can't tell which h goes with which l in those, so it removes their pair info, and the seed then gets discarded as unpaired)
+            # skip seqs that don't have exactly one paired uid, i.e. ones with no pair info, and ones from droplets with more than one cell
+            # (we read the input before pair cleaning, which can't tell which h goes with which l in a droplet with more than one cell, so it removes their pair info, and the seed then gets discarded as unpaired)
             if len(pids) != 1 or not is_correctly_paired(uid, pids[0]):
                 continue
             return uid, pids[0]
