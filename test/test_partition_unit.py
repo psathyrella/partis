@@ -1,13 +1,19 @@
+import multiprocessing
 import os
 import random
 import re
+import resource
+import struct
+import subprocess
+import sys
+import time
 
 import numpy as np
+import psutil
 import pytest
 
 from _helpers import HFRAC_ARGS, LOCI, PAIRED_PARAM_DIR, copy_dir, disjoint_dir, group_cmds, group_stage_path, locus_manifest, paired_partition_args, partition_fname, read_log, read_yaml, run_partis, run_partis_fails
 from partis import disjointgrouper as dg
-from partis import glutils
 from partis import ha_repartition
 from partis import partition_refinement as prf
 from partis import utils
@@ -188,9 +194,7 @@ def test_merge_evidence_discounts_entries_every_fragment_carries():
             muts[uid] = dict([common] + own)
         frags.append(uids)
     fps = [prf.get_cluster_fingerprint(f, muts) for f in frags]
-    def get_uid_freqs(uid):
-        return {k: 0.01 for k in muts[uid].items()}, {}
-    ev = prf._MergeEvidence(frags, fps, muts, get_uid_freqs, n_seqs)
+    ev = prf._MergeEvidence(frags, fps, muts, lambda uid, pos, base: (0.01, None), n_seqs)
     assert ev.group_rate[common] == 1.
     assert ev.pvalue(1, 0) == ev.pvalue(0, 1)
     assert ev.pvalue(0, 1) < prf.MERGE_FDR_TARGET < ev.pvalue(2, 3)
@@ -249,6 +253,17 @@ def test_dp_matches_scalar_reference():
         shared = [k for k in wb if rng.random() < 0.3]
         assert prf._tail_dp(wb, prf._t_obs(wb, shared)) == _dp_reference(wb, shared)
         assert prf._build_survival_curve(wb) == _curve_reference(wb)
+
+
+def test_first_carriers_match_scan():
+    rng = random.Random(4)
+    for _ in range(50):
+        frag = ['u%d' % i for i in range(rng.randint(1, 8))]
+        muts = {u: {pos: rng.choice('AC') for pos in rng.sample(range(6), rng.randint(0, 4))} for u in frag if rng.random() > 0.2}
+        first = prf.first_carriers(frag, muts)
+        assert set(first) == set(e for m in muts.values() for e in m.items())
+        for (pos, base), uid in first.items():
+            assert uid == next(u for u in frag if u in muts and muts[u].get(pos) == base)
 
 
 def test_hamming_frac_rows_matches_hamming_frac():
@@ -319,12 +334,65 @@ def _certified_reference(frag_of_uid, uid_muts, ej_floor):
 @pytest.mark.parametrize('block_entries', [prf.CROSS_PAIRS_BLOCK_ENTRIES, 7])
 def test_certified_fragment_pairs_matches_pairwise(monkeypatch, block_entries):
     monkeypatch.setattr(prf, 'CROSS_PAIRS_BLOCK_ENTRIES', block_entries)
-    rng = random.Random(5)
+    rng, clusters = random.Random(5), []
     for _ in range(30):
         uid_muts = {'u%d' % i: {pos: rng.choice('ACGT') for pos in rng.sample(range(15), rng.randint(0, 6))} for i in range(rng.randint(0, 25))}
         frag_of_uid = {u: rng.randrange(4) for u in uid_muts if rng.random() > 0.1}  # a uid with no fragment is skipped
-        n_certified, frag_pairs = prf.certified_fragment_pairs(frag_of_uid, uid_muts, prf.EJ_SAME_FAMILY_FLOOR)
+        clusters.append((frag_of_uid, uid_muts))
+    certified = prf.certified_fragment_pairs(clusters, prf.EJ_SAME_FAMILY_FLOOR)  # all in one call, so clusters share a batch
+    assert len(certified) == len(clusters) and sum(n for n, _ in certified) > 0
+    for (frag_of_uid, uid_muts), (n_certified, frag_pairs) in zip(clusters, certified):
         assert (n_certified, set(tuple(sorted(p)) for p in frag_pairs)) == _certified_reference(frag_of_uid, uid_muts, prf.EJ_SAME_FAMILY_FLOOR)
+        assert [(n_certified, frag_pairs)] == prf.certified_fragment_pairs([(frag_of_uid, uid_muts)], prf.EJ_SAME_FAMILY_FLOOR)
+
+
+def test_mutations_with_base_rows_match_per_seq():
+    rng = random.Random(3)
+    naives = [''.join(rng.choice('ACGTN') for _ in range(rng.choice([0, 1, 30, 31]))) for _ in range(40)]
+    seqs = [''.join(rng.choice('ACGTN') if rng.random() < 0.3 else c for c in naive) for naive in naives]
+    per_seq = [[(i, s) for i, (s, n) in enumerate(zip(seq, naive)) if s != n and prf.N_BASE not in (s, n)] for seq, naive in zip(seqs, naives)]  # base by base
+    assert sum(len(m) for m in per_seq) > 0
+    assert [list(prf.get_mutations_with_base(s, n).items()) for s, n in zip(seqs, naives)] == per_seq
+    for block in (1, 7, 20000):
+        assert [list(m.items()) for m in prf.mutations_with_base_rows(seqs, naives, block=block)] == per_seq
+    with pytest.raises(Exception, match='different lengths'):
+        prf.mutations_with_base_rows(['ACG', 'AC'], ['ACG', 'ACG'])
+
+
+def _naive_pairs_reference(oh, mask, idx_a, idx_b, threshold, symmetric, chunk_size):
+    # every distance of each chunk pair
+    for ca in range(0, len(idx_a), chunk_size):
+        ra = idx_a[ca:ca + chunk_size]
+        oh_a, mask_a = oh[ra], mask[ra]
+        cb_start = ca if symmetric else 0
+        for cb in range(cb_start, len(idx_b), chunk_size):
+            rb = idx_b[cb:cb + chunk_size]
+            compared = (mask_a @ mask[rb].T).astype(np.int32)
+            matches = (oh_a @ oh[rb].T).astype(np.int32)
+            mism = compared - matches
+            dists = np.where(compared > 0, mism / np.maximum(compared, 1), 1.0)
+            for pa, pb in np.argwhere(dists <= threshold):
+                ia, ib = ra[pa], rb[pb]
+                if symmetric and ia >= ib:
+                    continue
+                yield (ia, ib) if ia < ib else (ib, ia)
+
+
+@pytest.mark.parametrize('threshold', [0., 0.05, 0.2, 1.])
+def test_naive_pairs_below_matches_reference(threshold):
+    rng = random.Random(11)
+    base = ''.join(rng.choice('ACGT') for _ in range(40))
+    naives = [''.join(rng.choice('ACGTN') if rng.random() < rng.choice([0.02, 0.3]) else c for c in base) for _ in range(60)]
+    naives += naives[:3] + ['N' * 40]  # equal naives, and one that compares no position
+    oh, mask = prf.onehot_naives(prf.encode_naives(naives), prf.N_BYTE)
+    idx = rng.sample(range(len(naives)), len(naives))
+    n_pairs = 0
+    for idx_a, idx_b, symmetric in ((idx, idx, True), (idx[:25], idx[25:], False)):
+        for chunk_size in (7, 2000):
+            pairs = list(prf.naive_pairs_below(oh, mask, idx_a, idx_b, threshold, symmetric, chunk_size))
+            assert pairs == list(_naive_pairs_reference(oh, mask, idx_a, idx_b, threshold, symmetric, chunk_size))
+            n_pairs += len(pairs)
+    assert n_pairs > 0
 
 
 def _sample_null_reference(ev, n_target, naives, vdjs, naive_threshold):
@@ -378,9 +446,16 @@ def test_null_pvalue_not_cached():
     frags = [['a1', 'a2'], ['b1', 'b2']]
     muts = {'a1': {5: 'T', 8: 'G'}, 'a2': {5: 'T', 8: 'G'}, 'b1': {5: 'T', 8: 'G'}, 'b2': {5: 'T', 8: 'G'}}
     fps = [prf.get_cluster_fingerprint(f, muts) for f in frags]
-    ev = prf._MergeEvidence(frags, fps, muts, lambda uid: ({k: 0.01 for k in muts[uid].items()}, {}), 4)
+    ev = prf._MergeEvidence(frags, fps, muts, lambda uid, pos, base: (0.01, None), 4)
     p = ev.pvalue(0, 1, cache_pair=False)
     assert ev.pair_p == {} and ev.pvalue(1, 0) == p and ev.pair_p == {(0, 1): p}
+
+
+def test_lone_mutated_member_looked_up_with_no_mutation():
+    frags, muts, seen = [['a1', 'a2'], ['b1'], ['c1', 'c2']], {'a1': {}, 'b1': {5: 'T'}, 'c1': {5: 'T'}, 'c2': {5: 'T'}}, []
+    fps = [prf.get_cluster_fingerprint(f, muts) for f in frags]
+    prf._MergeEvidence(frags, fps, muts, lambda uid, pos, base: (0.01, None), 5, look_up=seen.append)
+    assert seen == ['a1', 'b1']
 
 
 def test_merge_evidence_pvalue_matches_inline_reference():
@@ -393,7 +468,7 @@ def test_merge_evidence_pvalue_matches_inline_reference():
         for uid in frags[-1]:
             muts[uid] = {**base, rng.randrange(15, 30): 'G'}
     ufreqs = {uid: {k: 10 ** rng.uniform(-4, -0.5) for k in m.items()} for uid, m in muts.items()}
-    ev = prf._MergeEvidence(frags, [prf.get_cluster_fingerprint(f, muts) for f in frags], muts, lambda uid: (ufreqs[uid], {}), len(muts))
+    ev = prf._MergeEvidence(frags, [prf.get_cluster_fingerprint(f, muts) for f in frags], muts, lambda uid, pos, base: (ufreqs[uid][(pos, base)], None), len(muts))
     ref_cache = prf._PerUidPvalCache(len(muts), prf.WEIGHT_GRID_NATS)
     n_below_one = 0
     for i in range(len(frags)):
@@ -425,14 +500,6 @@ def test_no_sw_pass_only_on_exit_zero(tmp_path, code):
             ha_repartition._run_unless_no_sw_pass(step, _FakeParter(str(workdir)))
         assert workdir.exists()
     assert ha_repartition._run_unless_no_sw_pass(lambda: None, _FakeParter(str(workdir))) is True
-
-
-def test_write_singletons_result(tmp_path):
-    glfo = glutils.read_glfo('%s/igh/hmm/germline-sets' % PAIRED_PARAM_DIR, 'igh')
-    fname = str(tmp_path / 'singletons.yaml')
-    ha_repartition._write_singletons_result(fname, glfo, ['a', 'b', 'c'])
-    _, antns, cpath = utils.read_output(fname, glfo=glfo)
-    assert sorted(cpath.best()) == [['a'], ['b'], ['c']] and antns == []
 
 
 def _bundle_specs(sizes):
@@ -488,3 +555,145 @@ def test_shared_passed_in_matches_computed():
         shared = frozenset(ma.items()) & frozenset(mb.items())
         args = (ma, mb, fa, fb, 1000, {}, {})
         assert prf.weighted_shared_descent_pvalue(*args, shared=shared) == prf.weighted_shared_descent_pvalue(*args)
+
+
+def _run_pool(tmp_path, monkeypatch, groups, n_procs, memory_bytes):
+    """map_groups on <groups> of (name, input bytes, peak memory it reports, group whose start it
+    waits for before it ends). Returns the names in result order and, per group, the groups
+    running when it started (itself among them), from the order of the start and end lines."""
+    fake, log = {}, str(tmp_path / 'events')
+    monkeypatch.setattr(utils, 'peak_rss', lambda who=resource.RUSAGE_SELF: fake['peak'] if who == resource.RUSAGE_SELF else 0)
+    monkeypatch.setattr(utils, 'current_rss', lambda: 0)
+
+    def note(line):
+        with open(log, 'a') as f:
+            f.write(line + '\n')
+
+    def run(name, peak, wait_for):
+        note('start %s' % name)
+        fake['peak'] = peak
+        deadline = time.time() + 10
+        while wait_for is not None and 'start %s\n' % wait_for not in open(log).read() and time.time() < deadline:
+            time.sleep(0.01)
+        note('end %s' % name)
+        return name
+
+    infnames = []
+    for name, nbytes, _, _ in groups:
+        infnames.append([str(tmp_path / ('%s.in' % name))])
+        with open(infnames[-1][0], 'wb') as f:
+            f.truncate(nbytes)
+    names = utils.map_groups(run, [(name, peak, wait_for) for name, _, peak, wait_for in groups], n_procs, infnames, memory_bytes)
+    running, at_start = set(), {}
+    for what, name in (l.split() for l in open(log)):
+        if what == 'start':
+            running.add(name)
+            at_start[name] = set(running)
+        else:
+            running.remove(name)
+    return names, at_start
+
+
+def test_group_pool_stays_within_memory(tmp_path, monkeypatch, capsys):
+    # a byte of memory per input byte and 700 in all: the largest alone, then largest first while they fit
+    sizes = {'e': 100, 'c': 300, 'top': 1000, 'b': 400, 'over': 800, 'd': 300}
+    names, at_start = _run_pool(tmp_path, monkeypatch, [(name, n, n, {'b': 'c', 'c': 'b'}.get(name)) for name, n in sizes.items()], 4, 700)
+    assert names == list(sizes)
+    alone = {name for name, running in at_start.items() if running == {name}}
+    assert {'top', 'over'} <= alone and not any({'top', 'over'} & running for name, running in at_start.items() if name not in ('top', 'over'))
+    assert {'b', 'c'} in (at_start['b'], at_start['c'])
+    assert all(name in alone or sum(sizes[g] for g in running) <= 700 for name, running in at_start.items())
+    out = capsys.readouterr().out
+    assert out.count('runs alone') == 1 and 'over.in runs alone' in out
+
+
+def test_group_pool_rate_comes_from_groups_at_least_as_large(tmp_path, monkeypatch):
+    # c takes three times its bytes, which counts for e (as small) and not for b (larger, still running): 500 + 300 fit in 800
+    names, at_start = _run_pool(tmp_path, monkeypatch, [('top', 1000, 1000, None), ('b', 500, 500, 'e'), ('c', 100, 300, 'b'), ('e', 100, 100, None)], 2, 800)
+    assert names == ['top', 'b', 'c', 'e']
+    assert at_start['e'] == {'b', 'e'} and all(len(running) <= 2 for running in at_start.values())
+
+
+def test_group_pool_takes_sizes_in_place_of_file_bytes(tmp_path, monkeypatch):
+    # largest by its file is c, by <sizes> a: a starts first
+    monkeypatch.setattr(utils, 'current_rss', lambda: 0)
+    order = str(tmp_path / 'order')
+    def run(name):
+        with open(order, 'a') as f:
+            f.write(name + '\n')
+        return name
+    names = utils.map_groups(run, [('a',), ('b',), ('c',)], 3, _pool_infnames(tmp_path, [1, 2, 3]), 2**50, sizes=[30, 20, 10])
+    assert names == ['a', 'b', 'c']  # results stay in group order
+    assert open(order).read().split()[0] == 'a'
+
+
+def test_group_pool_refuses_sizes_of_another_length(tmp_path):
+    with pytest.raises(Exception, match='2 sizes for 3 groups'):
+        utils.map_groups(lambda i: None, [(0,), (1,), (2,)], 2, _pool_infnames(tmp_path, [1, 1, 1]), sizes=[1, 2])
+
+
+def test_group_peak_memory_counts_its_subprocess():
+    def peak(fcn):
+        ctx = multiprocessing.get_context('fork')
+        recv, send = ctx.Pipe(duplex=False)
+        proc = ctx.Process(target=utils._send_result, args=(send, fcn, ()))
+        proc.start()
+        assert recv.poll(60)
+        _, err, peak_bytes = recv.recv()
+        proc.join()
+        assert err is None
+        return peak_bytes
+    held = 200 * 2**20
+    with_subproc = peak(lambda: subprocess.check_call([sys.executable, '-c', 'x = b"x" * %d' % held]))
+    assert with_subproc - peak(lambda: None) > held / 2
+
+
+def _pool_infnames(tmp_path, sizes):
+    infnames = [[str(tmp_path / ('%d.in' % i))] for i in range(len(sizes))]
+    for (fname,), nbytes in zip(infnames, sizes):
+        with open(fname, 'wb') as f:
+            f.truncate(nbytes)
+    return infnames
+
+
+def test_group_pool_raises_what_a_group_raised(tmp_path):
+    def run(i):
+        if i == 1:
+            raise ValueError('bad group')
+        time.sleep(60 if i == 2 else 0)
+
+    start = time.time()
+    with pytest.raises(ValueError, match='bad group'):  # group 2 is running then, and is not waited for
+        utils.map_groups(run, [(0,), (1,), (2,)], 3, _pool_infnames(tmp_path, [300, 200, 100]), 2**50)
+    assert time.time() - start < 30
+
+
+def test_group_pool_raises_on_a_process_with_no_result(tmp_path):
+    with pytest.raises(Exception, match='0.in ended with exit code 3 and no result'):
+        utils.map_groups(lambda i: os._exit(3), [(0,), (1,)], 2, _pool_infnames(tmp_path, [2, 1]))
+
+
+def test_group_pool_raises_on_a_process_ended_partway_through_its_result(tmp_path, monkeypatch):
+    def send_part(conn, fcn, args):
+        os.write(conn.fileno(), struct.pack('!i', 100) + b'x')  # a 100 byte message, cut after one byte
+        os._exit(3)
+
+    monkeypatch.setattr(utils, '_send_result', send_part)
+    with pytest.raises(Exception, match='0.in ended with exit code 3 and no result'):
+        utils.map_groups(lambda i: None, [(0,), (1,)], 2, _pool_infnames(tmp_path, [2, 1]))
+
+
+def test_job_memory(monkeypatch):
+    monkeypatch.delenv('SLURM_MEM_PER_NODE', raising=False)
+    monkeypatch.delenv('SLURM_MEM_PER_CPU', raising=False)
+    assert utils.job_memory() == psutil.virtual_memory().total
+    monkeypatch.setenv('SLURM_MEM_PER_CPU', '1000')
+    monkeypatch.setattr(utils, 'n_available_cpus', lambda: 3)
+    assert utils.job_memory() == 3000 * 2**20
+    monkeypatch.setenv('SLURM_MEM_PER_NODE', '2048')
+    assert utils.job_memory() == 2048 * 2**20
+    monkeypatch.setenv('SLURM_MEM_PER_NODE', '0')  # all of the node, so not a bound
+    assert utils.job_memory() == 3000 * 2**20
+    monkeypatch.setenv('SLURM_MEM_PER_CPU', '0')
+    assert utils.job_memory() == psutil.virtual_memory().total
+    assert 2**20 < utils.peak_rss() < psutil.virtual_memory().total and 0.05 < utils.current_rss() / utils.peak_rss() < 1.5  # both in bytes

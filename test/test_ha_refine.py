@@ -1,3 +1,4 @@
+import filecmp
 import json
 import os
 import shutil
@@ -6,7 +7,9 @@ import pytest
 
 from _helpers import LOCI, PAIRED_PARAM_DIR, PAIRED_SIMU_DIR, copy_dir, disjoint_dir, edit_yaml, fixture_log, input_uids, locus_manifest, partition_fname, partition_uids, read_log, run_partis, run_partis_fails, write_yaml
 from partis import disjointgrouper as dg
+from partis import indelutils
 from partis import partition_refinement as prf
+from partis import utils
 
 # ----------------------------------------------------------------------------------------
 # ha-repartition and partition-refine, integrated and standalone (single chain only)
@@ -33,6 +36,8 @@ def test_refine_alone(refine_only_dir, locus):
     assert all(group_stage_exists(refine_only_dir, locus, dg.STAGE_REFINE))
     assert not any(group_stage_exists(refine_only_dir, locus, dg.STAGE_HAREP))
     assert single_chain_uids(refine_only_dir, locus) == input_uids(locus)
+    ddir = disjoint_dir(refine_only_dir, locus)
+    assert not os.path.exists(prf.locuswide_threshold_fname(ddir, locus)) and not os.path.exists(prf.bundle_marker_fname(ddir, 0))  # removed once assembled
 
 
 def test_refine_alone_warns_on_vsearch_input(refine_only_dir):
@@ -99,6 +104,7 @@ def test_standalone_refine_jobs_in_slices(tmp_path, plain_multifile_partition_di
     ddir, manifest = locus_manifest(outdir, locus)
     n_groups = len(manifest['groups'])
     assert n_groups > 1
+    run_partis(['create-partition-refine-jobs', '--locus', locus, '--paired-outdir', str(outdir)], str(tmp_path / 'create.log'))
     run_partis(refine_job_args(outdir, locus, job_count=1), str(tmp_path / 'refine-0.log'))
     run_partis(refine_job_args(outdir, locus, job_start=1), str(tmp_path / 'refine-1.log'))
     assert all(group_stage_exists(outdir, locus, dg.STAGE_REFINE))
@@ -107,6 +113,13 @@ def test_standalone_refine_jobs_in_slices(tmp_path, plain_multifile_partition_di
     run_partis(['assemble-groups', '--locus', locus, '--paired-outdir', str(outdir), '--outfname', str(outfname)], str(tmp_path / 'assemble.log'))
     assert partition_uids(outfname) == input_uids(locus)
     assert 'all %d groups from %s' % (n_groups, dg.STAGE_REFINE) in read_log(tmp_path / 'assemble.log')
+    assert not any(os.path.exists(f) for f in [prf.bundle_marker_fname(ddir, 0), prf.bundle_marker_fname(ddir, 1), prf.locuswide_threshold_fname(ddir, locus)])  # removed once assembled
+
+
+def test_standalone_refine_needs_threshold(tmp_path, plain_multifile_partition_dir):
+    outdir = copy_dir(plain_multifile_partition_dir, tmp_path / 'out')
+    log = run_partis_fails(refine_job_args(outdir, 'igh', job_count=1), str(tmp_path / 'refine.log'))
+    assert 'does not exist (run create-partition-refine-jobs first)' in log
 
 
 # ----------------------------------------------------------------------------------------
@@ -138,6 +151,55 @@ def test_truncated_partition_refused_as_refine_input(tmp_path, plain_multifile_p
         prf.read_refine_inputs(spec['input'], spec['sw_cache'])
 
 
+def test_cut_write_leaves_no_group_output(tmp_path, plain_multifile_partition_dir, monkeypatch):
+    ddir, manifest = locus_manifest(plain_multifile_partition_dir, 'igh')
+    spec = max(prf.group_specs(ddir, manifest['groups'], 'igh'), key=lambda s: s['group']['sequence_count'])
+    inp = prf.read_refine_inputs(spec['input'], spec['sw_cache'])
+    fname, real_write = str(tmp_path / 'out.yaml'), utils.write_annotations
+    def cut_write(*args, **kwargs):
+        real_write(*args, **kwargs)
+        raise Exception('cut after the write')
+    with monkeypatch.context() as patch:
+        patch.setattr(utils, 'write_annotations', cut_write)
+        with pytest.raises(Exception, match='cut after the write'):
+            prf.write_full_output(fname, inp['part_glfo'], inp['partition'], inp['uid_part_antns'])
+    assert not os.path.exists(fname)
+    prf.write_full_output(fname, inp['part_glfo'], inp['partition'], inp['uid_part_antns'])
+    assert os.listdir(tmp_path) == ['out.yaml']  # the rerun wrote over what the cut one left
+
+
+def test_cluster_inside_one_annotation_written_as_from_its_uids(tmp_path, plain_multifile_partition_dir):
+    ddir, manifest = locus_manifest(plain_multifile_partition_dir, 'igh')
+    spec = max(prf.group_specs(ddir, manifest['groups'], 'igh'), key=lambda s: s['group']['sequence_count'])
+    inp = prf.read_refine_inputs(spec['input'], spec['sw_cache'])
+    antns, with_indel, without = inp['uid_part_antns'], [], []
+    for cluster in inp['partition']:  # the uids with an indel apart from the others, which are reordered
+        with_indel.append([u for u in cluster if indelutils.has_indels_line(antns[u], antns[u]['unique_ids'].index(u))])
+        without.append([u for u in reversed(cluster) if u not in with_indel[-1]])
+    assert max(len(c) for c in without) > 1
+    partition = [c for c in with_indel + without if len(c) > 0]
+    per_uid = {u: utils.synthesize_single_seq_line(antns[u], antns[u]['unique_ids'].index(u)) for u in antns}  # no cluster of two is inside one of these
+    fnames = [str(tmp_path / ('%s.yaml' % tag)) for tag in ('one-annotation', 'per-uid')]
+    for fname, ant_info in zip(fnames, (antns, per_uid)):
+        prf.write_full_output(fname, inp['part_glfo'], partition, ant_info)
+    assert filecmp.cmp(*fnames, shallow=False)
+
+
+def test_cluster_that_is_one_whole_annotation_written_as_from_its_uids(tmp_path, plain_multifile_partition_dir):
+    ddir, manifest = locus_manifest(plain_multifile_partition_dir, 'igh')
+    spec = max(prf.group_specs(ddir, manifest['groups'], 'igh'), key=lambda s: s['group']['sequence_count'])
+    inp = prf.read_refine_inputs(spec['input'], spec['sw_cache'])
+    antns = inp['uid_part_antns']
+    def whole(cluster):  # all of its annotation, in order, with no indel
+        return antns[cluster[0]]['unique_ids'] == cluster and not any(indelutils.has_indels_line(antns[cluster[0]], i) for i in range(len(cluster)))
+    assert any(len(c) > 1 and whole(c) for c in inp['partition'])
+    per_uid = {u: utils.synthesize_single_seq_line(antns[u], antns[u]['unique_ids'].index(u)) for u in antns}  # no cluster of two is inside one of these
+    fnames = [str(tmp_path / ('%s.yaml' % tag)) for tag in ('one-annotation', 'per-uid')]
+    for fname, ant_info in zip(fnames, (antns, per_uid)):
+        prf.write_full_output(fname, inp['part_glfo'], inp['partition'], ant_info)
+    assert filecmp.cmp(*fnames, shallow=False)
+
+
 def write_stage_file(ddir, fasta_dir, stage):
     fname = '%s/%s/%s' % (ddir, fasta_dir, dg.stage_fname(stage, 'igh'))
     os.makedirs(os.path.dirname(fname), exist_ok=True)
@@ -167,7 +229,7 @@ def test_stage_precedence(tmp_path):
 @pytest.fixture
 def counted_threshold(monkeypatch):
     calls = []
-    def fake_estimate(specs):
+    def fake_estimate(specs, n_procs=1, memory_bytes=None):
         calls.append(len(specs))
         return 0.125 * len(calls)
     monkeypatch.setattr(prf, 'estimate_locuswide_threshold', fake_estimate)
@@ -198,6 +260,10 @@ def test_threshold_cache_reused_until_inputs_change(tmp_path, counted_threshold)
     assert prf.locuswide_threshold(str(tmp_path), threshold_specs(tmp_path, 3), 'igh') != second  # spec count changed
     assert len(counted_threshold) == 3
     prf.locuswide_threshold(str(tmp_path), threshold_specs(tmp_path, 3), 'igh', overwrite=True)
+    assert len(counted_threshold) == 4
+    assert prf.locuswide_threshold(str(tmp_path), threshold_specs(tmp_path, 3), 'igh', estimate=False) == 0.5
+    with pytest.raises(Exception, match='is stale'):
+        prf.locuswide_threshold(str(tmp_path), threshold_specs(tmp_path, 2), 'igh', estimate=False)
     assert len(counted_threshold) == 4
 
 

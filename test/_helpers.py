@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 import re
 import shutil
@@ -14,6 +15,7 @@ TEST_DIR = os.path.join(REPO_DIR, 'test')
 sys.path.insert(0, REPO_DIR)
 from partis import utils
 from partis import disjointgrouper as dg
+from partis import ha_repartition
 from partis.clusterpath import ClusterPath
 from partis.paircluster import paired_fn
 
@@ -171,6 +173,31 @@ def fasta_uids(fname):
 
 def sw_cache_uids(pdir):
     return set(u for line in read_yaml('%s/%s' % (pdir, dg.SW_CACHE_FNAME))['events'] for u in line['unique_ids'])
+
+
+def ha_result_files(ddir):
+    # the HA result files of every group under <ddir>, which can be one group's dir
+    return sorted(glob.glob(ha_repartition.results_fname('%s/**/ha-repartition' % ddir, '*'), recursive=True))
+
+
+def ha_group_dir(job):
+    return os.path.dirname(job['outdir'])
+
+
+def read_ha_results(fname):
+    with open(fname) as f:
+        return [json.loads(line) for line in f]
+
+
+def write_ha_results(fname, results):
+    with open(fname, 'w') as f:
+        f.writelines(json.dumps(res) + '\n' for res in results)
+
+
+def drop_ha_results(ddir, cluster_ids=None):
+    # remove the result lines of these clusters (None for all), so they are to run
+    for fname in ha_result_files(ddir):
+        write_ha_results(fname, [res for res in read_ha_results(fname) if cluster_ids is not None and res['cluster_id'] not in cluster_ids])
 
 
 def check_subsets_complete(basedir):
