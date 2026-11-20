@@ -6431,7 +6431,11 @@ def per_seq_correct_cluster_fractions(partition, true_partition, reco_info=None,
             n_uids += 1
 
     if n_uids == 0:
-        raise Exception('no uids to calculate correct cluster fractions over (%s)' % ('seed uid %s isn\'t in the %s partition' % (seed_unique_id, true_label) if seed_unique_id is not None else '%s partition is empty' % true_label))
+        if seed_unique_id is not None:
+            reason = 'seed uid %s isn\'t in the %s partition' % (seed_unique_id, true_label)
+        else:
+            reason = '%s partition is empty' % true_label
+        raise Exception('%sno uids to calculate correct cluster fractions over (%s)' % (dbg_str, reason))
     if n_uids > 1e6:
         raise Exception('you should start worrying about numerical precision if you\'re going to run on this many queries')
 
@@ -7098,12 +7102,10 @@ def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=Non
         antn = antn_dict[':'.join(sclust)]
         for iseq, uid in enumerate(antn['unique_ids']):
             pids = antn['paired-uids'][iseq]
-            if len(pids) != 1:  # skip seqs with no pair info, and seqs from droplets with more than one cell (pair cleaning can't tell which h goes with which l in those, so it removes their pair info, and the seed then gets discarded as unpaired)
+            # skip seqs with no pair info, and seqs from droplets with more than one cell (we read the input before pair cleaning, which can't tell which h goes with which l in those, so it removes their pair info, and the seed then gets discarded as unpaired)
+            if len(pids) != 1 or not is_correctly_paired(uid, pids[0]):
                 continue
-            correctly_paired_ids = [p for p in pids if is_correctly_paired(uid, p)]
-            if len(correctly_paired_ids) == 0:
-                continue
-            return uid, get_single_entry(correctly_paired_ids)
+            return uid, pids[0]
         raise Exception('couldn\'t find a seed id in cluster with size %d (none had exactly one \'paired-uids\' entry that was its correct paired id)' % len(sclust))
     # ----------------------------------------------------------------------------------------
     if paired:
@@ -7130,7 +7132,7 @@ def choose_seed_unique_id(infname, min_cluster_size, max_cluster_size, iseed=Non
         sid, pid = choose_sid(cluster)
         break
     if sid is None:
-        raise Exception('couldn\'t find seed in cluster between size %d and %d' % (min_cluster_size, max_cluster_size))
+        raise Exception('couldn\'t find seed in cluster between size %s and %s' % (min_cluster_size, max_cluster_size))
 
     if paired:
         plocus = pid.split('-')[-1]
