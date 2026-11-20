@@ -283,7 +283,7 @@ class HmmWriter(object):
         self.mute_freqs = paramutils.read_mute_freqs_with_weights(self.indir, approved_genes, overall_mute_freq=self.overall_mute_freq, debug=self.debug)  # weighted averages over genes
         self.mute_counts = paramutils.read_mute_counts(self.indir, gene_name, self.args.locus, debug=self.debug)  # raw per-{ACGT} counts NOTE do *not* set <approved_genes> here (see note in paramutils)
         self.default_mute_freq = self.overall_mute_freq  # prior for positional mute freqs (positions with few or no observations): the sample's own mean, within the positional bounds. bcrham rescales each query by (query mute freq) / overall_mute_freq, so after rescaling a position we know nothing about gets the query's own mute freq (previously a fixed 0.1, which in e.g. a naive sample pulled thin alleles far above their well-observed siblings, see psathyrella/partis#414)
-        if gene_name == glutils.dummy_d_genes[self.args.locus]:  # the light chain dummy d's single base is a placeholder rather than a germline position, so the sample's mean doesn't describe it: keep the value it has always had (it should really emit all four bases equally, see psathyrella/partis#417)
+        if gene_name == glutils.dummy_d_genes[self.args.locus]:  # the light chain dummy d's single base is a placeholder rather than a germline position, so the sample's mean doesn't describe it: keep the value it has always had. Since its state has an N germline (see add_internal_state() and psathyrella/partis#417), its emissions don't use this: the only place it ends up is the per_gene_mute_freq written to the hmm file, which neither bcrham nor zig reads
             self.default_mute_freq = 0.1
         self.process_mutation_info()  # smooth/interpolation/whatnot for <self.mute_freqs> and <self.mute_counts>
         # NOTE i'm using a hybrid approach with mute_freqs and mute_counts -- the only thing I get from mute_counts is the ratios of the different bases, whereas the actual freq comes from mute_freqs (which has all the corrections/smooth/bullshit)
@@ -353,6 +353,8 @@ class HmmWriter(object):
     # ----------------------------------------------------------------------------------------
     def add_internal_state(self, inuke):
         germline_nuke = self.germline_seq[inuke]
+        if self.raw_name == glutils.dummy_d_genes[self.args.locus]:  # the light chain dummy d's single base is a placeholder, not a germline position, so it should emit all four bases equally (psathyrella/partis#417). With germline 'A' here, it favoured A (more so after bcrham's per-query rescale), which moved V/J boundaries so the dummy d landed on an A. An N germline state gets 1/4 per base from get_emission_prob(), and both bcrham and zig skip the per-query rescale for it (State::RescaleOverallMuteFreq() in packages/ham/src/state.cc, rescaleOverallMuteFreq() in packages/zig-core/src/ham/state.zig). The glfo germline seq stays 'A' (glutils and packages/ham/src/bcrutils.cc), so naive seqs are unchanged
+            germline_nuke = utils.ambig_base
 
         # initialize
         state = State('%s_%d' % (self.saniname, inuke))
