@@ -556,6 +556,7 @@ typical_lengths = {
 }
 # ----------------------------------------------------------------------------------------
 # values used when simulating from scratch (mutation stuff is controlled by command line args, e.g. --scratch-mute-freq)
+# these are the mean lengths of the simulated deletions and insertions (recombinator draws geometric(1 / (mean + 1)) - 1, so lengths start at 0)
 scratch_mean_erosion_lengths = {'igh' : {'v_3p' : 1.3, 'd_5p' : 5.6, 'd_3p' : 4.7, 'j_5p' : 5.1},
                                 'igk' : {'v_3p' : 2.8, 'd_5p' : 1.0, 'd_3p' : 0.0, 'j_5p' : 1.5},
                                 'igl' : {'v_3p' : 2.8, 'd_5p' : 1.0, 'd_3p' : 0.0, 'j_5p' : 1.8}}

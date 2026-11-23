@@ -586,14 +586,6 @@ def process(args):
         if args.locus is not None and not utils.has_d_gene(args.locus) and args.paired_correlation_values is not None and args.heavy_chain_event_fname is None:
             raise Exception('if --paired-correlation-values is set for light chain, you have to also set --heavy-chain-event-fname')
 
-        if args.allowed_cdr3_lengths is not None and not args.paired_loci and args.rearrange_from_scratch and any(l < 30 for l in args.allowed_cdr3_lengths):  # ick
-            factor = 3
-            print('  note: asked for cdr3 lengths <30 with --rearrange-from-scratch set, so increasing scratch mean deletion lengths and decreasing scratch mean insertion lengths by factor of %.1f:' % factor)
-            for tdict, tfact in zip([utils.scratch_mean_erosion_lengths[args.locus], utils.scratch_mean_insertion_lengths[args.locus]], [factor, 1./factor]):
-                for tstr in tdict:
-                    print('    %8s  %5.1f --> %5.1f' % (tstr, tdict[tstr], tfact * tdict[tstr]))
-                    tdict[tstr] *= tfact
-
     if args.parameter_dir is not None and not args.paired_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
         args.parameter_dir = args.parameter_dir.rstrip('/')
         if os.path.exists(args.parameter_dir):
