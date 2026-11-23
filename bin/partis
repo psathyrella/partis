@@ -608,12 +608,12 @@ def run_all_loci(args, ig_or_tr='ig'):
         mfname = getofn(None, joint=True, input_meta=True)
         if is_subset_action(args.action):  # UGH
             mfname = '%s/input/%s' % (os.path.dirname(mfname), os.path.basename(mfname))
+        if utils.getsuffix(args.infname) == '.yaml':  # convert .yaml to .fa for split-loci (needed regardless of pairing info)
+            new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
+            print('  note: converting input .yaml file to .fa for split-loci and pairing info extraction (new --infname: %s)' % new_fn)
+            utils.simplerun('%s %s %s' % (find_cmd('parse-output.py'), args.infname, new_fn), extra_str='    ')
+            args.infname = new_fn
         if not args.guess_pairing_info and not args.no_pairing_info and not has_input_meta_pair_info:
-            if utils.getsuffix(args.infname) == '.yaml':
-                new_fn = '%s/input-seqs.fa' % utils.non_none([args.paired_outdir, args.workdir])
-                print('  note: converting input .yaml file to .fa so we can extract pairing info + split loci (new --infname: %s)' % new_fn)
-                utils.simplerun('%s %s %s' % (find_cmd('parse-output.py'), args.infname, new_fn), extra_str='    ')
-                args.infname = new_fn
             cmd = '%s%s %s %s' % (cov_cmd()+' ' if args.prepend_coverage_command else '', find_cmd('extract-pairing-info.py'), args.infname, mfname)
             if args.n_max_queries > 0:
                 cmd += ' --n-max-queries %d' % args.n_max_queries
