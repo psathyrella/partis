@@ -8,7 +8,8 @@ With `--rearrange-from-scratch` and neither `--shm-parameter-dir` nor `--mutate-
 - each position's rate and the distribution of bases it mutates to (`hmm/mute-freqs/<gene>.csv`);
 - how many sequences each gene's numbers came from (`hmm/{v,d,j}_gene-probs.csv`);
 - the distribution of mutation levels across families (`hmm/*-mean-{mute-freqs,n-muted}.csv`);
-- family-level shm parameters (`hmm/family-shm.yaml`, see below).
+- family-level shm parameters (`hmm/family-shm.yaml`, see below);
+- the distribution of cdr3 lengths (`hmm/cdr3_length-probs.csv`), from which each from-scratch event's cdr3 length is chosen when `--allowed-cdr3-lengths` isn't set (whatever the shm parameter dir is).
 
 `--mutation-multiplier` scales the mutation level. Genes with fewer than `--min-observations-per-gene` observations here get averaged in with similar genes, as for any parameter dir.
 
@@ -27,7 +28,7 @@ With `--rearrange-from-scratch` and neither `--shm-parameter-dir` nor `--mutate-
 2. It goes round the datasets in turn, adding one randomly chosen sample from each, until the locus has `--max-seqs` sequences (default 1M). A sample with more than `--max-seqs-per-sample` sequences (default 10k) has its counts scaled down to that size, so no small set of very deep samples dominates.
 3. It keeps only genes that are in partis's default germline set (`data/germlines/human`) with an identical sequence. That drops each sample's inferred alleles and keeps positions aligned across samples.
    Like any parameter dir inferred from real data, the tables inherit whatever each sample's germline inference missed.
-4. For each kept gene and position, it sums each base's counts over samples, then recomputes the mutation frequency and its uncertainty as `mutefreqer` does. To keep the files small, it writes only the columns partis reads from them (position, mutation frequency and its uncertainty, and the count of each base), not `mutefreqer`'s per-base frequencies, which can be recomputed from the counts. It also sums gene counts, and adds the mutation-level histograms with each sample weighted by its number of sequences. It does the same for each sample's mean mutated fraction per region (`mute-freq-sums.csv`), which sets the length simulation uses to turn the number-of-mutations histograms into fractions. These samples' parameter dirs predate that file, so each sample's mean is estimated from its histograms (`utils.get_mean_mfreq()`).
+4. For each kept gene and position, it sums each base's counts over samples, then recomputes the mutation frequency and its uncertainty as `mutefreqer` does. To keep the files small, it writes only the columns partis reads from them (position, mutation frequency and its uncertainty, and the count of each base), not `mutefreqer`'s per-base frequencies, which can be recomputed from the counts. It also sums gene counts, and each sample's number of sequences with each cdr3 length (from its `all-probs.csv`), weighted as the gene counts are, and adds the mutation-level histograms with each sample weighted by its number of sequences. It does the same for each sample's mean mutated fraction per region (`mute-freq-sums.csv`), which sets the length simulation uses to turn the number-of-mutations histograms into fractions. These samples' parameter dirs predate that file, so each sample's mean is estimated from its histograms (`utils.get_mean_mfreq()`).
 5. It writes `<locus>/hmm/`, and writes the list of samples used, with their sizes, weights, mean mutation frequencies and sources, to `--sample-list-dir` (also outside the repo, since it refers to our filesystem).
 
 To rebuild, from a machine that has the processed samples:
@@ -51,9 +52,9 @@ Number of samples, and weighted number of sequences (each sample's sequences tim
 | OAS paired, E-MTAB-11174 and E-MTAB-11697 (memory and plasmablasts) | IGH | 2 | 20,001 | 1 | 9,999 |
 | | IGK | 2 | 20,001 | 1 | 9,998 |
 | | IGL | 2 | 20,000 | 1 | 10,001 |
-| PairedAbNGS (human BioProjects) | IGH | 98 | 244,897 | 328 | 867,061 |
-| | IGK | 605 | 872,936 | 501 | 876,452 |
-| | IGL | 947 | 942,499 | 765 | 944,864 |
+| PairedAbNGS (human BioProjects) | IGH | 97 | 246,414 | 307 | 863,982 |
+| | IGK | 644 | 868,680 | 548 | 881,743 |
+| | IGL | 941 | 935,544 | 789 | 946,846 |
 
 The family-level parameters use only samples with partitions, so the Rodriguez and Tang samples, which have none, aren't in them.
 
