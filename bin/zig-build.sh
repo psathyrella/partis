@@ -16,6 +16,13 @@
 #   partis --zig annotate ...
 set -euo pipefail
 
+# drop the active conda-family env's cc, on PATH or in CC, ahead of zig's own toolchain.
+unset -v CC CXX 2>/dev/null || true
+if [[ -n "${CONDA_PREFIX:-}" ]]; then
+    PATH=$(printf '%s' "$PATH" | tr ':' '\n' | grep -Fv "$CONDA_PREFIX" | paste -sd: -)
+    export PATH
+fi
+
 ZIG_VERSION="0.15.2"
 PARTIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ZIG_CORE_DIR="$PARTIS_DIR/packages/zig-core"
