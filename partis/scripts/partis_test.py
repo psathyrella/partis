@@ -73,6 +73,42 @@ class Tester(object):
                 return spath
             return self.dirs(st) + '/' + spath
     # ----------------------------------------------------------------------------------------
+    def simu_part_path(self, slabel):  # where the 'simulate' test writes the part of the simulation labeled <slabel> (see self.simu_parts), before merging them into self.inpath('new', 'simu')
+        return '%s/%s/simu-parts/%s%s' % (self.dirs('new'), self.label, slabel, '' if args.paired else '.yaml')
+    # ----------------------------------------------------------------------------------------
+    def merge_simu_parts(self, args):  # merge the simulation parts into the one simulation sample the inference tests read, then remove the parts (the parts' uids are hashes that include their different random seeds, so they don't overlap)
+        ofn, part_fns = self.inpath('new', 'simu'), [self.simu_part_path(l) for l in self.simu_parts]
+        if args.dry_run:
+            print('    would merge %s into %s' % (' '.join(part_fns), ofn))
+            return
+        if not args.paired:
+            utils.merge_yamls(ofn, part_fns, utils.simulation_headers, dont_write_git_info=True)
+        else:  # simulation has no clustering to redo, so merge each file separately (paircluster.merge_paired_yamls() would write partition-style file names)
+            if os.path.exists(ofn):
+                shutil.rmtree(ofn)
+            part_files = {}  # relative path : that file in each part that has it (a locus pair with no events in one part has no files there)
+            for pfn in part_fns:
+                for fn in glob.glob('%s/**/*' % pfn, recursive=True):
+                    if not os.path.isdir(fn):
+                        part_files.setdefault(os.path.relpath(fn, pfn), []).append(fn)
+            for rfn, ifns in sorted(part_files.items()):
+                mfn = '%s/%s' % (ofn, rfn)
+                utils.mkdir(mfn, isfile=True)
+                if os.path.islink(ifns[0]):  # e.g. igk.yaml -> igh+igk/igk.yaml
+                    os.symlink(os.readlink(ifns[0]), mfn)
+                elif os.path.basename(rfn) == 'meta.yaml':
+                    utils.jsdump(mfn, utils.read_json_yamls(ifns))
+                elif rfn.endswith('.yaml'):
+                    utils.merge_yamls(mfn, ifns, utils.simulation_headers, dont_write_git_info=True)
+                elif rfn.endswith('.fa'):
+                    with open(mfn, 'w') as ofile:
+                        for ifn in ifns:
+                            with open(ifn) as ifile:
+                                ofile.write(ifile.read())
+                else:
+                    raise Exception('unexpected file %s in simulation parts' % rfn)
+        shutil.rmtree(os.path.dirname(part_fns[0]))
+    # ----------------------------------------------------------------------------------------
     def paramdir(self, st, dt):
         pd = self.label + '/parameters/' + dt
         if st is None:  # if <st> isn't set, we want the subpath (without parent dir), e.g. when --dont-run/evaluating results
@@ -147,6 +183,7 @@ class Tester(object):
         self.dtypes = ['data', 'simu']
         if not os.path.exists(self.dirs('new')):
             os.makedirs(self.dirs('new'))
+        self.simu_parts = ['parameters', 'scratch']  # the 'simulate' test simulates half its events from the data parameters, and half from scratch (see run())
         self.common_extras = ['--random-seed', '1', '--n-procs', '10', '--no-time-based-n-proc-reduction']  # --no-time-based-n-proc-reduction: otherwise partition results depend on how long each clustering step takes, i.e. on machine load (see #419). Would be nice to set --n-procs based on the machine, but for some reason the order of things in the parameter files gets shuffled a bit if you change the number of procs
         self.label = 'test' #  i really don't think there's any reason to have this, but i don't feel like removing it atm since it's not really causing much complication
 
@@ -194,7 +231,7 @@ class Tester(object):
         else:
             pcache_data_args = {'extras' : ['--n-max-queries', str(self.nqr('data'))]}
             pcache_simu_args = {'extras' : []}
-            n_events = int(self.nqr('simu') / float(self.n_simu_leaves))
+            n_events = int(self.nqr('simu') / float(self.n_simu_leaves)) // 2  # half the events are simulated with the data parameters, and half from scratch (see run())
             simulate_args = {'extras' : ['--n-sim-events', str(n_events), '--n-trees', str(n_events), '--n-leaf-distribution', 'geometric', '--n-leaves', str(self.n_simu_leaves)]}
             if args.paired:
                 simulate_args['extras'] += ['--min-observations-per-gene', '5', '--mean-cells-per-droplet', '1.25', '--constant-cells-per-droplet', '--fraction-of-reads-to-remove', '0.15']  # it was crashing and this fixes it, i dunno if we should turn it on also for non-paired but whatever
@@ -439,9 +476,21 @@ class Tester(object):
             if args.zig:
                 cmd_str += ' --zig'
 
+            sub_cmds = None  # list of (label, cmd str) if this test runs more than one command
             if name == 'simulate':
-                cmd_str += ' --%s %s' % (self.astr('out'), self.inpath('new', 'simu'))
                 cmd_str += ' --indel-frequency 0.2'  # super high indel freq, partly because we want to make sure we have some even with the new smaller default number of seqs
+                sub_cmds = []
+                parts_dir = os.path.dirname(self.simu_part_path(self.simu_parts[0]))
+                if os.path.exists(parts_dir) and not args.dry_run:  # e.g. left over from a crashed run
+                    shutil.rmtree(parts_dir)
+                for slabel in self.simu_parts:  # simulate half the events with the data parameters, and half from scratch (with a different random seed), then merge them into the one simulation sample that the inference tests read
+                    clist = cmd_str.split()
+                    if slabel == 'scratch':
+                        utils.remove_from_arglist(clist, '--parameter-dir', has_arg=True)
+                        clist.append('--rearrange-from-scratch')
+                        utils.replace_in_arglist(clist, '--random-seed', '2')
+                    clist += ['--%s' % self.astr('out'), self.simu_part_path(slabel)]
+                    sub_cmds.append((slabel, ' '.join(clist)))
             elif 'get-selection-metrics-' in name:
                 cmd_str += ' --%s %s' % (self.astr('out'), self.opath(name.replace('get-selection-metrics-', 'partition-'), st='new'))
                 cmd_str += ' --%s %s' % ('chosen-ab-fname' if args.paired else 'selection-metric-fname', self.opath(name, st='new'))
@@ -456,25 +505,29 @@ class Tester(object):
             elif 'cache-parameters-' not in name:
                 cmd_str += ' --%s %s' % (self.astr('out'), self.opath(name, st='new'))
 
-            logstr = '%s   %s' % (utils.color('green', name, width=30, padside='right'), cmd_str)
-            print(logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]')
-            if args.dry_run:
-                continue
-            logfile = open(self.logfname, 'a')
-            logfile.write(logstr + '\n')
-            logfile.close()
             start = time.time()
-            try:
-                check_call(cmd_str + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
-                if args.quick:
-                    print('\n  %s' % 'ok')
-            except CalledProcessError as err:
-                # print err  # this just says it exited with code != 0
-                print('  log tail: %s' % self.logfname)
-                print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
-                print('  full log, including the output of nested partis processes (where the actual error usually is, above the tail): %s' % self.logfname)
-                sys.exit(1)  # raise Exception('exited with error')
-            self.run_times[name] = time.time() - start  # seconds
+            for cname, cstr in [(name, cmd_str)] if sub_cmds is None else [('%s-%s' % (name, l), c) for l, c in sub_cmds]:
+                logstr = '%s   %s' % (utils.color('green', cname, width=30, padside='right'), cstr)
+                print(logstr if utils.len_excluding_colors(logstr) < args.print_width else logstr[:args.print_width] + '[...]')
+                if args.dry_run:
+                    continue
+                logfile = open(self.logfname, 'a')
+                logfile.write(logstr + '\n')
+                logfile.close()
+                try:
+                    check_call(cstr + ' 1>>' + self.logfname + ' 2>>' + self.logfname, shell=True)
+                    if args.quick:
+                        print('\n  %s' % 'ok')
+                except CalledProcessError as err:
+                    # print err  # this just says it exited with code != 0
+                    print('  log tail: %s' % self.logfname)
+                    print(utils.pad_lines(check_output(['tail', self.logfname], universal_newlines=True)))
+                    print('  full log, including the output of nested partis processes (where the actual error usually is, above the tail): %s' % self.logfname)
+                    sys.exit(1)  # raise Exception('exited with error')
+            if name == 'simulate':
+                self.merge_simu_parts(args)
+            if not args.dry_run:
+                self.run_times[name] = time.time() - start  # seconds
 
         if not args.quick and not args.dry_run:
             self.write_run_times()
