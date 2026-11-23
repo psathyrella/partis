@@ -38,6 +38,8 @@ Ref results never go in a PR branch. A bust touches over a thousand files, more 
 2. Push only the code commits to the PR branch. The PR body says that ref results change, and why.
 3. After the PR merges, rebase the ref commit onto main, rerun `--run-all` if anything else changed main in the meantime, and push it straight to main as its own commit ("update ref results"). Then fast-forward dev.
 
+Regenerate ref results rarely: only once all related changes have merged, so a series of PRs gets one ref commit, not one each. Main's refs can stay out of date in between.
+
 
 ## notes
 
