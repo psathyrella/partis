@@ -554,6 +554,7 @@ typical_lengths = {
     'cdr3' : 52,
     'all' : 378,
 }
+cdr3_length_probs_fname = 'cdr3_length-probs.csv'  # cdr3 length counts pooled from data, in the scratch parameter dirs (see data/recombinator/scratch-parameters/README.md)
 # ----------------------------------------------------------------------------------------
 # values used when simulating from scratch (mutation stuff is controlled by command line args, e.g. --scratch-mute-freq)
 # these are the mean lengths of the simulated deletions and insertions (recombinator draws geometric(1 / (mean + 1)) - 1, so lengths start at 0)
