@@ -585,6 +585,8 @@ def process(args):
             raise Exception('can\'t yet handle single-chain --correlation-values and --paired-correlation-values at the same time')
         if args.locus is not None and not utils.has_d_gene(args.locus) and args.paired_correlation_values is not None and args.heavy_chain_event_fname is None:
             raise Exception('if --paired-correlation-values is set for light chain, you have to also set --heavy-chain-event-fname')
+        if args.uid_hash_len is not None and (args.uid_hash_len < 1 or args.uid_hash_len > 32):  # md5 hex digests are 32 chars, so a larger value would silently give 32
+            raise Exception('--uid-hash-len must be between 1 and 32, but got %d' % args.uid_hash_len)
 
         if args.allowed_cdr3_lengths is not None and not args.paired_loci and args.rearrange_from_scratch and any(l < 30 for l in args.allowed_cdr3_lengths):  # ick
             factor = 3

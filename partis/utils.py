@@ -1735,8 +1735,16 @@ def get_hash(instr):
     return hashlib.md5(instr.encode()).hexdigest()  # , usedforsecurity=False (can't use this arg til python 3.9)
 
 # ----------------------------------------------------------------------------------------
-def uidhashstr(instr, max_len=10):
+def uidhashstr(instr, max_len=10):  # NOTE default deliberately not UID_HASH_LEN_SHORT (most callers aren't simulation uids)
     return get_hash(instr)[:max_len]
+
+# ----------------------------------------------------------------------------------------
+UID_HASH_LEN_SHORT, UID_HASH_LEN_LONG = 10, 20  # short is readable, long avoids collisions at scale
+UID_HASH_LEN_THRESHOLD = 100000  # use long hash at/above this many total --n-sim-events
+
+# ----------------------------------------------------------------------------------------
+def resolve_uid_hash_len(n_sim_events):  # NOTE exact for reco ids, but uid collisions scale with total seqs, so assumes modest family sizes
+    return UID_HASH_LEN_LONG if n_sim_events >= UID_HASH_LEN_THRESHOLD else UID_HASH_LEN_SHORT
 
 # ----------------------------------------------------------------------------------------
 def hashint(instr, max_int=2**31):  # max random seed val is 32, so reduce by 1 to get some leeway
@@ -4505,8 +4513,7 @@ def mkdir(path, isfile=False):  # adding this very late, so could use it in a lo
         path = os.path.dirname(path)
     if path == '':  # if it's a relative path we give up
         return
-    if not os.path.exists(path):
-        os.makedirs(path)
+    os.makedirs(path, exist_ok=True)
 
 # ----------------------------------------------------------------------------------------
 def makelink(odir, target, link_name, dryrun=False, extra_str='', debug=False):  # <odir> is generally os.path.dirname(link_name)   for search: def link def ln
@@ -4524,7 +4531,7 @@ def makelink(odir, target, link_name, dryrun=False, extra_str='', debug=False): 
     mkdir(odir)
     simplerun('cd %s && ln -sf %s %s' % (odir, target, link_name), shell=True, dryrun=dryrun, extra_str=extra_str, debug=debug)
 
-    if not os.path.exists(target if target==fpath(target) else odir+'/'+target):
+    if not dryrun and not os.path.exists(target if target==fpath(target) else odir+'/'+target):
         raise Exception('linked to missing file in odir %s (target %s)' % (odir, target if target==fpath(target) else odir+'/'+target))
 
 # ----------------------------------------------------------------------------------------
@@ -5261,19 +5268,24 @@ def merge_parameter_dirs(merged_odir, subdfn, n_subsets, include_hmm_cache_files
         if len(sub_swfs) == 0:
             print('       %s: no sw cache files, skipping' % locstr(ltmp))
             continue
-        merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
         mean_mut_fns = ['%s/parameters/%s/hmm/all-mean-mute-freqs.csv'%(subdfn(i), ltmp) for i in range(n_subsets)]
         mean_mut_fns = [f for f in mean_mut_fns if os.path.exists(f)]
-        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine (the mean comes from mute_freq_sum_fname, summed over subsets below)
         sum_fns = ['%s/%s' % (os.path.dirname(f), mute_freq_sum_fname) for f in mean_mut_fns]
-        if all(os.path.exists(f) for f in sum_fns):  # sum over subsets, so get_mean_mfreq() can give the exact mean for the merged dir (skipped if any subset lacks the file, since a partial sum would be read as exact)
+        sub_sums = None
+        if all(os.path.exists(f) for f in sum_fns):  # read and check the subset sums before writing anything, so a damaged file leaves the merged dir as it was (skipped if any subset lacks the file, since a partial sum would be read as exact)
+            sub_sums = [read_mute_freq_sums(sfn) for sfn in sum_fns]
+            odd_fns = [sfn for sfn, ssums in zip(sum_fns, sub_sums) if set(ssums) != set(sub_sums[0])]  # a region missing from one subset would give a partial sum
+            if len(odd_fns) > 0:
+                raise Exception('subset sums files with other regions than %s: %s' % (sum_fns[0], ' '.join(odd_fns)))
+        merge_yamls(swfn(merged_odir), sub_swfs, sw_cache_headers, remove_duplicates=True)
+        makelink('%s/parameters/%s/hmm' % (fpath(merged_odir), ltmp), fpath(mean_mut_fns[0]), 'all-mean-mute-freqs.csv')  # NOTE just links to one subset's mut distribution, which should be fine (the mean comes from mute_freq_sum_fname, summed over subsets below)
+        if sub_sums is not None:  # sum over subsets, so get_mean_mfreq() can give the exact mean for the merged dir
             mf_sums = OrderedDict()
-            for sfn in sum_fns:
-                with open(sfn) as sfile:
-                    for line in csv.DictReader(sfile):
-                        rsum = mf_sums.setdefault(line['region'], {'sum' : 0., 'n_seqs' : 0})
-                        rsum['sum'] += float(line['sum'])
-                        rsum['n_seqs'] += int(line['n_seqs'])
+            for ssums in sub_sums:
+                for region, (mfsum, n_seqs) in ssums.items():
+                    rsum = mf_sums.setdefault(region, {'sum' : 0., 'n_seqs' : 0})
+                    rsum['sum'] += mfsum
+                    rsum['n_seqs'] += n_seqs
             with open('%s/parameters/%s/hmm/%s' % (merged_odir, ltmp, mute_freq_sum_fname), csv_wmode()) as sfile:
                 writer = csv.DictWriter(sfile, ['region', 'sum', 'n_seqs'])
                 writer.writeheader()
@@ -5689,12 +5701,20 @@ def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list o
     if debug:
         print('    running %d proc fcns with %d procs' % (len(procs), n_procs))
         sys.stdout.flush()
+    started = list(procs)
     while True:
         while len(procs) > 0 and len(multiprocessing.active_children()) < n_procs:
             procs[0].start()
             procs.pop(0)
         if len(multiprocessing.active_children()) == 0 and len(procs) == 0:
             break
+    failed = []
+    for iproc, proc in enumerate(started):
+        proc.join()
+        if proc.exitcode != 0:
+            failed.append((iproc, proc.exitcode))
+    if len(failed) > 0:  # procs can be named at construction (name=), so this says which one
+        raise Exception('%d of %d proc fcns failed: %s' % (len(failed), len(started), ', '.join('%s exited %d' % (started[i].name, c) for i, c in failed)))
 
 # ----------------------------------------------------------------------------------------
 def get_batch_system_str(batch_system, cmdfo, fout, ferr, batch_options):
@@ -6993,17 +7013,36 @@ def intexterpolate(x1, y1, x2, y2, x):
 # ----------------------------------------------------------------------------------------
 binned_mfreq_warned = set()  # (parameter dir, region) pairs get_mean_mfreq() has warned about
 
+def read_mute_freq_sums(sfn):
+    # {region : (sum, n_seqs)} from a sums file, raising if it has no rows or one cannot be read
+    sums = OrderedDict()
+    with open(sfn) as sfile:
+        for iline, line in enumerate(csv.DictReader(sfile)):
+            try:
+                region, rsum = line['region'], (float(line['sum']), int(line['n_seqs']))
+            except (KeyError, TypeError, ValueError) as err:
+                raise Exception('could not read row %d of %s (%s: %s)' % (iline + 1, sfn, type(err).__name__, err))
+            if region in sums:
+                raise Exception('region \'%s\' appears more than once in %s' % (region, sfn))
+            sums[region] = rsum
+    if len(sums) == 0:
+        raise Exception('no rows in %s' % sfn)
+    return sums
+
 def get_mean_mfreq(parameter_dir, region='all', n_muted_hist=None, binned_fallback=True, debug=False):
     # mean over sequences of the fraction of positions mutated in <region> ('all' for the whole sequence): exact from mute_freq_sum_fname, else estimated from the hists (older parameter dirs)
     # if neither works, the binned hist mean (with a warning) if <binned_fallback> is set, else None
+    # raises if the sums file exists but cannot be read or has no row for <region>
     from .hist import Hist
     mfname = '%s/%s-mean-mute-freqs.csv' % (parameter_dir, region)
     sfn = '%s/%s' % (parameter_dir, mute_freq_sum_fname)
     if os.path.exists(sfn):
-        with open(sfn) as sfile:
-            for line in csv.DictReader(sfile):
-                if line['region'] == region and int(line['n_seqs']) > 0:
-                    return float(line['sum']) / int(line['n_seqs'])
+        sums = read_mute_freq_sums(sfn)
+        if region not in sums:
+            raise Exception('no row for region \'%s\' in %s' % (region, sfn))
+        mfsum, n_seqs = sums[region]
+        if n_seqs > 0:  # zero if no sequences were counted
+            return mfsum / n_seqs
     if n_muted_hist is None and os.path.exists('%s/%s-mean-n-muted.csv' % (parameter_dir, region)):
         n_muted_hist = Hist(fname='%s/%s-mean-n-muted.csv' % (parameter_dir, region))
     mfreq = estimate_mean_mfreq(parameter_dir, region, mfname, n_muted_hist, debug=debug) if os.path.exists(mfname) and n_muted_hist is not None else None
@@ -7387,8 +7426,8 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
             else:
                 raise Exception('unhandled ftype %s' % ftype)
 
-            if not seqline:
-                break
+            if not seqline:  # a fasta header with no sequence after it
+                raise Exception('no sequence after header line in %s:\n    %s' % (fname, headline.strip()))
 
             iline += 1
             if istartstop is not None:
