@@ -7386,8 +7386,8 @@ def read_fastx(fname, name_key='name', seq_key='seq', add_info=True, dont_split_
             else:
                 raise Exception('unhandled ftype %s' % ftype)
 
-            if not seqline:
-                break
+            if not seqline:  # a fasta header with no sequence after it
+                raise Exception('no sequence after header line in %s:\n    %s' % (fname, headline.strip()))
 
             iline += 1
             if istartstop is not None:
