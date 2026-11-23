@@ -5688,12 +5688,20 @@ def run_proc_functions(procs, n_procs=None, debug=False):  # <procs> is a list o
     if debug:
         print('    running %d proc fcns with %d procs' % (len(procs), n_procs))
         sys.stdout.flush()
+    started = list(procs)
     while True:
         while len(procs) > 0 and len(multiprocessing.active_children()) < n_procs:
             procs[0].start()
             procs.pop(0)
         if len(multiprocessing.active_children()) == 0 and len(procs) == 0:
             break
+    failed = []
+    for iproc, proc in enumerate(started):
+        proc.join()
+        if proc.exitcode != 0:
+            failed.append((iproc, proc.exitcode))
+    if len(failed) > 0:  # procs can be named at construction (name=), so this says which one
+        raise Exception('%d of %d proc fcns failed: %s' % (len(failed), len(started), ', '.join('%s exited %d' % (started[i].name, c) for i, c in failed)))
 
 # ----------------------------------------------------------------------------------------
 def get_batch_system_str(batch_system, cmdfo, fout, ferr, batch_options):

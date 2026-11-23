@@ -2072,7 +2072,7 @@ class PartitionDriver(object):
             def write_single_hmm(gene):
                 writer = HmmWriter(parameter_dir, hmm_dir, gene, self.glfo, self.args, mean_mfreq=mean_mfreq)
                 writer.write()
-            procs = [multiprocessing.Process(target=write_single_hmm, args=(gene,))
+            procs = [multiprocessing.Process(target=write_single_hmm, name=gene, args=(gene,))
                      for region in utils.regions for gene in self.glfo['seqs'][region]]
             utils.run_proc_functions(procs)  # uses all the cores (should only be for a little bit, though)
 
