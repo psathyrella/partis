@@ -290,7 +290,7 @@ class Recombinator(object):
         if mean_max is not None:  # need to init list of possible values + probs
             assert probs is None and this_options is None
             mean_len, max_len = mean_max
-            this_options, probs = zip(*[(l - 1, scipy.stats.geom.pmf(l, 1. / mean_len)) for l in range(1, max_len + 1)])  # NOTE has to match numpy.random.geometric below NOTE also probs aren't normalized here, but that shouldn't matter NOTE also l-1 is to match similar subtractions in non-correlation code
+            this_options, probs = zip(*[(l - 1, scipy.stats.geom.pmf(l, 1. / (mean_len + 1))) for l in range(1, max_len + 1)])  # NOTE has to match numpy.random.geometric below (p = 1 / (mean + 1), so that after subtracting 1 the mean is <mean_len>) NOTE also probs aren't normalized here, but that shouldn't matter NOTE also l-1 is to match similar subtractions in non-correlation code
 
         allowed_vals['current'][pthis] = this_options  # note that this means all the modifications to <this_options> below are also modifying the list in allowed_vals['current']
         if corr_vals is None:
@@ -337,13 +337,13 @@ class Recombinator(object):
                 max_erosion = min(max_erosion, n_bases_to_codon)
             mean_len = utils.scratch_mean_erosion_lengths[self.args.locus][erosion]
             if corr_vals is None and allowed_vals is None:  # the case where they're different is heavy chain for paired correlation, when corr_vals is None so we don't apply any correlations, but allowed_vals is *not* None so we can keep track of allowed values
-                e_len = min(max_erosion, len_fcn(1. / mean_len) - 1)
+                e_len = min(max_erosion, len_fcn(1. / (mean_len + 1)) - 1)
             else:
                 lens, probs = self.handle_options_for_correlation(erosion+'_del', None, corr_vals, allowed_vals, parent_line, mean_max=(mean_len, max_erosion))
                 e_len = numpy.random.choice(lens, p=probs)
             return e_len
         # ----------------------------------------------------------------------------------------
-        len_fcn = numpy.random.geometric  # has to match scipy.stats.geom above NOTE also the -1 in several places
+        len_fcn = numpy.random.geometric  # has to match scipy.stats.geom above NOTE also the -1 in several places: geometric() starts at 1, so we draw with p = 1 / (mean + 1) and subtract 1, which gives lengths starting at 0 with mean <mean>
         utils.remove_all_implicit_info(tmpline)
         for erosion in utils.real_erosions:  # includes various contortions to avoid eroding the entire gene
             region = erosion[0]
@@ -359,9 +359,9 @@ class Recombinator(object):
                 i_len = 0  # mean_len if 0 means it *needs* to be zero, e.g. vd insertion for light chain
             else:
                 if corr_vals is None and allowed_vals is None:
-                    i_len = len_fcn(1. / mean_len) - 1
+                    i_len = len_fcn(1. / (mean_len + 1)) - 1
                 else:
-                    lens, probs = self.handle_options_for_correlation(bound+'_insertion', None, corr_vals, allowed_vals, parent_line, mean_max=(mean_len, 2*int(mean_len)))  # it's kind of weird to just limit it to twice the mean length here, but since handle_options_for_correlation() doesn't account for probs when choosing which to keep, if we make it bigger we choose those super large values too frequently
+                    lens, probs = self.handle_options_for_correlation(bound+'_insertion', None, corr_vals, allowed_vals, parent_line, mean_max=(mean_len, int(2 * mean_len) + 1))  # options are 0 through about twice the mean length. It's kind of weird to just limit it to twice the mean length here, but since handle_options_for_correlation() doesn't account for probs when choosing which to keep, if we make it bigger we choose those super large values too frequently
                     i_len = numpy.random.choice(lens, p=probs)  # maybe this should also always be 0 if mean_len is 0?
             cnt_probs = [self.insertion_content_probs[bound][n] for n in utils.nukes]
             tmpline[bound + '_insertion'] = ''.join(numpy.random.choice(utils.nukes, size=i_len, p=cnt_probs, replace=True))

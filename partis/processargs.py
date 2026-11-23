@@ -588,14 +588,6 @@ def process(args):
         if args.uid_hash_len is not None and (args.uid_hash_len < 1 or args.uid_hash_len > 32):  # md5 hex digests are 32 chars, so a larger value would silently give 32
             raise Exception('--uid-hash-len must be between 1 and 32, but got %d' % args.uid_hash_len)
 
-        if args.allowed_cdr3_lengths is not None and not args.paired_loci and args.rearrange_from_scratch and any(l < 30 for l in args.allowed_cdr3_lengths):  # ick
-            factor = 3
-            print('  note: asked for cdr3 lengths <30 with --rearrange-from-scratch set, so increasing scratch mean deletion lengths and decreasing scratch mean insertion lengths by factor of %.1f:' % factor)
-            for tdict, tfact in zip([utils.scratch_mean_erosion_lengths[args.locus], utils.scratch_mean_insertion_lengths[args.locus]], [factor, 1./factor]):
-                for tstr in tdict:
-                    print('    %8s  %5.1f --> %5.1f' % (tstr, tdict[tstr], tfact * tdict[tstr]))
-                    tdict[tstr] *= tfact
-
     if args.parameter_dir is not None and not args.paired_loci:  # if we're splitting loci, this isn't the normal parameter dir, it's a parent of that
         args.parameter_dir = args.parameter_dir.rstrip('/')
         if os.path.exists(args.parameter_dir):
