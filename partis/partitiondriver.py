@@ -2034,7 +2034,13 @@ class PartitionDriver(object):
                 os.remove(subworkdir + '/' + os.path.basename(self.hmm_infname))
                 if os.path.exists(subworkdir + '/' + os.path.basename(self.hmm_outfname)):
                     os.remove(subworkdir + '/' + os.path.basename(self.hmm_outfname))
-                os.rmdir(subworkdir)
+                leftovers = os.listdir(subworkdir)  # on nfs, a removed file that's still open leaves a .nfsXXXX file behind, which makes os.rmdir() fail
+                if any(not f.startswith('.nfs') for f in leftovers):
+                    raise Exception('unexpected files left in hmm subworkdir %s: %s' % (subworkdir, ' '.join(leftovers)))
+                if len(leftovers) == 0:
+                    os.rmdir(subworkdir)
+                else:  # only .nfs files left: they go away by themselves once the last handle closes, so leave the dir for the workdir cleanup to remove
+                    print('    note: leaving hmm subworkdir %s, which has only nfs leftovers %s' % (subworkdir, ' '.join(leftovers)))
 
         return cpath
 
