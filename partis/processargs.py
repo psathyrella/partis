@@ -482,6 +482,8 @@ def process(args):
         if args.simulate_from_scratch:
             args.rearrange_from_scratch = True
             args.mutate_from_scratch = True
+        if args.rearrange_from_scratch and args.allowed_cdr3_lengths is not None and not args.paired_loci and not args.allow_nonfunctional_scratch_seqs and any(l % 3 != 0 for l in args.allowed_cdr3_lengths):  # (with --paired-loci, each locus's subprocess checks its own)
+            raise Exception('--allowed-cdr3-lengths must all be multiples of 3 when rearranging from scratch, unless --allow-nonfunctional-scratch-seqs is set (got %s)' % ' '.join(str(l) for l in args.allowed_cdr3_lengths))
         if args.rearrange_from_scratch and not args.force_dont_generate_germline_set:  # i would probably just default to always generating germline sets when rearranging from scratch, but bin/test-germline-inference.py (and any other case where you want to dramatically restrict the germline set) really argue for a way to force just using the genes in the germline dir
             args.generate_germline_set = True
         if args.flat_mute_freq or args.same_mute_freq_for_all_seqs:

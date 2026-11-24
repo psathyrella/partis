@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, unicode_literals
 from __future__ import print_function
 import copy
+import itertools
 import operator
 import tempfile
 import sys
@@ -32,6 +33,19 @@ class SimuGiveUpError(Exception):
     pass
 
 #----------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------
+def scratch_length_probs(mean_len, n_max, capped):  # probabilities of lengths 0..<n_max> when drawing from-scratch deletion and insertion lengths as geometric(1 / (mean + 1)) - 1 (as in Recombinator.try_scratch_erode_insert()), with (if <capped>) all longer lengths at <n_max>, as min() does there
+    probs = numpy.zeros(n_max + 1)
+    if mean_len == 0:  # always zero length (e.g. light chain vd insertion)
+        probs[0] = 1.
+        return probs
+    pval = 1. / (mean_len + 1)
+    probs = pval * (1 - pval)**numpy.arange(n_max + 1)
+    if capped:
+        probs[n_max] = (1 - pval)**n_max
+    return probs
+
+# ----------------------------------------------------------------------------------------
 class Recombinator(object):
     """ Simulates the process of VDJ recombination """
     def __init__(self, args, glfo, seed, workdir, heavy_chain_events=None):  # NOTE <gldir> is not in general the same as <args.initial_germline_dir> # rm workdir
@@ -59,6 +73,7 @@ class Recombinator(object):
         self.allele_prevalence_freqs = None if args.allele_prevalence_fname is None else glutils.read_allele_prevalence_freqs(args.allele_prevalence_fname)
         self.version_freq_table = self.read_vdj_version_freqs()  # list of the probabilities with which each VDJ combo (plus other rearrangement parameters) appears in data (none if rearranging from scratch)
         self.insertion_content_probs = self.read_insertion_content()  # dummy/uniform if rearranging from scratch
+        self.target_cdr3_lengths = self.read_target_cdr3_lengths()  # (lengths, probs) from which to choose each from-scratch event's cdr3 length (None if we're not choosing a target length)
         self.all_mute_freqs = {}  # NOTE see description of the difference in hmmwriter.py
         self.all_mute_counts = {}
 
@@ -168,17 +183,21 @@ class Recombinator(object):
         """ keep running self.try_to_combine() until you get a good event """
         line = None
         itry = 0
+        target_cdr3_length = None
+        if self.target_cdr3_lengths is not None:  # choose it here, from the event's initial seed, so it stays the same when we retry with a new seed (otherwise lengths that fail more often would end up with fewer events)
+            target_cdr3_length = int(numpy.random.default_rng(initial_irandom % 2**64).choice(  # its own generator, rather than the global numpy one that try_to_combine() reseeds on each try, so the target doesn't change on retries
+                self.target_cdr3_lengths[0], p=self.target_cdr3_lengths[1]))
         while line is None:
             if itry > 0 and self.args.debug:
                 print('    unproductive event -- rerunning (try %d)  ' % itry)  # probably a weirdly long v_3p or j_5p deletion
-            line = self.try_to_combine(initial_irandom + itry, i_choose_tree=i_choose_tree, i_heavy_event=i_heavy_event)
+            line = self.try_to_combine(initial_irandom + itry, i_choose_tree=i_choose_tree, i_heavy_event=i_heavy_event, target_cdr3_length=target_cdr3_length)
             itry += 1
             if itry > self.n_max_tries:
                 raise Exception('too many tries %d in recombinator' % itry)
         return line
 
     # ----------------------------------------------------------------------------------------
-    def try_to_combine(self, irandom, i_choose_tree=None, i_heavy_event=None):
+    def try_to_combine(self, irandom, i_choose_tree=None, i_heavy_event=None, target_cdr3_length=None):
         """
         Create a recombination event and write it to disk
         <irandom> is used as the seed for the myriad random number calls.
@@ -192,7 +211,7 @@ class Recombinator(object):
 
         reco_event = RecombinationEvent(self.glfo, uid_hash_len=self.args.uid_hash_len)
         try:
-            self.choose_vdj_combo(reco_event, i_heavy_event=i_heavy_event)  # it's kind of ugly to raise an exception here, rather than having the fcn[s] return None as below, but the control flow gets complicated that way. Maybe would be better to switch all of them to exceptions
+            self.choose_vdj_combo(reco_event, i_heavy_event=i_heavy_event, target_cdr3_length=target_cdr3_length)  # it's kind of ugly to raise an exception here, rather than having the fcn[s] return None as below, but the control flow gets complicated that way. Maybe would be better to switch all of them to exceptions
         except SimuGiveUpError as err:
             print(err)
             return None
@@ -290,7 +309,7 @@ class Recombinator(object):
         if mean_max is not None:  # need to init list of possible values + probs
             assert probs is None and this_options is None
             mean_len, max_len = mean_max
-            this_options, probs = zip(*[(l - 1, scipy.stats.geom.pmf(l, 1. / (mean_len + 1))) for l in range(1, max_len + 1)])  # NOTE has to match numpy.random.geometric below (p = 1 / (mean + 1), so that after subtracting 1 the mean is <mean_len>) NOTE also probs aren't normalized here, but that shouldn't matter NOTE also l-1 is to match similar subtractions in non-correlation code
+            this_options, probs = list(range(max_len)), list(scratch_length_probs(mean_len, max_len - 1, False))  # NOTE has to match numpy.random.geometric below (p = 1 / (mean + 1), so that after subtracting 1 the mean is <mean_len>) NOTE also probs aren't normalized here, but that shouldn't matter
 
         allowed_vals['current'][pthis] = this_options  # note that this means all the modifications to <this_options> below are also modifying the list in allowed_vals['current']
         if corr_vals is None:
@@ -322,19 +341,162 @@ class Recombinator(object):
         return this_options, None if probs is None else utils.normalize(probs)
 
     # ----------------------------------------------------------------------------------------
-    def try_scratch_erode_insert(self, tmpline, corr_vals=None, allowed_vals=None, parent_line=None, debug=False):  # non-None corr_vals determines if we're applying correlations
+    def max_scratch_erosion(self, tmpline, erosion):  # longest <erosion> we allow when rearranging from scratch with the genes in <tmpline>
+        region = erosion[0]
+        gene_length = len(self.glfo['seqs'][region][tmpline[region + '_gene']])
+        max_erosion = max(0, gene_length//2 - 2)  # heuristic
+        if region in utils.conserved_codons[self.args.locus]:  # make sure not to erode a conserved codon
+            codon_pos = utils.cdn_pos(self.glfo, region, tmpline[region + '_gene'])
+            if '3p' in erosion:
+                n_bases_to_codon = gene_length - codon_pos - 3
+            elif '5p' in erosion:
+                n_bases_to_codon = codon_pos
+            max_erosion = min(max_erosion, n_bases_to_codon)
+        return max_erosion
+
+    # ----------------------------------------------------------------------------------------
+    def init_scratch_gene_groups(self, max_target_len):  # group the genes in each region by what matters for cdr3 length (the bases they add to it, and their deletion caps), and find the probability of each cdr3 length for each combination of groups, so we can choose genes in proportion to (prior) x P(target cdr3 length | genes)
+        # ----------------------------------------------------------------------------------------
+        def gene_probs(region):  # prior for each gene, as in get_scratchline()
+            genes = sorted(self.glfo['seqs'][region])
+            if self.allele_prevalence_freqs is not None and region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:
+                return genes, [self.allele_prevalence_freqs[region][g] for g in genes]
+            return genes, [1. / len(genes) for _ in genes]
+        # ----------------------------------------------------------------------------------------
+        def cdr3_part(region, gene):  # number of bases <gene> adds to the cdr3 with no deletions
+            if region == 'v':
+                return len(self.glfo['seqs']['v'][gene]) - utils.cdn_pos(self.glfo, 'v', gene)
+            elif region == 'd':
+                return 0 if not utils.has_d_gene(self.args.locus) else len(self.glfo['seqs']['d'][gene])  # dummy d: always eroded completely from the left
+            else:
+                return utils.cdn_pos(self.glfo, 'j', gene) + 3
+        # ----------------------------------------------------------------------------------------
+        self.scratch_gene_groups = {}  # region : {(cdr3 part, deletion caps) : {'genes' : [...], 'probs' : [...]}}
+        for region in utils.regions:
+            if len(self.glfo['seqs'][region]) == 0:
+                raise Exception('no genes to choose from for %s (if light chain d, you need to explicitly add the dummy d to --only-genes)' % region)
+            erosions = [e for e in utils.real_erosions if e[0] == region and (region != 'd' or utils.has_d_gene(self.args.locus))]
+            for gene, prob in zip(*gene_probs(region)):
+                key = (cdr3_part(region, gene), tuple(self.max_scratch_erosion({region + '_gene' : gene}, e) for e in erosions))
+                gfo = self.scratch_gene_groups.setdefault(region, {}).setdefault(key, {'genes' : [], 'probs' : []})
+                gfo['genes'].append(gene)
+                gfo['probs'].append(prob)
+        mean_dels = [utils.scratch_mean_erosion_lengths[self.args.locus][e] for e in utils.real_erosions if e[0] != 'd' or utils.has_d_gene(self.args.locus)]  # same order as the caps in the keys (v, d, j)
+        group_combos = []
+        for gkeys in itertools.product(*[sorted(self.scratch_gene_groups[r]) for r in utils.regions]):
+            del_probs, caps = numpy.array([1.]), [c for k in gkeys for c in k[1]]
+            assert len(caps) == len(mean_dels)
+            for mean_len, cap in zip(mean_dels, caps):
+                del_probs = numpy.convolve(del_probs, scratch_length_probs(mean_len, cap, True))
+            group_combos.append({'keys' : gkeys, 'fixed_len' : sum(k[0] for k in gkeys), 'del_probs' : del_probs, 'prior' : numpy.prod([sum(self.scratch_gene_groups[r][k]['probs']) for r, k in zip(utils.regions, gkeys)])})
+        max_ins = max(0, max_target_len - min(c['fixed_len'] for c in group_combos) + max(len(c['del_probs']) for c in group_combos))  # longest total insertion any target can need (if it's negative, no target can be reached, which the zero weights then report)
+        ins_probs = numpy.array([1.])
+        for bound in utils.boundaries:
+            ins_probs = numpy.convolve(ins_probs, scratch_length_probs(utils.scratch_mean_insertion_lengths[self.args.locus][bound], max_ins, False))[:max_ins + 1]
+        for gcfo in group_combos:  # probability of each (total insertion length) - (total deletion length), starting from -(max deletion length)
+            gcfo['net_probs'] = numpy.convolve(ins_probs, gcfo['del_probs'][::-1])
+        self.scratch_group_combos = group_combos
+        self.scratch_group_weights = {}  # cache of each target cdr3 length's weight for each group combination
+
+    # ----------------------------------------------------------------------------------------
+    def scratch_group_weights_for_cdr3(self, target_cdr3_length):  # (prior) x P(target cdr3 length | genes) for each combination of gene groups
+        if target_cdr3_length not in self.scratch_group_weights:
+            weights = []
+            for gcfo in self.scratch_group_combos:
+                inet = target_cdr3_length - gcfo['fixed_len'] + len(gcfo['del_probs']) - 1
+                weights.append(gcfo['prior'] * gcfo['net_probs'][inet] if 0 <= inet < len(gcfo['net_probs']) else 0.)
+            self.scratch_group_weights[target_cdr3_length] = numpy.array(weights)
+        return self.scratch_group_weights[target_cdr3_length]
+
+    # ----------------------------------------------------------------------------------------
+    def choose_genes_for_cdr3(self, tmpline, target_cdr3_length):  # choose genes in proportion to (prior) x P(target cdr3 length | genes)
+        weights = self.scratch_group_weights_for_cdr3(target_cdr3_length)
+        gcfo = self.scratch_group_combos[numpy.random.choice(len(weights), p=weights / weights.sum())]
+        for region, gkey in zip(utils.regions, gcfo['keys']):
+            gfo = self.scratch_gene_groups[region][gkey]
+            tmpline[region + '_gene'] = str(numpy.random.choice(gfo['genes'], p=utils.normalize(gfo['probs'])))
+
+    # ----------------------------------------------------------------------------------------
+    def read_target_cdr3_lengths(self):  # lengths and probabilities from which to choose each event's target cdr3 length when rearranging from scratch: equal for each of --allowed-cdr3-lengths if it's set, otherwise from the pooled data in the scratch parameter dir
+        if not self.args.rearrange_from_scratch or self.args.correlation_values is not None or self.args.paired_correlation_values is not None or self.args.no_insertions_or_deletions:  # with correlations, or with no deletions or insertions (so the genes alone set the cdr3 length), we instead keep retrying until we get an allowed length (if any are set)
+            return None
+        if self.args.allowed_cdr3_lengths is not None:
+            lengths = sorted(set(self.args.allowed_cdr3_lengths))
+            self.init_scratch_gene_groups(max(lengths))
+            bad_lengths = [l for l in lengths if sum(self.scratch_group_weights_for_cdr3(l)) == 0]
+            if len(bad_lengths) > 0:
+                raise Exception('no %s genes can give --allowed-cdr3-lengths %s with the scratch deletion caps' % (self.args.locus, ' '.join(str(l) for l in bad_lengths)))
+            return lengths, [1. / len(lengths) for _ in lengths]
+        fname = '%s/hmm/%s' % (utils.scratch_parameter_dir(locus=self.args.locus), utils.cdr3_length_probs_fname)
+        with open(fname) as cfile:
+            counts = {int(l['cdr3_length']) : float(l['count']) for l in csv.DictReader(cfile)}
+        n_total = sum(counts.values())
+        if not self.args.allow_nonfunctional_scratch_seqs:
+            counts = {l : c for l, c in counts.items() if l % 3 == 0}
+        if len(counts) == 0:
+            raise Exception('no usable cdr3 length counts in %s' % fname)
+        self.init_scratch_gene_groups(max(counts))
+        counts = {l : c for l, c in counts.items() if sum(self.scratch_group_weights_for_cdr3(l)) > 0}  # leave out lengths that no genes can give
+        if len(counts) == 0 or sum(counts.values()) <= 0:
+            raise Exception('no usable cdr3 length counts in %s' % fname)
+        print('  choosing cdr3 lengths from %s (using %.3f of its counts: those that %s genes can give%s)' % (fname, sum(counts.values()) / n_total, self.args.locus, '' if self.args.allow_nonfunctional_scratch_seqs else ' that are multiples of 3'))
+        lengths = sorted(counts)
+        return lengths, utils.normalize([counts[l] for l in lengths])
+
+    # ----------------------------------------------------------------------------------------
+    def choose_scratch_lengths_for_cdr3(self, tmpline, target_cdr3_length):  # choose deletion and insertion lengths for the genes in <tmpline> from the same distributions as try_scratch_erode_insert(), but conditioned on the event having cdr3 length <target_cdr3_length>; returns None if these genes can't give that length
+        # ----------------------------------------------------------------------------------------
+        def convolve(prob_list):
+            tprobs = numpy.array([1.])
+            for probs in prob_list:
+                tprobs = numpy.convolve(tprobs, probs)
+            return tprobs
+        # ----------------------------------------------------------------------------------------
+        def split_total(names, prob_list, total):  # choose a length for each of <names> with probs <prob_list>, given that they sum to <total>
+            lengths = {}
+            for iname, name in enumerate(names):
+                if iname == len(names) - 1:
+                    lengths[name] = total
+                    break
+                rest = convolve(prob_list[iname+1:])
+                weights = [prob_list[iname][k] * (rest[total - k] if 0 <= total - k < len(rest) else 0.) for k in range(min(total, len(prob_list[iname]) - 1) + 1)]
+                lengths[name] = int(numpy.random.choice(len(weights), p=utils.normalize(weights)))
+                total -= lengths[name]
+            return lengths
+        # ----------------------------------------------------------------------------------------
+        gl_seqs = {r : self.glfo['seqs'][r][tmpline[r + '_gene']] for r in utils.regions}
+        fixed_len = len(gl_seqs['v']) - utils.cdn_pos(self.glfo, 'v', tmpline['v_gene']) + len(gl_seqs['d']) + utils.cdn_pos(self.glfo, 'j', tmpline['j_gene']) + 3  # cdr3 length with no deletions or insertions
+        fixed_lengths, del_names, del_probs = {}, [], []
+        for erosion in utils.real_erosions:
+            if erosion[0] == 'd' and not utils.has_d_gene(self.args.locus):  # dummy d: always eroded completely from the left (as in try_scratch_erode_insert())
+                fixed_lengths[erosion] = 1 if '5p' in erosion else 0
+                fixed_len -= fixed_lengths[erosion]
+            else:
+                del_names.append(erosion)
+                del_probs.append(scratch_length_probs(utils.scratch_mean_erosion_lengths[self.args.locus][erosion], self.max_scratch_erosion(tmpline, erosion), True))
+        del_total_probs = convolve(del_probs)
+        delta = target_cdr3_length - fixed_len  # total insertion length minus total deletion length
+        max_ins = len(del_total_probs) - 1 + delta
+        if max_ins < 0:
+            return None
+        ins_probs = [scratch_length_probs(utils.scratch_mean_insertion_lengths[self.args.locus][b], max_ins, False) for b in utils.boundaries]
+        ins_total_probs = convolve(ins_probs)
+        weights = [del_total_probs[ndel] * (ins_total_probs[ndel + delta] if 0 <= ndel + delta < len(ins_total_probs) else 0.) for ndel in range(len(del_total_probs))]
+        if sum(weights) == 0:
+            return None
+        n_del = int(numpy.random.choice(len(weights), p=utils.normalize(weights)))
+        lengths = split_total(del_names, del_probs, n_del)
+        lengths.update(split_total(utils.boundaries, ins_probs, n_del + delta))
+        lengths.update(fixed_lengths)
+        return lengths
+
+    # ----------------------------------------------------------------------------------------
+    def try_scratch_erode_insert(self, tmpline, corr_vals=None, allowed_vals=None, parent_line=None, lengths=None, debug=False):  # non-None corr_vals determines if we're applying correlations; if <lengths> is set, use those deletion and insertion lengths instead of choosing them
         # ----------------------------------------------------------------------------------------
         def get_heavy_del(region, erosion, gene_length):
             if self.args.no_insertions_or_deletions:
                 return 0
-            max_erosion = max(0, gene_length//2 - 2)  # heuristic
-            if region in utils.conserved_codons[self.args.locus]:  # make sure not to erode a conserved codon
-                codon_pos = utils.cdn_pos(self.glfo, region, tmpline[region + '_gene'])
-                if '3p' in erosion:
-                    n_bases_to_codon = gene_length - codon_pos - 3
-                elif '5p' in erosion:
-                    n_bases_to_codon = codon_pos
-                max_erosion = min(max_erosion, n_bases_to_codon)
+            max_erosion = self.max_scratch_erosion(tmpline, erosion)
             mean_len = utils.scratch_mean_erosion_lengths[self.args.locus][erosion]
             if corr_vals is None and allowed_vals is None:  # the case where they're different is heavy chain for paired correlation, when corr_vals is None so we don't apply any correlations, but allowed_vals is *not* None so we can keep track of allowed values
                 e_len = min(max_erosion, len_fcn(1. / (mean_len + 1)) - 1)
@@ -343,7 +505,7 @@ class Recombinator(object):
                 e_len = numpy.random.choice(lens, p=probs)
             return e_len
         # ----------------------------------------------------------------------------------------
-        len_fcn = numpy.random.geometric  # has to match scipy.stats.geom above NOTE also the -1 in several places: geometric() starts at 1, so we draw with p = 1 / (mean + 1) and subtract 1, which gives lengths starting at 0 with mean <mean>
+        len_fcn = numpy.random.geometric  # has to match scratch_length_probs() above NOTE also the -1 in several places: geometric() starts at 1, so we draw with p = 1 / (mean + 1) and subtract 1, which gives lengths starting at 0 with mean <mean>
         utils.remove_all_implicit_info(tmpline)
         for erosion in utils.real_erosions:  # includes various contortions to avoid eroding the entire gene
             region = erosion[0]
@@ -351,12 +513,16 @@ class Recombinator(object):
             if region == 'd' and not utils.has_d_gene(self.args.locus):  # dummy d genes: always erode the whole thing from the left
                 assert gene_length == 1 and tmpline['d_gene'] == glutils.dummy_d_genes[self.args.locus]
                 tmpline[erosion + '_del'] = 1 if '5p' in erosion else 0
+            elif lengths is not None:
+                tmpline[erosion + '_del'] = lengths[erosion]
             else:
                 tmpline[erosion + '_del'] = get_heavy_del(region, erosion, gene_length)
         for bound in utils.boundaries:
             mean_len = utils.scratch_mean_insertion_lengths[self.args.locus][bound]
             if mean_len == 0 or self.args.no_insertions_or_deletions:
                 i_len = 0  # mean_len if 0 means it *needs* to be zero, e.g. vd insertion for light chain
+            elif lengths is not None:
+                i_len = lengths[bound]
             else:
                 if corr_vals is None and allowed_vals is None:
                     i_len = len_fcn(1. / (mean_len + 1)) - 1
@@ -392,9 +558,11 @@ class Recombinator(object):
                 tmpline['heavy-chain-correlation-info'] = None if parent_line is None else {'heavy-chain-uids' : parent_line['unique_ids']}
 
     # ----------------------------------------------------------------------------------------
-    def get_scratchline(self, i_heavy_event=None):
+    def get_scratchline(self, i_heavy_event=None, target_cdr3_length=None):  # if <target_cdr3_length> is set, choose deletion and insertion lengths that give that cdr3 length (rather than retrying until we get an allowed one)
         # ----------------------------------------------------------------------------------------
         def keep_trying(tmpline):
+            if target_cdr3_length is not None and tmpline['cdr3_length'] != target_cdr3_length:
+                raise Exception('chose deletion and insertion lengths for cdr3 length %d, but got %d' % (target_cdr3_length, tmpline['cdr3_length']))
             if not self.args.allow_nonfunctional_scratch_seqs and not tmpline['in_frames'][0]:
                 failcounters['out-of-frame'] += 1
                 return True
@@ -405,6 +573,19 @@ class Recombinator(object):
                 failcounters['allowed-cdr3'] += 1
                 return True
             return False
+        # ----------------------------------------------------------------------------------------
+        def choose_genes():
+            for region in utils.regions:
+                if len(self.glfo['seqs'][region]) == 0:
+                    raise Exception('no genes to choose from for %s (if light chain d, you need to explicitly add the dummy d to --only-genes)' % region)
+                probs = None  # it would make more sense to only do this prob calculation once, rather than for each event
+                allowed_genes = sorted(self.glfo['seqs'][region].keys())  # sorted is really just to make the correlation stuff feel more repeatable (.keys() should have repeatable order within a version: https://docs.python.org/2/library/stdtypes.html#dict.items)
+                if self.allele_prevalence_freqs is not None:
+                    if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
+                        probs = [self.allele_prevalence_freqs[region][g] for g in allowed_genes]
+                if corr_vals is not None or allowed_vals is not None:
+                    allowed_genes, probs = self.handle_options_for_correlation(region+'_gene', allowed_genes, corr_vals, allowed_vals, parent_line, probs=probs)
+                tmpline[region + '_gene'] = str(numpy.random.choice(allowed_genes, p=probs))
         # ----------------------------------------------------------------------------------------
         def fcstrs():
             return ['%s %d'%(f, c) for f, c in sorted(failcounters.items(), key=operator.itemgetter(1), reverse=True)]
@@ -430,17 +611,10 @@ class Recombinator(object):
                     print('    taking parent values for correlation from heavy chain event with: %s  %s  %s  cdr3: %d  uids: %s' % (utils.color_gene(parent_line['v_gene']), utils.color_gene(parent_line['d_gene']), utils.color_gene(parent_line['j_gene']), parent_line['cdr3_length'], ' '.join(parent_line['unique_ids'])))
 
         # first choose the things that we'll only need to try choosing once (genes and effective (non-physical) deletions/insertions)
-        for region in utils.regions:
-            if len(self.glfo['seqs'][region]) == 0:
-                raise Exception('no genes to choose from for %s (if light chain d, you need to explicitly add the dummy d to --only-genes)' % region)
-            probs = None  # it would make more sense to only do this prob calculation once, rather than for each event
-            allowed_genes = sorted(self.glfo['seqs'][region].keys())  # sorted is really just to make the correlation stuff feel more repeatable (.keys() should have repeatable order within a version: https://docs.python.org/2/library/stdtypes.html#dict.items)
-            if self.allele_prevalence_freqs is not None:
-                if region in self.allele_prevalence_freqs and len(self.allele_prevalence_freqs[region]) > 0:  # should really change it so it has to be the one or the other
-                    probs = [self.allele_prevalence_freqs[region][g] for g in allowed_genes]
-            if corr_vals is not None or allowed_vals is not None:
-                allowed_genes, probs = self.handle_options_for_correlation(region+'_gene', allowed_genes, corr_vals, allowed_vals, parent_line, probs=probs)
-            tmpline[region + '_gene'] = str(numpy.random.choice(allowed_genes, p=probs))
+        if target_cdr3_length is None:
+            choose_genes()
+        else:
+            self.choose_genes_for_cdr3(tmpline, target_cdr3_length)
         for effrode in utils.effective_erosions:
             tmpline[effrode + '_del'] = 0
         for effbound in utils.effective_boundaries:
@@ -451,10 +625,16 @@ class Recombinator(object):
         while itry == 0 or keep_trying(tmpline):  # keep trying until it's both in frame and has no stop codons
             if self.args.debug and itry > 0:
                 print('    %s: retrying scratch rearrangement (fail counters: %s)' % (utils.color('blue', 'itry %d'%itry), '  '.join(fcstrs())))
-            self.try_scratch_erode_insert(tmpline, corr_vals=corr_vals, allowed_vals=allowed_vals, parent_line=parent_line)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
+            if target_cdr3_length is None:
+                self.try_scratch_erode_insert(tmpline, corr_vals=corr_vals, allowed_vals=allowed_vals, parent_line=parent_line)  # NOTE the content of these insertions doesn't get used. They're converted to lengths just below (we make up new ones in self.erode_and_insert())
+            else:  # with a target cdr3 length, choose lengths that give it (the genes were chosen so that they can)
+                lengths = self.choose_scratch_lengths_for_cdr3(tmpline, target_cdr3_length)
+                if lengths is None:
+                    raise Exception('chose genes %s that can\'t give target cdr3 length %d' % (' '.join(tmpline[r + '_gene'] for r in utils.regions), target_cdr3_length))
+                self.try_scratch_erode_insert(tmpline, lengths=lengths)
             itry += 1
             if itry % 500 == 0:
-                print('      %s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far with failcounters: %s)' % ('note:', '' if self.args.allowed_cdr3_lengths is None else '(and with --allowed-cdr3-length) ', itry, '  '.join(fcstrs())))
+                print('      %s finding an in-frame and stop-less %srearrangement is taking an oddly large number of tries (%d so far with failcounters: %s)' % ('note:', '' if self.args.allowed_cdr3_lengths is None or target_cdr3_length is not None else '(and with --allowed-cdr3-length) ', itry, '  '.join(fcstrs())))
             if itry > self.n_max_tries:
                 raise SimuGiveUpError('    %s too many tries (%d > %d) when trying to get scratch line so giving up (well, probably retrying from further up, i.e. with new/iterated seed)' % (utils.wrnstr(), itry, self.n_max_tries))
 
@@ -465,13 +645,13 @@ class Recombinator(object):
         return tmpline
 
     # ----------------------------------------------------------------------------------------
-    def choose_vdj_combo(self, reco_event, i_heavy_event=None):  # NOTE similarity to hist.sample()
+    def choose_vdj_combo(self, reco_event, i_heavy_event=None, target_cdr3_length=None):  # NOTE similarity to hist.sample()
         """ Choose the set of rearrangement parameters """
 
         vdj_choice = None
         h_corr_line = None
         if self.args.rearrange_from_scratch:  # generate an event without using the parameter directory
-            tmpline = self.get_scratchline(i_heavy_event=i_heavy_event)
+            tmpline = self.get_scratchline(i_heavy_event=i_heavy_event, target_cdr3_length=target_cdr3_length)
             vdj_choice = self.freqtable_index(tmpline)
             if self.args.paired_correlation_values:
                 h_corr_line = tmpline
