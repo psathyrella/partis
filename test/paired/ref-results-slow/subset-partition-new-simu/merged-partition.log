@@ -1,189 +1,361 @@
 partis partition --dont-write-git-info --paired-loci --paired-indir test/paired/new-results-slow/test/simu --max-ccf-fail-frac 0.25 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --paired-outdir test/paired/new-results-slow/subset-partition-new-simu --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets --continue-from-input-partition --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile
 [44mpartition[0m [94migh[0m:
 [91mrun[0m partis partition --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igh.yaml --continue-from-input-partition --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/test/simu/igh.yaml --outfname test/paired/new-results-slow/subset-partition-new-simu/single-chain/partition-igh.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f70757d19b-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['93c713ce2f-igh', '93c713ce2f-igl', 'f70757d19b-igk'] --> ['f70757d19b-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '8137efc252-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['8137efc252-igk', 'f4a63b3436-igh'] --> []
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'ab844c81a9-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['7c0f9d14d4-igh', '7c0f9d14d4-igl', 'ab844c81a9-igk'] --> ['ab844c81a9-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '9e5bdd1e8b-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['46fae64bd1-igl', '9e5bdd1e8b-igk'] --> ['9e5bdd1e8b-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'e3401740ab-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['a46e333e44-igh', 'a46e333e44-igl', 'e3401740ab-igk'] --> ['e3401740ab-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '27ae3576c4-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['27ae3576c4-igk', '9fb6924ec4-igl'] --> ['27ae3576c4-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '504c8b89b8-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['87359cd25a-igh', '87359cd25a-igl'] --> ['87359cd25a-igl']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'e1ea83f29e-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['dbafbe2b90-igl', 'e1ea83f29e-igk'] --> ['e1ea83f29e-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '6d02627874-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['6d02627874-igk', 'c181d7f746-igh'] --> ['6d02627874-igk']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '4942615835-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['4942615835-igk', '68ed8fb0e7-igh', '68ed8fb0e7-igl'] --> ['4942615835-igk']
-[93mwarning[0m replaced input metafo for 320 instances of keys paired-uids (see above, only printed the first 10)
-  --input-metafnames: added meta info for 865 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 865 sequences in 336 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igh.yaml
-    removed 41/906 queries from input info that were absent from input partition
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'dd38b3fae2-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['814c70a159-igl', 'dd38b3fae2-igk'] --> ['dd38b3fae2-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '9da0026045-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['543427d3d4-igh', '543427d3d4-igl'] --> ['543427d3d4-igl']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'ce724f4dff-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['81fb9989a5-igh', '81fb9989a5-igl', 'ce724f4dff-igk'] --> ['ce724f4dff-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '1fc578b9fc-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['1fc578b9fc-igk', '8230b5a69e-igl'] --> ['1fc578b9fc-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '9789282349-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['16a836d2c6-igh', '16a836d2c6-igl', '9789282349-igk'] --> ['9789282349-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '504c8b89b8-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['504c8b89b8-igk', 'afc08a4979-igh', 'afc08a4979-igl'] --> ['504c8b89b8-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '4d3964e082-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['4d3964e082-igk', 'f23cf8f277-igh', 'f23cf8f277-igl'] --> ['4d3964e082-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'e0a108bcdd-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['7bbd5dd211-igh', '7bbd5dd211-igl'] --> ['7bbd5dd211-igl']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '21ade76fff-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['21ade76fff-igk', 'a1ac301ae5-igh', 'a1ac301ae5-igl'] --> ['21ade76fff-igk']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'c2fa086041-igh' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['744f2ebc53-igl', 'c2fa086041-igk'] --> ['c2fa086041-igk']
+[93mwarning[0m replaced input metafo for 304 instances of keys paired-uids (see above, only printed the first 10)
+  --input-metafnames: added meta info for 816 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 816 sequences in 339 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igh.yaml
+    removed 42/858 queries from input info that were absent from input partition
 partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/hmm)
 smith-waterman
-  vsearch: 865 / 865 v annotations (0 failed) with 23 v genes in 0.2 sec
+  vsearch: 816 / 816 v annotations (0 failed) with 48 v genes in 0.2 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml
-      info for 865 / 865 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 353 (0.408) unproductive
+      info for 816 / 816 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 294 (0.360) unproductive
         water time: 0.2
 hmm
-  caching all 865 naive sequences
-    [44mcaching[0m input annotation naive seqs in bcrham cache file for 336 clusters (865 seqs)
+  caching all 816 naive sequences
+    [93mwarning[0m lengths don't match when re-padding hmm seqs, but padding parameters are the same (will probably crash just below)
+       failed to fix: naive seq length in input annotation 351 different from that in sw info 352 352
+                 input-atn [94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCACAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGTGGTGGTTACTACTGGAGCTGGATCCGCCAGCACCCAGGGAAGGGCCTGGAGTGGATTGGGTACATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTACCATATCAGTAGACACGTCTAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACTGCCGCGGACACGGCCGTGTATTACTGTGCGTCCGGGAGCCCCTTTGACTACTGGGGCCAGGAACCCTGGTCACCGTCTCCTCAG[94m-[0m
+            241537c767-igh [94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCACAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGTGGTGGTTACTACTGGAGCTGGATCCGCCAGCACCCAGGGAAGGGCCTGGAGTGGATTGGGTACATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTACCATATCAGTAGACACGTCTAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACTGCCGCGGACACGGCCGTGTATTACTGTGCGTC[91mA[0mGGGAG[91mT[0mCCCTTTGACTACTGGGGCCAGGAACCCTGGTCACCGTCTCCTCAG[94mN[0m
+            9234bb2c3b-igh [94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCACAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGTGGTGGTTACTACTGGAGCTGGATCCGCCAGCACCCAGGGAAGGGCCTGGAGTGGATTGGGTACATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTACCATATCAGTAGACACGTCTAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACTGCCGCGGACACGGCCGTGTATTACTGTGCGT[91mT[0mCGGGAGC[91mG[0mC[91mA[0mTTTGACTACTGGGGCCAGGAACCCTGGTCACCGTCTCCTCAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 241537c767-igh:9234bb2c3b-igh (see previous lines)
+           so giving up and making multi-seq line from sw info
+    [93mwarning[0m lengths don't match when re-padding hmm seqs, but padding parameters are the same (will probably crash just below)
+       failed to fix: naive seq length in input annotation 351 different from that in sw info 352
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCACAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGTGGTGGTTACTACTGGAGCTGGATCCGCCAGCACCCAGGGAAGGGCCTGGAGTGGATTGGGTACATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTACCATATCAGTAGACACGTCTAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCGGACGCGGCCGTGTATTACTGTGCGTCCGGGAGCTACTTTGACTACTGGGGCCAGGAACCCTGGTCACCGTCTCCTCAG[94m-[0m
+            7514360864-igh [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTGCAGGAGTCGGGCCCAGGACTGGTGAAGCCTTCACAGACCCTGTCCCTCACCTGCACTGTCTCTGGTGGCTCCATCAGCAGTGGTGGTTACTACTGGAGCTGGATCCGCCAGCACCCAGGGAAGGGCCTGGAGTGGATTGGGTACATCTATTACAGTGGGAGCACCTACTACAACCCGTCCCTCAAGAGTCGAGTTACCATATCAGTAGACACGTCTAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCGGACGCGGCCGTGTATTACTGTGCGTCCGGGAGCTACTTTGACTACTGGGGCCAGGAACCCTGGTCACCGTCTCCTCAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 7514360864-igh (see previous lines)
+           so giving up and making multi-seq line from sw info
+    [93mwarning[0m lengths don't match when re-padding hmm seqs, but padding parameters are the same (will probably crash just below)
+       failed to fix: naive seq length in input annotation 393 different from that in sw info 394
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTACAGCAGTGGGGCGCAGGACTGTTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCGCTGTCTATGGTGGGTCCTTCAGTGGTTACTACTGGAGCTGGATCCGCCAGCCCCCAGGGAAGGGGCTGGAGTGGATTGGGGAAATCATTCATAGTGGAAGCACCAACTACAACCCGTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGCGGACACGGCTGTGTATTACTGTGCGAGAATAATGTATTATGATTACGTTTGGGGGAGTTATCGTTATACCCCACGCTACTTTGACTACTGGGGCCAGGAACCCTGGTCACCGTCTCCTCAG[94m-[0m
+            e58ca54598-igh [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGGTGCAGCTACAGCAGTGGGGCGCAGGACTGTTGAAGCCTTCGGAGACCCTGTCCCTCACCTGCGCTGTCTATGGTGGGTCCTTCAGTGGTTACTACTGGAGCTGGATCCGCCAGCCCCCAGGGAAGGGGCTGGAGTGGATTGGGGAAATCATTCATAGTGGAAGCACCAACTACAACCCGTCCCTCAAGAGTCGAGTCACCATATCAGTAGACACGTCCAAGAACCAGTTCTCCCTGAAGCTGAGCTCTGTGACCGCCGCGGACACGGCTGTGTATTACTGTGCGAGAATAATGTATTATGATTACGTTTGGGGGAGTTATCGTTATAC[91mG[0mCCACGCTACTTTGACTACTGGGGCCAGGAACCCTGGTCACCGTCTCCTCAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for e58ca54598-igh (see previous lines)
+           so giving up and making multi-seq line from sw info
+    [44mcaching[0m input annotation naive seqs in bcrham cache file for 339 clusters (816 seqs)
       --continue-from-input-partition: using input partition for initial cpath
-             336 clusters (865 seqs)
-  336 clusters with 10 procs (1.1s)
-   297 clusters with 7 procs (0.9s)
-   271 clusters with 5 procs (1.1s)
-   244 clusters with 3 procs (1.5s)
-   212 clusters with 2 procs (1.6s)
-   193 clusters with 2 procs (1.4s)
-   182 clusters with 2 procs (1.1s)
-   177 clusters with 2 procs (1.2s)
-   171 clusters with 1 proc (2.4s)
+             339 clusters (816 seqs)
+  339 clusters with 10 procs (0.6s)
+   317 clusters with 7 procs (1.8s)
+   289 clusters with 5 procs (0.9s)
+   267 clusters with 3 procs (1.4s)
+   245 clusters with 2 procs (1.7s)
+   219 clusters with 2 procs (1.4s)
+   214 clusters with 2 procs (0.9s)
+   209 clusters with 2 procs (0.7s)
+   205 clusters with 1 proc (4.6s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 12.4
+      partition loop time: 13.9
 getting annotations for final partition
-  subcluster annotating 170 clusters with steps:  (1.6s) (0.8s) (0.4s) (0.2s) 
-    subcluster annotation time 3.3
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
-      total time: 16.6
-      bcrham time: 13.7 (82.2% of total, 13 calls)
+  subcluster annotating 199 clusters with steps:  (2.1s) (1.0s) (0.5s) 
+    subcluster annotation time 8.0
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
+      total time: 23.7
+      bcrham time: 15.8 (66.9% of total, 12 calls)
 [44mpartition[0m [94migk[0m:
 [91mrun[0m partis partition --locus igk --dont-write-git-info --max-ccf-fail-frac 0.25 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igk.yaml --continue-from-input-partition --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/test/simu/igk.yaml --outfname test/paired/new-results-slow/subset-partition-new-simu/single-chain/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f70757d19b-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['93c713ce2f-igh', '93c713ce2f-igl', 'f70757d19b-igh'] --> ['f70757d19b-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '43f33e8990-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['8fbb84232d-igh', '8fbb84232d-igl'] --> ['8fbb84232d-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '8137efc252-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['8137efc252-igh', 'f4a63b3436-igh'] --> ['f4a63b3436-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'ab844c81a9-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['7c0f9d14d4-igh', '7c0f9d14d4-igl', 'ab844c81a9-igh'] --> ['ab844c81a9-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '9e5bdd1e8b-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['46fae64bd1-igl', '9e5bdd1e8b-igh'] --> ['9e5bdd1e8b-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'e3401740ab-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['a46e333e44-igh', 'a46e333e44-igl', 'e3401740ab-igh'] --> ['e3401740ab-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '9789282349-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['94da8cf125-igh', '94da8cf125-igl'] --> []
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '27ae3576c4-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['27ae3576c4-igh', '9fb6924ec4-igl'] --> ['27ae3576c4-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'e1ea83f29e-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['dbafbe2b90-igl', 'e1ea83f29e-igh'] --> ['e1ea83f29e-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '6d02627874-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['6d02627874-igh', 'c181d7f746-igh'] --> ['6d02627874-igh']
-[93mwarning[0m replaced input metafo for 120 instances of keys paired-uids (see above, only printed the first 10)
-  --input-metafnames: added meta info for 557 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 557 sequences in 212 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igk.yaml
-    removed 4/561 queries from input info that were absent from input partition
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'dd38b3fae2-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['814c70a159-igl', 'dd38b3fae2-igh'] --> ['dd38b3fae2-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'ce724f4dff-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['81fb9989a5-igh', '81fb9989a5-igl', 'ce724f4dff-igh'] --> ['ce724f4dff-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '1fc578b9fc-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['1fc578b9fc-igh', '8230b5a69e-igl'] --> ['1fc578b9fc-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '9789282349-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['16a836d2c6-igh', '16a836d2c6-igl', '9789282349-igh'] --> ['9789282349-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '504c8b89b8-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['504c8b89b8-igh', 'afc08a4979-igh', 'afc08a4979-igl'] --> ['504c8b89b8-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '4d3964e082-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['4d3964e082-igh', 'f23cf8f277-igh', 'f23cf8f277-igl'] --> ['4d3964e082-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '4ee8b2e05c-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['6d894e450e-igh', '6d894e450e-igl'] --> []
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '168dc1c97b-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['168dc1c97b-igh', '4d98ed5ede-igh', '4d98ed5ede-igl'] --> []
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '21ade76fff-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['21ade76fff-igh', 'a1ac301ae5-igh', 'a1ac301ae5-igl'] --> ['21ade76fff-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'e341f51dc8-igk' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['2d71b74b0b-igh', '2d71b74b0b-igl'] --> []
+[93mwarning[0m replaced input metafo for 130 instances of keys paired-uids (see above, only printed the first 10)
+  --input-metafnames: added meta info for 538 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 538 sequences in 223 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igk.yaml
+    removed 13/551 queries from input info that were absent from input partition
 partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/hmm)
 smith-waterman
-  vsearch: 557 / 557 v annotations (0 failed) with 16 v genes in 0.1 sec
+  vsearch: 538 / 538 v annotations (0 failed) with 19 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml
-      info for 557 / 557 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 158 (0.284) unproductive
-        water time: 1.0
-hmm
-  caching all 557 naive sequences
-    [44mcaching[0m input annotation naive seqs in bcrham cache file for 212 clusters (557 seqs)
-      --continue-from-input-partition: using input partition for initial cpath
-             212 clusters (557 seqs)
-  212 clusters with 10 procs (0.4s)
-   159 clusters with 7 procs (0.4s)
-   120 clusters with 5 procs (0.4s)
-   94 clusters with 3 procs (0.4s)
-   69 clusters with 2 procs (0.4s)
-   52 clusters with 2 procs (0.2s)
-   49 clusters with 2 procs (0.2s)
-   48 clusters with 2 procs (0.1s)
-   47 clusters with 1 proc (0.8s)
-   [93mnote[0m not merging entire cpath history
-      partition loop time: 3.4
-getting annotations for final partition
-  subcluster annotating 46 clusters with steps:  (1.0s) (0.5s) (0.2s) (0.1s) 
-    subcluster annotation time 2.1
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 4 / 561 missing ids as singletons to inferred partition, to match ids in true partition
-      total time: 6.9
-      bcrham time: 3.7 (53.3% of total, 13 calls)
-[44mpartition[0m [94migl[0m:
-[91mrun[0m partis partition --locus igl --dont-write-git-info --max-ccf-fail-frac 0.25 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igl.yaml --continue-from-input-partition --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/test/simu/igl.yaml --outfname test/paired/new-results-slow/subset-partition-new-simu/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '5368620879-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['10f000cfa3-igh', '10f000cfa3-igl'] --> []
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '51704c754b-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['1043450f84-igh', '1043450f84-igl', '51704c754b-igh'] --> ['51704c754b-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '6f1fb65dca-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['264f6d6b49-igh', '264f6d6b49-igl', '6f1fb65dca-igh'] --> ['6f1fb65dca-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '12a83768e5-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['12a83768e5-igh', 'f1856dc775-igh', 'f1856dc775-igl'] --> ['12a83768e5-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'cad29a1b6c-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['a55a638b45-igh', 'cad29a1b6c-igh'] --> ['a55a638b45-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '0b78927096-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['03a74a51e2-igh', '0b78927096-igh'] --> ['03a74a51e2-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '6b7dc7be48-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['6b7dc7be48-igh', 'cfab66149b-igh', 'cfab66149b-igl'] --> ['6b7dc7be48-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'c4be8209f1-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['861ef0a651-igl', 'c4be8209f1-igh'] --> ['c4be8209f1-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '60a652d4a3-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['60a652d4a3-igh', 'acf7c4e8ca-igh'] --> ['60a652d4a3-igh']
-  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '250b5e844f-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['250b5e844f-igh', 'af4fabe032-igl'] --> ['250b5e844f-igh']
-[93mwarning[0m replaced input metafo for 226 instances of keys paired-uids (see above, only printed the first 10)
-  --input-metafnames: added meta info for 353 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 353 sequences in 125 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igl.yaml
-    removed 6/359 queries from input info that were absent from input partition
-partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/hmm)
-smith-waterman
-  vsearch: 353 / 353 v annotations (0 failed) with 10 v genes in 0.1 sec
-        reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
-      info for 353 / 353 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 113 (0.320) unproductive
+      info for 538 / 538 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 150 (0.279) unproductive
         water time: 0.1
 hmm
-  caching all 353 naive sequences
-    [44mcaching[0m input annotation naive seqs in bcrham cache file for 125 clusters (353 seqs)
+  caching all 538 naive sequences
+    [44mcaching[0m input annotation naive seqs in bcrham cache file for 223 clusters (538 seqs)
       --continue-from-input-partition: using input partition for initial cpath
-             125 clusters (353 seqs)
-  125 clusters with 10 procs (0.3s)
-   68 clusters with 7 procs (0.2s)
-   46 clusters with 5 procs (0.2s)
-   30 clusters with 3 procs (0.2s)
-   24 clusters with 2 procs (0.2s)
-   18 clusters with 2 procs (0.2s)
-   16 clusters with 2 procs (0.2s)
-   13 clusters with 2 procs (0.1s)
-   12 clusters with 1 proc (0.5s)
+             223 clusters (538 seqs)
+  223 clusters with 10 procs (0.4s)
+   186 clusters with 7 procs (0.3s)
+   154 clusters with 5 procs (0.4s)
+   127 clusters with 3 procs (0.5s)
+   96 clusters with 2 procs (0.6s)
+   80 clusters with 2 procs (0.4s)
+   75 clusters with 2 procs (0.4s)
+   70 clusters with 2 procs (0.2s)
+   66 clusters with 1 proc (0.9s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 2.0
+      partition loop time: 4.2
 getting annotations for final partition
-  subcluster annotating 12 clusters with steps:  (1.1s) (0.3s) (0.2s) (0.1s) 
-    subcluster annotation time 2.5
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-    [93mwarning[0m added 6 / 359 missing ids as singletons to inferred partition, to match ids in true partition
-      total time: 4.8
-      bcrham time: 2.6 (54.8% of total, 13 calls)
+  subcluster annotating 65 clusters with steps:  (1.1s) (0.5s) (0.2s) (0.1s) 
+    subcluster annotation time 2.1
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 13 / 551 missing ids as singletons to inferred partition, to match ids in true partition
+      total time: 6.8
+      bcrham time: 4.6 (67.7% of total, 13 calls)
+[44mpartition[0m [94migl[0m:
+[91mrun[0m partis partition --locus igl --dont-write-git-info --max-ccf-fail-frac 0.25 --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igl.yaml --continue-from-input-partition --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/test/simu/igl.yaml --outfname test/paired/new-results-slow/subset-partition-new-simu/single-chain/partition-igl.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f504cca45d-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['7e9cf84fac-igh', '7e9cf84fac-igl'] --> ['7e9cf84fac-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'b63d45b58b-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['7b820385c2-igh', '7b820385c2-igl', 'b63d45b58b-igh'] --> ['b63d45b58b-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f50811d919-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['03c7fbf230-igh', '03c7fbf230-igl', 'f50811d919-igh'] --> ['f50811d919-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '0da0794818-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['0da0794818-igh', 'fc20a59b9a-igl'] --> ['0da0794818-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '0bcccb9719-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['63ba3dde8c-igl'] --> []
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '1c3e038954-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['1c3e038954-igh', '977323369c-igh', '977323369c-igl'] --> ['1c3e038954-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'c87b0ba4bb-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['c87b0ba4bb-igh', 'cea685b90c-igh', 'cea685b90c-igl'] --> ['c87b0ba4bb-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'e9f232f173-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['9debb6017b-igh', '9debb6017b-igl', 'e9f232f173-igh'] --> ['e9f232f173-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for 'f15ca357eb-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['ac3088db42-igh', 'ac3088db42-igl', 'f15ca357eb-igh'] --> ['f15ca357eb-igh']
+  [93mwarning[0m replacing 'paired-uids'/'paired-uids' value for '3193dba6ae-igl' with value from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: ['3193dba6ae-igh', 'ebe707a6ed-igh'] --> ['3193dba6ae-igh']
+[93mwarning[0m replaced input metafo for 196 instances of keys paired-uids (see above, only printed the first 10)
+  --input-metafnames: added meta info for 302 sequences from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 302 sequences in 116 clusters from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/partition-igl.yaml
+    removed 10/312 queries from input info that were absent from input partition
+partitioning     (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/hmm)
+smith-waterman
+  vsearch: 302 / 302 v annotations (0 failed) with 21 v genes in 0.1 sec
+        reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
+      info for 302 / 302 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 73 (0.242) unproductive
+        water time: 0.1
+hmm
+  caching all 302 naive sequences
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94m-[0m
+            4304e2a724-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 4304e2a724-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            0f2e19178e-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            4c64b43fcc-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            a9f21fe130-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 0f2e19178e-igl:4c64b43fcc-igl:a9f21fe130-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            1125edcc49-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            80ee0472b0-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            ed77de9776-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            d03bf8159b-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 1125edcc49-igl:80ee0472b0-igl:ed77de9776-igl:d03bf8159b-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            144e8a0e3c-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            3f97e38a7d-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            704207a72f-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            b4501c6f5d-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 144e8a0e3c-igl:3f97e38a7d-igl:704207a72f-igl:b4501c6f5d-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94m-[0m
+            319fd3dfd3-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 319fd3dfd3-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGTGCTGACTCAGCCACCCTCGGTGTCAGTGGCCCCAGGAAAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAGTGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCGTCTATGATGATAGCGACCGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAACTCTGGGAACACGGCCACCCTGACCATCAGCAGGGTCGAAGCCGGGGATGAGGCCGACTATTACTGTCAGGTGTGGGATAGTAGTAGTGATCAATTGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            227c255240-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGTGCTGACTCAGCCACCCTCGGTGTCAGTGGCCCCAGGAAAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAGTGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCGTCTATGATGATAGCGACCGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAACTCTGGGAACACGGCCACCCTGACCATCAGCAGGGTCGAAGCCGGGGATGAGGCCGACTATTACTGTCAGGTGTGGGATAGTAGTAGTGATCAATTGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            9a14b5f1bd-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGTGCTGACTCAGCCACCCTCGGTGTCAGTGGCCCCAGGAAAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAGTGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCGTCTATGATGATAGCGACCGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAACTCTGGGAACACGGCCACCCTGACCATCAGCAGGGTCGAAGCCGGGGATGAGGCCGACTATTACTGTCAGGTGTGGGATAGTAGTAGTGATCAATTGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCT[91mG[0mG[94mN[0m
+            c8b19608c6-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGTGCTGACTCAGCCACCCTCGGTGTCAGTGGCCCCAGGAAAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAGTGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCGTCTATGATGATAGCGACCGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAACTCTGGGAACACGGCCACCCTGACCATCAGCAGGGTCGAAGCCGGGGATGAGGCCGACTATTACTGTCAGGTGTGGGATAGTAGTAGTGATCAATTGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 227c255240-igl:9a14b5f1bd-igl:c8b19608c6-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            263e6d1322-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            24265fb739-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 263e6d1322-igl:24265fb739-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTGTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            2a55d7da0e-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTGTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            72a31aa192-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTGTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 2a55d7da0e-igl:72a31aa192-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353 353 353 353 353 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            365af95a86-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGG[91mA[0mACCAAGCTGACCGTCCTAG[94mN[0m
+            5e73422a34-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            5fa3eca595-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            80543ad4cb-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            9a9f9ccf11-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            cc144389a2-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            d2d5a5e1ad-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            fa2637833b-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            6616ea12ff-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            a457bc2d43-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 365af95a86-igl:5e73422a34-igl:5fa3eca595-igl:80543ad4cb-igl:9a9f9ccf11-igl:cc144389a2-igl:d2d5a5e1ad-igl:fa2637833b-igl:6616ea12ff-igl:a457bc2d43-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94m-[0m
+            16656ce90b-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94mN[0m
+            033c5a64e9-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 16656ce90b-igl:033c5a64e9-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAGCACCCAGGCAAAGCCCCCAAACTCATGATTTATGATGTCAGTAATCGGCCCTCAGGGGTTTCTAATCGCTTCTCTGGCTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTCAGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            382c1d45dc-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAGCACCCAGGCAAAGCCCCCAAACTCATGATTTATGATGTCAGTAATCGGCCCTCAGGGGTTTCTAATCGCTTCTCTGGCTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTCAGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            a5f4e3b40f-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAGCACCCAGGCAAAGCCCCCAAACTCATGATTTATGATGTCAGTAATCGGCCCTCAGGGGTTTCTAATCGCTTCTCTGGCTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTCAGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 382c1d45dc-igl:a5f4e3b40f-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTCCTGATGTTCGGCGGAGGGACCAAGCTGACCGTCCTGG[94m-[0m
+            4222665600-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTCCTG[91mG[0mTGTTCGGCGGAGGGACCAAGCTGACCGTCCTGG[94mN[0m
+            8a0c46064e-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTCCTG[91mG[0mTGTTCGGCGGAGGGACCAAGCTGACCGTCCTGG[94mN[0m
+            42beb8415a-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTCCTG[91mG[0mTGTTCGGCGGAGGGACCAAGCTGACCGTCCTGG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 4222665600-igl:8a0c46064e-igl:42beb8415a-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94m-[0m
+            56e64756f2-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 56e64756f2-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            5fc8c44436-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            84895a0c46-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            8cc9046b11-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 5fc8c44436-igl:84895a0c46-igl:8cc9046b11-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            6726f99671-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            eb85a4f5b6-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 6726f99671-igl:eb85a4f5b6-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            8322983a28-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            ed1b56b7ee-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            f8e2891ae8-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            ff435df8bb-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 8322983a28-igl:ed1b56b7ee-igl:f8e2891ae8-igl:ff435df8bb-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGTGCTGACTCAGCCACCCTCGGTGTCAGTGGCCCCAGGAAAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAGTGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCGTCTATGATGATAGCGACCGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAACTCTGGGAACACGGCCACCCTGACCATCAGCAGGGTCGAAGCCGGGGATGAGGCCGACTATTACTGTCAGGTGTGGGATAGTAGTAGTGATCATTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            857c8d6220-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGTGCTGACTCAGCCACCCTCGGTGTCAGTGGCCCCAGGAAAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAGTGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCGTCTATGATGATAGCGACCGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAACTCTGGGAACACGGCCACCCTGACCATCAGCAGGGTCGAAGCCGGGGATGAGGCCGACTATTACTGTCAGGTGTGGGATAGTAGTAGTGATCATTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            f8a059e70d-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGTGCTGACTCAGCCACCCTCGGTGTCAGTGGCCCCAGGAAAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAGTGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCGTCTATGATGATAGCGACCGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAACTCTGGGAACACGGCCACCCTGACCATCAGCAGGGTCGAAGCCGGGGATGAGGCCGACTATTACTGTCAGGTGTGGGATAGTAGTAGTGATCATTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            e57fbffbf7-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGTGCTGACTCAGCCACCCTCGGTGTCAGTGGCCCCAGGAAAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAGTGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCGTCTATGATGATAGCGACCGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAACTCTGGGAACACGGCCACCCTGACCATCAGCAGGGTCGAAGCCGGGGATGAGGCCGACTATTACTGTCAGGTGTGGGATAGTAGTAGTGATCATTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 857c8d6220-igl:f8a059e70d-igl:e57fbffbf7-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            909d55be17-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            f0cf134250-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCTTCTGAGCTGACTCAGGACCCTGCTGTGTCTGTGGCCTTGGGACAGACAGTCAGGATCACATGCCAAGGAGACAGCCTCAGAAGCTATTATGCAAGCTGGTACCAGCAGAAGCCAGGACAGGCCCCTGTACTTGTCATCTATGGTAAAAACAACCGGCCCTCAGGGATCCCAGACCGATTCTCTGGCTCCAGCTCAGGAAACACAGCTTCCTTGACCATCACTGGGGCTCAGGCGGAAGATGAGGCTGACTATTACTGTAACTCCCGGGACAGCAGTGGTAACCATGTGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 909d55be17-igl:f0cf134250-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94m-[0m
+            9debb6017b-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACGCAGCCGCCCTCAGTGTCTGGGGCCCCAGGGCAGAGGGTCACCATCTCCTGCACTGGGAGCAGCTCCAACATCGGGGCAGGTTATGATGTACACTGGTACCAGCAGCTTCCAGGAACAGCCCCCAAACTCCTCATCTATGGTAACAGCAATCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCACTGGGCTCCAGGCTGAGGATGAGGCTGATTATTACTGCCAGTCCTATGACAGCAGCCTGAGTGGTTATGTCTTCGGAACTGGGACCAAGGTCACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 9debb6017b-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGAGCTGACTCAGCCACTCTCAGTGTCAGTGGCCCTGGGACAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAATGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCATCTATAGGGATAGCAACCGGCCCTCTGGGATCCCTGAGCGATTCTCTGGCTCCAACTCGGGGAACACGGCCACCCTGACCATCAGCAGAGCCCAAGCCGGGGATGAGGCTGACTATTACTGTCAGGTGTGGGACAGCAGCACTGCACACTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            aae1719906-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGAGCTGACTCAGCCACTCTCAGTGTCAGTGGCCCTGGGACAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAATGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCATCTATAGGGATAGCAACCGGCCCTCTGGGATCCCTGAGCGATTCTCTGGCTCCAACTCGGGGAACACGGCCACCCTGACCATCAGCAGAGCCCAAGCCGGGGATGAGGCTGACTATTACTGTCAGGTGTGGGACAGCAGCACTGCACA[91mT[0mTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            624bf4fd14-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGAGCTGACTCAGCCACTCTCAGTGTCAGTGGCCCTGGGACAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAATGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCATCTATAGGGATAGCAACCGGCCCTCTGGGATCCCTGAGCGATTCTCTGGCTCCAACTCGGGGAACACGGCCACCCTGACCATCAGCAGAGCCCAAGCCGGGGATGAGGCTGACTATTACTGTCAGGTGTGGGACAGCAGCACTGC[91mT[0m[91mT[0m[91mT[0mC[91mC[0mGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            67b32be13c-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGAGCTGACTCAGCCACTCTCAGTGTCAGTGGCCCTGGGACAGACGGCCAGGATTACCTGTGGGGGAAACAACATTGGAAGTAAAAATGTGCACTGGTACCAGCAGAAGCCAGGCCAGGCCCCTGTGCTGGTCATCTATAGGGATAGCAACCGGCCCTCTGGGATCCCTGAGCGATTCTCTGGCTCCAACTCGGGGAACACGGCCACCCTGACCATCAGCAGAGCCCAAGCCGGGGATGAGGCTGACTATTACTGTCAGGTGTGGGACAGCAGCACTGCAC[91mC[0m[91mG[0mTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for aae1719906-igl:624bf4fd14-igl:67b32be13c-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            c8e1fc426b-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            cea7d874d8-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            f8bf0b571b-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGCCCTGACTCAGCCTGCCTCCGTGTCTGGGTCTCCTGGACAGTCGATCACCATCTCCTGCACTGGAACCAGCAGTGACGTTGGTGGTTATAACTATGTCTCCTGGTACCAACAACACCCAGGCAAAGCCCCCAAACTCATGATTTATGAGGTCAGTAATCGGCCCTCAGGGGTCCCTGATCGCTTCTCTGGGTCCAAGTCTGGCAACACGGCCTCCCTGACCATCTCTGGGCTCCAGGCTGAGGACGAGGCTGATTATTACTGCAGCTCATATACAAGCAGCAGCACTCTTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for c8e1fc426b-igl:cea7d874d8-igl:f8bf0b571b-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            c92f3e0ff8-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGTTGACGCAGCCGCCCTCAGTGTCTGCGGCCCCAGGACAGAAGGTCACCATCTCCTGCTCTGGAAGCAGCTCCAACATTGGGAATAATTATGTATCCTGGTACCAGCAGCTCCCAGGAACAGCCCCCAAACTCCTCATCTATGAAAATAATAAGCGACCCTCAGGGATTCCTGACCGATTCTCTGGCTCCAAGTCTGGCACGTCAGCCACCCTGGGCATCACCGGACTCCAGACTGGGGACGAGGCCGATTATTACTGCGGAACATGGGATGGCAGCCTGAGTGCTGGGGTATTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for c92f3e0ff8-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGAGCTGACACAGCCACCCTCGGTGTCAGTGTCCCCAGGACAGACGGCCAGGATCACCTGCTCTGGAGATGCATTGCCAAAGCAATATGCTTATTGGTACCAACAGAAGCCAGGCCAGGCCCCTGTGCTGGTGATATATAAAGACAGTGAGAGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAGCTCAGGGACAACAGTCACGTTGACCATCAGTGGAGTCCAGGCAGAAGACGAGGCTGACTATTACTGTCAATCAGCAGACAGCAGTGGTACTTATCGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            ecdb441fe1-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGAGCTGACACAGCCACCCTCGGTGTCAGTGTCCCCAGGACAGACGGCCAGGATCACCTGCTCTGGAGATGCATTGCCAAAGCAATATGCTTATTGGTACCAACAGAAGCCAGGCCAGGCCCCTGTGCTGGTGATATATAAAGACAGTGAGAGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAGCTCAGGGACAACAGTCACGTTGACCATCAGTGGAGTCCAGGCAGAAGACGAGGCTGACTATTACTGTCAATCAGCAGACAGCAGTGGTACTTATCGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            ff0325d6a6-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mTCCTATGAGCTGACACAGCCACCCTCGGTGTCAGTGTCCCCAGGACAGACGGCCAGGATCACCTGCTCTGGAGATGCATTGCCAAAGCAATATGCTTATTGGTACCAACAGAAGCCAGGCCAGGCCCCTGTGCTGGTGATATATAAAGACAGTGAGAGGCCCTCAGGGATCCCTGAGCGATTCTCTGGCTCCAGCTCAGGGACAACAGTCACGTTGACCATCAGTGGAGTCCAGGCAGAAGACGAGGCTGACTATTACTGTCAATCAGCAGACAGCAGTGGTACTTATCGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for ecdb441fe1-igl:ff0325d6a6-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353 353 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            ff6d24f438-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGG[91mG[0mTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            be5743f70e-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+            daf3217d8d-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATTATGTATACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGGAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCGGTCGGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAGTGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for ff6d24f438-igl:be5743f70e-igl:daf3217d8d-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+       failed to fix: naive seq length in input annotation 352 different from that in sw info 353
+                 input-atn [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATACTGTAAACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGCAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCAGTCTGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAATGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94m-[0m
+            5b13748eb4-igl [94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0m[94mN[0mCAGTCTGTGCTGACTCAGCCACCCTCAGCGTCTGGGACCCCCGGGCAGAGGGTCACCATCTCTTGTTCTGGAAGCAGCTCCAACATCGGAAGTAATACTGTAAACTGGTACCAGCAGCTCCCAGGAACGGCCCCCAAACTCCTCATCTATAGCAATAATCAGCGGCCCTCAGGGGTCCCTGACCGATTCTCTGGCTCCAAGTCTGGCACCTCAGCCTCCCTGGCCATCAGTGGGCTCCAGTCTGAGGATGAGGCTGATTATTACTGTGCAGCATGGGATGACAGCCTGAATGGTTGGGTGTTCGGCGGAGGGACCAAGCTGACCGTCCTAG[94mN[0m
+        [93mwarning[0m didn't manage to fix lengths for 5b13748eb4-igl (see previous lines)
+           so giving up and making multi-seq line from sw info
+    [44mcaching[0m input annotation naive seqs in bcrham cache file for 116 clusters (302 seqs)
+      --continue-from-input-partition: using input partition for initial cpath
+             116 clusters (302 seqs)
+  116 clusters with 10 procs (0.2s)
+   92 clusters with 7 procs (0.2s)
+   80 clusters with 5 procs (0.2s)
+   67 clusters with 3 procs (0.4s)
+   48 clusters with 2 procs (0.3s)
+   38 clusters with 2 procs (0.2s)
+   36 clusters with 2 procs (0.1s)
+   35 clusters with 2 procs (0.1s)
+   33 clusters with 1 proc (0.9s)
+   [93mnote[0m not merging entire cpath history
+      partition loop time: 2.7
+getting annotations for final partition
+  subcluster annotating 33 clusters with steps:  (0.8s) (0.3s) (0.2s) (0.1s) 
+    subcluster annotation time 1.5
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+    [93mwarning[0m added 10 / 312 missing ids as singletons to inferred partition, to match ids in true partition
+      total time: 12.3
+      bcrham time: 3.2 (25.8% of total, 13 calls)
 [44mcombining[0m chains
-cleaning pair info for 1775 seqs
+cleaning pair info for 1656 seqs
      synchronized/fixed 0 pairs where one had no pair info after cleaning: [94mh[0m 0  [95mk[0m 0  [92ml[0m 0
 WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
 WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
@@ -234,150 +406,155 @@ WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
 WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
 WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
 WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
+WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
+WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
+WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
+WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
+WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
+WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
+WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
+WARNING using errors instead of sumw2 with weight != 1.0 in Hist::fill_ibin()
 [94migh+igk[0m: synchronizing heavy and light chain cluster paths
-    removing badly + unpaired seqs:  kept 165 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 83  [95mk[0m 82
+    removing badly + unpaired seqs:  kept 148 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 73  [95mk[0m 75
             note: discarding unpaired seqs in families with no (well-)paired seqs (i.e. families that are all either unpaired or paired to the other/wrong light chain), rather than keeping track of them to re-add later
-        discarded 19 total unpaired (in families with no (well-)paired seqs): [94mh[0m 19  [95mk[0m 0
+        discarded 28 total unpaired (in families with no (well-)paired seqs): [94mh[0m 28  [95mk[0m 0
     merging igh+igk partitions
   [93mwarning[0m paired uids in line, but <translate_pids> wasn't set, so they won't be translated
    N clusters without bad/unpaired seqs:
-        [94mh[0m  125 --> 157  [91m+32[0m
-        [95mk[0m   46 --> 157  [91m+111[0m
-    re-added unpaired seqs ([94mh[0m 83, [95mk[0m 82) to give total seqs in joint partitions: [94mh[0m 558  [95mk[0m 557
+        [94mh[0m  148 --> 162  [91m+14[0m
+        [95mk[0m   65 --> 162  [91m+97[0m
+    re-added unpaired seqs ([94mh[0m 73, [95mk[0m 75) to give total seqs in joint partitions: [94mh[0m 536  [95mk[0m 538
                              new        existing
             singleton      cluster       cluster
-       [94mh[0m            0           0          83
-       [95mk[0m            0           0          82
-    [93mwarning[0m removed 41/906 uids (leaving 865) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m removed 45/574 uids (leaving 529) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m added 15 / 558 missing ids as singletons to true partition, to match ids in inferred partition (restricting to unpaired_uids, i.e. probably these were unpaired seqs that were re-added to the inferred partition, but in the true partition were paired with the other chain)
-    [93mwarning[0m added 14 / 558 missing ids as singletons to true partition, to match ids in inferred partition (giving up and adding whatever is needed, which is sometimes/maybe just from mispaired seqs)
+       [94mh[0m            0           0          73
+       [95mk[0m            0           0          75
+    [93mwarning[0m removed 42/858 uids (leaving 816) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m removed 38/554 uids (leaving 516) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m added 7 / 536 missing ids as singletons to true partition, to match ids in inferred partition (restricting to unpaired_uids, i.e. probably these were unpaired seqs that were re-added to the inferred partition, but in the true partition were paired with the other chain)
+    [93mwarning[0m added 13 / 536 missing ids as singletons to true partition, to match ids in inferred partition (giving up and adding whatever is needed, which is sometimes/maybe just from mispaired seqs)
   [94mh[0m ccfs:     purity  completeness
-      single   0.810  0.929
-       joint   0.950  0.925
-    [93mwarning[0m removed 4/561 uids (leaving 557) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m removed 4/561 uids (leaving 557) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+      single   0.964  0.943
+       joint   0.976  0.916
+    [93mwarning[0m removed 13/551 uids (leaving 538) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m removed 13/551 uids (leaving 538) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
   [95mk[0m ccfs:     purity  completeness
-      single   0.380  0.967
-       joint   0.919  0.859
+      single   0.551  0.977
+       joint   0.936  0.841
   merge time 0.0
-  need to get annotations for 95/157 joint igh clusters
+  need to get annotations for 86/162 joint igh clusters
 [44mannotate[0m [94migh+igk[0m:[94m igh[0m
     removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
 [91mrun[0m partis annotate --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igh.yaml --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igh-only-partition.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/input-seqs-igh.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igh.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml --ignore-sw-pair-info
-  --input-metafnames: added meta info for 558 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igh.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 558 sequences in 157 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igh-only-partition.yaml
+  --input-metafnames: added meta info for 536 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igh.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 536 sequences in 162 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/hmm)
 smith-waterman
-  vsearch: 558 / 558 v annotations (0 failed) with 23 v genes in 0.1 sec
+  vsearch: 536 / 536 v annotations (0 failed) with 45 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml
-      info for 558 / 558 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 230 (0.412) unproductive
+      info for 536 / 536 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 204 (0.381) unproductive
         water time: 0.2
 hmm
-  subcluster annotating 157 clusters with steps:  (1.2s) (0.5s) (0.3s) 
-    subcluster annotation time 2.1
-      total time: 2.5
-      bcrham time: 1.8 (71.4% of total, 3 calls)
-  need to get annotations for 144/157 joint igk clusters
+  subcluster annotating 162 clusters with steps:  (2.3s) (0.8s) (0.3s) 
+    subcluster annotation time 3.5
+      total time: 3.8
+      bcrham time: 3.0 (79.4% of total, 3 calls)
+  need to get annotations for 144/162 joint igk clusters
 [44mannotate[0m [94migh+igk[0m:[94m igk[0m
     removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
 [91mrun[0m partis annotate --locus igk --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igk.yaml --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igk-only-partition.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/input-seqs-igk.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igk.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml --ignore-sw-pair-info
-  --input-metafnames: added meta info for 557 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igk.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 557 sequences in 157 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igk-only-partition.yaml
+  --input-metafnames: added meta info for 538 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/meta-igk.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 538 sequences in 162 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igk/partition-igk-only-partition.yaml
 annotating    (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/hmm)
 smith-waterman
-  vsearch: 557 / 557 v annotations (0 failed) with 16 v genes in 0.1 sec
+  vsearch: 538 / 538 v annotations (0 failed) with 19 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igk/sw-cache.yaml
-      info for 557 / 557 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 158 (0.284) unproductive
+      info for 538 / 538 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 150 (0.279) unproductive
         water time: 0.1
 hmm
-  [93mwarning[0m split apart 1 cluster that contained multiple cdr3 lengths (total clusters: 157 --> 158)
-      cluster splits:   4 --> 3 1
-  subcluster annotating 158 clusters with steps:  (1.0s) (0.4s) (0.1s) 
-    subcluster annotation time 1.6
-      total time: 1.9
-      bcrham time: 1.0 (51.2% of total, 3 calls)
+  subcluster annotating 162 clusters with steps:  (1.0s) (0.3s) (0.1s) 
+    subcluster annotation time 1.5
+      total time: 1.8
+      bcrham time: 0.9 (51.7% of total, 3 calls)
 [94migh+igl[0m: synchronizing heavy and light chain cluster paths
-    removing badly + unpaired seqs:  kept 125 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 60  [92ml[0m 65
+    removing badly + unpaired seqs:  kept 95 total unpaired (i.e. setting aside in order to reintegrate after paired clustering): [94mh[0m 45  [92ml[0m 50
             note: discarding unpaired seqs in families with no (well-)paired seqs (i.e. families that are all either unpaired or paired to the other/wrong light chain), rather than keeping track of them to re-add later
-        discarded 42 total unpaired (in families with no (well-)paired seqs): [94mh[0m 42  [92ml[0m 0
+        discarded 56 total unpaired (in families with no (well-)paired seqs): [94mh[0m 56  [92ml[0m 0
     merging igh+igl partitions
   [93mwarning[0m paired uids in line, but <translate_pids> wasn't set, so they won't be translated
    N clusters without bad/unpaired seqs:
-        [94mh[0m   77 --> 89   [91m+12[0m
-        [92ml[0m   12 --> 89   [91m+77[0m
-    re-added unpaired seqs ([94mh[0m 60, [92ml[0m 65) to give total seqs in joint partitions: [94mh[0m 348  [92ml[0m 353
+        [94mh[0m   73 --> 85   [91m+12[0m
+        [92ml[0m   33 --> 85   [91m+52[0m
+    re-added unpaired seqs ([94mh[0m 45, [92ml[0m 50) to give total seqs in joint partitions: [94mh[0m 297  [92ml[0m 302
                              new        existing
             singleton      cluster       cluster
-       [94mh[0m            0           0          60
-       [92ml[0m            0           0          65
-    [93mwarning[0m removed 41/906 uids (leaving 865) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m removed 30/332 uids (leaving 302) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m added 26 / 348 missing ids as singletons to true partition, to match ids in inferred partition (restricting to unpaired_uids, i.e. probably these were unpaired seqs that were re-added to the inferred partition, but in the true partition were paired with the other chain)
-    [93mwarning[0m added 20 / 348 missing ids as singletons to true partition, to match ids in inferred partition (giving up and adding whatever is needed, which is sometimes/maybe just from mispaired seqs)
+       [94mh[0m            0           0          45
+       [92ml[0m            0           0          50
+    [93mwarning[0m removed 42/858 uids (leaving 816) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m removed 29/304 uids (leaving 275) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m added 10 / 297 missing ids as singletons to true partition, to match ids in inferred partition (restricting to unpaired_uids, i.e. probably these were unpaired seqs that were re-added to the inferred partition, but in the true partition were paired with the other chain)
+    [93mwarning[0m added 12 / 297 missing ids as singletons to true partition, to match ids in inferred partition (giving up and adding whatever is needed, which is sometimes/maybe just from mispaired seqs)
   [94mh[0m ccfs:     purity  completeness
-      single   0.810  0.929
-       joint   0.829  0.854
-    [93mwarning[0m removed 6/359 uids (leaving 353) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
-    [93mwarning[0m removed 6/359 uids (leaving 353) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+      single   0.964  0.943
+       joint   0.956  0.905
+    [93mwarning[0m removed 10/312 uids (leaving 302) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
+    [93mwarning[0m removed 10/312 uids (leaving 302) from true partition that were not in inferred partition (probably either seqs that failed inference [if light chain] or mispaired seqs [if heavy chain])
   [92ml[0m ccfs:     purity  completeness
-      single   0.261  0.992
-       joint   0.837  0.716
+      single   0.502  0.970
+       joint   0.946  0.820
   merge time 0.0
-  need to get annotations for 51/89 joint igh clusters
+  need to get annotations for 47/85 joint igh clusters
 [44mannotate[0m [94migh+igl[0m:[94m igh[0m
     removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
 [91mrun[0m partis annotate --locus igh --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igh.yaml --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igh-only-partition.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/input-seqs-igh.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igh.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml --ignore-sw-pair-info
-  --input-metafnames: added meta info for 348 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igh.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 348 sequences in 89 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igh-only-partition.yaml
+  --input-metafnames: added meta info for 297 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igh.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 297 sequences in 85 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igh-only-partition.yaml
 annotating    (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/hmm)
 smith-waterman
-  vsearch: 348 / 348 v annotations (0 failed) with 20 v genes in 0.1 sec
+  vsearch: 297 / 297 v annotations (0 failed) with 28 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igh/sw-cache.yaml
-      info for 348 / 348 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 135 (0.388) unproductive
+      info for 297 / 297 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 100 (0.337) unproductive
         water time: 0.1
 hmm
-  subcluster annotating 89 clusters with steps:  (0.9s) (0.4s) (0.2s) (0.2s) 
+  subcluster annotating 85 clusters with steps:  (0.9s) (0.5s) (0.3s) 
     subcluster annotation time 1.8
       total time: 2.0
-      bcrham time: 1.4 (70.7% of total, 4 calls)
-  need to get annotations for 87/89 joint igl clusters
+      bcrham time: 1.5 (74.1% of total, 3 calls)
+  need to get annotations for 73/85 joint igl clusters
 [44mannotate[0m [94migh+igl[0m:[94m igl[0m
     removed 1 arg strs that were specific to action 'partition': --continue-from-input-partition
 [91mrun[0m partis annotate --locus igl --dont-write-git-info --max-ccf-fail-frac 0.25 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --input-metafnames test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igl.yaml --input-partition-fname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igl-only-partition.yaml --parameter-dir test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl --ignore-sw-pair-info --refuse-to-cache-parameters --ignore-default-input-metafile --crash-on-duplicate-uids --infname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/input-seqs-igl.fa --outfname test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igl.yaml --sw-cachefname test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml --ignore-sw-pair-info
-  --input-metafnames: added meta info for 353 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igl.yaml: loci paired-uids
-  --input-partition-fname: read best partition with 353 sequences in 89 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igl-only-partition.yaml
+  --input-metafnames: added meta info for 302 sequences from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/meta-igl.yaml: loci paired-uids
+  --input-partition-fname: read best partition with 302 sequences in 85 clusters from test/paired/new-results-slow/subset-partition-new-simu/igh+igl/partition-igl-only-partition.yaml
 annotating    (with test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/hmm)
 smith-waterman
-  vsearch: 353 / 353 v annotations (0 failed) with 10 v genes in 0.1 sec
+  vsearch: 302 / 302 v annotations (0 failed) with 21 v genes in 0.1 sec
         reading sw results from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/parameters/igl/sw-cache.yaml
-      info for 353 / 353 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 113 (0.320) unproductive
+      info for 302 / 302 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 73 (0.242) unproductive
         water time: 0.1
 hmm
-  [93mwarning[0m split apart 2 clusters that contained multiple cdr3 lengths (total clusters: 89 --> 91)
-      cluster splits:   4 --> 1 3,   6 --> 1 5
-  subcluster annotating 91 clusters with steps:  (0.6s) (0.3s) (0.2s) (0.1s) 
-    subcluster annotation time 1.3
-      total time: 1.5
-      bcrham time: 0.8 (54.6% of total, 4 calls)
+  subcluster annotating 85 clusters with steps:  (0.8s) (0.3s) (0.1s) 
+    subcluster annotation time 1.2
+      total time: 1.4
+      bcrham time: 0.9 (61.8% of total, 3 calls)
   --input-metafnames: no meta info added from test/paired/new-results-slow/subset-partition-new-simu/merged-subsets/meta.yaml
   concatenating heavy chain loci:
-      [94mh[0m starting with 157 annotations (558 seqs)
-      [93mwarning[0m genes in glfo but not referenced in any annotation:    v: [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m02[0m   j: [95mh[0m[91mj[0m[95m4[0m[93m01[0m
-      [95mk[0m starting with 158 annotations (557 seqs)
-      [94mh[0m adding 89 annotations (348 seqs) for total 246 (906)
-      [93mwarning[0m genes in glfo but not referenced in any annotation:    v: [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m02[0m   j: [95mh[0m[91mj[0m[95m4[0m[93m01[0m
-      [92ml[0m starting with 91 annotations (353 seqs)
-      [93mwarning[0m genes in glfo but not referenced in any annotation:    j: [95ml[0m[91mj[0m[95m3[0m[95m-1[0m[93m01_i27g[0m [95ml[0m[91mj[0m[95m1[0m[93m01_a23-[0m [95ml[0m[91mj[0m[95m2[0m[93m01_c13t[0m
+      [94mh[0m starting with 162 annotations (536 seqs)
+      [93mwarning[0m genes in glfo but not referenced in any annotation:    v: [95mh[0m[91mv[0m[95m3[0m[95m-35[0m[93m02[0m [95mh[0m[91mv[0m[95m4[0m[95m-59[0m[93m11[0m [95mh[0m[91mv[0m[95m3[0m[95m-43D[0m[93m03[0m   j: [95mh[0m[91mj[0m[95m6[0m[93m03[0m [95mh[0m[91mj[0m[95m5[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m
+      [95mk[0m starting with 162 annotations (538 seqs)
+      [93mwarning[0m genes in glfo but not referenced in any annotation:    j: [95mk[0m[91mj[0m[95m5[0m[93m01_g31a[0m
+      [94mh[0m adding 85 annotations (297 seqs) for total 247 (833)
+      [93mwarning[0m genes in glfo but not referenced in any annotation:    v: [95mh[0m[91mv[0m[95m3[0m[95m-35[0m[93m02[0m   j: [95mh[0m[91mj[0m[95m6[0m[93m03[0m [95mh[0m[91mj[0m[95m5[0m[93m01[0m [95mh[0m[91mj[0m[95m4[0m[93m03[0m
+      [92ml[0m starting with 85 annotations (302 seqs)
+      [93mwarning[0m genes in glfo but not referenced in any annotation:    j: [95ml[0m[91mj[0m[95m2[0m[93m01_g19a[0m [95ml[0m[91mj[0m[95m3[0m[95m-1[0m[93m01_i27g[0m [95ml[0m[91mj[0m[95m3[0m[95m-1[0m[93m01_i0t_t2g[0m [95ml[0m[91mj[0m[95m3[0m[95m-2[0m[93m01_g11-[0m
     finished with:
-     [94mh[0m: 246 annotations (865 seqs)
-    [93mwarning[0m added 41 / 906 missing ids as singletons to inferred partition, to match ids in true partition
+     [94mh[0m: 247 annotations (816 seqs)
+    [93mwarning[0m added 42 / 858 missing ids as singletons to inferred partition, to match ids in true partition
    N clusters with all seqs:
-        [94mh[0m  170 --> 246  [91m+76[0m
-        [95mk[0m   46 --> 157  [91m+111[0m
-        [92ml[0m   12 --> 89   [91m+77[0m
-      total time: 45.1
+        [94mh[0m  199 --> 247  [91m+48[0m
+        [95mk[0m   65 --> 162  [91m+97[0m
+        [92ml[0m   33 --> 85   [91m+52[0m
+      total time: 61.1

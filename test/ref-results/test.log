@@ -1,9 +1,9 @@
-[92mcache-parameters-data[0m            partis cache-parameters --dont-write-git-info --infname /tmp/dralph/wt-seed/test/mishmash.fa --parameter-dir test/new-results/test/parameters/data --sw-cachefname test/new-results/test/parameters/data/sw-cache.yaml --n-max-queries 50 --input-metafnames /tmp/dralph/wt-seed/test/input-meta.yaml --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
-    stopped after reading 50 sequences from /tmp/dralph/wt-seed/test/mishmash.fa
+[92mcache-parameters-data[0m            partis cache-parameters --dont-write-git-info --infname /tmp/dralph/wt-printfix/test/mishmash.fa --parameter-dir test/new-results/test/parameters/data --sw-cachefname test/new-results/test/parameters/data/sw-cache.yaml --n-max-queries 50 --input-metafnames /tmp/dralph/wt-printfix/test/input-meta.yaml --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
+    stopped after reading 50 sequences from /tmp/dralph/wt-printfix/test/mishmash.fa
   --n-max-queries: stopped after reading 50 queries from input file
-  --input-metafnames: added meta info for 4 sequences from /tmp/dralph/wt-seed/test/input-meta.yaml: multiplicities
+  --input-metafnames: added meta info for 4 sequences from /tmp/dralph/wt-printfix/test/input-meta.yaml: multiplicities
 caching parameters
-  vsearch: 44 / 50 v annotations (6 failed) with 74 v genes in 0.1 sec
+  vsearch: 44 / 50 v annotations (6 failed) with 74 v genes in 0.0 sec
     keeping 24 / 433 v genes
 smith-waterman  (new-allele fitting)
   vsearch: 45 / 50 v annotations (5 failed) with 22 v genes in 0.0 sec
@@ -13,7 +13,7 @@ smith-waterman  (new-allele fitting)
       kept 16 (0.320) unproductive
     water time: 0.1  (ig-sw 0.0  processing 0.0)
 smith-waterman  (writing parameters)
-  vsearch: 45 / 50 v annotations (5 failed) with 22 v genes in 0.0 sec
+  vsearch: 45 / 50 v annotations (5 failed) with 22 v genes in 0.1 sec
     running 10 procs for 46 seqs
     running 11 procs for 1 seq
       info for 46 / 50 = 0.920   (removed: 4 failed)
@@ -28,12 +28,13 @@ hmm
         read 46 hmm output lines with 46 sequences in 46 events  (0 failures)
     writing parameters to test/new-results/test/parameters/data/hmm (0.7 sec)
          infra time: 0.7
-      hmm step time: 1.2
+      hmm step time: 1.1
   writing hmms     removed 4  genes from glfo (leaving v 16  d 26  j 9)
 (0.4 sec)
       total time: 4.3
-      bcrham time: 0.4 (10.3% of total, 1 calls)
-[92msimulate[0m                         partis simulate --dont-write-git-info --parameter-dir test/new-results/test/parameters/data --n-sim-events 10 --n-trees 10 --n-leaf-distribution geometric --n-leaves 5 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results/test/simu.yaml --indel-frequency 0.2
+      bcrham time: 0.4 (9.2% of total, 1 calls)
+[92msimulate-parameters[0m              partis simulate --dont-write-git-info --parameter-dir test/new-results/test/parameters/data --n-sim-events 5 --n-trees 5 --n-leaf-distribution geometric --n-leaves 5 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --indel-frequency 0.2 --outfname test/new-results/test/simu-parts/parameters.yaml
+  note: reducing --n-procs to 5 (was 10) so it isn't bigger than --n-sim-events
 simulating
       --> proc 0
 stty: 'standard input': Inappropriate ioctl for device
@@ -42,8 +43,8 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 8 seqs in 0.3s (0.3s of which was running bppseqgen)
-      total time: 1.9
+    made 1 event with 5 seqs in 0.2s (0.1s of which was running bppseqgen)
+      total time: 1.7
 
       --> proc 1
 stty: 'standard input': Inappropriate ioctl for device
@@ -52,10 +53,20 @@ Error in strsplit(system("stty size", intern = T), " ")[[1]] :
 In addition: Warning message:
 In system("stty size", intern = T) :
   running command 'stty size' had status 1    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 3 seqs in 0.3s (0.2s of which was running bppseqgen)
-      total time: 1.9
+    made 1 event with 16 seqs in 0.3s (0.3s of which was running bppseqgen)
+      total time: 2.0
 
       --> proc 2
+stty: 'standard input': Inappropriate ioctl for device
+Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
+  subscript out of bounds
+In addition: Warning message:
+In system("stty size", intern = T) :
+  running command 'stty size' had status 1    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
+    made 1 event with 24 seqs in 0.4s (0.4s of which was running bppseqgen)
+      total time: 2.1
+
+      --> proc 3
 stty: 'standard input': Inappropriate ioctl for device
 Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
   subscript out of bounds
@@ -65,67 +76,7 @@ In system("stty size", intern = T) :
     made 1 event with 2 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 1.7
 
-      --> proc 3
-stty: 'standard input': Inappropriate ioctl for device
-Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
-  subscript out of bounds
-In addition: Warning message:
-In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 4 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 1.8
-
       --> proc 4
-stty: 'standard input': Inappropriate ioctl for device
-Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
-  subscript out of bounds
-In addition: Warning message:
-In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 5 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 1.8
-
-      --> proc 5
-stty: 'standard input': Inappropriate ioctl for device
-Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
-  subscript out of bounds
-In addition: Warning message:
-In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 19 seqs in 0.4s (0.4s of which was running bppseqgen)
-      total time: 2.0
-
-      --> proc 6
-stty: 'standard input': Inappropriate ioctl for device
-Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
-  subscript out of bounds
-In addition: Warning message:
-In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 14 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 1.9
-
-      --> proc 7
-stty: 'standard input': Inappropriate ioctl for device
-Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
-  subscript out of bounds
-In addition: Warning message:
-In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 5 seqs in 0.1s (0.1s of which was running bppseqgen)
-      total time: 1.7
-
-      --> proc 8
-stty: 'standard input': Inappropriate ioctl for device
-Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
-  subscript out of bounds
-In addition: Warning message:
-In system("stty size", intern = T) :
-  running command 'stty size' had status 1    reco params: test/new-results/test/parameters/data/hmm     shm params: test/new-results/test/parameters/data/hmm
-    made 1 event with 9 seqs in 0.2s (0.2s of which was running bppseqgen)
-      total time: 1.8
-
-      --> proc 9
 stty: 'standard input': Inappropriate ioctl for device
 Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
   subscript out of bounds
@@ -135,195 +86,329 @@ In system("stty size", intern = T) :
     made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
       total time: 1.7
 
-   read 10 events with 70 seqs from 10 .yaml files
+   read 5 events with 48 seqs from 5 .yaml files
       total time: 3.7
+[92msimulate-scratch[0m                 partis simulate --dont-write-git-info --n-sim-events 5 --n-trees 5 --n-leaf-distribution geometric --n-leaves 5 --random-seed 2 --n-procs 10 --no-time-based-n-proc-reduction --indel-frequency 0.2 --rearrange-from-scratch --outfname test/new-results/test/simu-parts/scratch.yaml
+  note: reducing --n-procs to 5 (was 10) so it isn't bigger than --n-sim-events
+  note: using pooled shm parameters from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh (set --shm-parameter-dir or --mutate-from-scratch to override)
+  generated germline set with n alleles (n genes):  v 57 (42)   d 21 (18)   j  7 (6)  
+simulating
+      --> [41mproc 0[0m
+stty: 'standard input': Inappropriate ioctl for device
+Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
+  subscript out of bounds
+In addition: Warning message:
+In system("stty size", intern = T) :
+  running command 'stty size' had status 1  note: using pooled shm parameters from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh (set --shm-parameter-dir or --mutate-from-scratch to override)
+    reco params: scratch     shm params: /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh/hmm
+  choosing cdr3 lengths from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh/hmm/cdr3_length-probs.csv (using 0.987 of its counts: those that igh genes can give that are multiples of 3)
+[91mwarning[0m Reading per-base mutation counts for genes ([95mh[0m[91mv[0m[95m5[0m[95m-51[0m[93m01[0m [95mh[0m[91mv[0m[95m5[0m[95m-51[0m[93m03[0m) in addition to the desired one ([95mh[0m[91mv[0m[95m5[0m[95m-51[0m[93m04[0m), which doesn't really make sense, since the counts will be wrong at the positions at which the genes differ.
+   This should only happen if you're doing something weird, probably running simulation asking for genes for which you don't have parameters.
+   If this is the case and you only care that it doesn't crash, and not that the mutation model is particularly accurate, this is fine.
+[91mwarning[0m Reading per-base mutation counts for genes ([95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m) in addition to the desired one ([95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01_a14t_c28t_t29a_a30c[0m), which doesn't really make sense, since the counts will be wrong at the positions at which the genes differ.
+   This should only happen if you're doing something weird, probably running simulation asking for genes for which you don't have parameters.
+   If this is the case and you only care that it doesn't crash, and not that the mutation model is particularly accurate, this is fine.
+    made 1 event with 3 seqs in 0.2s (0.1s of which was running bppseqgen)
+      total time: 1.8
+
+      --> [41mproc 1[0m
+stty: 'standard input': Inappropriate ioctl for device
+Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
+  subscript out of bounds
+In addition: Warning message:
+In system("stty size", intern = T) :
+  running command 'stty size' had status 1  note: using pooled shm parameters from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh (set --shm-parameter-dir or --mutate-from-scratch to override)
+    reco params: scratch     shm params: /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh/hmm
+  choosing cdr3 lengths from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh/hmm/cdr3_length-probs.csv (using 0.987 of its counts: those that igh genes can give that are multiples of 3)
+[91mwarning[0m Reading per-base mutation counts for genes ([95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01[0m) in addition to the desired one ([95mh[0m[91md[0m[95m3[0m[95m-22[0m[93m01_a14t_c28t_t29a_a30c[0m), which doesn't really make sense, since the counts will be wrong at the positions at which the genes differ.
+   This should only happen if you're doing something weird, probably running simulation asking for genes for which you don't have parameters.
+   If this is the case and you only care that it doesn't crash, and not that the mutation model is particularly accurate, this is fine.
+    made 1 event with 1 seqs in 0.1s (0.1s of which was running bppseqgen)
+      total time: 1.7
+
+      --> [41mproc 2[0m
+stty: 'standard input': Inappropriate ioctl for device
+Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
+  subscript out of bounds
+In addition: Warning message:
+In system("stty size", intern = T) :
+  running command 'stty size' had status 1  note: using pooled shm parameters from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh (set --shm-parameter-dir or --mutate-from-scratch to override)
+    reco params: scratch     shm params: /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh/hmm
+  choosing cdr3 lengths from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh/hmm/cdr3_length-probs.csv (using 0.987 of its counts: those that igh genes can give that are multiples of 3)
+[91mwarning[0m Reading per-base mutation counts for genes ([95mh[0m[91mj[0m[95m4[0m[93m03[0m [95mh[0m[91mj[0m[95m4[0m[93m02[0m [95mh[0m[91mj[0m[95m4[0m[93m01[0m) in addition to the desired one ([95mh[0m[91mj[0m[95m4[0m[93m02_g23-[0m), which doesn't really make sense, since the counts will be wrong at the positions at which the genes differ.
+   This should only happen if you're doing something weird, probably running simulation asking for genes for which you don't have parameters.
+   If this is the case and you only care that it doesn't crash, and not that the mutation model is particularly accurate, this is fine.
+    made 1 event with 16 seqs in 0.3s (0.3s of which was running bppseqgen)
+      total time: 2.1
+
+      --> [41mproc 3[0m
+stty: 'standard input': Inappropriate ioctl for device
+Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
+  subscript out of bounds
+In addition: Warning message:
+In system("stty size", intern = T) :
+  running command 'stty size' had status 1  note: using pooled shm parameters from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh (set --shm-parameter-dir or --mutate-from-scratch to override)
+    reco params: scratch     shm params: /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh/hmm
+  choosing cdr3 lengths from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh/hmm/cdr3_length-probs.csv (using 0.987 of its counts: those that igh genes can give that are multiples of 3)
+[91mwarning[0m Reading per-base mutation counts for genes ([95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-66[0m[93m02[0m [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-33[0m[93m08[0m [95mh[0m[91mv[0m[95m3[0m[95m-64[0m[93m05[0m [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m03[0m [95mh[0m[91mv[0m[95m3[0m[95m-43D[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-53[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m20[0m [95mh[0m[91mv[0m[95m3[0m[95m-35[0m[93m02[0m [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93mi02[0m [95mh[0m[91mv[0m[95m3[0m[95m-13[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-49[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-74[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m18[0m [95mh[0m[91mv[0m[95m3[0m[95m-43D[0m[93mi02[0m [95mh[0m[91mv[0m[95m3[0m[95m-64D[0m[93m08[0m [95mh[0m[91mv[0m[95m3[0m[95m-7[0m[93m05[0m [95mh[0m[91mv[0m[95m3[0m[95m-20[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-53[0m[93m02[0m [95mh[0m[91mv[0m[95m3[0m[95m-49[0m[93m05[0m [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m05[0m [95mh[0m[91mv[0m[95m3[0m[95m-43D[0m[93m03[0m [95mh[0m[91mv[0m[95m3[0m[95m-33[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-13[0m[93m05[0m [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m02[0m [95mh[0m[91mv[0m[95m3[0m[95m-7[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m06[0m [95mh[0m[91mv[0m[95m3[0m[95m-64[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m05[0m [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m03[0m [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m07[0m [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m03[0m [95mh[0m[91mv[0m[95m3[0m[95m-49[0m[93m03[0m [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m06[0m [95mh[0m[91mv[0m[95m3[0m[95m-43[0m[93m02[0m [95mh[0m[91mv[0m[95m3[0m[95m-7[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-64D[0m[93m09[0m [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m02[0m [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m03[0m [95mh[0m[91mv[0m[95m3[0m[95m-20[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-64[0m[93m02[0m [95mh[0m[91mv[0m[95m3[0m[95m-7[0m[93m03[0m [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m02[0m [95mh[0m[91mv[0m[95m3[0m[95m-66[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-64D[0m[93m06[0m [95mh[0m[91mv[0m[95m3[0m[95m-53[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m04[0m [95mh[0m[91mv[0m[95m3[0m[95m-NL1[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-13[0m[93mi01[0m [95mh[0m[91mv[0m[95m3[0m[95m-30-3[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-43[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-72[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-15[0m[93m07[0m [95mh[0m[91mv[0m[95m3[0m[95m-15[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-33[0m[93m06[0m [95mh[0m[91mv[0m[95m3[0m[95m-13[0m[93m01[0m [95mh[0m[91mv[0m[95m3[0m[95m-64[0m[93m07[0m [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m01[0m) in addition to the desired one ([95mh[0m[91mv[0m[95m3[0m[95m-23D[0m[93m01_g51t_c164t_a169t_g170a_g172a_t174c_a175g_g187a_c201t_c243t[0m), which doesn't really make sense, since the counts will be wrong at the positions at which the genes differ.
+   This should only happen if you're doing something weird, probably running simulation asking for genes for which you don't have parameters.
+   If this is the case and you only care that it doesn't crash, and not that the mutation model is particularly accurate, this is fine.
+    made 1 event with 1 seqs in 0.2s (0.1s of which was running bppseqgen)
+      total time: 1.8
+
+      --> [41mproc 4[0m
+stty: 'standard input': Inappropriate ioctl for device
+Error in strsplit(system("stty size", intern = T), " ")[[1]] : 
+  subscript out of bounds
+In addition: Warning message:
+In system("stty size", intern = T) :
+  running command 'stty size' had status 1  note: using pooled shm parameters from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh (set --shm-parameter-dir or --mutate-from-scratch to override)
+    reco params: scratch     shm params: /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh/hmm
+  choosing cdr3 lengths from /tmp/dralph/wt-printfix/data/recombinator/scratch-parameters/igh/hmm/cdr3_length-probs.csv (using 0.987 of its counts: those that igh genes can give that are multiples of 3)
+[91mwarning[0m Reading per-base mutation counts for genes ([95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01[0m) in addition to the desired one ([95mh[0m[91md[0m[95m2[0m[95m-15[0m[93m01_g18-_t19-_c28t[0m), which doesn't really make sense, since the counts will be wrong at the positions at which the genes differ.
+   This should only happen if you're doing something weird, probably running simulation asking for genes for which you don't have parameters.
+   If this is the case and you only care that it doesn't crash, and not that the mutation model is particularly accurate, this is fine.
+    made 1 event with 14 seqs in 0.3s (0.3s of which was running bppseqgen)
+      total time: 1.9
+
+   read 5 events with 35 seqs from 5 .yaml files
+      total time: 3.6
 [92mcache-parameters-simu[0m            partis cache-parameters --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --is-simu --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction
 caching parameters
-  vsearch: 67 / 70 v annotations (3 failed) with 14 v genes in 0.1 sec
-    keeping 5 / 433 v genes
-    [91mmissing[0m 11 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-18[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-2[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-5[0m[93m06[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70D[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m08[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-7[0m[93m05[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m13[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-39[0m[93m09[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-61[0m[93m08[0m 0
+  vsearch: 81 / 83 v annotations (2 failed) with 18 v genes in 0.0 sec
+    keeping 7 / 433 v genes
+    [91mmissing[0m 65 simulation genes (counts): [95mh[0m[91mv[0m[95m1[0m[95m-18[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-2[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-24[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-46[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-46[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-58[0m[93m01_t199c[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69[0m[93m18[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69[0m[93m19[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69-2[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69D[0m[93m01_g6c_g18a_g112a_g163a_t184c_c191t_g244a_a258g[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-69D[0m[93m01_g6c_g48a_t184c_c191t[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-8[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m1[0m[95m-8[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-5[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-5[0m[93m06[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m10[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70[0m[93m17[0m 0  [95mh[0m[91mv[0m[95m2[0m[95m-70D[0m[93m04[0m 1  [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-11[0m[93m06[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-15[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-15[0m[93m08[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-20[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m06[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-21[0m[93m08[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-23[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-30[0m[93m18_t189c[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-30-3[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-30-3[0m[93m03_c203t[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-33[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-33[0m[93m06[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-35[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-43[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m02_a258c[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-48[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-49[0m[93m05[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-53[0m[93m05[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-62[0m[93m03_g24a_a26g_c39a_t151g_a263c_c291g[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-62[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-64[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-7[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-7[0m[93m05[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-72[0m[93m01_t186c[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-73[0m[93m01_a59g[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-74[0m[93m01_g173c[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m01_a104g[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-9[0m[93m03[0m 0  [95mh[0m[91mv[0m[95m3[0m[95m-NL1[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-28[0m[93m01_a295g[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-28[0m[93m06[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-2[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-2[0m[93m04[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-2[0m[93m06[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-4[0m[93m07[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-30-4[0m[93m10[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-31[0m[93m02[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m09[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-34[0m[93m13[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-39[0m[93m09[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-59[0m[93m09[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-61[0m[93m08[0m 0  [95mh[0m[91mv[0m[95m4[0m[95m-NL1[0m[93m01[0m 0  [95mh[0m[91mv[0m[95m5[0m[95m-51[0m[93m01_a263t[0m 0  [95mh[0m[91mv[0m[95m5[0m[95m-51[0m[93m04[0m 3
 smith-waterman  (new-allele fitting)
-  vsearch: 67 / 70 v annotations (3 failed) with 5 v genes in 0.1 sec
-    running 10 procs for 70 seqs
-    running 12 procs for 5 seqs
-      info for 70 / 70 = 1.000   (removed: 0 failed)
-      kept 34 (0.486) unproductive
+  vsearch: 81 / 83 v annotations (2 failed) with 7 v genes in 0.1 sec
+    running 10 procs for 83 seqs
+    running 11 procs for 1 seq
+      info for 83 / 83 = 1.000   (removed: 0 failed)
+      kept 31 (0.373) unproductive
     water time: 0.2  (ig-sw 0.0  processing 0.0)
 smith-waterman  (writing parameters)
-  vsearch: 67 / 70 v annotations (3 failed) with 5 v genes in 0.1 sec
-    running 10 procs for 70 seqs
-    running 12 procs for 5 seqs
-      info for 70 / 70 = 1.000   (removed: 0 failed)
-      kept 34 (0.486) unproductive
+  vsearch: 81 / 83 v annotations (2 failed) with 7 v genes in 0.1 sec
+    running 10 procs for 83 seqs
+    running 11 procs for 1 seq
+      info for 83 / 83 = 1.000   (removed: 0 failed)
+      kept 31 (0.373) unproductive
         writing sw results to test/new-results/test/parameters/simu/sw-cache.yaml
-    writing parameters to test/new-results/test/parameters/simu/sw (0.4 sec)
-    water time: 0.6  (ig-sw 0.5  processing 0.0)
-  writing hmms     removed 76 genes from glfo (leaving v 5  d 13  j 6)
-(0.1 sec)
+    writing parameters to test/new-results/test/parameters/simu/sw (0.6 sec)
+    water time: 0.9  (ig-sw 0.7  processing 0.0)
+  writing hmms     removed 66 genes from glfo (leaving v 7  d 21  j 8)
+(0.3 sec)
 hmm
     reading output
-        read 70 hmm output lines with 70 sequences in 70 events  (0 failures)
-    writing parameters to test/new-results/test/parameters/simu/hmm (0.3 sec)
-    writing parameters to test/new-results/test/parameters/simu/true (0.3 sec)
-         infra time: 0.7
-      hmm step time: 1.3
-  writing hmms     removed 4  genes from glfo (leaving v 5  d 9  j 6)
+        read 83 hmm output lines with 83 sequences in 83 events  (0 failures)
+    writing parameters to test/new-results/test/parameters/simu/hmm (0.5 sec)
+    writing parameters to test/new-results/test/parameters/simu/true (0.5 sec)
+         infra time: 1.2
+      hmm step time: 1.6
+  writing hmms     removed 5  genes from glfo (leaving v 7  d 16  j 8)
 (0.2 sec)
-      total time: 2.7
-      bcrham time: 0.6 (21.2% of total, 1 calls)
+      total time: 3.4
+      bcrham time: 0.4 (11.6% of total, 1 calls)
 [92mannotate-new-simu[0m                partis annotate --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --is-simu --plotdir test/new-results/annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results/annotate-new-simu.yaml
 annotating    (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 67 / 70 v annotations (3 failed) with 5 v genes in 0.1 sec
+  vsearch: 81 / 83 v annotations (2 failed) with 7 v genes in 0.1 sec
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
-      info for 70 / 70 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 34 (0.486) unproductive
+      info for 83 / 83 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 31 (0.373) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: acfeb81c65 657e60e0a6 1d1df1c9ed 4fc6a92cb2 3ec1cedbd2 ef69f3289d
+    [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: 086ccda322
 (0.0 sec)
         water time: 0.1
 hmm
     reading output
-        read 70 hmm output lines with 70 sequences in 70 events  (0 failures)
+        read 83 hmm output lines with 83 sequences in 83 events  (0 failures)
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: 1d1df1c9ed acfeb81c65 657e60e0a6 ef69f3289d 4fc6a92cb2 3ec1cedbd2
+    [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: 086ccda322
 (0.0 sec)
-      hmm step time: 0.7
-      total time: 0.9
-      bcrham time: 0.6 (63.9% of total, 1 calls)
+         infra time: 0.1
+      hmm step time: 0.5
+      total time: 0.7
+      bcrham time: 0.4 (52.1% of total, 1 calls)
 [92mmulti-annotate-new-simu[0m          partis annotate --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --simultaneous-true-clonal-seqs --is-simu --plotdir test/new-results/multi-annotate-new-simu-annotation-performance --only-csv-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results/multi-annotate-new-simu.yaml
 annotating    (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 67 / 70 v annotations (3 failed) with 5 v genes in 0.1 sec
+  vsearch: 81 / 83 v annotations (2 failed) with 7 v genes in 0.1 sec
   note: not running msa indel stuff for --simultaneous-true-clonal-seqs, so any families with shm indels within cdr3 will be split up before running the hmm. To fix this you'll either need to run set_msa_info() (which is fine and easy, but slow, and requires deciding whether to make sure to run parameter caching with the arg, or else rerun smith waterman with the msa indels
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
-      info for 70 / 70 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 34 (0.486) unproductive
+      info for 83 / 83 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 31 (0.373) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: acfeb81c65 657e60e0a6 1d1df1c9ed 4fc6a92cb2 3ec1cedbd2 ef69f3289d
+    [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: 086ccda322
 (0.0 sec)
         water time: 0.1
 hmm
   --simultaneous-true-clonal-seqs: grouping seqs according to true partition
-  [93mwarning[0m split apart 2 clusters that contained multiple cdr3 lengths (total clusters: 10 --> 13)
-      cluster splits:   5 --> 4 1,  19 --> 1 17 1
-  subcluster annotating 13 clusters with steps:  (0.5s) (0.1s) (0.1s)   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: ef69f3289d 4fc6a92cb2 acfeb81c65 657e60e0a6 1d1df1c9ed 3ec1cedbd2
+  [93mwarning[0m split apart 1 cluster that contained multiple cdr3 lengths (total clusters: 10 --> 11)
+      cluster splits:   3 --> 2 1
+  subcluster annotating 11 clusters with steps:  (0.3s) (0.2s) (0.2s)   plotting performance 
+    [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: 086ccda322
 (0.0 sec)
 
-    subcluster annotation time 0.9
-      total time: 1.1
-      bcrham time: 0.7 (62.9% of total, 3 calls)
+    subcluster annotation time 0.8
+      total time: 1.0
+      bcrham time: 0.6 (59.0% of total, 3 calls)
 [92mpartition-new-simu[0m               partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --plot-annotation-performance --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --plotdir test/new-results/partition-new-simu-annotation-performance --only-csv-plots --no-partition-plots --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results/partition-new-simu.yaml
 partitioning     (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 67 / 70 v annotations (3 failed) with 5 v genes in 0.1 sec
+  vsearch: 81 / 83 v annotations (2 failed) with 7 v genes in 0.1 sec
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
-      info for 70 / 70 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 34 (0.486) unproductive
+      info for 83 / 83 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 31 (0.373) unproductive
   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: acfeb81c65 657e60e0a6 1d1df1c9ed 4fc6a92cb2 3ec1cedbd2 ef69f3289d
+    [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: 086ccda322
 (0.0 sec)
         water time: 0.1
 hmm
   --persistent-cachefname: using existing hmm cache file test/new-results/cache-new-partition.csv
-  caching all 70 naive sequences (0.6s)
-    collapsed 70 queries into 28 clusters with identical naive seqs (0.0 sec)
-  28 clusters with 10 procs (0.3s)
-   25 clusters with 7 procs (0.2s)
-   21 clusters with 5 procs (0.2s)
-   20 clusters with 3 procs (0.2s)
-   19 clusters with 2 procs (0.3s)
+  caching all 83 naive sequences (0.4s)
+    collapsed 83 queries into 37 clusters with identical naive seqs (0.0 sec)
+  37 clusters with 10 procs (0.3s)
+   29 clusters with 7 procs (0.2s)
+   25 clusters with 5 procs (0.3s)
+   22 clusters with 3 procs (0.3s)
+   20 clusters with 2 procs (0.3s)
    16 clusters with 2 procs (0.2s)
-   16 clusters with 2 procs (0.3s)
-   14 clusters with 2 procs (0.1s)
-   14 clusters with 1 proc (0.3s)
+   16 clusters with 2 procs (0.2s)
+   15 clusters with 2 procs (0.2s)
+   13 clusters with 1 proc (0.7s)
    [93mnote[0m not merging entire cpath history
-      partition loop time: 1.9
+      partition loop time: 2.6
 getting annotations for final partition
-  subcluster annotating 14 clusters with steps:  (0.5s) (0.1s) (0.1s)   plotting performance 
-    [93mwarning[0m skipped annotation performance evaluation on 6 queries with different true and inferred net shm indel lengths: 657e60e0a6 acfeb81c65 1d1df1c9ed 3ec1cedbd2 4fc6a92cb2 ef69f3289d
+  subcluster annotating 12 clusters with steps:  (0.4s) (0.2s) (0.2s)   plotting performance 
+    [93mwarning[0m skipped annotation performance evaluation on 1 queries with different true and inferred net shm indel lengths: 086ccda322
 (0.0 sec)
 
     subcluster annotation time 0.9
-      total time: 3.6
-      bcrham time: 2.8 (76.3% of total, 13 calls)
-[92mseed-partition-new-simu[0m          partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --seed-unique-id 02ad82df06 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results/seed-partition-new-simu.yaml
+      total time: 4.1
+      bcrham time: 3.2 (77.3% of total, 13 calls)
+[92mseed-partition-new-simu[0m          partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --max-ccf-fail-frac 0.10 --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --seed-unique-id 62c0807803 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results/seed-partition-new-simu.yaml
 partitioning     (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 67 / 70 v annotations (3 failed) with 5 v genes in 0.1 sec
+  vsearch: 81 / 83 v annotations (2 failed) with 7 v genes in 0.1 sec
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
-      info for 70 / 70 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 34 (0.486) unproductive
-      removed 48 / 70 = 0.69 sequences with cdr3 length different from seed sequence (leaving 22)
+      info for 83 / 83 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 31 (0.373) unproductive
+      removed 64 / 83 = 0.77 sequences with cdr3 length different from seed sequence (leaving 19)
         water time: 0.0
 hmm
   --persistent-cachefname: using existing hmm cache file test/new-results/cache-new-partition.csv
-   collapsed 22 queries into 2 clusters with identical naive seqs (0.0 sec)
-  reducing n procs to number of clusters: 10 --> 2
-  2 clusters with 2 procs (0.1s)
-   3 clusters with 2 procs   [93mwarning[0m cluster occurs 2 times in the <nsets> we're sending to bcrham: 02ad82df06:253ec06624:25d0c31b4d:431d08bd38:651c15852f:870739f531:9a46346ba7:b517eb9274:b8244874e6:c47d813a26:c7b3e98e20:d302f4729a:daeca86edb:fddbab0995
+   collapsed 19 queries into 8 clusters with identical naive seqs (0.0 sec)
+  reducing n procs to number of clusters: 10 --> 8
+  8 clusters with 8 procs (0.2s)
+   13 clusters with 6 procs   [93mwarning[0m cluster occurs 6 times in the <nsets> we're sending to bcrham: 0a65f4ad78:2ca74085b7:37f411c16c:3963bf13cc:3b3baaced4:457743d755:62c0807803:765cca8009:d2ca415c24:dcb1641663:e01981f28b
 (0.1s)
-   3 clusters with 2 procs   [93mwarning[0m cluster occurs 2 times in the <nsets> we're sending to bcrham: 02ad82df06:253ec06624:25d0c31b4d:431d08bd38:651c15852f:870739f531:9a46346ba7:b517eb9274:b8244874e6:c47d813a26:c7b3e98e20:d302f4729a:daeca86edb:fddbab0995
+   11 clusters with 4 procs   [93mwarning[0m cluster occurs 4 times in the <nsets> we're sending to bcrham: 0a65f4ad78:2ca74085b7:37f411c16c:3963bf13cc:3b3baaced4:457743d755:62c0807803:765cca8009:d2ca415c24:dcb1641663:e01981f28b
 (0.1s)
-       removed 8 sequences in unseeded clusters, split 2 seeded clusters into 14 singletons, and merged these into 1 clusters with identical naive seqs (0.0 sec)
-        new n_procs 1 (initial seqs/proc: 11.00   new seqs/proc: 1.00
-  1 clusters with 1 proc (0.0s)
-       partition loop time: 0.2
+       removed 5 sequences in unseeded clusters, split 4 seeded clusters into 14 singletons, and merged these into 3 clusters with identical naive seqs (0.0 sec)
+        new n_procs 1 (initial seqs/proc: 2.38   new seqs/proc: 3.00
+  3 clusters with 1 proc (0.2s)
+       partition loop time: 0.5
 getting annotations for final partition
   subcluster annotating 1 cluster with steps:  (0.1s) (0.1s) (0.1s) 
-    subcluster annotation time 0.3
+    subcluster annotation time 0.4
   seed cluster size in best partition: 14, excluding seed seq: 13
-      total time: 0.7
-      bcrham time: 0.4 (52.8% of total, 7 calls)
+      total time: 1.0
+      bcrham time: 0.6 (63.3% of total, 7 calls)
 [92mvsearch-partition-new-simu[0m       partis partition --dont-write-git-info --infname test/new-results/test/simu.yaml --parameter-dir test/new-results/test/parameters/simu --sw-cachefname test/new-results/test/parameters/simu/sw-cache.yaml --naive-vsearch --is-simu --persistent-cachefname test/new-results/cache-new-partition.csv --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results/vsearch-partition-new-simu.yaml
 partitioning     (with test/new-results/test/parameters/simu/hmm)
 smith-waterman
-  vsearch: 67 / 70 v annotations (3 failed) with 5 v genes in 0.1 sec
+  vsearch: 81 / 83 v annotations (2 failed) with 7 v genes in 0.1 sec
         reading sw results from test/new-results/test/parameters/simu/sw-cache.yaml
-      info for 70 / 70 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
-      kept 34 (0.486) unproductive
+      info for 83 / 83 = 1.000   (removed: 0 failed, 0 duplicates [removed when cache file was written])
+      kept 31 (0.373) unproductive
         water time: 0.0
 hmm
   --persistent-cachefname: using existing hmm cache file test/new-results/cache-new-partition.csv
-        collapsed 70 sequences (70 initial naive seqs/clusters) into 28 unique naive sequences over 11 cdr3 lengths (0.0 sec)
-    using hfrac bound for vsearch 0.022
-    running vsearch 11 times (once for each cdr3 length class): . . . . . . . . . . . 
-      vsearch time: 0.4
+        collapsed 83 sequences (83 initial naive seqs/clusters) into 37 unique naive sequences over 9 cdr3 lengths (0.0 sec)
+    using hfrac bound for vsearch 0.026
+    running vsearch 9 times (once for each cdr3 length class): . . . . . . . . . 
+      vsearch time: 0.3
 getting annotations for final partition
       calculating hmm annotations even though --fast/--naive-vsearch was set (you can set --use-sw-annotations to get faster (but substantially less accurate) annotations, or set --dont-calculate-annotations if you only need the partition)
-  subcluster annotating 15 clusters with steps:  (0.5s) (0.1s) (0.1s) 
-    subcluster annotation time 0.8
-      total time: 1.4
-      bcrham time: 0.7 (48.5% of total, 3 calls)
+  subcluster annotating 19 clusters with steps:  (0.4s) (0.2s) (0.1s) 
+    subcluster annotation time 0.7
+      total time: 1.1
+      bcrham time: 0.5 (48.8% of total, 3 calls)
 [92mget-selection-metrics-new-simu[0m   partis get-selection-metrics --dont-write-git-info --existing-output-run-cfg paired --min-selection-metric-cluster-size 3 --min-paired-cluster-size-to-read 3 --random-seed 1 --n-procs 10 --no-time-based-n-proc-reduction --outfname test/new-results/partition-new-simu.yaml --selection-metric-fname test/new-results/get-selection-metrics-new-simu.yaml
   note: --parameter-dir not set, so using default: x-dummy-x
   note: By default we print/operate on *all* annotations in the output file, which in general can include annotations from non-best partititons and non-seed clusters (e.g. if --n-final-clusters was set).
         If you want to restrict to particular annotations, use one of --only-print-best-partition, --only-print-seed-clusters, or --only-print-queries-to-include-clusters (or, if set during partitioning, --n-final-clusters or --min-largest-cluster-size).
-    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 8 clusters with sizes 15 14 9 8 5 4 4 3
+    getting selection metrics (lbi lbr aa-lbi aa-lbr cons-dist-aa) with inferred lines: 6 clusters with sizes 24 16 14 11 5 5
       skipped 6 smaller than 3 (controlled by --min-selection-metric-cluster-size)
-    getting trees for 7 clusters with sizes: 15 14 9 8 5 4 4
-      starting 7 jobs
-        [91mrun[0m /tmp/dralph/wt-seed/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-0/fasttree.out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-0/input-seqs.fa
-        [91mrun[0m /tmp/dralph/wt-seed/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-1/fasttree.out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-1/input-seqs.fa
-        [91mrun[0m /tmp/dralph/wt-seed/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-2/fasttree.out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-2/input-seqs.fa
-        [91mrun[0m /tmp/dralph/wt-seed/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-3/fasttree.out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-3/input-seqs.fa
-        [91mrun[0m /tmp/dralph/wt-seed/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-4/fasttree.out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-4/input-seqs.fa
-        [91mrun[0m /tmp/dralph/wt-seed/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-5/fasttree.out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-5/input-seqs.fa
-        [91mrun[0m /tmp/dralph/wt-seed/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-6/fasttree.out /tmp/dralph/wt-seed/test/new-results/partition-new-simu/fasttree/iclust-6/input-seqs.fa
-      made 7 fasttree trees (0.4s)
-    tree origins: 7 ran fasttree
-    skipped 1/8 clusters smaller than 4
-      setting default tau to 1 / 383 = 0.0026
-    calculating normalized lb index and lb ratio and lb fraction with tau 0.0026
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 29/30 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: amz bev bgs blz bnw bop dkn eqz hjl ikl ikm jqx psx uvw
-      setting default tau to 1 / 383 = 0.0026
-    calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0026
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 6/17 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: dst npq
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 14/16 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: apr bft dhq eyz twx uvx
+    getting trees for 6 clusters with sizes: 24 16 14 11 5 5
+      starting 6 jobs
+        [91mrun[0m /tmp/dralph/wt-printfix/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-0/fasttree.out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-0/input-seqs.fa
+        [91mrun[0m /tmp/dralph/wt-printfix/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-1/fasttree.out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-1/input-seqs.fa
+        [91mrun[0m /tmp/dralph/wt-printfix/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-2/fasttree.out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-2/input-seqs.fa
+        [91mrun[0m /tmp/dralph/wt-printfix/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-3/fasttree.out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-3/input-seqs.fa
+        [91mrun[0m /tmp/dralph/wt-printfix/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-4/fasttree.out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-4/input-seqs.fa
+        [91mrun[0m /tmp/dralph/wt-printfix/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-5/fasttree.out /tmp/dralph/wt-printfix/test/new-results/partition-new-simu/fasttree/iclust-5/input-seqs.fa
+      made 6 fasttree trees (0.3s)
+    tree origins: 6 ran fasttree
+      setting default tau to 1 / 361 = 0.0028
+    calculating normalized lb index and lb ratio and lb fraction with tau 0.0028
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 0): skipped 2/26 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bnw
+      setting default tau to 1 / 361 = 0.0028
+    calculating normalized lb index and lb ratio and lb fraction on aa tree with tau 0.0028
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 1): skipped 29/31 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ace awy bsy doq dst eov eqs flx htv huy ily jpw lmn npq
+                [94miclust 2: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 1/14 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.060  mfreq 0.053  diff 0.008  abs(frac diff) 15%  ratio 1.1
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.0886    0.0653       1.4     0.0232     62c0807803
+          10 with highest+lowest ratios:
+              0.0886    0.0653       1.4     0.0232     62c0807803
+              0.0886    0.0653       1.4     0.0232     62c0807803
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 2): skipped 25/27 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: aex ajy apr bft dhq esv eyz fnv nox svz twx uvx
+                [94miclust 3: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 8/11 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.300  mfreq 0.235  diff 0.065  abs(frac diff) 27%  ratio 1.3
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.3604    0.2713       1.3     0.0891     aad5b3f162
+              0.3492    0.2633       1.3     0.0859     2ff42ca0f2
+              0.3293    0.2553       1.3     0.0740     22d1dea761
+              0.2983    0.2340       1.3     0.0643     feea34d7a9
+              0.2914    0.2287       1.3     0.0627     5cbfdedcfd
+              0.2710    0.2128       1.3     0.0582     8a640655b6
+              0.2762    0.2181       1.3     0.0581     a22c0dd4c7
+              0.2736    0.2181       1.3     0.0555     5654d57f07
+          10 with highest+lowest ratios:
+              0.3604    0.2713       1.3     0.0891     aad5b3f162
+              0.3492    0.2633       1.3     0.0859     2ff42ca0f2
+              0.3293    0.2553       1.3     0.0740     22d1dea761
+              0.2983    0.2340       1.3     0.0643     feea34d7a9
+              0.2914    0.2287       1.3     0.0627     5cbfdedcfd
+              0.2983    0.2340       1.3     0.0643     feea34d7a9
+              0.2914    0.2287       1.3     0.0627     5cbfdedcfd
+              0.2710    0.2128       1.3     0.0582     8a640655b6
+              0.2762    0.2181       1.3     0.0581     a22c0dd4c7
+              0.2736    0.2181       1.3     0.0555     5654d57f07
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 3): skipped 21/22 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bez blu bvw cik fpy gno hiq ivy jks mpy
       [93mwarning[0m get_aa_tree() (AA inf tree, iclust 4): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ahj bcr djk itz
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 3/6 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: ckv
-      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 6): skipped 5/7 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: eix hix
-    skipped 1/8 clusters that had no uids in common with tree
+                [94miclust 5: [0m[93mwarning [0mtree depth and mfreq differ by more than 25% for 5/5 nodes (note that this is expected if these are single chain sequences being compared to a paired h+l tree)
+                    mean values:  tree depth 0.355  mfreq 0.262  diff 0.093  abs(frac diff) 34%  ratio 1.3
+          10 with highest abs(diff):
+            tree depth   mfreq      ratio    diff
+              0.4785    0.3218       1.5     0.1567     bfbb492774
+              0.3348    0.2500       1.3     0.0848     aba6b5793a
+              0.3329    0.2527       1.3     0.0802     a99213bbd0
+              0.3342    0.2553       1.3     0.0788     b1c0e43158
+              0.2936    0.2314       1.3     0.0622     d675b49fc4
+          10 with highest+lowest ratios:
+              0.4785    0.3218       1.5     0.1567     bfbb492774
+              0.3348    0.2500       1.3     0.0848     aba6b5793a
+              0.3329    0.2527       1.3     0.0802     a99213bbd0
+              0.3342    0.2553       1.3     0.0788     b1c0e43158
+              0.2936    0.2314       1.3     0.0622     d675b49fc4
+              0.4785    0.3218       1.5     0.1567     bfbb492774
+              0.3348    0.2500       1.3     0.0848     aba6b5793a
+              0.3329    0.2527       1.3     0.0802     a99213bbd0
+              0.3342    0.2553       1.3     0.0788     b1c0e43158
+              0.2936    0.2314       1.3     0.0622     d675b49fc4
+      [93mwarning[0m get_aa_tree() (AA inf tree, iclust 5): skipped 9/10 edges for which we didn't have sequences for both nodes (i.e. left the original branch length unmodified). Missing nodes: bny ckv hmy rvx
   writing selection metrics to test/new-results/get-selection-metrics-new-simu.yaml
       total time: 0.5
