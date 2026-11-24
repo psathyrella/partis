@@ -417,19 +417,21 @@ class Recombinator(object):
             tmpline[region + '_gene'] = str(numpy.random.choice(gfo['genes'], p=utils.normalize(gfo['probs'])))
 
     # ----------------------------------------------------------------------------------------
-    def read_target_cdr3_lengths(self):  # lengths and probabilities from which to choose each event's target cdr3 length when rearranging from scratch: equal for each of --allowed-cdr3-lengths if it's set, otherwise from the pooled data in the scratch parameter dir
+    def read_target_cdr3_lengths(self):  # lengths and probabilities from which to choose each event's target cdr3 length when rearranging from scratch: from the pooled data in the scratch parameter dir, restricted to --allowed-cdr3-lengths if it's set (as for simulation from a parameter dir)
         if not self.args.rearrange_from_scratch or self.args.correlation_values is not None or self.args.paired_correlation_values is not None or self.args.no_insertions_or_deletions:  # with correlations, or with no deletions or insertions (so the genes alone set the cdr3 length), we instead keep retrying until we get an allowed length (if any are set)
             return None
-        if self.args.allowed_cdr3_lengths is not None:
+        fname = '%s/hmm/%s' % (utils.scratch_parameter_dir(locus=self.args.locus), utils.cdr3_length_probs_fname)
+        with open(fname) as cfile:
+            counts = {int(l['cdr3_length']) : float(l['count']) for l in csv.DictReader(cfile)}
+        if self.args.allowed_cdr3_lengths is not None:  # (multiples of 3 are checked in processargs)
             lengths = sorted(set(self.args.allowed_cdr3_lengths))
             self.init_scratch_gene_groups(max(lengths))
             bad_lengths = [l for l in lengths if sum(self.scratch_group_weights_for_cdr3(l)) == 0]
             if len(bad_lengths) > 0:
                 raise Exception('no %s genes can give --allowed-cdr3-lengths %s with the scratch deletion caps' % (self.args.locus, ' '.join(str(l) for l in bad_lengths)))
-            return lengths, [1. / len(lengths) for _ in lengths]
-        fname = '%s/hmm/%s' % (utils.scratch_parameter_dir(locus=self.args.locus), utils.cdr3_length_probs_fname)
-        with open(fname) as cfile:
-            counts = {int(l['cdr3_length']) : float(l['count']) for l in csv.DictReader(cfile)}
+            probs = utils.normalize([counts.get(l, 0) + 1 for l in lengths])  # add one count to each length so lengths with no pooled counts (gaps where the pooled samples had none) can still be simulated (the pooled counts are large, so this barely changes the others' shares)
+            print('  choosing cdr3 lengths from %s restricted to --allowed-cdr3-lengths, with shares %s' % (fname, ' '.join('%d:%.3f' % (l, p) for l, p in zip(lengths, probs))))
+            return lengths, probs
         n_total = sum(counts.values())
         if not self.args.allow_nonfunctional_scratch_seqs:
             counts = {l : c for l, c in counts.items() if l % 3 == 0}
