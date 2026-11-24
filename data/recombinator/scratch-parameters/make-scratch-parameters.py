@@ -34,7 +34,7 @@ def choose_samples(locus, require_fcn=None):  # go round robin over datasets, ad
         for hdir in sorted(glob.glob('%s/%s' % (args.base_dir, line['glob']))):
             if line['exclude'] and line['exclude'] in hdir:
                 continue
-            if not all(os.path.exists('%s/%s' % (hdir, f)) for f in ['v_gene-probs.csv', 'all-mean-mute-freqs.csv', 'mute-freqs']):
+            if not all(os.path.exists('%s/%s' % (hdir, f)) for f in ['v_gene-probs.csv', 'all-mean-mute-freqs.csv', 'mute-freqs', 'all-probs.csv']):
                 continue
             if require_fcn is not None and not require_fcn(hdir):
                 continue
@@ -73,6 +73,7 @@ def pool_locus(locus, samples):
     default_glfo = glutils.read_glfo(args.germline_dir, locus)
     counts = {}  # counts[gene][position][nuke]
     gene_counts = {r : collections.Counter() for r in utils.regions}
+    cdr3_counts = collections.Counter()  # weighted number of sequences with each cdr3 length (for utils.cdr3_length_probs_fname)
     hists = {}
     mf_sums = {r : {'sum' : 0., 'n_seqs' : 0.} for r in ['all'] + utils.regions}  # weighted sums of each sample's mean mutation fraction (for utils.mute_freq_sum_fname)
     n_skipped = collections.Counter()
@@ -88,6 +89,9 @@ def pool_locus(locus, samples):
                     gene_counts[region][line[region + '_gene']] += sfo['weight'] * int(line['count'])
                 else:
                     n_skipped['gene-probs'] += 1
+        with open(sfo['hdir'] + '/all-probs.csv') as afile:  # choose_samples() only takes samples that have it
+            for line in csv.DictReader(afile):
+                cdr3_counts[int(line['cdr3_length'])] += sfo['weight'] * int(line['count'])
         for fn in glob.glob(sfo['hdir'] + '/mute-freqs/*.csv'):
             gene = utils.unsanitize_name(os.path.basename(fn).replace('.csv', ''))
             if gene not in ok_genes:
@@ -148,6 +152,11 @@ def pool_locus(locus, samples):
             writer.writeheader()
             for gene, count in gene_counts[region].most_common():
                 writer.writerow({region + '_gene' : gene, 'count' : int(round(count))})
+    with open('%s/%s' % (odir, utils.cdr3_length_probs_fname), utils.csv_wmode()) as ofile:
+        writer = csv.DictWriter(ofile, ['cdr3_length', 'count'])
+        writer.writeheader()
+        for cdr3_length in sorted(cdr3_counts):
+            writer.writerow({'cdr3_length' : cdr3_length, 'count' : int(round(cdr3_counts[cdr3_length]))})
     for hfn, hist in hists.items():
         hist.normalize()
         hist.write('%s/%s' % (odir, hfn))

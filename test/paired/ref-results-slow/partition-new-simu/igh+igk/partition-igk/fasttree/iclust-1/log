@@ -1,22 +1,25 @@
-[91mrun[0m /tmp/dralph/wt-seed/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-seed/test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-1/fasttree.out /tmp/dralph/wt-seed/test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-1/input-seqs.fa
+[91mrun[0m /tmp/dralph/wt-printfix/bin/FastTree-linux -gtr -nt -out /tmp/dralph/wt-printfix/test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-1/fasttree.out /tmp/dralph/wt-printfix/test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-1/input-seqs.fa
 FastTree Version 2.2.0 Double precision
-Alignment: /tmp/dralph/wt-seed/test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-1/input-seqs.fa
+Alignment: /tmp/dralph/wt-printfix/test/paired/new-results-slow/partition-new-simu/igh+igk/partition-igk/fasttree/iclust-1/input-seqs.fa
 Nucleotide distances: Jukes-Cantor Joins: balanced Support: SH-like 1000
 Search: Normal +NNI +SPR (2 rounds range 10) +ML-NNI opt-each=1
 TopHits: 1.00*sqrtN close=default refresh=0.80
 ML Model: Generalized Time-Reversible, CAT approximation with 20 rate categories
+Ignored unknown character X (seen 324 times)
 Initial topology in 0.00 seconds
-Refining topology: 11 rounds ME-NNIs, 2 rounds ME-SPRs, 6 rounds ML-NNIs
-Total branch-length 0.018 after 0.01 sec
-ML-NNI round 1: LogLk = -518.897 NNIs 2 max delta 0.00 Time 0.01
-GTR Frequencies: 0.2492 0.2743 0.2525 0.2240
-GTR rates(ac ag at cg ct gt) 56.0587 31.4739 1.0000 1.0000 97.7698 1.0000
+Refining topology: 17 rounds ME-NNIs, 2 rounds ME-SPRs, 8 rounds ML-NNIs
+Total branch-length 0.560 after 0.03 sec
+ML-NNI round 1: LogLk = -1506.750 NNIs 2 max delta 2.73 Time 0.04
+GTR Frequencies: 0.2190 0.2878 0.2674 0.2259
+GTR rates(ac ag at cg ct gt) 3.2119 7.6003 3.6412 5.1616 5.6238 1.0000
 Switched to using 20 rate categories (CAT approximation)
-Rate categories were divided by 0.627 so that average rate = 1.0
+Rate categories were divided by 0.766 so that average rate = 1.0
 CAT-based log-likelihoods may not be comparable across runs
 Use -gamma for approximate but comparable Gamma(20) log-likelihoods
-ML-NNI round 2: LogLk = -511.674 NNIs 1 max delta 0.00 Time 0.04
+ML-NNI round 2: LogLk = -1403.054 NNIs 2 max delta 0.79 Time 0.08
+ML-NNI round 3: LogLk = -1403.053 NNIs 0 max delta 0.00 Time 0.09
 Turning off heuristics for final round of ML NNIs (converged)
-ML-NNI round 3: LogLk = -511.674 NNIs 0 max delta 0.00 Time 0.05 (final)
-Optimize all lengths: LogLk = -511.674 Time 0.05
-Total time: 0.05 seconds Unique: 7/17 Bad splits: 0/4
+ML-NNI round 4: LogLk = -1403.051 NNIs 0 max delta 0.00 Time 0.11 (final)
+      0.11 seconds: ML Lengths 1 of 16 splits
+Optimize all lengths: LogLk = -1403.051 Time 0.13
+Total time: 0.16 seconds Unique: 18/19 Bad splits: 0/15
