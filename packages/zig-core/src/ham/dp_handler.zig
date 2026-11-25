@@ -857,10 +857,8 @@ pub const DPHandler = struct {
         }
 
         const path_names = path_names_list.items;
-        var buf_l: [200]u8 = undefined;
-        const left_insert = getInsertion("left", path_names, &buf_l);
-        var buf_r: [200]u8 = undefined;
-        const right_insert = getInsertion("right", path_names, &buf_r);
+        const left_insert = try getInsertion(allocator, "left", path_names);
+        const right_insert = try getInsertion(allocator, "right", path_names);
         const left_erosion_length = self.getErosionLength("left", path_names, gene);
         const right_erosion_length = self.getErosionLength("right", path_names, gene);
 
@@ -1321,41 +1319,27 @@ pub const DPHandler = struct {
         const ins = Insertions{};
         for (ins.forRegion(region)) |insertion| {
             const side: []const u8 = if (std.mem.eql(u8, insertion, "jf")) "right" else "left";
-            var buf: [200]u8 = undefined;
-            const inserted = getInsertion(side, path_names, &buf);
+            const inserted = try getInsertion(self.scratchAllocator(), side, path_names);
             try event.setInsertion(allocator, insertion, inserted);
         }
     }
 
     /// Extract inserted bases from path state names for the given side.
-    /// Corresponds to C++ `DPHandler::GetInsertion`.
-    fn getInsertion(side: []const u8, names: []const []const u8, buf: *[200]u8) []const u8 {
-        if (std.mem.eql(u8, side, "left")) {
-            // Scan left-to-right: collect last char of each "insert..." state
-            const max = @min(names.len, 200);
-            var len: usize = 0;
-            for (names[0..max]) |name| {
-                if (!std.mem.startsWith(u8, name, "insert")) break;
-                buf[len] = name[name.len - 1];
-                len += 1;
-            }
-            return buf[0..len];
-        } else {
-            // right: scan right-to-left
-            var len: usize = 0;
-            var i: usize = names.len;
-            while (i > 0) {
-                i -= 1;
-                if (!std.mem.startsWith(u8, names[i], "insert")) break;
-                if (len < 200) {
-                    // prepend
-                    std.mem.copyBackwards(u8, buf[1 .. len + 1], buf[0..len]);
-                    buf[0] = names[i][names[i].len - 1];
-                    len += 1;
-                }
-            }
-            return buf[0..len];
+    /// Corresponds to C++ `DPHandler::GetInsertion`. The insertion is the
+    /// run of "insert..." states at the start (left) or end (right) of the
+    /// path, so it can be as long as the path, and has no other length limit.
+    fn getInsertion(allocator: std.mem.Allocator, side: []const u8, names: []const []const u8) ![]const u8 {
+        const left = std.mem.eql(u8, side, "left");
+        var len: usize = 0;
+        while (len < names.len) : (len += 1) {
+            const name = if (left) names[len] else names[names.len - 1 - len];
+            if (!std.mem.startsWith(u8, name, "insert")) break;
         }
+        const ins_states = if (left) names[0..len] else names[names.len - len ..];
+        const bases = try allocator.alloc(u8, len);
+        // last char of each state name is the "germline-like" base, e.g. insert_left_C
+        for (ins_states, bases) |name, *base| base.* = name[name.len - 1];
+        return bases;
     }
 
     /// Get the number of eroded bases on the given side.
@@ -1519,6 +1503,38 @@ test "fmtSigFigs matches C++ cout default" {
     const s3 = try fmtSigFigs(a, -10.4, 6);
     defer a.free(s3);
     try std.testing.expectEqualStrings("-10.4", s3);
+}
+
+test "DPHandler: getInsertion has no length limit (#477)" {
+    const a = std.testing.allocator;
+    const n_ins = 234; // the jf insertion of the read in #477, over the old 200 base buffer
+    var names: std.ArrayListUnmanaged([]const u8) = .{};
+    defer names.deinit(a);
+    const acgt = [_][]const u8{ "insert_left_A", "insert_left_C", "insert_left_G", "insert_left_T" };
+    const acgt_r = [_][]const u8{ "insert_right_A", "insert_right_C", "insert_right_G", "insert_right_T" };
+    for (0..n_ins) |i| try names.append(a, acgt[i % 4]);
+    try names.append(a, "IGHJ4_star_02_0");
+    try names.append(a, "IGHJ4_star_02_1");
+    for (0..n_ins) |i| try names.append(a, acgt_r[(i + 1) % 4]);
+
+    const left = try DPHandler.getInsertion(a, "left", names.items);
+    defer a.free(left);
+    const right = try DPHandler.getInsertion(a, "right", names.items);
+    defer a.free(right);
+    try std.testing.expectEqual(@as(usize, n_ins), left.len);
+    try std.testing.expectEqual(@as(usize, n_ins), right.len);
+    for (0..n_ins) |i| {
+        try std.testing.expectEqual("ACGT"[i % 4], left[i]);
+        try std.testing.expectEqual("ACGT"[(i + 1) % 4], right[i]); // order is kept on the right side too
+    }
+
+    // no insertion, and an all-insert path
+    const none = try DPHandler.getInsertion(a, "left", names.items[n_ins..]);
+    defer a.free(none);
+    try std.testing.expectEqual(@as(usize, 0), none.len);
+    const all = try DPHandler.getInsertion(a, "right", names.items[0..n_ins]);
+    defer a.free(all);
+    try std.testing.expectEqual(@as(usize, n_ins), all.len);
 }
 
 test "DPHandler: parseStateIndex" {
