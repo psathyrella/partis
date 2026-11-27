@@ -9,7 +9,7 @@ With `--rearrange-from-scratch` and neither `--shm-parameter-dir` nor `--mutate-
 - how many sequences each gene's numbers came from (`hmm/{v,d,j}_gene-probs.csv`);
 - the distribution of mutation levels across families (`hmm/*-mean-{mute-freqs,n-muted}.csv`);
 - family-level shm parameters (`hmm/family-shm.yaml`, see below);
-- the distribution of cdr3 lengths (`hmm/cdr3_length-probs.csv`), from which each from-scratch event's cdr3 length is chosen when `--allowed-cdr3-lengths` isn't set (whatever the shm parameter dir is).
+- the distribution of cdr3 lengths (`hmm/cdr3_length-probs.csv`), from which each from-scratch event's cdr3 length is chosen, restricted to `--allowed-cdr3-lengths` if it's set, with one count added to each listed length so lengths with no counts here can still be simulated (whatever the shm parameter dir is).
 
 `--mutation-multiplier` scales the mutation level. Genes with fewer than `--min-observations-per-gene` observations here get averaged in with similar genes, as for any parameter dir.
 
