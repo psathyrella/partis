@@ -204,7 +204,9 @@ class ParameterCounter(object):
         if os.path.exists(base_outdir + '/' + glutils.glfo_dir):
             for tmploc in [l for l in utils.loci if os.path.exists(base_outdir + '/' + glutils.glfo_dir + '/' + l)]:
                 glutils.remove_glfo_files(base_outdir + '/' + glutils.glfo_dir, tmploc, print_warning=False)
-        subdirs = ['hmms', 'mute-freqs', 'correlations', glutils.glfo_dir]  # need to clean correlations even if we're not writing it, since they might already be there from a previous run
+        subdirs = ['mute-freqs', 'correlations', glutils.glfo_dir]  # need to clean correlations even if we're not writing it, since they might already be there from a previous run
+        if os.path.isdir(base_outdir + '/hmms'):  # only clean /hmms if it's already there, since prep_dir() makes any subdir that doesn't exist (write_hmms() makes it if it writes hmms, and otherwise e.g. true/ parameter dirs would get an empty hmms dir)
+            subdirs.append('hmms')
         utils.prep_dir(base_outdir, subdirs=subdirs, wildlings=('*.csv', '*.yaml', '*.fasta'))  # it's kind of hackey to specify the /hmms dir here, but as soon as we write the parameters below, the previous yamels are out of date, so it's pretty much necessary
         if self.corrcounter is None and os.path.isdir(base_outdir + '/correlations'):  # but if it is there, we want to rm it
             os.rmdir(base_outdir + '/correlations')
